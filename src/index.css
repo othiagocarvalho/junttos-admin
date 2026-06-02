@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #F6F3FA;
+  color: #16101F;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.font-quicksand {
+  font-family: 'Quicksand', sans-serif;
+}
+
+/* ── Junttos light-theme: correct text-white on white/mist backgrounds ── */
+
+/* Same-element rule: e.g. search inputs that have both bg-white and text-white */
+.bg-white.text-white { color: #16101F !important; }
+
+/* Descendant rule: card headings, values, table cells inside white cards */
+.bg-white .text-white { color: #16101F !important; }
+
+/* Restore white text inside colored buttons, icon boxes, and avatars */
+.bg-white button[class*="bg-[#FF6F5E]"],
+.bg-white button[class*="bg-red-"],
+.bg-white [class*="from-"].text-white,
+.bg-white [class*="from-"] .text-white,
+.bg-white [class*="from-"] * { color: white !important; }
