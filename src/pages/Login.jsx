@@ -14,9 +14,9 @@ const S = {
   muted: '#7B7390',
 }
 
-function SymbolOnDark({ size = 72 }) {
+function SymbolOnDark({ size = 86 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="20" y="55" width="60" height="28" rx="14" fill="#FFFFFF" />
       <circle cx="40" cy="37" r="14" fill="#EFE9FF" />
       <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
@@ -24,9 +24,9 @@ function SymbolOnDark({ size = 72 }) {
   )
 }
 
-function SymbolOnLight({ size = 36 }) {
+function SymbolOnLight({ size = 43 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
       <circle cx="40" cy="37" r="14" fill="#341780" />
       <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
@@ -103,7 +103,7 @@ export default function Login() {
         />
 
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 48px', maxWidth: 380 }}>
-          <SymbolOnDark size={80} />
+          <SymbolOnDark size={96} />
           <div style={{ marginTop: 24, marginBottom: 16 }}>
             <Wordmark size={46} dark />
           </div>
@@ -149,7 +149,7 @@ export default function Login() {
 
           {/* Mobile logo */}
           <div className="lg:hidden" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-            <SymbolOnLight size={32} />
+            <SymbolOnLight size={38} />
             <Wordmark size={28} />
           </div>
 

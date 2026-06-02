@@ -32,9 +32,9 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
-function JunttosSymbol({ size = 28 }) {
+function JunttosSymbol({ size = 34 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
       <circle cx="40" cy="37" r="14" fill="#341780" />
       <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
@@ -75,7 +75,7 @@ export default function Sidebar() {
         padding: '20px 20px',
         borderBottom: `1px solid ${S.line}`,
       }}>
-        <JunttosSymbol size={30} />
+        <JunttosSymbol size={36} />
         <span style={{
           fontFamily: "'Quicksand', sans-serif",
           fontWeight: 700,
