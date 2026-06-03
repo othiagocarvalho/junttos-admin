@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronRight,
   BarChart2,
+  Network,
 } from 'lucide-react'
 
 const S = {
@@ -29,6 +30,7 @@ const navItems = [
   { to: '/visits', icon: MapPin, label: 'Visitas e Rotas' },
   { to: '/finance', icon: DollarSign, label: 'Faturamento' },
   { to: '/reports', icon: BarChart2, label: 'Relatórios' },
+  { to: '/arquitetura', icon: Network, label: 'Arquitetura' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 

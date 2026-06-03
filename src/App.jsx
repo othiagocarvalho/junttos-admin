@@ -11,6 +11,7 @@ import Visits from './pages/Visits'
 import Finance from './pages/Finance'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import ArquiteturaPage from './pages/ArquiteturaPage'
 
 function ProtectedLayout({ children }) {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/visits" element={<ProtectedLayout><Visits /></ProtectedLayout>} />
             <Route path="/finance" element={<ProtectedLayout><Finance /></ProtectedLayout>} />
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+            <Route path="/arquitetura" element={<ProtectedLayout><ArquiteturaPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
