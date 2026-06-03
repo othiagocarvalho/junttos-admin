@@ -12,6 +12,7 @@ import Finance from './pages/Finance'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
+import LojaFeminina from './pages/LojaFeminina'
 
 function ProtectedLayout({ children }) {
   return (
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
             <Route path="/arquitetura" element={<ProtectedLayout><ArquiteturaPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
+            <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

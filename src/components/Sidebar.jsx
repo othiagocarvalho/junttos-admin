@@ -11,6 +11,7 @@ import {
   ChevronRight,
   BarChart2,
   Network,
+  ShoppingBag,
 } from 'lucide-react'
 
 const S = {
@@ -31,6 +32,7 @@ const navItems = [
   { to: '/finance', icon: DollarSign, label: 'Faturamento' },
   { to: '/reports', icon: BarChart2, label: 'Relatórios' },
   { to: '/arquitetura', icon: Network, label: 'Arquitetura' },
+  { to: '/loja-feminina', icon: ShoppingBag, label: 'Loja Feminina' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
