@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { Maximize2, X } from 'lucide-react'
 
 const NW = 174
 const NH = 64
@@ -60,6 +61,7 @@ export default function ArquiteturaPage() {
   const [nodes, setNodes] = useState(NODES_DEF)
   const [view,  setView]  = useState({ x: 60, y: 60, s: 0.88 })
   const [busy,  setBusy]  = useState(false)
+  const [fs,    setFs]    = useState(false)
 
   const vRef  = useRef({ x: 60, y: 60, s: 0.88 })
   const nRef  = useRef(NODES_DEF)
@@ -68,6 +70,20 @@ export default function ArquiteturaPage() {
 
   function pushView(v)  { vRef.current = v; setView(v) }
   function pushNodes(n) { nRef.current = n; setNodes([...n]) }
+
+  useEffect(() => {
+    const onChange = () => setFs(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      elRef.current?.requestFullscreen()
+    } else {
+      document.exitFullscreen()
+    }
+  }
 
   useEffect(() => {
     const el = elRef.current
@@ -142,7 +158,7 @@ export default function ArquiteturaPage() {
       onMouseLeave={onUp}
       style={{
         position: 'fixed',
-        top: 0, left: 240, right: 0, bottom: 0,
+        top: 0, left: fs ? 0 : 240, right: 0, bottom: 0,
         background: '#0a0a0a',
         overflow: 'hidden',
         cursor: busy ? 'grabbing' : 'grab',
@@ -246,6 +262,34 @@ export default function ArquiteturaPage() {
           </div>
         ))}
       </div>
+
+      {/* Fullscreen button */}
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={toggleFullscreen}
+        style={{
+          position: 'absolute', top: 14, right: 14,
+          width: 34, height: 34,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: '#161616', border: '1px solid #2a2a2a',
+          borderRadius: 8, cursor: 'pointer', color: '#555',
+          transition: 'color .15s, border-color .15s, background .15s',
+          zIndex: 10,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#ccc'
+          e.currentTarget.style.borderColor = '#444'
+          e.currentTarget.style.background = '#1e1e1e'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#555'
+          e.currentTarget.style.borderColor = '#2a2a2a'
+          e.currentTarget.style.background = '#161616'
+        }}
+        title={fs ? 'Sair do fullscreen' : 'Fullscreen'}
+      >
+        {fs ? <X size={15} /> : <Maximize2 size={15} />}
+      </button>
 
       {/* Zoom badge */}
       <div style={{
