@@ -47,12 +47,12 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
-
 function toAbsolute(url) {
   if (!url) return null
   if (url.startsWith('http')) return url
-  return PROD_BASE + (url.startsWith('/') ? url : '/' + url)
+  // usa a origem atual — funciona tanto em produção (junttos.vercel.app) quanto em dev
+  const base = window.location.origin
+  return base + (url.startsWith('/') ? url : '/' + url)
 }
 
 // ── Sidebar ──────────────────────────────────────────────────
