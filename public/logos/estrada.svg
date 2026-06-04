@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400&amp;display=swap');
+    </style>
+  </defs>
+  <text
+    x="100"
+    y="44"
+    font-family="'Playfair Display', Georgia, 'Times New Roman', serif"
+    font-style="italic"
+    font-weight="400"
+    font-size="36"
+    fill="#C9956C"
+    text-anchor="middle"
+    letter-spacing="2"
+  >estrada</text>
+</svg>
