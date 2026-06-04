@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+:root {
+  --bg: #F6EFE8;
+  --surface: #FFFFFF;
+  --ink: #2A1F1F;
+  --ink-soft: #5C4A47;
+  --muted: #9C8580;
+  --line: #EDE2DA;
+  --rose: #D9A99B;
+  --rose-deep: #B47A6B;
+  --metallic: linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%);
+  --metallic-soft: linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

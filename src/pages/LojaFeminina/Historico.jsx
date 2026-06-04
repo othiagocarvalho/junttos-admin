@@ -1,20 +1,48 @@
 import { useState } from 'react'
-import { Trash2, Search, Tag, Calendar, User } from 'lucide-react'
+import { Trash2, Search, Tag, Calendar, User, Clock } from 'lucide-react'
 import Modal from '../../components/Modal'
 
+const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
-function fmtDate(s) {
-  return new Date(s).toLocaleDateString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+
+function fmtTime(s) {
+  return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
+
+function groupByDay(vendas) {
+  const groups = {}
+  vendas.forEach(v => {
+    const d = new Date(v.data)
+    const key = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
+    if (!groups[key]) groups[key] = { label: key, vendas: [], total: 0 }
+    groups[key].vendas.push(v)
+    groups[key].total += Number(v.valor)
+  })
+  return Object.values(groups)
+}
+
+const FILTROS = [
+  { id: 'todos',  label: 'Todos' },
+  { id: 'hoje',   label: 'Hoje' },
+  { id: 'semana', label: '7 dias' },
+  { id: 'mes',    label: 'Mês' },
+]
 
 export default function Historico({ vendas, deleteVenda, theme }) {
   const [search, setSearch] = useState('')
+  const [filtro, setFiltro] = useState('todos')
   const [confirmDel, setConfirmDel] = useState(null)
 
-  const filtered = vendas.filter(v => {
+  const now = new Date()
+
+  const filtradas = vendas.filter(v => {
+    const d = new Date(v.data)
+    if (filtro === 'hoje') return d.toDateString() === now.toDateString()
+    if (filtro === 'semana') { const cut = new Date(now); cut.setDate(now.getDate() - 7); return d >= cut }
+    if (filtro === 'mes') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    return true
+  }).filter(v => {
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -24,120 +52,162 @@ export default function Historico({ vendas, deleteVenda, theme }) {
     )
   })
 
+  const groups = groupByDay(filtradas)
+
   async function handleDelete() {
     await deleteVenda(confirmDel.id)
     setConfirmDel(null)
   }
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7B7390]" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Search */}
+      <div style={{ position: 'relative' }}>
+        <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
         <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por cliente, vendedora ou pagamento..."
-          className="w-full bg-white border border-[#E6E0F0] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] transition"
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por cliente, vendedora..."
+          style={{
+            width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
+            padding: '0 14px 0 40px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+            color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+          }}
         />
       </div>
 
-      <p className="text-sm text-[#7B7390]">
-        <span className="font-semibold text-[#16101F]">{filtered.length}</span> vendas
-      </p>
+      {/* Filter chips */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {FILTROS.map(f => (
+          <button
+            key={f.id} onClick={() => setFiltro(f.id)}
+            style={{
+              padding: '6px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+              background: filtro === f.id ? METALLIC : 'var(--surface)',
+              color: filtro === f.id ? '#fff' : 'var(--muted)',
+              border: filtro === f.id ? 'none' : '1px solid var(--line)',
+              boxShadow: filtro === f.id ? '0 2px 8px rgba(122,62,51,0.22)' : 'none',
+              transition: 'all .15s',
+            }}
+          >{f.label}</button>
+        ))}
+        <span style={{
+          marginLeft: 'auto', fontFamily: 'Manrope, sans-serif', fontSize: 12,
+          color: 'var(--muted)', alignSelf: 'center',
+        }}>
+          {filtradas.length} venda{filtradas.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
-      {filtered.length === 0 ? (
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-16 flex flex-col items-center gap-3">
-          <Tag className="w-8 h-8 text-[#E6E0F0]" />
-          <p className="text-[#7B7390] text-sm">Nenhuma venda registrada ainda.</p>
+      {/* Groups */}
+      {groups.length === 0 ? (
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16,
+          padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        }}>
+          <Tag size={28} color="var(--line)" />
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
+            Nenhuma venda encontrada.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(v => (
-            <div key={v.id} className="bg-white border border-[#E6E0F0] rounded-2xl p-5 group">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <div className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-[#7B7390]" />
-                      <span className="text-[#16101F] font-semibold text-sm">
-                        {v.cliente_nome || 'Cliente não identificado'}
-                      </span>
-                    </div>
-                    {v.forma_pgto && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#F6F3FA] text-[#7B7390] border border-[#E6E0F0]">
-                        {v.forma_pgto}
-                      </span>
-                    )}
-                    {v.vendedora && (
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full border"
-                        style={{
-                          background: theme.primary + '15',
-                          color: theme.primary,
-                          borderColor: theme.primary + '30',
-                        }}
-                      >
-                        {v.vendedora}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs text-[#7B7390] mb-2">
-                    <Calendar className="w-3 h-3" />
-                    <span>{fmtDate(v.data)}</span>
-                    {v.cliente_tel && <span>· {v.cliente_tel}</span>}
-                  </div>
-
-                  {v.produtos && v.produtos.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {v.produtos.map((p, i) => (
-                        <span
-                          key={i}
-                          className="text-xs px-2 py-0.5 rounded-lg bg-[#F6F3FA] border border-[#E6E0F0] text-[#16101F]"
-                        >
-                          {p.nome}{p.obs ? ` — ${p.obs}` : ''}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {v.obs && <p className="text-xs text-[#7B7390] mt-2 italic">{v.obs}</p>}
-                </div>
-
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                  <span className="text-lg font-bold" style={{ color: theme.primary }}>
-                    {fmtR(v.valor)}
-                  </span>
-                  <button
-                    onClick={() => setConfirmDel(v)}
-                    className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-[#7B7390] hover:text-red-400 hover:bg-red-50 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+        groups.map(group => (
+          <div key={group.label}>
+            {/* Day header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar size={13} color="var(--muted)" />
+                <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em' }}>
+                  {group.label}
+                </span>
               </div>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--rose-deep)' }}>
+                {fmtR(group.total)}
+              </span>
             </div>
-          ))}
-        </div>
+
+            {/* Cards for this day */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {group.vendas.map(v => (
+                <div key={v.id} style={{
+                  background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px',
+                  position: 'relative',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <User size={12} color="var(--muted)" />
+                          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
+                            {v.cliente_nome || 'Cliente não identificado'}
+                          </span>
+                        </div>
+                        {v.forma_pgto && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontWeight: 600 }}>
+                            {v.forma_pgto}
+                          </span>
+                        )}
+                        {v.vendedora && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'rgba(180,122,107,0.1)', border: '1px solid rgba(180,122,107,0.2)', color: 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif', fontWeight: 600 }}>
+                            {v.vendedora}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: v.produtos?.length ? 8 : 0 }}>
+                        <Clock size={11} color="var(--muted)" />
+                        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+                          {fmtTime(v.data)}{v.cliente_tel ? ` · ${v.cliente_tel}` : ''}
+                        </span>
+                      </div>
+
+                      {v.produtos?.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {v.produtos.map((p, i) => (
+                            <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-soft)', fontFamily: 'Manrope, sans-serif' }}>
+                              {p.nome}{p.obs ? ` — ${p.obs}` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {v.obs && <p style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6, fontFamily: 'Manrope, sans-serif' }}>{v.obs}</p>}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--rose-deep)' }}>
+                        {fmtR(v.valor)}
+                      </span>
+                      <button
+                        onClick={() => setConfirmDel(v)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
       )}
 
       <Modal isOpen={!!confirmDel} onClose={() => setConfirmDel(null)} title="Excluir venda" size="sm">
-        <p className="text-sm text-[#16101F] mb-5">
+        <p style={{ fontSize: 14, color: 'var(--ink)', marginBottom: 20, fontFamily: 'Manrope, sans-serif', lineHeight: 1.5 }}>
           Excluir a venda de{' '}
-          <span className="font-semibold">{fmtR(confirmDel?.valor || 0)}</span>?
+          <span style={{ fontWeight: 700 }}>{fmtR(confirmDel?.valor || 0)}</span>?{' '}
           Esta ação não pode ser desfeita.
         </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setConfirmDel(null)}
-            className="flex-1 bg-[#E6E0F0] hover:bg-[#ddd8ec] text-[#16101F] text-sm font-semibold py-2.5 rounded-xl transition"
-          >
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={() => setConfirmDel(null)}
+            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
             Cancelar
           </button>
-          <button
-            onClick={handleDelete}
-            className="flex-1 bg-red-600 hover:bg-red-500 text-white text-sm font-semibold py-2.5 rounded-xl transition"
-          >
+          <button onClick={handleDelete}
+            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
             Excluir
           </button>
         </div>

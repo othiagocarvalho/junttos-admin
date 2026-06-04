@@ -1,11 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
 import { ClientAuthProvider, ClientPrivateRoute } from './context/ClientAuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import Layout from './components/Layout'
-import ClientHeader from './components/ClientHeader'
 import Login from './pages/Login'
 import ClientLogin from './pages/cliente/Login'
 import Dashboard from './pages/Dashboard'
@@ -17,7 +15,6 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
-import { supabase } from './lib/supabase'
 
 // junttos.vercel.app/estrada → loja client
 // junttos.vercel.app/admin   → painel admin
@@ -34,19 +31,7 @@ function ProtectedLayout({ children }) {
 }
 
 function ClientDashboard() {
-  const [config, setConfig] = useState(null)
-
-  useEffect(() => {
-    supabase.from('lf_config').select('*').eq('loja_id', 'estrada').maybeSingle()
-      .then(({ data }) => setConfig(data))
-  }, [])
-
-  return (
-    <div style={{ minHeight: '100vh', background: '#FDF8F5' }}>
-      <ClientHeader config={config} />
-      <LojaFeminina />
-    </div>
-  )
+  return <LojaFeminina />
 }
 
 function LojaClientApp() {

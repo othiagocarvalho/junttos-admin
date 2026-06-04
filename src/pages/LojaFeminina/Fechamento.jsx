@@ -1,10 +1,46 @@
 import { useState } from 'react'
 import { Wallet, History } from 'lucide-react'
 
+const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR') }
 
 const EMPTY = { dinheiro: '', pix: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
+
+const labelStyle = {
+  display: 'block', fontSize: 11, fontWeight: 700,
+  color: 'var(--muted)', marginBottom: 7,
+  letterSpacing: '0.14em', textTransform: 'uppercase',
+  fontFamily: 'Manrope, sans-serif',
+}
+
+function CurrField({ k, label, form, setForm }) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
+        <input
+          type="number" value={form[k]} step="0.01" min="0"
+          onChange={e => setForm({ ...form, [k]: e.target.value })}
+          placeholder="0,00"
+          style={{
+            width: '100%', height: 46,
+            border: '1.5px solid var(--line)', borderRadius: 14,
+            paddingLeft: 32, paddingRight: 14,
+            fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 600,
+            color: 'var(--ink)', background: 'var(--bg)',
+            outline: 'none', boxSizing: 'border-box',
+            transition: 'border-color .18s',
+          }}
+          onFocus={e => { e.target.style.borderColor = 'var(--rose-deep)'; e.target.style.background = '#fff' }}
+          onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.background = 'var(--bg)' }}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function Fechamento({ caixas, fecharCaixa, theme }) {
   const [form, setForm] = useState(EMPTY)
@@ -21,121 +57,113 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
     const today = new Date().toISOString().split('T')[0]
     const err = await fecharCaixa({
       data: today,
-      dinheiro: n('dinheiro'),
-      pix: n('pix'),
-      debito: n('debito'),
-      credito: n('credito'),
-      saldo_ini: n('saldo_ini'),
-      sangria: n('sangria'),
-      despesas: n('despesas'),
-      obs: form.obs || null,
+      dinheiro: n('dinheiro'), pix: n('pix'),
+      debito: n('debito'), credito: n('credito'),
+      saldo_ini: n('saldo_ini'), sangria: n('sangria'),
+      despesas: n('despesas'), obs: form.obs || null,
       total: totalVendas,
     })
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm(EMPTY) }, 2000)
+      setTimeout(() => { setDone(false); setForm(EMPTY) }, 2200)
     }
   }
 
-  function CurrField({ k, label }) {
-    return (
-      <div>
-        <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">{label}</label>
-        <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-[#7B7390]">R$</span>
-          <input
-            type="number"
-            value={form[k]}
-            onChange={e => setForm({ ...form, [k]: e.target.value })}
-            placeholder="0,00"
-            step="0.01"
-            min="0"
-            className="w-full bg-[#F6F3FA] border border-[#E6E0F0] rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] transition"
-          />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-        <p className="text-sm font-semibold text-[#16101F] mb-4 flex items-center gap-2">
-          <Wallet className="w-4 h-4" style={{ color: theme.primary }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Form card */}
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 18 }}>
           Fechamento de Caixa — {new Date().toLocaleDateString('pt-BR')}
         </p>
 
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <CurrField k="dinheiro" label="Dinheiro" />
-          <CurrField k="pix" label="Pix" />
-          <CurrField k="debito" label="Débito" />
-          <CurrField k="credito" label="Crédito" />
-          <CurrField k="saldo_ini" label="Saldo Inicial" />
-          <CurrField k="sangria" label="Sangria / Retirada" />
+        {/* Recebimentos */}
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--rose-deep)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} />
+          <CurrField k="pix" label="Pix" form={form} setForm={setForm} />
+          <CurrField k="debito" label="Débito" form={form} setForm={setForm} />
+          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} />
         </div>
 
-        <CurrField k="despesas" label="Despesas do Dia" />
+        {/* Caixa */}
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--rose-deep)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Caixa</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} />
+          <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} />
+        </div>
+        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} />
 
-        <div className="mt-3">
-          <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">Observações</label>
-          <input
-            value={form.obs}
-            onChange={e => setForm({ ...form, obs: e.target.value })}
+        <div style={{ marginTop: 14 }}>
+          <label style={labelStyle}>Observações</label>
+          <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
             placeholder="Ocorrências, trocas, anotações..."
-            className="w-full bg-[#F6F3FA] border border-[#E6E0F0] rounded-xl px-3.5 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] transition"
+            style={{
+              width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
+              padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+              color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
+            }}
+            onFocus={e => { e.target.style.borderColor = 'var(--rose-deep)'; e.target.style.background = '#fff' }}
+            onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.background = 'var(--bg)' }}
           />
         </div>
 
-        {/* Total banner */}
-        <div className="mt-4 rounded-xl p-4 text-center" style={{ background: theme.primary }}>
-          <p className="text-xs text-white/70 uppercase tracking-wider mb-1">Total de Vendas do Dia</p>
-          <p className="text-3xl font-bold text-white">{fmtR(totalVendas)}</p>
+        {/* Hero total */}
+        <div style={{ marginTop: 18, background: METALLIC, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+            Total de Vendas do Dia
+          </p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            {fmtR(totalVendas)}
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div className="bg-[#F6F3FA] rounded-xl p-3 text-center">
-            <p className="text-xs text-[#7B7390] mb-1">Saldo Final em Caixa</p>
-            <p className="text-base font-bold text-[#16101F]">{fmtR(saldoFinal)}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Saldo Final em Caixa</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(saldoFinal)}</p>
           </div>
-          <div className="bg-[#F6F3FA] rounded-xl p-3 text-center">
-            <p className="text-xs text-[#7B7390] mb-1">Resultado Líquido</p>
-            <p className="text-base font-bold" style={{ color: liquido >= 0 ? '#16a34a' : '#dc2626' }}>
-              {fmtR(liquido)}
-            </p>
+          <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Resultado Líquido</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: liquido >= 0 ? '#16a34a' : '#dc2626' }}>{fmtR(liquido)}</p>
           </div>
         </div>
 
         <button
-          onClick={handleSave}
-          disabled={saving || done || totalVendas === 0}
-          className="w-full mt-4 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-          style={{ background: done ? '#16a34a' : theme.accent }}
+          onClick={handleSave} disabled={saving || done || totalVendas === 0}
+          style={{
+            width: '100%', height: 50, marginTop: 14, border: 'none', borderRadius: 99, cursor: saving || done || totalVendas === 0 ? 'not-allowed' : 'pointer',
+            background: done ? '#16a34a' : (saving || totalVendas === 0) ? 'var(--line)' : METALLIC,
+            color: done || (!saving && totalVendas > 0) ? '#fff' : 'var(--muted)',
+            fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+            boxShadow: done || saving || totalVendas === 0 ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
+            transition: 'opacity .18s',
+          }}
         >
           {done ? '✓ Caixa fechado!' : saving ? 'Salvando...' : 'Fechar Caixa'}
         </button>
       </div>
 
-      {/* History */}
+      {/* Histórico */}
       {caixas.length > 0 && (
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-          <p className="text-sm font-semibold text-[#16101F] mb-4 flex items-center gap-2">
-            <History className="w-4 h-4" style={{ color: theme.primary }} />
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
             Histórico de Fechamentos
           </p>
-          <div className="space-y-0">
+          <div>
             {caixas.slice(0, 10).map(c => (
-              <div key={c.id} className="flex items-start justify-between py-3 border-b border-[#E6E0F0] last:border-0 gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#16101F]">{fmtDate(c.data)}</p>
-                  <p className="text-xs text-[#7B7390] mt-0.5">
-                    Dinheiro {fmtR(c.dinheiro)} · Pix {fmtR(c.pix)} · Débito {fmtR(c.debito)} · Crédito {fmtR(c.credito)}
+              <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{fmtDate(c.data)}</p>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                    Din. {fmtR(c.dinheiro)} · Pix {fmtR(c.pix)} · Déb. {fmtR(c.debito)} · Créd. {fmtR(c.credito)}
                   </p>
-                  {c.obs && <p className="text-xs text-[#7B7390] italic mt-0.5">{c.obs}</p>}
+                  {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Manrope, sans-serif' }}>{c.obs}</p>}
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-base font-bold" style={{ color: theme.primary }}>{fmtR(c.total)}</p>
-                  <p className="text-xs text-[#7B7390]">despesas {fmtR(c.despesas)}</p>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: 'var(--rose-deep)' }}>{fmtR(c.total)}</p>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
                 </div>
               </div>
             ))}

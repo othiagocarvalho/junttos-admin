@@ -1,12 +1,82 @@
 import { useState } from 'react'
-import { TrendingUp, Target } from 'lucide-react'
+import { Target } from 'lucide-react'
+
+const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+
+const labelStyle = {
+  display: 'block', fontSize: 11, fontWeight: 700,
+  color: 'var(--muted)', marginBottom: 8,
+  letterSpacing: '0.14em', textTransform: 'uppercase',
+  fontFamily: 'Manrope, sans-serif',
+}
+
+const inputBase = {
+  width: '100%', height: 48,
+  border: '1.5px solid var(--line)', borderRadius: 14,
+  padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 15,
+  color: 'var(--ink)', background: 'var(--bg)',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color .18s, box-shadow .18s',
+}
+
+function focusIn(e) {
+  e.target.style.borderColor = 'var(--rose-deep)'
+  e.target.style.boxShadow = '0 0 0 3px rgba(180,122,107,0.12)'
+  e.target.style.background = '#fff'
+}
+function focusOut(e) {
+  e.target.style.borderColor = 'var(--line)'
+  e.target.style.boxShadow = 'none'
+  e.target.style.background = 'var(--bg)'
+}
+
+function ProgressRing({ pct, size = 180, stroke = 14 }) {
+  const r = (size - stroke) / 2
+  const circumference = 2 * Math.PI * r
+  const offset = circumference - (Math.min(pct, 100) / 100) * circumference
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <defs>
+          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#E8C0AF" />
+            <stop offset="22%" stopColor="#D49E8A" />
+            <stop offset="42%" stopColor="#B97766" />
+            <stop offset="58%" stopColor="#7A3E33" />
+            <stop offset="72%" stopColor="#B97766" />
+            <stop offset="88%" stopColor="#DCAA96" />
+            <stop offset="100%" stopColor="#F0C9B6" />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r}
+          fill="none" stroke="var(--line)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r}
+          fill="none" stroke="url(#ringGrad)" strokeWidth={stroke}
+          strokeDasharray={circumference} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.7s ease' }}
+        />
+      </svg>
+      {/* Center text — rotated back */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+          {Math.min(pct, 100).toFixed(0)}%
+        </span>
+        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>da meta</span>
+      </div>
+    </div>
+  )
+}
 
 export default function Meta({ vendas, metas, salvarMeta, theme }) {
   const now = new Date()
   const currentYM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
-
   const [mes, setMes] = useState(currentYM)
   const [valor, setValor] = useState('')
   const [saving, setSaving] = useState(false)
@@ -25,7 +95,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
   const diasRestantes = Math.max(diasNoMes - diaAtual, 0)
   const mediaDiaria = diaAtual > 0 ? realizado / diaAtual : 0
   const projecao = mediaDiaria * diasNoMes
-  const pct = meta > 0 ? Math.min((realizado / meta) * 100, 100) : 0
+  const pct = meta > 0 ? (realizado / meta) * 100 : 0
   const atingida = meta > 0 && realizado >= meta
   const precisaDia = diasRestantes > 0 && meta > realizado ? fmtR((meta - realizado) / diasRestantes) : null
 
@@ -39,39 +109,38 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Define goal */}
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-        <p className="text-sm font-semibold text-[#16101F] mb-4 flex items-center gap-2">
-          <Target className="w-4 h-4" style={{ color: theme.primary }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Definir meta */}
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
           Definir Meta Mensal
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">Mês / Ano</label>
-            <input type="month" value={mes} onChange={e => setMes(e.target.value)} className={inp} />
+            <label style={labelStyle}>Mês / Ano</label>
+            <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+              style={inputBase} onFocus={focusIn} onBlur={focusOut} />
           </div>
-          <div className="sm:col-span-2">
-            <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">
-              Valor da meta {meta > 0 && <span className="text-[#7B7390] font-normal">(atual: {fmtR(meta)})</span>}
+          <div>
+            <label style={labelStyle}>
+              Valor da meta{meta > 0 && <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}> — atual: {fmtR(meta)}</span>}
             </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#7B7390]">R$</span>
-                <input
-                  value={valor}
-                  onChange={e => setValor(e.target.value)}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
+                <input value={valor} onChange={e => setValor(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
                   placeholder="0,00"
-                  className={inp + ' pl-9'}
-                />
+                  style={{ ...inputBase, paddingLeft: 36 }} onFocus={focusIn} onBlur={focusOut} />
               </div>
-              <button
-                onClick={handleSave}
-                disabled={saving || !valor}
-                className="px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-                style={{ background: theme.primary }}
-              >
+              <button onClick={handleSave} disabled={saving || !valor}
+                style={{
+                  padding: '0 20px', borderRadius: 14, border: 'none', cursor: saving || !valor ? 'not-allowed' : 'pointer',
+                  background: saving || !valor ? 'var(--line)' : METALLIC,
+                  color: saving || !valor ? 'var(--muted)' : '#fff',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13,
+                  boxShadow: saving || !valor ? 'none' : '0 3px 12px rgba(122,62,51,0.25)',
+                }}>
                 {saving ? '...' : 'Salvar'}
               </button>
             </div>
@@ -79,73 +148,52 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
         </div>
       </div>
 
-      {/* Tracking */}
+      {/* Acompanhamento */}
       {meta > 0 ? (
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-          <p className="text-sm font-semibold text-[#16101F] mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" style={{ color: theme.primary }} />
-            Acompanhamento —{' '}
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 18px' }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24, textAlign: 'center' }}>
             {new Date(y, m - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
 
-          <div className="mb-1">
-            <div className="flex justify-between text-xs text-[#7B7390] mb-2">
-              <span>{fmtR(realizado)} realizados</span>
-              <span>Meta: {fmtR(meta)}</span>
-            </div>
-            <div className="h-3 rounded-full overflow-hidden" style={{ background: '#E6E0F0' }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${pct}%`,
-                  background: atingida
-                    ? 'linear-gradient(90deg, #4ade80, #16a34a)'
-                    : `linear-gradient(90deg, ${theme.primary}80, ${theme.primary})`,
-                }}
-              />
-            </div>
-            <p className="text-right text-xs text-[#7B7390] mt-1">{pct.toFixed(1)}% atingido</p>
+          {/* Ring */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+            <ProgressRing pct={pct} />
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mt-4">
+          {/* Stats grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             {[
               { label: 'Realizado', value: fmtR(realizado), sub: `${vendasMes.length} vendas` },
-              {
-                label: 'Faltam',
-                value: atingida ? '—' : fmtR(Math.max(meta - realizado, 0)),
-                sub: atingida ? '🎉 Meta batida!' : `${diasRestantes}d restantes`,
-              },
-              {
-                label: 'Projeção',
-                value: fmtR(projecao),
-                sub: projecao >= meta ? '✅ No caminho' : '⚠️ Abaixo',
-              },
+              { label: atingida ? 'Meta batida' : 'Faltam', value: atingida ? '🎉' : fmtR(Math.max(meta - realizado, 0)), sub: atingida ? 'Parabéns!' : `${diasRestantes}d restantes` },
+              { label: 'Projeção', value: fmtR(projecao), sub: projecao >= meta ? '✅ No caminho' : '⚠️ Abaixo' },
             ].map(s => (
-              <div key={s.label} className="bg-[#F6F3FA] rounded-xl p-3 text-center">
-                <p className="text-[10px] font-semibold text-[#7B7390] uppercase tracking-wider mb-1">{s.label}</p>
-                <p className="text-base font-bold text-[#16101F]">{s.value}</p>
-                <p className="text-[10px] text-[#7B7390] mt-0.5">{s.sub}</p>
+              <div key={s.label} style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{s.label}</p>
+                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 3 }}>{s.value}</p>
+                <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{s.sub}</p>
               </div>
             ))}
           </div>
 
           {precisaDia && !atingida && (
-            <p className="mt-4 text-xs text-center text-[#7B7390] bg-[#F6F3FA] rounded-xl p-3">
-              Para bater a meta, precisa vender em média{' '}
-              <span className="font-semibold" style={{ color: theme.primary }}>{precisaDia}</span>
-              {' '}por dia nos {diasRestantes} dias restantes.
-            </p>
+            <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 14, padding: '12px 16px', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                Para bater a meta, precisa de{' '}
+                <span style={{ fontWeight: 700, color: 'var(--rose-deep)' }}>{precisaDia}/dia</span>
+                {' '}nos {diasRestantes} dias restantes.
+              </p>
+            </div>
           )}
         </div>
       ) : (
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-16 flex flex-col items-center gap-3">
-          <Target className="w-8 h-8 text-[#E6E0F0]" />
-          <p className="text-[#7B7390] text-sm">Nenhuma meta definida para este mês.</p>
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16,
+          padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+        }}>
+          <Target size={28} color="var(--line)" />
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma meta definida para este mês.</p>
         </div>
       )}
     </div>
   )
 }
-
-const inp =
-  'w-full bg-[#F6F3FA] border border-[#E6E0F0] rounded-xl px-3.5 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] focus:ring-1 focus:ring-[#5E2BD0]/15 transition'

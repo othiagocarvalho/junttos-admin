@@ -3,24 +3,23 @@ import { useNavigate } from 'react-router-dom'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { Eye, EyeOff } from 'lucide-react'
 
-const RG = {
-  primary: '#C9956C',
-  primaryDeep: '#A07050',
-  accent: '#E8C4A8',
-  text: '#3D2010',
-  muted: '#9B8070',
-  line: '#EDD8C8',
-  warm: '#F5EDE8',
+const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+
+const label = {
+  display: 'block', fontSize: 11, fontWeight: 700,
+  color: 'var(--muted)', marginBottom: 8,
+  letterSpacing: '0.14em', textTransform: 'uppercase',
+  fontFamily: 'Manrope, sans-serif',
 }
 
-function SymbolOnDark({ size = 88 }) {
-  return (
-    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
-      <circle cx="40" cy="37" r="14" fill="rgba(255,255,255,0.45)" />
-      <circle cx="64" cy="39" r="14" fill={RG.accent} />
-    </svg>
-  )
+const inputBase = {
+  width: '100%', height: 50,
+  border: '1.5px solid var(--line)', borderRadius: 14,
+  padding: '0 16px',
+  fontFamily: 'Manrope, sans-serif', fontSize: 15,
+  color: 'var(--ink)', background: '#FAFAF8',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color .18s, box-shadow .18s',
 }
 
 export default function ClientLogin() {
@@ -45,220 +44,144 @@ export default function ClientLogin() {
     }
   }
 
+  function focusInput(e) {
+    e.target.style.borderColor = 'var(--rose-deep)'
+    e.target.style.boxShadow = '0 0 0 3px rgba(180,122,107,0.15)'
+    e.target.style.background = '#fff'
+  }
+  function blurInput(e) {
+    e.target.style.borderColor = 'var(--line)'
+    e.target.style.boxShadow = 'none'
+    e.target.style.background = '#FAFAF8'
+  }
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'DM Sans', sans-serif" }}>
-
-      {/* Left brand panel */}
-      <div
-        className="hidden lg:flex flex-col items-center justify-center relative overflow-hidden"
-        style={{ flex: 1, background: `linear-gradient(150deg, ${RG.primary}, ${RG.primaryDeep})` }}
-      >
-        <div aria-hidden="true" style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 60% 50% at 20% 80%, rgba(232,196,168,0.25) 0%, transparent 70%), radial-gradient(ellipse 50% 60% at 80% 15%, rgba(255,255,255,0.1) 0%, transparent 65%)',
-        }} />
-        <div aria-hidden="true" style={{
-          position: 'absolute', width: 300, height: 300, borderRadius: '50%',
-          border: '1px solid rgba(255,255,255,0.1)',
-          bottom: -100, left: -80, pointerEvents: 'none',
-        }} />
-
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 48px', maxWidth: 360 }}>
-          <SymbolOnDark />
-          <div style={{ marginTop: 20 }}>
+    <div style={{
+      minHeight: '100vh', background: 'var(--bg)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '24px 20px',
+      fontFamily: 'Manrope, sans-serif',
+    }}>
+      {/* Logo strip */}
+      <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <div style={{
+          display: 'inline-block',
+          background: METALLIC,
+          borderRadius: 16, padding: '2px',
+          marginBottom: 20,
+        }}>
+          <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '10px 24px' }}>
             <span style={{
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 700, fontSize: 40, letterSpacing: '-0.02em',
-              textTransform: 'lowercase', color: '#fff', lineHeight: 1,
+              fontFamily: "'Playfair Display', serif",
+              fontStyle: 'italic', fontWeight: 700,
+              fontSize: 32, letterSpacing: '-0.02em',
+              color: 'var(--ink)',
             }}>
-              loja estrada
-            </span>
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14.5, lineHeight: 1.65, marginTop: 14 }}>
-            Seu painel de vendas, metas e gestão — em um só lugar.
-          </p>
-
-          <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
-            {[
-              { emoji: '🛍️', text: 'Registro de vendas simplificado' },
-              { emoji: '📈', text: 'Acompanhe metas mensais' },
-              { emoji: '💳', text: 'Fechamento de caixa fácil' },
-            ].map(({ emoji, text }) => (
-              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.88)', fontSize: 14, fontWeight: 500 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 10,
-                  background: 'rgba(255,255,255,0.18)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 15, flexShrink: 0,
-                }}>{emoji}</div>
-                {text}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: 44, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.15)', display: 'flex', justifyContent: 'center', gap: 6, alignItems: 'center' }}>
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>by</span>
-            <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.8)', letterSpacing: '-0.01em', textTransform: 'lowercase' }}>
-              junttos
+              estrada.
             </span>
           </div>
         </div>
+        <p style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>
+          Painel de gestão da loja
+        </p>
       </div>
 
-      {/* Right form panel */}
+      {/* Card */}
       <div style={{
-        flex: 1, background: '#fff',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '48px 32px',
+        width: '100%', maxWidth: 400,
+        background: 'var(--surface)',
+        borderRadius: 24, border: '1px solid var(--line)',
+        padding: '32px 28px',
       }}>
-        <div style={{ width: '100%', maxWidth: 360 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
+          Entrar
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 28 }}>
+          Use seu e-mail e senha para acessar.
+        </p>
 
-          {/* Mobile heading */}
-          <div className="lg:hidden" style={{ marginBottom: 28 }}>
-            <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', textTransform: 'lowercase', color: RG.primary }}>
-              loja estrada
-            </span>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <label style={label}>E-mail</label>
+            <input
+              type="email" value={email} required
+              onChange={e => { setEmail(e.target.value); setError('') }}
+              placeholder="seu@email.com"
+              style={inputBase}
+              onFocus={focusInput} onBlur={blurInput}
+            />
           </div>
 
-          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: RG.text, marginBottom: 6 }}>
-            Acesse seu painel
-          </h1>
-          <p style={{ fontSize: 14.5, color: RG.muted, marginBottom: 28, lineHeight: 1.5 }}>
-            Entre com seu e-mail e senha para continuar.
-          </p>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: RG.text, marginBottom: 7, letterSpacing: '0.01em' }}>
-                E-mail
-              </label>
+          <div>
+            <label style={label}>Senha</label>
+            <div style={{ position: 'relative' }}>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError('') }}
-                placeholder="seu@email.com"
-                required
-                style={{
-                  width: '100%', height: 48,
-                  border: `1.5px solid ${RG.line}`, borderRadius: 14,
-                  padding: '0 16px',
-                  fontFamily: "'DM Sans', sans-serif", fontSize: 15,
-                  color: RG.text, background: RG.warm,
-                  outline: 'none', transition: 'border-color .18s, box-shadow .18s',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = RG.primary
-                  e.target.style.background = '#fff'
-                  e.target.style.boxShadow = `0 0 0 3px ${RG.primary}1f`
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = RG.line
-                  e.target.style.background = RG.warm
-                  e.target.style.boxShadow = 'none'
-                }}
+                type={showPassword ? 'text' : 'password'} value={password} required
+                onChange={e => { setPassword(e.target.value); setError('') }}
+                placeholder="••••••••"
+                style={{ ...inputBase, paddingRight: 48 }}
+                onFocus={focusInput} onBlur={blurInput}
               />
+              <button
+                type="button" onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)',
+                  display: 'flex', alignItems: 'center', padding: 4,
+                }}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
             </div>
+          </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: RG.text, marginBottom: 7, letterSpacing: '0.01em' }}>
-                Senha
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError('') }}
-                  placeholder="••••••••"
-                  required
-                  style={{
-                    width: '100%', height: 48,
-                    border: `1.5px solid ${RG.line}`, borderRadius: 14,
-                    padding: '0 48px 0 16px',
-                    fontFamily: "'DM Sans', sans-serif", fontSize: 15,
-                    color: RG.text, background: RG.warm,
-                    outline: 'none', transition: 'border-color .18s, box-shadow .18s',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = RG.primary
-                    e.target.style.background = '#fff'
-                    e.target.style.boxShadow = `0 0 0 3px ${RG.primary}1f`
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = RG.line
-                    e.target.style.background = RG.warm
-                    e.target.style.boxShadow = 'none'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: RG.muted,
-                    display: 'flex', alignItems: 'center', padding: 4,
-                  }}
-                >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
-              </div>
+          {error && (
+            <div style={{
+              background: 'rgba(180,122,107,0.08)', border: '1px solid rgba(180,122,107,0.25)',
+              borderRadius: 12, padding: '12px 16px',
+              color: 'var(--rose-deep)', fontSize: 13.5, fontFamily: 'Manrope, sans-serif',
+            }}>
+              {error}
             </div>
+          )}
 
-            {error && (
-              <div style={{
-                background: `${RG.primary}15`,
-                border: `1px solid ${RG.primary}40`,
-                borderRadius: 12, padding: '12px 16px',
-                color: RG.primaryDeep, fontSize: 13.5,
-              }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%', height: 50,
-                background: loading ? RG.warm : RG.primary,
-                color: loading ? RG.muted : '#fff',
-                border: 'none', borderRadius: 99,
-                fontFamily: "'DM Sans', sans-serif", fontSize: 16, fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                letterSpacing: '-0.01em',
-                boxShadow: loading ? 'none' : `0 6px 20px ${RG.primary}55`,
-                transition: 'background .18s, box-shadow .18s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                marginTop: 4,
-              }}
-            >
-              {loading ? (
-                <>
-                  <svg style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} fill="none" viewBox="0 0 24 24">
-                    <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Entrando…
-                </>
-              ) : 'Entrar no painel'}
-            </button>
-          </form>
-
-          <p style={{ textAlign: 'center', fontSize: 12, color: RG.muted, marginTop: 28, lineHeight: 1.6 }}>
-            Painel exclusivo da{' '}
-            <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, color: RG.primary }}>
-              Loja Estrada
-            </span>.
-            <br />
-            Dificuldades? Contate a Junttos.
-          </p>
-        </div>
+          <button
+            type="submit" disabled={loading}
+            style={{
+              width: '100%', height: 52, marginTop: 4,
+              background: loading ? 'var(--line)' : METALLIC,
+              color: loading ? 'var(--muted)' : '#fff',
+              border: 'none', borderRadius: 99,
+              fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.01em',
+              boxShadow: loading ? 'none' : '0 6px 24px rgba(122,62,51,0.3)',
+              transition: 'opacity .18s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {loading ? (
+              <>
+                <svg style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} fill="none" viewBox="0 0 24 24">
+                  <circle style={{ opacity: 0.3 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path style={{ opacity: 0.8 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Entrando…
+              </>
+            ) : 'Entrar no painel'}
+          </button>
+        </form>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input::placeholder { color: #9B8070; }`}</style>
+      <p style={{ marginTop: 28, fontSize: 12, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.6 }}>
+        Dificuldades? Contate a{' '}
+        <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, color: 'var(--rose-deep)', textTransform: 'lowercase' }}>
+          jun<span style={{ color: 'var(--muted)' }}>tt</span>os
+        </span>
+      </p>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input::placeholder { color: var(--muted); }`}</style>
     </div>
   )
 }

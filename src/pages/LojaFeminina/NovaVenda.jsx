@@ -1,9 +1,39 @@
 import { useState } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
+const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+
 const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
 const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
+
+const labelStyle = {
+  display: 'flex', alignItems: 'center', gap: 6,
+  fontSize: 11, fontWeight: 700, color: 'var(--muted)',
+  letterSpacing: '0.14em', textTransform: 'uppercase',
+  fontFamily: 'Manrope, sans-serif', marginBottom: 8,
+}
+
+const inputBase = {
+  width: '100%', height: 48,
+  border: '1.5px solid var(--line)', borderRadius: 14,
+  padding: '0 14px',
+  fontFamily: 'Manrope, sans-serif', fontSize: 15,
+  color: 'var(--ink)', background: 'var(--bg)',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color .18s, box-shadow .18s',
+}
+
+function focusIn(e) {
+  e.target.style.borderColor = 'var(--rose-deep)'
+  e.target.style.boxShadow = '0 0 0 3px rgba(180,122,107,0.12)'
+  e.target.style.background = '#fff'
+}
+function focusOut(e) {
+  e.target.style.borderColor = 'var(--line)'
+  e.target.style.boxShadow = 'none'
+  e.target.style.background = 'var(--bg)'
+}
 
 export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
   const [step, setStep] = useState(0)
@@ -55,54 +85,50 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
 
   if (done) {
     return (
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-16 flex flex-col items-center gap-4">
-        <div
-          className="w-14 h-14 rounded-full flex items-center justify-center"
-          style={{ background: theme.primary }}
-        >
-          <Check className="w-7 h-7 text-white" />
+      <div style={{
+        background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)',
+        padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+      }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Check size={26} color="#fff" strokeWidth={2.5} />
         </div>
-        <p className="text-[#16101F] font-semibold text-lg">Venda registrada!</p>
-        <p className="text-[#7B7390] text-sm">Salva com sucesso no histórico.</p>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white border border-[#E6E0F0] rounded-2xl overflow-hidden">
+    <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', overflow: 'hidden' }}>
       {/* Step indicator */}
-      <div className="px-6 py-4 border-b border-[#E6E0F0]">
-        <div className="flex items-center gap-3">
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {STEPS.map((s, i) => {
             const past = i < step
             const active = i === step
             return (
-              <div key={s} className="flex items-center gap-2">
+              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {i > 0 && (
-                  <div
-                    className="w-10 h-px hidden sm:block"
-                    style={{ background: past ? theme.primary : '#E6E0F0' }}
-                  />
+                  <div style={{ width: 28, height: 1, background: past ? 'var(--rose-deep)' : 'var(--line)' }} />
                 )}
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
-                    style={
-                      past
-                        ? { background: theme.primary, color: '#fff' }
-                        : active
-                          ? { background: 'transparent', color: theme.primary, border: `2px solid ${theme.primary}` }
-                          : { background: '#F6F3FA', color: '#7B7390' }
-                    }
-                  >
-                    {past ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, fontFamily: 'Manrope, sans-serif',
+                    ...(past
+                      ? { background: METALLIC, color: '#fff' }
+                      : active
+                        ? { background: 'none', color: 'var(--rose-deep)', border: '2px solid var(--rose-deep)' }
+                        : { background: 'var(--bg)', color: 'var(--muted)' }),
+                  }}>
+                    {past ? <Check size={13} strokeWidth={2.5} /> : i + 1}
                   </div>
-                  <span
-                    className="text-sm font-medium hidden sm:block"
-                    style={{ color: active ? theme.primary : past ? '#16101F' : '#7B7390' }}
-                  >
-                    {s}
-                  </span>
+                  <span style={{
+                    fontSize: 12, fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                    color: active ? 'var(--ink)' : past ? 'var(--ink-soft)' : 'var(--muted)',
+                    display: window.innerWidth < 360 ? 'none' : 'block',
+                  }}>{s}</span>
                 </div>
               </div>
             )
@@ -110,135 +136,92 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
         </div>
       </div>
 
-      <div className="p-6">
+      <div style={{ padding: '20px' }}>
         {/* ── Step 0: Cliente ── */}
         {step === 0 && (
-          <div className="space-y-5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <p className="text-[#16101F] font-semibold text-base mb-0.5">Dados da Cliente</p>
-              <p className="text-[#7B7390] text-sm">Identificação opcional</p>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Dados da Cliente</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Identificação opcional</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Nome da Cliente" Icon={User}>
-                <input
-                  value={form.nome}
-                  onChange={e => setForm({ ...form, nome: e.target.value })}
-                  placeholder="Ex: Maria Silva"
-                  className={inp}
-                />
-              </Field>
-              <Field label="Telefone" Icon={Phone}>
-                <input
-                  value={form.tel}
-                  onChange={e => setForm({ ...form, tel: e.target.value })}
-                  placeholder="(85) 99999-0000"
-                  className={inp}
-                />
-              </Field>
-            </div>
-            <Field label="Vendedora">
-              <input
-                value={form.vendedora}
-                onChange={e => setForm({ ...form, vendedora: e.target.value })}
-                placeholder="Quem está realizando a venda"
-                className={inp}
-              />
+            <Field label="Nome da Cliente" Icon={User}>
+              <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
+                placeholder="Ex: Maria Silva" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
-            <div className="flex justify-end pt-2">
-              <Btn primary theme={theme} onClick={() => setStep(1)}>
-                Próximo — Produtos
-                <ChevronRight className="w-4 h-4" />
-              </Btn>
+            <Field label="Telefone" Icon={Phone}>
+              <input value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })}
+                placeholder="(85) 99999-0000" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+            </Field>
+            <Field label="Vendedora">
+              <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
+                placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+            </Field>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
+              <MetallicBtn onClick={() => setStep(1)}>
+                Próximo — Produtos <ChevronRight size={16} />
+              </MetallicBtn>
             </div>
           </div>
         )}
 
         {/* ── Step 1: Produtos ── */}
         {step === 1 && (
-          <div className="space-y-5">
-            <div className="flex items-start justify-between">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <p className="text-[#16101F] font-semibold text-base mb-0.5">Produtos Vendidos</p>
-                <p className="text-[#7B7390] text-sm">
-                  {form.produtos.length > 0
-                    ? `${form.produtos.length} produto(s) selecionado(s)`
-                    : 'Selecione os produtos desta venda'}
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
+                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
                 </p>
               </div>
               <button
                 onClick={() => setAddingProd(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition"
                 style={{
-                  borderColor: theme.primary + '40',
-                  color: theme.primary,
-                  background: theme.primary + '10',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 12px', borderRadius: 10, cursor: 'pointer',
+                  border: '1px solid var(--line)', background: 'var(--bg)',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
                 }}
               >
-                <Plus className="w-3.5 h-3.5" />
-                Novo produto
+                <Plus size={13} /> Novo
               </button>
             </div>
 
             {addingProd && (
-              <div className="flex gap-2">
-                <input
-                  value={newProd}
-                  onChange={e => setNewProd(e.target.value)}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={newProd} onChange={e => setNewProd(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAddProd()}
-                  placeholder="Nome do produto..."
-                  className={inp + ' flex-1'}
-                  autoFocus
-                />
-                <button
-                  onClick={handleAddProd}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: theme.primary }}
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => { setAddingProd(false); setNewProd('') }}
-                  className="px-3 py-2.5 rounded-xl text-sm border border-[#E6E0F0] text-[#7B7390]"
-                >
-                  <X className="w-4 h-4" />
+                  placeholder="Nome do produto..." autoFocus
+                  style={{ ...inputBase, flex: 1 }} onFocus={focusIn} onBlur={focusOut} />
+                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: METALLIC, border: 'none', color: '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+                <button onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 14, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+                  <X size={15} />
                 </button>
               </div>
             )}
 
-            <div className="space-y-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {produtos.map(nome => {
                 const sel = form.produtos.find(p => p.nome === nome)
                 return (
-                  <div
-                    key={nome}
-                    className="border rounded-xl overflow-hidden transition-all"
-                    style={{ borderColor: sel ? theme.primary : '#E6E0F0' }}
-                  >
-                    <button
-                      onClick={() => toggleProd(nome)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[#F6F3FA] transition"
-                    >
-                      <div
-                        className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
-                        style={
-                          sel
-                            ? { background: theme.primary }
-                            : { background: '#fff', border: '2px solid #E6E0F0' }
-                        }
-                      >
-                        {sel && <Check className="w-3 h-3 text-white" />}
+                  <div key={nome} style={{ border: `1.5px solid ${sel ? 'var(--rose)' : 'var(--line)'}`, borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s' }}>
+                    <button onClick={() => toggleProd(nome)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sel ? 'rgba(217,169,155,0.06)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                        background: sel ? METALLIC : '#fff',
+                        border: sel ? 'none' : '1.5px solid var(--line)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
                       </div>
-                      <span className="text-sm font-medium text-[#16101F]">{nome}</span>
+                      <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
                     </button>
                     {sel && (
-                      <div className="px-4 pb-3">
-                        <input
-                          value={sel.obs}
-                          onChange={e => setProdObs(nome, e.target.value)}
-                          onClick={e => e.stopPropagation()}
-                          placeholder="Obs: cor, tamanho, modelo..."
-                          className={inp}
-                        />
+                      <div style={{ padding: '0 14px 12px' }}>
+                        <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)}
+                          onClick={e => e.stopPropagation()} placeholder="Obs: cor, tamanho, modelo..."
+                          style={{ ...inputBase, height: 40, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
                       </div>
                     )}
                   </div>
@@ -246,78 +229,61 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
               })}
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Btn outline onClick={() => setStep(0)}>
-                <ChevronLeft className="w-4 h-4" />
-                Voltar
-              </Btn>
-              <Btn primary theme={theme} onClick={() => setStep(2)}>
-                Próximo — Pagamento
-                <ChevronRight className="w-4 h-4" />
-              </Btn>
+            <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+              <OutlineBtn onClick={() => setStep(0)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
+              <MetallicBtn onClick={() => setStep(2)}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
           </div>
         )}
 
         {/* ── Step 2: Pagamento ── */}
         {step === 2 && (
-          <div className="space-y-5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <p className="text-[#16101F] font-semibold text-base mb-0.5">Pagamento</p>
-              <p className="text-[#7B7390] text-sm">Valor e forma de pagamento</p>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e forma de pagamento</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Valor (R$)" Icon={CreditCard}>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#7B7390]">R$</span>
-                  <input
-                    value={form.valor}
-                    onChange={e => setForm({ ...form, valor: e.target.value })}
-                    placeholder="0,00"
-                    className={inp + ' pl-9 text-lg font-semibold'}
-                    autoFocus
-                  />
-                </div>
-              </Field>
-              <Field label="Forma de Pagamento" Icon={ShoppingBag}>
-                <div className="flex gap-2 flex-wrap">
-                  {PGTOS.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setForm({ ...form, pgto: p })}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border transition"
-                      style={
-                        form.pgto === p
-                          ? { background: theme.primary, color: '#fff', borderColor: theme.primary }
-                          : { background: '#F6F3FA', color: '#7B7390', borderColor: '#E6E0F0' }
-                      }
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </Field>
+            <Field label="Valor (R$)" Icon={CreditCard}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>R$</span>
+                <input value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })}
+                  placeholder="0,00" autoFocus
+                  style={{ ...inputBase, paddingLeft: 36, fontSize: 18, fontWeight: 700 }}
+                  onFocus={focusIn} onBlur={focusOut} />
+              </div>
+            </Field>
+
+            <div>
+              <label style={labelStyle}>
+                <ShoppingBag size={12} /> Forma de Pagamento
+              </label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {PGTOS.map(p => (
+                  <button key={p} onClick={() => setForm({ ...form, pgto: p })}
+                    style={{
+                      padding: '7px 14px', borderRadius: 99, fontSize: 12, fontFamily: 'Manrope, sans-serif', fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all .15s',
+                      background: form.pgto === p ? METALLIC : 'var(--bg)',
+                      color: form.pgto === p ? '#fff' : 'var(--ink-soft)',
+                    }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <Field label="Observações">
-              <input
-                value={form.obs}
-                onChange={e => setForm({ ...form, obs: e.target.value })}
+              <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
                 placeholder="Anotações sobre esta venda..."
-                className={inp}
-              />
+                style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
 
             {form.produtos.length > 0 && (
-              <div className="bg-[#F6F3FA] rounded-xl p-4">
-                <p className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-2">Resumo dos produtos</p>
-                <div className="flex flex-wrap gap-1.5">
+              <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10, fontFamily: 'Manrope, sans-serif' }}>Resumo dos produtos</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {form.produtos.map(p => (
-                    <span
-                      key={p.nome}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-white border border-[#E6E0F0] text-[#16101F]"
-                    >
+                    <span key={p.nome} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
                       {p.nome}{p.obs ? ` — ${p.obs}` : ''}
                     </span>
                   ))}
@@ -325,19 +291,21 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
-              <Btn outline onClick={() => setStep(1)}>
-                <ChevronLeft className="w-4 h-4" />
-                Voltar
-              </Btn>
+            <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+              <OutlineBtn onClick={() => setStep(1)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
               <button
                 disabled={saving || !form.valor}
                 onClick={handleSave}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white ml-auto transition-opacity hover:opacity-90 disabled:opacity-50"
-                style={{ background: theme.accent }}
+                style={{
+                  flex: 1, height: 48, background: saving || !form.valor ? 'var(--line)' : METALLIC,
+                  color: saving || !form.valor ? 'var(--muted)' : '#fff',
+                  border: 'none', borderRadius: 99, cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  boxShadow: saving || !form.valor ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
+                }}
               >
-                {saving ? 'Salvando...' : 'Confirmar Venda'}
-                <Check className="w-4 h-4" />
+                {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
               </button>
             </div>
           </div>
@@ -347,40 +315,38 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
   )
 }
 
-function Field({ label, Icon, children }) {
+function Field({ label: lbl, Icon, children }) {
   return (
     <div>
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-2">
-        {Icon && <Icon className="w-3.5 h-3.5" />}
-        {label}
-      </label>
+      <label style={labelStyle}>{Icon && <Icon size={12} />}{lbl}</label>
       {children}
     </div>
   )
 }
 
-function Btn({ primary, outline, theme, onClick, children, disabled }) {
-  const base = 'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition'
-  if (primary) return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={base + ' text-white ml-auto hover:opacity-90 disabled:opacity-50'}
-      style={{ background: theme.primary }}
-    >
-      {children}
-    </button>
+function MetallicBtn({ onClick, children, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '0 20px', height: 44, borderRadius: 99,
+      background: disabled ? 'var(--line)' : METALLIC,
+      color: disabled ? 'var(--muted)' : '#fff',
+      border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+      fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+      boxShadow: disabled ? 'none' : '0 4px 14px rgba(122,62,51,0.25)',
+      marginLeft: 'auto',
+    }}>{children}</button>
   )
-  if (outline) return (
-    <button
-      onClick={onClick}
-      className={base + ' border border-[#E6E0F0] text-[#7B7390] hover:bg-[#F6F3FA]'}
-    >
-      {children}
-    </button>
-  )
-  return null
 }
 
-const inp =
-  'w-full bg-[#F6F3FA] border border-[#E6E0F0] rounded-xl px-3.5 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] focus:ring-1 focus:ring-[#5E2BD0]/15 transition'
+function OutlineBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '0 16px', height: 44, borderRadius: 99,
+      background: 'var(--surface)', border: '1px solid var(--line)',
+      cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+      fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)',
+    }}>{children}</button>
+  )
+}
