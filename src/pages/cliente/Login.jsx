@@ -66,7 +66,7 @@ function ClientLogo({ lojaSlug, lojaConfig }) {
     }}>
       {logoUrl ? (
         <img src={logoUrl} alt={nome}
-          style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'contain', background: '#fff' }} />
+          style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }} />
       ) : (
         <div style={{
           width: 44, height: 44, borderRadius: 10,
