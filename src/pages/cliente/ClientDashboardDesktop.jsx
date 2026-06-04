@@ -60,14 +60,39 @@ function DesktopSidebar({ tab, setTab, theme, config, onSwitchToMobile }) {
       display: 'flex', flexDirection: 'column',
       zIndex: 50, fontFamily: 'Manrope, sans-serif',
     }}>
-      {/* Logo */}
-      <div style={{ padding: '28px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-        {logo
-          ? <img src={logo} alt={nome} style={{ height: 36, width: 'auto', objectFit: 'contain', display: 'block' }} />
-          : <span style={{ fontFamily: "'Playfair Display', serif", fontStyle: 'italic', fontSize: 22, color: '#fff', fontWeight: 700 }}>{nome.toLowerCase()}.</span>
-        }
-        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', marginTop: 6, letterSpacing: '0.14em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
-          by junttos
+      {/* Logos: Junttos + cliente */}
+      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Junttos SVG */}
+          <svg width="32" height="32" viewBox="0 0 50 50" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="13" cy="12" r="10" fill="rgba(255,255,255,0.92)" />
+            <circle cx="27" cy="15" r="9.5" fill="#FF6B47" />
+            <rect x="2" y="27" width="36" height="16" rx="8" fill="rgba(255,255,255,0.92)" />
+          </svg>
+
+          {/* Separator */}
+          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 300, flexShrink: 0 }}>+</span>
+
+          {/* Client logo */}
+          {logo ? (
+            <img src={logo} alt={nome}
+              style={{ height: 32, width: 'auto', objectFit: 'contain', display: 'block', flexShrink: 0, maxWidth: 100 }} />
+          ) : (
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+              background: 'rgba(0,0,0,0.25)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', fontFamily: 'Manrope, sans-serif' }}>
+                {nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
+          By Junttos
         </p>
       </div>
 
