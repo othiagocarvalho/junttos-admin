@@ -12,6 +12,7 @@ import {
   BarChart2,
   Network,
   ShoppingBag,
+  Building2,
 } from 'lucide-react'
 
 const S = {
@@ -33,6 +34,7 @@ const navItems = [
   { to: '/reports', icon: BarChart2, label: 'Relatórios' },
   { to: '/arquitetura', icon: Network, label: 'Arquitetura' },
   { to: '/loja-feminina', icon: ShoppingBag, label: 'Loja Feminina' },
+  { to: '/clientes', icon: Building2, label: 'Painel Clientes' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
