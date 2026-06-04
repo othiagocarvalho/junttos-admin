@@ -58,10 +58,11 @@ export default function CadastroCliente() {
   const [clientes,  setClientes]  = useState([])
   const [form,      setForm]      = useState(EMPTY)
   const [editingId, setEditingId] = useState(null)
-  const [saving,    setSaving]    = useState(false)
-  const [fetching,  setFetching]  = useState(true)
-  const [success,   setSuccess]   = useState('')
-  const [error,     setError]     = useState('')
+  const [saving,      setSaving]      = useState(false)
+  const [fetching,    setFetching]    = useState(true)
+  const [fetchError,  setFetchError]  = useState('')
+  const [success,     setSuccess]     = useState('')
+  const [error,       setError]       = useState('')
   const fileRef = useRef(null)
   const formRef = useRef(null)
 
@@ -69,9 +70,13 @@ export default function CadastroCliente() {
 
   async function fetchClientes() {
     setFetching(true)
-    const { data } = await supabase
-      .from('lf_config').select('*').order('created_at', { ascending: false })
-    setClientes(data || [])
+    setFetchError('')
+    const { data, error } = await supabase.from('lf_config').select('*')
+    if (error) {
+      setFetchError(`${error.message}${error.code === '42501' ? ' — verifique se o RLS está desativado na tabela lf_config (Supabase Dashboard → Table Editor → lf_config → RLS).' : ''}`)
+    } else {
+      setClientes(data || [])
+    }
     setFetching(false)
   }
 
@@ -215,6 +220,14 @@ export default function CadastroCliente() {
 
         {fetching ? (
           <p style={{ color: S.muted, fontSize: 14 }}>Carregando...</p>
+        ) : fetchError ? (
+          <div style={{ background: 'rgba(255,111,94,0.06)', border: '1px solid rgba(255,111,94,0.25)', borderRadius: 16, padding: '20px 24px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <AlertCircle size={16} color="#DD4F3E" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#DD4F3E', marginBottom: 4 }}>Não foi possível carregar os clientes</p>
+              <p style={{ fontSize: 12, color: '#DD4F3E', lineHeight: 1.6 }}>{fetchError}</p>
+            </div>
+          </div>
         ) : clientes.length === 0 ? (
           <div style={{ background: '#fff', border: `1px solid ${S.line}`, borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
             <Building2 size={28} color={S.line} style={{ margin: '0 auto 10px', display: 'block' }} />
