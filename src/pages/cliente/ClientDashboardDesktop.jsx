@@ -4,6 +4,7 @@ import {
   Smartphone, Trash2, Search, Check, ChevronRight, X,
   User, Phone, CreditCard, ShoppingBag,
 } from 'lucide-react'
+import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
@@ -57,15 +58,17 @@ function toAbsolute(url) {
 
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
-  const nome     = config?.nome || 'Loja'
-  const initials = nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  const nome      = config?.nome || 'Loja'
+  const primary   = config?.cor_primaria   || theme.primary
+  const secondary = config?.cor_secundaria || '#1A1A1A'
   const [imgErr, setImgErr] = useState(false)
 
   const absoluteLogo = toAbsolute(logoUrl)
-  const showImg      = !!absoluteLogo && !imgErr
 
-  // Debug
-  console.log('[DesktopSidebar] logoUrl:', logoUrl, '→ absolute:', absoluteLogo, '| config.logo_url:', config?.logo_url)
+  // logo_url (absoluta) → fallback data URL gerado automaticamente com cores da loja
+  const clientLogoSrc = (absoluteLogo && !imgErr)
+    ? absoluteLogo
+    : gerarLogoDataURL({ nome, corPrimaria: primary, corSecundaria: secondary })
 
   return (
     <aside style={{
@@ -88,19 +91,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           {/* Separator */}
           <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 300, flexShrink: 0 }}>+</span>
 
-          {/* Client logo */}
-          {showImg ? (
-            <img
-              src={absoluteLogo}
-              alt={nome}
-              style={{ height: 32, width: 'auto', maxWidth: 110, objectFit: 'contain', display: 'block', flexShrink: 0 }}
-              onError={() => { console.warn('[DesktopSidebar] img failed to load:', absoluteLogo); setImgErr(true) }}
-            />
-          ) : (
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
-              {initials}
-            </span>
-          )}
+          {/* Client logo — data URL gerado automaticamente se logo_url ausente ou falhar */}
+          <img
+            src={clientLogoSrc}
+            alt={nome}
+            style={{ height: 32, width: 'auto', maxWidth: 110, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+            onError={() => setImgErr(true)}
+          />
         </div>
 
         <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>

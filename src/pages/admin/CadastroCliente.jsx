@@ -4,6 +4,7 @@ import {
   Building2, Upload, Check, ExternalLink, Edit2,
   ToggleLeft, ToggleRight, AlertCircle, X, RefreshCw,
 } from 'lucide-react'
+import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 
 const PROD_BASE = 'https://junttos-admin.vercel.app'
 
@@ -409,10 +410,14 @@ export default function CadastroCliente() {
           <div style={{ marginBottom: 24 }}>
             <label style={lbl}>Logo da loja</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              {form.logoPreview && (
-                <img src={form.logoPreview} alt="preview"
-                  style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', border: `1px solid ${S.line}`, background: S.mist }} />
-              )}
+              {/* Preview: upload real ou logo gerada automaticamente */}
+              <img
+                src={form.logoPreview || (form.nome
+                  ? gerarLogoDataURL({ nome: form.nome, corPrimaria: form.cor_primaria, corSecundaria: form.cor_secundaria })
+                  : null)}
+                alt="preview"
+                style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'contain', border: `1px solid ${S.line}`, background: S.mist, display: form.logoPreview || form.nome ? 'block' : 'none' }}
+              />
               <button type="button" onClick={() => fileRef.current?.click()}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, border: `1.5px dashed ${S.line}`, background: S.mist, cursor: 'pointer', fontSize: 13, color: S.muted, fontWeight: 600 }}>
                 <Upload size={14} />
@@ -422,7 +427,12 @@ export default function CadastroCliente() {
                 <span style={{ fontSize: 12, color: S.muted }}>{form.logoFile.name}</span>
               )}
             </div>
-            <p style={{ fontSize: 11, color: S.muted, marginTop: 6 }}>
+            {!form.logoPreview && form.nome && (
+              <p style={{ fontSize: 11, color: S.purple, marginTop: 6, fontWeight: 600 }}>
+                Logo gerada automaticamente. Faça upload para personalizar.
+              </p>
+            )}
+            <p style={{ fontSize: 11, color: S.muted, marginTop: 4 }}>
               PNG, JPG, JPEG, SVG · Bucket "logos" no Supabase Storage (deve ser público).
             </p>
             <input ref={fileRef} type="file" accept=".png,.jpg,.jpeg,.svg,.webp"

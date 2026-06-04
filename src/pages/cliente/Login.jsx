@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { supabase } from '../../lib/supabase'
 import { Eye, EyeOff } from 'lucide-react'
+import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 
 const LOJA_NAMES = {
   estrada:  'Loja Estrada',
@@ -54,35 +55,28 @@ function JunttosLogo() {
 
 // ── Client logo ─────────────────────────────────────────────
 function ClientLogo({ lojaSlug, lojaConfig }) {
-  const nome    = lojaConfig?.nome || LOJA_NAMES[lojaSlug] || 'Loja'
-  const logoUrl = lojaConfig?.logo_url || null
-  const primary = lojaConfig?.cor_primaria || '#C9A84C'
-  const initials = nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  const nome      = lojaConfig?.nome || LOJA_NAMES[lojaSlug] || 'Loja'
+  const logoUrl   = lojaConfig?.logo_url || null
+  const primary   = lojaConfig?.cor_primaria  || '#C9A84C'
+  const secondary = lojaConfig?.cor_secundaria || '#1A1A1A'
+  const [imgErr, setImgErr] = useState(false)
+
+  // logo_url do banco → fallback automático com iniciais geradas via SVG data URL
+  const src = (logoUrl && !imgErr)
+    ? logoUrl
+    : gerarLogoDataURL({ nome, corPrimaria: primary, corSecundaria: secondary })
 
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
       animation: 'fadeUp 0.6s ease 0.4s both',
     }}>
-      {logoUrl ? (
-        <img src={logoUrl} alt={nome}
-          style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }} />
-      ) : (
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          background: 'rgba(0,0,0,0.28)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{
-            fontSize: 14, fontWeight: 700,
-            color: primary,
-            fontFamily: "'Quicksand', sans-serif",
-          }}>
-            {initials}
-          </span>
-        </div>
-      )}
+      <img
+        src={src}
+        alt={nome}
+        style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }}
+        onError={() => setImgErr(true)}
+      />
       <span style={{
         fontFamily: "'Quicksand', sans-serif",
         fontWeight: 600, fontSize: 9,

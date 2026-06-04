@@ -1,20 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-  <!-- Background -->
-  <rect width="120" height="120" fill="#0D0D0D"/>
-  <!-- Thin gold inner frame -->
-  <rect x="7" y="7" width="106" height="106" fill="none" stroke="#C9A84C" stroke-width="0.6" opacity="0.45"/>
-  <!-- Monogram BS -->
-  <text
-    x="60"
-    y="74"
-    font-family="'Didot', 'Cormorant Garamond', 'EB Garamond', 'Bodoni MT', Georgia, 'Times New Roman', serif"
-    font-size="52"
-    fill="#C9A84C"
-    text-anchor="middle"
-    font-weight="300"
-    letter-spacing="-2"
-  >BS</text>
-  <!-- Decorative hairline -->
-  <line x1="34" y1="86" x2="86" y2="86" stroke="#C9A84C" stroke-width="0.5" opacity="0.55"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="16" fill="#0D0D0D"/>
+  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="32" font-weight="700" fill="#C9A84C">UB</text>
 </svg>
