@@ -218,7 +218,7 @@ export default function CadastroCliente() {
         ) : clientes.length === 0 ? (
           <div style={{ background: '#fff', border: `1px solid ${S.line}`, borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
             <Building2 size={28} color={S.line} style={{ margin: '0 auto 10px', display: 'block' }} />
-            <p style={{ color: S.muted, fontSize: 14 }}>Nenhuma cliente cadastrada ainda.</p>
+            <p style={{ color: S.muted, fontSize: 14 }}>Nenhum cliente cadastrado ainda.</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 14 }}>

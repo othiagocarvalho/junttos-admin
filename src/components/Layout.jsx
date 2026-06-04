@@ -4,7 +4,7 @@ export default function Layout({ children }) {
   return (
     <div className="flex min-h-screen bg-[#F6F3FA]">
       <Sidebar />
-      <main className="flex-1 ml-[240px] p-8 overflow-auto">
+      <main className="flex-1 p-8 overflow-auto" style={{ marginLeft: 240 }}>
         {children}
       </main>
     </div>
