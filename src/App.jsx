@@ -19,17 +19,10 @@ import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 import { supabase } from './lib/supabase'
 
-// Maps subdomain → loja_id in Supabase
-const LOJA_SUBDOMAINS = {
-  lojaestrada: 'estrada',
-}
-
-function getLojaSlug() {
-  const { hostname } = window.location
-  if (hostname === 'localhost' || /^\d+\./.test(hostname)) return null
-  const parts = hostname.split('.')
-  if (parts.length >= 3) return LOJA_SUBDOMAINS[parts[0]] ?? null
-  return null
+// junttos.vercel.app/estrada → loja client
+// junttos.vercel.app/admin   → painel admin
+function getAppMode() {
+  return window.location.pathname.startsWith('/estrada') ? 'loja' : 'admin'
 }
 
 function ProtectedLayout({ children }) {
@@ -59,7 +52,7 @@ function ClientDashboard() {
 function LojaClientApp() {
   return (
     <ClientAuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/estrada">
         <Routes>
           <Route path="/" element={<ClientLogin />} />
           <Route path="/dashboard" element={
@@ -99,7 +92,7 @@ function AdminApp() {
 }
 
 export default function App() {
-  const lojaSlug = getLojaSlug()
-  if (lojaSlug) return <LojaClientApp />
+  const mode = getAppMode()
+  if (mode === 'loja') return <LojaClientApp />
   return <AdminApp />
 }
