@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 
-const LOJA_ID = 'estrada'
-
 const DEFAULT_FEATURES = {
   vendas: true,
   historico: true,
@@ -13,7 +11,7 @@ const DEFAULT_FEATURES = {
   estoque: false,
 }
 
-export function useLojaData() {
+export function useLojaData(lojaId = 'estrada') {
   const [vendas, setVendas] = useState([])
   const [caixas, setCaixas] = useState([])
   const [metas, setMetas] = useState({})
@@ -26,11 +24,11 @@ export function useLojaData() {
     setLoading(true)
     try {
       const [vendasRes, caixasRes, metasRes, produtosRes, configRes] = await Promise.all([
-        supabase.from('lf_vendas').select('*').eq('loja_id', LOJA_ID).order('data', { ascending: false }),
-        supabase.from('lf_caixas').select('*').eq('loja_id', LOJA_ID).order('data', { ascending: false }),
-        supabase.from('lf_metas').select('*').eq('loja_id', LOJA_ID),
-        supabase.from('lf_produtos').select('*').eq('loja_id', LOJA_ID).eq('ativo', true).order('nome'),
-        supabase.from('lf_config').select('*').eq('loja_id', LOJA_ID).maybeSingle(),
+        supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
+        supabase.from('lf_caixas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
+        supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
+        supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
+        supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
       ])
 
       if (vendasRes.error) throw vendasRes.error
@@ -53,7 +51,7 @@ export function useLojaData() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [lojaId])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
@@ -61,13 +59,13 @@ export function useLojaData() {
     const { data: cfg } = await supabase
       .from('lf_config')
       .select('id')
-      .eq('loja_id', LOJA_ID)
+      .eq('loja_id', lojaId)
       .maybeSingle()
 
     if (!cfg) {
       await supabase.from('lf_config').insert({
-        loja_id: LOJA_ID,
-        nome: 'Estrada',
+        loja_id: lojaId,
+        nome: lojaId,
         features: DEFAULT_FEATURES,
       })
     }
@@ -75,13 +73,13 @@ export function useLojaData() {
     const { data: prods } = await supabase
       .from('lf_produtos')
       .select('id')
-      .eq('loja_id', LOJA_ID)
+      .eq('loja_id', lojaId)
       .limit(1)
 
     if (!prods || prods.length === 0) {
       await supabase.from('lf_produtos').insert(
         ['Vestido', 'Cropped', 'Blusa', 'Saia', 'Short', 'Calça', 'Conjunto'].map(nome => ({
-          loja_id: LOJA_ID,
+          loja_id: lojaId,
           nome,
         }))
       )
@@ -90,7 +88,7 @@ export function useLojaData() {
   }
 
   async function addVenda(venda) {
-    const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: LOJA_ID })
+    const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: lojaId })
     if (!error) await fetchAll()
     return error
   }
@@ -102,7 +100,7 @@ export function useLojaData() {
   }
 
   async function fecharCaixa(caixa) {
-    const { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: LOJA_ID })
+    const { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: lojaId })
     if (!error) await fetchAll()
     return error
   }
@@ -110,13 +108,13 @@ export function useLojaData() {
   async function salvarMeta(mes, valor) {
     const { error } = await supabase
       .from('lf_metas')
-      .upsert({ loja_id: LOJA_ID, mes, valor }, { onConflict: 'loja_id,mes' })
+      .upsert({ loja_id: lojaId, mes, valor }, { onConflict: 'loja_id,mes' })
     if (!error) await fetchAll()
     return error
   }
 
   async function addProduto(nome) {
-    const { error } = await supabase.from('lf_produtos').insert({ loja_id: LOJA_ID, nome })
+    const { error } = await supabase.from('lf_produtos').insert({ loja_id: lojaId, nome })
     if (!error) await fetchAll()
     return error
   }
@@ -125,7 +123,7 @@ export function useLojaData() {
     const { error } = await supabase
       .from('lf_produtos')
       .update({ ativo: false })
-      .eq('loja_id', LOJA_ID)
+      .eq('loja_id', lojaId)
       .eq('nome', nome)
     if (!error) await fetchAll()
     return error
@@ -135,7 +133,7 @@ export function useLojaData() {
     const { error } = await supabase
       .from('lf_config')
       .upsert(
-        { loja_id: LOJA_ID, ...updates, updated_at: new Date().toISOString() },
+        { loja_id: lojaId, ...updates, updated_at: new Date().toISOString() },
         { onConflict: 'loja_id' }
       )
     if (!error) await fetchAll()
@@ -153,7 +151,7 @@ export function useLojaData() {
     produtos,
     config,
     features,
-    LOJA_ID,
+    LOJA_ID: lojaId,
     DEFAULT_FEATURES,
     fetchAll,
     ensureDefaults,

@@ -16,10 +16,12 @@ import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 
-// junttos.vercel.app/estrada → loja client
-// junttos.vercel.app/admin   → painel admin
-function getAppMode() {
-  return window.location.pathname.startsWith('/estrada') ? 'loja' : 'admin'
+// Lojas conhecidas — adicionar novo slug aqui para cadastrar nova cliente
+const LOJA_IDS = ['estrada', 'biastore']
+
+function getLojaId() {
+  const path = window.location.pathname
+  return LOJA_IDS.find(id => path.startsWith(`/${id}`)) ?? null
 }
 
 function ProtectedLayout({ children }) {
@@ -30,19 +32,19 @@ function ProtectedLayout({ children }) {
   )
 }
 
-function ClientDashboard() {
-  return <LojaFeminina />
+function ClientDashboard({ lojaId }) {
+  return <LojaFeminina lojaId={lojaId} />
 }
 
-function LojaClientApp() {
+function LojaClientApp({ lojaId }) {
   return (
     <ClientAuthProvider>
-      <BrowserRouter basename="/estrada">
+      <BrowserRouter basename={`/${lojaId}`}>
         <Routes>
           <Route path="/" element={<ClientLogin />} />
           <Route path="/dashboard" element={
             <ClientPrivateRoute>
-              <ClientDashboard />
+              <ClientDashboard lojaId={lojaId} />
             </ClientPrivateRoute>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -77,7 +79,7 @@ function AdminApp() {
 }
 
 export default function App() {
-  const mode = getAppMode()
-  if (mode === 'loja') return <LojaClientApp />
+  const lojaId = getLojaId()
+  if (lojaId) return <LojaClientApp lojaId={lojaId} />
   return <AdminApp />
 }

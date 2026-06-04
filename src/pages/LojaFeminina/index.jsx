@@ -246,8 +246,8 @@ function BottomTabBar({ tab, setTab }) {
 
 // ── Main export ─────────────────────────────────────────────
 
-export default function LojaFeminina() {
-  const data = useLojaData()
+export default function LojaFeminina({ lojaId = 'estrada' }) {
+  const data = useLojaData(lojaId)
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
 

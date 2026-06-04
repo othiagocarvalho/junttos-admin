@@ -5,6 +5,11 @@ import { Eye, EyeOff } from 'lucide-react'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 
+const LOJA_NAMES = {
+  estrada: 'Loja Estrada',
+  biastore: 'Usy Bia Store',
+}
+
 const label = {
   display: 'block', fontSize: 11, fontWeight: 700,
   color: 'var(--muted)', marginBottom: 8,
@@ -25,6 +30,8 @@ const inputBase = {
 export default function ClientLogin() {
   const { login } = useClientAuth()
   const navigate = useNavigate()
+  const lojaId = window.location.pathname.split('/')[1] || 'estrada'
+  const nomeLoja = LOJA_NAMES[lojaId] || 'Sua Loja'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -78,7 +85,7 @@ export default function ClientLogin() {
               fontSize: 32, letterSpacing: '-0.02em',
               color: 'var(--ink)',
             }}>
-              estrada.
+              {nomeLoja.toLowerCase()}.
             </span>
           </div>
         </div>
