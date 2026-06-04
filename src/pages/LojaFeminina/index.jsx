@@ -25,7 +25,7 @@ export default function LojaFeminina() {
   const theme = {
     primary: data.config?.cor_primaria || '#5E2BD0',
     accent:  data.config?.cor_secundaria || '#FF6F5E',
-    nome:    data.config?.nome || 'Loja Feminina',
+    nome:    data.config?.nome || 'Loja Estrada',
   }
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function LojaFeminina() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#16101F]">{theme.nome}</h1>
-          <p className="text-[#7B7390] text-sm mt-0.5">Gestão de vendas · loja feminina</p>
+          <p className="text-[#7B7390] text-sm mt-0.5">Gestão de vendas · {theme.nome.toLowerCase()}</p>
         </div>
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"
