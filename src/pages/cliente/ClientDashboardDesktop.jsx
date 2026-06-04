@@ -47,10 +47,25 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
+const PROD_BASE = 'https://junttos-admin.vercel.app'
+
+function toAbsolute(url) {
+  if (!url) return null
+  if (url.startsWith('http')) return url
+  return PROD_BASE + (url.startsWith('/') ? url : '/' + url)
+}
+
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
-  const nome = config?.nome || 'Loja'
-  const logo = logoUrl || null
+  const nome     = config?.nome || 'Loja'
+  const initials = nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  const [imgErr, setImgErr] = useState(false)
+
+  const absoluteLogo = toAbsolute(logoUrl)
+  const showImg      = !!absoluteLogo && !imgErr
+
+  // Debug
+  console.log('[DesktopSidebar] logoUrl:', logoUrl, '→ absolute:', absoluteLogo, '| config.logo_url:', config?.logo_url)
 
   return (
     <aside style={{
@@ -73,27 +88,19 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           {/* Separator */}
           <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 300, flexShrink: 0 }}>+</span>
 
-          {/* Client logo — logo_url from DB or static /logos/{slug}.svg */}
-          {logo ? (
+          {/* Client logo */}
+          {showImg ? (
             <img
-              src={logo}
+              src={absoluteLogo}
               alt={nome}
               style={{ height: 32, width: 'auto', maxWidth: 110, objectFit: 'contain', display: 'block', flexShrink: 0 }}
-              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
+              onError={() => { console.warn('[DesktopSidebar] img failed to load:', absoluteLogo); setImgErr(true) }}
             />
-          ) : null}
-          {/* Fallback initials — shown when no logo or img fails */}
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'rgba(255,255,255,0.15)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            display: logo ? 'none' : 'flex',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', fontFamily: 'Manrope, sans-serif' }}>
-              {nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+          ) : (
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
+              {initials}
             </span>
-          </div>
+          )}
         </div>
 
         <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
