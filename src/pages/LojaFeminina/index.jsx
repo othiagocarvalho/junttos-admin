@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Home, Clock, Plus, Target, User, Bell, ShoppingBag, AlertCircle } from 'lucide-react'
+import { Home, Clock, Plus, Target, User, Bell, ShoppingBag, AlertCircle, Monitor } from 'lucide-react'
 import { useLojaData } from './useLojaData'
+import { useViewMode } from '../../hooks/useViewMode'
+import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
 import Meta from './Meta'
@@ -148,7 +150,7 @@ function Inicio({ vendas, metas }) {
 
 // ── AppHeader ───────────────────────────────────────────────
 
-function AppHeader({ nome }) {
+function AppHeader({ nome, onSwitchToDesktop }) {
   return (
     <header style={{
       paddingTop: 54, paddingBottom: 16,
@@ -164,6 +166,10 @@ function AppHeader({ nome }) {
         {(nome || 'estrada').toLowerCase()}.
       </span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={onSwitchToDesktop} title="Versão Computador"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center' }}>
+          <Monitor size={18} color="var(--muted)" />
+        </button>
         <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center' }}>
           <Bell size={20} color="var(--muted)" />
         </button>
@@ -248,6 +254,7 @@ function BottomTabBar({ tab, setTab }) {
 
 export default function LojaFeminina({ lojaId = 'estrada' }) {
   const data = useLojaData(lojaId)
+  const { viewMode, setViewMode } = useViewMode()
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
 
@@ -263,6 +270,17 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       setInitDone(true)
     }
   }, [data.loading])
+
+  // Desktop mode — render before loading check so it handles its own loading
+  if (!data.loading && !data.dbError && viewMode === 'desktop') {
+    return (
+      <ClientDashboardDesktop
+        data={data}
+        theme={theme}
+        onSwitchToMobile={() => setViewMode('mobile')}
+      />
+    )
+  }
 
   if (data.loading) {
     return (
@@ -332,7 +350,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
-      <AppHeader nome={theme.nome} />
+      <AppHeader nome={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px' }}>
         {panels[tab]}
       </main>

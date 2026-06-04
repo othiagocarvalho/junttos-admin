@@ -102,6 +102,14 @@ export default function ClientLogin() {
 
   const lojaSlug = window.location.pathname.split('/')[1] || 'estrada'
 
+  const [selectedMode, setSelectedMode] = useState(
+    () => localStorage.getItem('junttos_viewMode') || 'mobile'
+  )
+  function saveMode(mode) {
+    localStorage.setItem('junttos_viewMode', mode)
+    setSelectedMode(mode)
+  }
+
   const [email,       setEmail]       = useState('')
   const [password,    setPassword]    = useState('')
   const [showPwd,     setShowPwd]     = useState(false)
@@ -283,6 +291,33 @@ export default function ClientLogin() {
               </>
             ) : 'Entrar no painel'}
           </button>
+
+          {/* Mode selection */}
+          <div style={{ marginTop: 14 }}>
+            <p style={{ textAlign: 'center', fontSize: 10, color: '#9C8FC0', fontFamily: 'Manrope, sans-serif', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+              Modo de visualização
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { mode: 'mobile',  label: '📱 Celular' },
+                { mode: 'desktop', label: '💻 Computador' },
+              ].map(({ mode, label }) => {
+                const active = selectedMode === mode
+                return (
+                  <button key={mode} type="button" onClick={() => saveMode(mode)} style={{
+                    flex: 1, height: 40, borderRadius: 10, cursor: 'pointer',
+                    fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: active ? 700 : 500,
+                    border: active ? '2px solid #7B5DD4' : '1.5px solid #e0d8f0',
+                    background: active ? 'rgba(123,93,212,0.08)' : '#f7f5fc',
+                    color: active ? '#5E2BD0' : '#9C8FC0',
+                    transition: 'all .15s',
+                  }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </form>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#9C8FC0', marginTop: 20, lineHeight: 1.6 }}>
