@@ -48,9 +48,9 @@ const onB = (e) => {
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
 // ── Sidebar ──────────────────────────────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, onSwitchToMobile }) {
-  const nome   = config?.nome || 'Loja'
-  const logo   = config?.logo_url || null
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
+  const nome = config?.nome || 'Loja'
+  const logo = logoUrl || null
 
   return (
     <aside style={{
@@ -73,22 +73,27 @@ function DesktopSidebar({ tab, setTab, theme, config, onSwitchToMobile }) {
           {/* Separator */}
           <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 300, flexShrink: 0 }}>+</span>
 
-          {/* Client logo */}
+          {/* Client logo — logo_url from DB or static /logos/{slug}.svg */}
           {logo ? (
-            <img src={logo} alt={nome}
-              style={{ height: 32, width: 'auto', objectFit: 'contain', display: 'block', flexShrink: 0, maxWidth: 100 }} />
-          ) : (
-            <div style={{
-              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-              background: 'rgba(0,0,0,0.25)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', fontFamily: 'Manrope, sans-serif' }}>
-                {nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
-              </span>
-            </div>
-          )}
+            <img
+              src={logo}
+              alt={nome}
+              style={{ height: 32, width: 'auto', maxWidth: 110, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex' }}
+            />
+          ) : null}
+          {/* Fallback initials — shown when no logo or img fails */}
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            display: logo ? 'none' : 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', fontFamily: 'Manrope, sans-serif' }}>
+              {nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+            </span>
+          </div>
         </div>
 
         <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
@@ -136,18 +141,32 @@ function DesktopSidebar({ tab, setTab, theme, config, onSwitchToMobile }) {
         </div>
       </nav>
 
-      {/* Switch mode */}
-      <div style={{ padding: '12px 12px 24px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+      {/* Footer */}
+      <div style={{ padding: '12px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        {/* Switch to mobile — coral dot as Junttos icon */}
         <button onClick={onSwitchToMobile} style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 14px', borderRadius: 10, width: '100%',
           border: '1px solid rgba(255,255,255,0.2)',
           background: 'transparent', cursor: 'pointer',
-          color: 'rgba(255,255,255,0.55)',
+          color: 'rgba(255,255,255,0.6)',
           fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
         }}>
-          <Smartphone size={13} /> Versão Celular
+          {/* Junttos coral dot */}
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
+          Versão Celular
         </button>
+
+        {/* Powered by Junttos */}
+        <p style={{
+          marginTop: 12, paddingTop: 12,
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          fontSize: 8, fontWeight: 700, letterSpacing: '0.18em',
+          textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)',
+          fontFamily: 'Manrope, sans-serif', textAlign: 'center',
+        }}>
+          powered by junttos
+        </p>
       </div>
     </aside>
   )
@@ -203,8 +222,8 @@ function DesktopInicio({ vendas, metas, theme }) {
           { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
           { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
           { label: 'Meta Mensal',    value: meta > 0 ? `${pct.toFixed(0)}%` : '—', sub: meta > 0 ? fmtR(meta) : 'não definida' },
-        ].map(({ label, value, sub }) => (
-          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '22px 20px' }}>
+        ].map(({ label, value, sub }, i) => (
+          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)', padding: '22px 20px' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>{value}</p>
             <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{sub}</p>
@@ -460,12 +479,18 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
             </div>
           </div>
           <button type="button" disabled={saving || !form.valor} onClick={handleSave}
-            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12, cursor: saving || !form.valor ? 'not-allowed' : 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !form.valor ? 'var(--line)' : theme.primary,
+            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
+              cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
+              background: saving || !form.valor ? 'var(--line)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
               color: saving || !form.valor ? 'var(--muted)' : '#fff',
-              boxShadow: saving || !form.valor ? 'none' : `0 4px 16px ${theme.primary}40`,
+              boxShadow: saving || !form.valor ? 'none' : '0 4px 16px rgba(107,79,187,0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}>
+              transition: 'box-shadow .18s',
+            }}
+            onMouseEnter={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
+            onMouseLeave={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
+          >
             {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
         </div>
@@ -537,6 +562,9 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
 
+  // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
+  const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
+
   const panels = {
     inicio:      <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} />,
     historico:   <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} theme={theme} />,
@@ -549,7 +577,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif' }}>
-      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} onSwitchToMobile={onSwitchToMobile} />
+      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
       <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
