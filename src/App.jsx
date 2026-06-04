@@ -1,9 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { AuthProvider } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
+import { ClientAuthProvider, ClientPrivateRoute } from './context/ClientAuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import Layout from './components/Layout'
+import ClientHeader from './components/ClientHeader'
 import Login from './pages/Login'
+import ClientLogin from './pages/cliente/Login'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Consultants from './pages/Consultants'
@@ -13,6 +17,20 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
+import { supabase } from './lib/supabase'
+
+// Maps subdomain → loja_id in Supabase
+const LOJA_SUBDOMAINS = {
+  lojaestrada: 'estrada',
+}
+
+function getLojaSlug() {
+  const { hostname } = window.location
+  if (hostname === 'localhost' || /^\d+\./.test(hostname)) return null
+  const parts = hostname.split('.')
+  if (parts.length >= 3) return LOJA_SUBDOMAINS[parts[0]] ?? null
+  return null
+}
 
 function ProtectedLayout({ children }) {
   return (
@@ -22,7 +40,41 @@ function ProtectedLayout({ children }) {
   )
 }
 
-export default function App() {
+function ClientDashboard() {
+  const [config, setConfig] = useState(null)
+
+  useEffect(() => {
+    supabase.from('lf_config').select('*').eq('loja_id', 'estrada').maybeSingle()
+      .then(({ data }) => setConfig(data))
+  }, [])
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#FDF8F5' }}>
+      <ClientHeader config={config} />
+      <LojaFeminina />
+    </div>
+  )
+}
+
+function LojaClientApp() {
+  return (
+    <ClientAuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<ClientLogin />} />
+          <Route path="/dashboard" element={
+            <ClientPrivateRoute>
+              <ClientDashboard />
+            </ClientPrivateRoute>
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ClientAuthProvider>
+  )
+}
+
+function AdminApp() {
   return (
     <AuthProvider>
       <DataProvider>
@@ -44,4 +96,10 @@ export default function App() {
       </DataProvider>
     </AuthProvider>
   )
+}
+
+export default function App() {
+  const lojaSlug = getLojaSlug()
+  if (lojaSlug) return <LojaClientApp />
+  return <AdminApp />
 }
