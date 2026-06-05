@@ -71,16 +71,18 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           </svg>
 
           <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
-          <div style={{
-            background: '#fff', borderRadius: 8, padding: 2,
-            flexShrink: 0, border: '1px solid #e8e4df',
-          }}>
-            <img
-              src="/logos/estrada.svg"
-              alt="Loja Estrada"
-              style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }}
-            />
-          </div>
+          {logoUrl && (
+            <div style={{
+              background: '#fff', borderRadius: 8, padding: 2,
+              flexShrink: 0, border: '1px solid #e8e4df',
+            }}>
+              <img
+                src={logoUrl}
+                alt={config?.nome || 'Loja'}
+                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
