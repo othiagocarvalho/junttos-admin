@@ -52,25 +52,25 @@ function JunttosSymbol({ size = 34 }) {
 
 function EstradaLogo({ size = 32 }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 200 60"
-      width={size}
-      height={size}
-      preserveAspectRatio="none"
-      aria-label="Loja Estrada"
-    >
-      <rect width="200" height="60" rx="8" fill="#CC7870" />
-      <text
-        x="100" y="44"
-        textAnchor="middle"
-        fontFamily="Georgia, serif"
-        fontStyle="italic"
-        fontSize="42"
-        fontWeight="400"
-        fill="#FFFFFF"
-      >estrada</text>
-    </svg>
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: 8,
+      background: '#CC7870',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <span style={{
+        fontSize: size * 0.28,
+        fontWeight: 700,
+        color: '#fff',
+        letterSpacing: '-0.5px',
+        fontFamily: 'Georgia, serif',
+        fontStyle: 'italic',
+      }}>E</span>
+    </div>
   )
 }
 
@@ -93,7 +93,7 @@ export default function Sidebar() {
         top: 0,
         height: '100vh',
         width: 240,
-        background: '#FFFFFF',
+        background: '#F8F7F5',
         borderRight: `1px solid ${S.line}`,
         display: 'flex',
         flexDirection: 'column',
@@ -223,7 +223,7 @@ export default function Sidebar() {
         textTransform: 'uppercase',
         fontFamily: "'DM Sans', sans-serif",
       }}>
-        POWERED BY JUNTTOS
+        jun<span style={{ color: '#F4613A' }}>tt</span>os
       </p>
 
       <style>{`
