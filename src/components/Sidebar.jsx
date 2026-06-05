@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import { gerarLogoDataURL } from '../utils/gerarLogoSVG'
 import {
   LayoutDashboard,
   Users,
@@ -18,7 +21,7 @@ import {
 const S = {
   purple: '#5E2BD0',
   purpleText: '#491FB8',
-  coral: '#FF6F5E',
+  coral: '#FF6B6B',
   ink: '#16101F',
   mist: '#F6F3FA',
   line: '#E6E0F0',
@@ -43,14 +46,42 @@ function JunttosSymbol({ size = 34 }) {
     <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
       <circle cx="40" cy="37" r="14" fill="#341780" />
-      <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
+      <circle cx="64" cy="39" r="14" fill="#FF6B6B" />
     </svg>
   )
+}
+
+function toAbsolute(url) {
+  if (!url) return null
+  if (url.startsWith('http')) return url
+  return window.location.origin + (url.startsWith('/') ? url : '/' + url)
 }
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [clientConfig, setClientConfig] = useState(null)
+  const [logoErr, setLogoErr] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('lf_config')
+      .select('nome, logo_url, cor_primaria, cor_secundaria')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setClientConfig(data) })
+  }, [])
+
+  const absoluteLogo = toAbsolute(clientConfig?.logo_url)
+  const clientLogoSrc = (absoluteLogo && !logoErr)
+    ? absoluteLogo
+    : clientConfig?.nome
+      ? gerarLogoDataURL({
+          nome: clientConfig.nome,
+          corPrimaria: clientConfig.cor_primaria || S.coral,
+          corSecundaria: clientConfig.cor_secundaria || '#1A1A1A',
+        })
+      : null
 
   function handleLogout() {
     logout()
@@ -73,41 +104,36 @@ export default function Sidebar() {
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
-      {/* ── Logo ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '20px 20px',
-        borderBottom: `1px solid ${S.line}`,
-      }}>
-        <JunttosSymbol size={36} />
-        <span style={{
-          fontFamily: "'Quicksand', sans-serif",
-          fontWeight: 700,
-          fontSize: 22,
-          letterSpacing: '-0.01em',
-          textTransform: 'lowercase',
-          color: S.purple,
-          lineHeight: 1,
-        }}>
-          jun<span style={{ color: S.coral }}>tt</span>os
-        </span>
-        <span style={{
-          marginLeft: 'auto',
-          fontSize: 10,
-          fontWeight: 700,
-          background: 'rgba(94,43,208,0.1)',
-          color: S.purpleText,
-          padding: '3px 8px',
-          borderRadius: 99,
-          border: '1px solid rgba(94,43,208,0.2)',
-          letterSpacing: '0.04em',
-          textTransform: 'uppercase',
-          flexShrink: 0,
-        }}>
-          Admin
-        </span>
+      {/* ── Logo: Junttos + cliente ── */}
+      <div style={{ padding: '20px 20px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <JunttosSymbol size={32} />
+          <span style={{
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 700,
+            fontSize: 20,
+            letterSpacing: '-0.01em',
+            textTransform: 'lowercase',
+            color: S.purple,
+            lineHeight: 1,
+            flexShrink: 0,
+          }}>
+            jun<span style={{ color: S.coral }}>tt</span>os
+          </span>
+
+          {clientLogoSrc && (
+            <>
+              <span style={{ color: '#C0B8D0', fontWeight: 300, fontSize: 14, flexShrink: 0 }}>+</span>
+              <img
+                src={clientLogoSrc}
+                alt={clientConfig?.nome || ''}
+                style={{ height: 28, width: 'auto', maxWidth: 68, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+                onError={() => setLogoErr(true)}
+              />
+            </>
+          )}
+        </div>
+        <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
       </div>
 
       {/* ── Nav ── */}
@@ -120,13 +146,13 @@ export default function Sidebar() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '9px 12px',
+              padding: '9px 12px 9px 9px',
               borderRadius: 12,
               fontSize: 14,
               fontWeight: isActive ? 700 : 500,
-              color: isActive ? S.purpleText : S.muted,
-              background: isActive ? 'rgba(94,43,208,0.09)' : 'transparent',
-              border: isActive ? '1px solid rgba(94,43,208,0.18)' : '1px solid transparent',
+              color: isActive ? S.coral : S.muted,
+              background: isActive ? 'rgba(255,107,107,0.08)' : 'transparent',
+              borderLeft: `3px solid ${isActive ? S.coral : 'transparent'}`,
               textDecoration: 'none',
               transition: 'background .14s, color .14s',
               position: 'relative',
@@ -135,7 +161,7 @@ export default function Sidebar() {
           >
             {({ isActive }) => (
               <>
-                <Icon style={{ width: 16, height: 16, flexShrink: 0, color: isActive ? S.purple : 'currentColor' }} />
+                <Icon style={{ width: 16, height: 16, flexShrink: 0, color: isActive ? S.coral : 'currentColor' }} />
                 <span style={{ flex: 1 }}>{label}</span>
                 <ChevronRight style={{ width: 13, height: 13, opacity: 0.3, flexShrink: 0 }} />
               </>
@@ -145,7 +171,7 @@ export default function Sidebar() {
       </nav>
 
       {/* ── User + logout ── */}
-      <div style={{ padding: '10px 10px 16px', borderTop: `1px solid ${S.line}` }}>
+      <div style={{ padding: '10px 10px 0', borderTop: `1px solid ${S.line}` }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -210,14 +236,30 @@ export default function Sidebar() {
         </button>
       </div>
 
+      {/* ── POWERED BY JUNTTOS ── */}
+      <p style={{
+        fontSize: 10,
+        fontWeight: 600,
+        color: '#A0A0B0',
+        textAlign: 'center',
+        padding: '10px 0 12px',
+        borderTop: `1px solid ${S.line}`,
+        margin: 0,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+        fontFamily: "'DM Sans', sans-serif",
+      }}>
+        POWERED BY JUNTTOS
+      </p>
+
       <style>{`
         .sidebar-nav-item:hover {
-          background: rgba(94,43,208,0.05) !important;
+          background: rgba(255,107,107,0.05) !important;
           color: #16101F !important;
         }
         .sidebar-nav-item.active:hover {
-          background: rgba(94,43,208,0.09) !important;
-          color: #491FB8 !important;
+          background: rgba(255,107,107,0.08) !important;
+          color: #FF6B6B !important;
         }
       `}</style>
     </aside>
