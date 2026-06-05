@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, X,
-  Phone, CreditCard, ShoppingBag, Lock, Package, Users,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
