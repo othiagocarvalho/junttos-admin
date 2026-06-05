@@ -49,44 +49,39 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--mut
 
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
+  const primary = config?.cor_primaria || theme.primary
 
   return (
     <aside style={{
       position: 'fixed', left: 0, top: 0,
       width: 220, height: '100vh',
-      background: theme.primary,
+      background: '#F8F7F5',
       display: 'flex', flexDirection: 'column',
       zIndex: 50, fontFamily: 'Manrope, sans-serif',
+      borderRight: '1px solid #e8e4df',
     }}>
       {/* Logos: Junttos + cliente */}
-      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid rgba(255,255,255,0.12)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           {/* Junttos SVG */}
-          <svg width="32" height="32" viewBox="0 0 50 50" fill="none" style={{ flexShrink: 0 }}>
-            <circle cx="13" cy="12" r="10" fill="rgba(255,255,255,0.92)" />
+          <svg width="40" height="40" viewBox="0 0 50 50" fill="none" style={{ flexShrink: 0 }}>
+            <circle cx="13" cy="12" r="10" fill="#5E2BD0" />
             <circle cx="27" cy="15" r="9.5" fill="#FF6B47" />
-            <rect x="2" y="27" width="36" height="16" rx="8" fill="rgba(255,255,255,0.92)" />
+            <rect x="2" y="27" width="36" height="16" rx="8" fill="#5E2BD0" />
           </svg>
 
-          <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+          <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
           <div style={{
-            background: '#fff',
-            borderRadius: 8,
-            padding: 2,
-            flexShrink: 0,
-            border: '1px solid #e8e4df',
+            background: '#fff', borderRadius: 8, padding: 2,
+            flexShrink: 0, border: '1px solid #e8e4df',
           }}>
             <img
               src="/logos/estrada.svg"
               alt="Loja Estrada"
-              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
+              style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }}
             />
           </div>
         </div>
-
-        <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
-          By Junttos
-        </p>
       </div>
 
       {/* Nav */}
@@ -94,12 +89,15 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
         {NAV.map(({ id, label, Icon }) => {
           const active = tab === id
           return (
-            <button key={id} onClick={() => setTab(id)} style={{
+            <button key={id} onClick={() => setTab(id)} className="cds-nav-btn" style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 14px', borderRadius: 10, width: '100%',
-              background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
-              border: 'none', cursor: 'pointer', textAlign: 'left',
-              color: active ? '#fff' : 'rgba(255,255,255,0.58)',
+              padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
+              background: active ? '#fff' : 'transparent',
+              borderLeft: `3px solid ${active ? primary : 'transparent'}`,
+              border: active ? `1px solid #e8e4df` : '1px solid transparent',
+              borderLeft: `3px solid ${active ? primary : 'transparent'}`,
+              cursor: 'pointer', textAlign: 'left',
+              color: active ? '#2C1F14' : '#777',
               fontSize: 14, fontWeight: active ? 600 : 400,
               fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
             }}>
@@ -109,17 +107,20 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           )
         })}
 
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e8e4df' }}>
           {[
             { id: 'faturamento', label: 'Relatórios', Icon: BarChart2 },
             { id: 'config',      label: 'Configurações', Icon: Settings },
           ].map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setTab(id)} style={{
+            <button key={id} onClick={() => setTab(id)} className="cds-nav-btn" style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              padding: '9px 14px', borderRadius: 10, width: '100%',
-              background: tab === id ? 'rgba(255,255,255,0.18)' : 'transparent',
-              border: 'none', cursor: 'pointer', textAlign: 'left',
-              color: tab === id ? '#fff' : 'rgba(255,255,255,0.45)',
+              padding: '9px 14px 9px 11px', borderRadius: 10, width: '100%',
+              background: tab === id ? '#fff' : 'transparent',
+              borderLeft: `3px solid ${tab === id ? primary : 'transparent'}`,
+              border: tab === id ? '1px solid #e8e4df' : '1px solid transparent',
+              borderLeft: `3px solid ${tab === id ? primary : 'transparent'}`,
+              cursor: 'pointer', textAlign: 'left',
+              color: tab === id ? '#2C1F14' : '#777',
               fontSize: 13, fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
             }}>
               <Icon size={14} style={{ flexShrink: 0 }} />
@@ -130,32 +131,31 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-        {/* Switch to mobile — coral dot as Junttos icon */}
+      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid #e8e4df' }}>
         <button onClick={onSwitchToMobile} style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 14px', borderRadius: 10, width: '100%',
-          border: '1px solid rgba(255,255,255,0.2)',
+          border: '1px solid #e8e4df',
           background: 'transparent', cursor: 'pointer',
-          color: 'rgba(255,255,255,0.6)',
-          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
+          color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
         }}>
-          {/* Junttos coral dot */}
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
           Versão Celular
         </button>
 
-        {/* Powered by Junttos */}
         <p style={{
-          marginTop: 12, paddingTop: 12,
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          fontSize: 8, fontWeight: 700, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)',
-          fontFamily: 'Manrope, sans-serif', textAlign: 'center',
+          marginTop: 10, paddingTop: 10,
+          borderTop: '1px solid #e8e4df',
+          fontSize: 11, color: '#bbb',
+          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
         }}>
-          powered by junttos
+          jun<span style={{ color: '#F4613A' }}>tt</span>os
         </p>
       </div>
+
+      <style>{`
+        .cds-nav-btn:hover { background: #f0ece8 !important; color: #2C1F14 !important; }
+      `}</style>
     </aside>
   )
 }
