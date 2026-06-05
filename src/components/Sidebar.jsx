@@ -64,12 +64,29 @@ export default function Sidebar() {
   const [logoErr, setLogoErr] = useState(false)
 
   useEffect(() => {
-    supabase
+    // Extrai o primeiro segmento do pathname para tentar identificar o slug da loja.
+    // Ex.: /estrada/dashboard → slug = 'estrada'
+    // Ex.: /admin/dashboard  → segmento é 'admin', ignorado → busca primeiro registro
+    const pathSlug = window.location.pathname.split('/').filter(Boolean)[0]
+    const slug = pathSlug && pathSlug !== 'admin' ? pathSlug : null
+
+    const query = supabase
       .from('lf_config')
       .select('nome, logo_url, cor_primaria, cor_secundaria')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => { if (data) setClientConfig(data) })
+
+    const finalQuery = slug
+      ? query.eq('slug', slug).maybeSingle()
+      : query.limit(1).maybeSingle()
+
+    finalQuery.then(({ data }) => {
+      if (data) {
+        const iniciais = data.nome
+          ? data.nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+          : null
+        console.log('[Sidebar] lf_config:', { nome: data.nome, logo_url: data.logo_url, iniciais })
+        setClientConfig(data)
+      }
+    })
   }, [])
 
   const absoluteLogo = toAbsolute(clientConfig?.logo_url)
@@ -123,7 +140,7 @@ export default function Sidebar() {
 
           {clientLogoSrc && (
             <>
-              <span style={{ color: '#C0B8D0', fontWeight: 300, fontSize: 14, flexShrink: 0 }}>+</span>
+              <span style={{ width: 1, height: 24, background: S.line, flexShrink: 0, display: 'block' }} />
               <img
                 src={clientLogoSrc}
                 alt={clientConfig?.nome || ''}
