@@ -50,17 +50,26 @@ function JunttosSymbol({ size = 34 }) {
   )
 }
 
-// viewBox 200×60 → mantém proporção via size (altura)
 function EstradaLogo({ size = 32 }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 200 60"
+      width={size}
       height={size}
-      width={Math.round(size * 200 / 60)}
+      preserveAspectRatio="none"
       aria-label="Loja Estrada"
     >
-      <text x="10" y="44" fontFamily="Georgia, serif" fontStyle="italic" fontSize="42" fontWeight="400" fill="#C9956C">estrada</text>
+      <rect width="200" height="60" rx="8" fill="#CC7870" />
+      <text
+        x="100" y="44"
+        textAnchor="middle"
+        fontFamily="Georgia, serif"
+        fontStyle="italic"
+        fontSize="42"
+        fontWeight="400"
+        fill="#FFFFFF"
+      >estrada</text>
     </svg>
   )
 }
