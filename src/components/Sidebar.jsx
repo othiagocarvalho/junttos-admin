@@ -51,6 +51,7 @@ function JunttosSymbol({ size = 34 }) {
 }
 
 function EstradaLogo({ size = 32 }) {
+  console.log('EstradaLogo renderizou')
   return (
     <div style={{
       width: size,
@@ -103,7 +104,7 @@ export default function Sidebar() {
     >
       {/* ── Logo: Junttos + cliente ── */}
       <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, overflow: 'visible', width: '100%' }}>
           <JunttosSymbol size={32} />
           <EstradaLogo size={32} />
         </div>
