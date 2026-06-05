@@ -51,17 +51,10 @@ function JunttosSymbol({ size = 34 }) {
   )
 }
 
-function toAbsolute(url) {
-  if (!url) return null
-  if (url.startsWith('http')) return url
-  return window.location.origin + (url.startsWith('/') ? url : '/' + url)
-}
-
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [clientConfig, setClientConfig] = useState(null)
-  const [logoErr, setLogoErr] = useState(false)
 
   useEffect(() => {
     // Extrai o primeiro segmento do pathname para tentar identificar o slug da loja.
@@ -89,16 +82,16 @@ export default function Sidebar() {
     })
   }, [])
 
-  const absoluteLogo = toAbsolute(clientConfig?.logo_url)
-  const clientLogoSrc = (absoluteLogo && !logoErr)
-    ? absoluteLogo
-    : clientConfig?.nome
-      ? gerarLogoDataURL({
-          nome: clientConfig.nome,
-          corPrimaria: clientConfig.cor_primaria || S.coral,
-          corSecundaria: clientConfig.cor_secundaria || '#1A1A1A',
-        })
-      : null
+  function fallbackLogoSrc() {
+    if (!clientConfig?.nome) return null
+    return gerarLogoDataURL({
+      nome: clientConfig.nome,
+      corPrimaria: clientConfig.cor_primaria || S.coral,
+      corSecundaria: clientConfig.cor_secundaria || '#1A1A1A',
+    })
+  }
+
+  const clientLogoSrc = clientConfig?.logo_url || fallbackLogoSrc()
 
   function handleLogout() {
     logout()
@@ -144,8 +137,10 @@ export default function Sidebar() {
               <img
                 src={clientLogoSrc}
                 alt={clientConfig?.nome || ''}
-                style={{ height: 28, width: 'auto', maxWidth: 68, objectFit: 'contain', display: 'block', flexShrink: 0 }}
-                onError={() => setLogoErr(true)}
+                width={40}
+                height={40}
+                style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
+                onError={(e) => { e.target.src = fallbackLogoSrc() }}
               />
             </>
           )}
