@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { gerarLogoDataURL } from '../utils/gerarLogoSVG'
 import {
   LayoutDashboard,
   Users,
@@ -54,44 +53,27 @@ function JunttosSymbol({ size = 34 }) {
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [clientConfig, setClientConfig] = useState(null)
+  // { nome, logo_url, cor_primaria, iniciais }
+  const [lojaInfo, setLojaInfo] = useState(null)
 
   useEffect(() => {
-    // Extrai o primeiro segmento do pathname para tentar identificar o slug da loja.
-    // Ex.: /estrada/dashboard → slug = 'estrada'
-    // Ex.: /admin/dashboard  → segmento é 'admin', ignorado → busca primeiro registro
     const pathSlug = window.location.pathname.split('/').filter(Boolean)[0]
     const slug = pathSlug && pathSlug !== 'admin' ? pathSlug : null
 
-    const query = supabase
-      .from('lf_config')
-      .select('nome, logo_url, cor_primaria, cor_secundaria')
+    const q = supabase.from('lf_config').select('nome, logo_url, cor_primaria')
+    const finalQ = slug
+      ? q.eq('slug', slug).maybeSingle()
+      : q.limit(1).maybeSingle()
 
-    const finalQuery = slug
-      ? query.eq('slug', slug).maybeSingle()
-      : query.limit(1).maybeSingle()
-
-    finalQuery.then(({ data }) => {
-      if (data) {
-        const iniciais = data.nome
-          ? data.nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-          : null
-        console.log('[Sidebar] lf_config:', { nome: data.nome, logo_url: data.logo_url, iniciais })
-        setClientConfig(data)
-      }
+    finalQ.then(({ data }) => {
+      if (!data) return
+      const iniciais = data.nome
+        ? data.nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+        : '??'
+      console.log('[Sidebar] lf_config:', { nome: data.nome, logo_url: data.logo_url, iniciais })
+      setLojaInfo({ nome: data.nome, logo_url: data.logo_url, cor_primaria: data.cor_primaria, iniciais })
     })
   }, [])
-
-  function fallbackLogoSrc() {
-    if (!clientConfig?.nome) return null
-    return gerarLogoDataURL({
-      nome: clientConfig.nome,
-      corPrimaria: clientConfig.cor_primaria || S.coral,
-      corSecundaria: clientConfig.cor_secundaria || '#1A1A1A',
-    })
-  }
-
-  const clientLogoSrc = clientConfig?.logo_url || fallbackLogoSrc()
 
   function handleLogout() {
     logout()
@@ -116,33 +98,32 @@ export default function Sidebar() {
     >
       {/* ── Logo: Junttos + cliente ── */}
       <div style={{ padding: '20px 20px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <JunttosSymbol size={32} />
-          <span style={{
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 700,
-            fontSize: 20,
-            letterSpacing: '-0.01em',
-            textTransform: 'lowercase',
-            color: S.purple,
-            lineHeight: 1,
-            flexShrink: 0,
-          }}>
-            jun<span style={{ color: S.coral }}>tt</span>os
-          </span>
 
-          {clientLogoSrc && (
-            <>
-              <span style={{ width: 1, height: 24, background: S.line, flexShrink: 0, display: 'block' }} />
-              <img
-                src={clientLogoSrc}
-                alt={clientConfig?.nome || ''}
-                width={40}
-                height={40}
-                style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
-                onError={(e) => { e.target.src = fallbackLogoSrc() }}
-              />
-            </>
+          {lojaInfo && (
+            lojaInfo.logo_url
+              ? (
+                <img
+                  src={lojaInfo.logo_url}
+                  alt={lojaInfo.nome}
+                  width="40"
+                  height="40"
+                  border="1"
+                  style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
+                />
+              )
+              : (
+                <div style={{
+                  width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+                  background: lojaInfo.cor_primaria || S.coral,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontWeight: 700, fontSize: 14,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}>
+                  {lojaInfo.iniciais}
+                </div>
+              )
           )}
         </div>
         <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
