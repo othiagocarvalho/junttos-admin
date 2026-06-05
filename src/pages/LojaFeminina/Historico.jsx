@@ -5,7 +5,6 @@ import Modal from '../../components/Modal'
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
-
 function fmtTime(s) {
   return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
@@ -22,33 +21,42 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-const FILTROS = [
-  { id: 'todos',  label: 'Todos' },
-  { id: 'hoje',   label: 'Hoje' },
-  { id: 'semana', label: '7 dias' },
-  { id: 'mes',    label: 'Mês' },
-]
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+function monthStartStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+const dateInputStyle = {
+  height: 40, border: '1.5px solid var(--line)', borderRadius: 10,
+  padding: '0 10px', fontFamily: 'Manrope, sans-serif', fontSize: 13,
+  color: 'var(--ink)', background: 'var(--surface)', outline: 'none',
+  width: '100%', boxSizing: 'border-box',
+}
+const dateLabel = {
+  display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+  textTransform: 'uppercase', letterSpacing: '0.12em',
+  fontFamily: 'Manrope, sans-serif', marginBottom: 4,
+}
 
 export default function Historico({ vendas, deleteVenda, theme }) {
-  const [search, setSearch] = useState('')
-  const [filtro, setFiltro] = useState('todos')
+  const [search,     setSearch]     = useState('')
+  const [dateFrom,   setDateFrom]   = useState(monthStartStr)
+  const [dateTo,     setDateTo]     = useState(todayStr)
   const [confirmDel, setConfirmDel] = useState(null)
-
-  const now = new Date()
 
   const filtradas = vendas.filter(v => {
     const d = new Date(v.data)
-    if (filtro === 'hoje') return d.toDateString() === now.toDateString()
-    if (filtro === 'semana') { const cut = new Date(now); cut.setDate(now.getDate() - 7); return d >= cut }
-    if (filtro === 'mes') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
+    if (dateTo   && d > new Date(dateTo   + 'T23:59:59')) return false
     return true
   }).filter(v => {
     if (!search) return true
     const q = search.toLowerCase()
     return (
       (v.cliente_nome || '').toLowerCase().includes(q) ||
-      (v.vendedora || '').toLowerCase().includes(q) ||
-      (v.forma_pgto || '').toLowerCase().includes(q)
+      (v.vendedora    || '').toLowerCase().includes(q) ||
+      (v.forma_pgto   || '').toLowerCase().includes(q)
     )
   })
 
@@ -75,26 +83,17 @@ export default function Historico({ vendas, deleteVenda, theme }) {
         />
       </div>
 
-      {/* Filter chips */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {FILTROS.map(f => (
-          <button
-            key={f.id} onClick={() => setFiltro(f.id)}
-            style={{
-              padding: '6px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-              background: filtro === f.id ? METALLIC : 'var(--surface)',
-              color: filtro === f.id ? '#fff' : 'var(--muted)',
-              border: filtro === f.id ? 'none' : '1px solid var(--line)',
-              boxShadow: filtro === f.id ? '0 2px 8px rgba(122,62,51,0.22)' : 'none',
-              transition: 'all .15s',
-            }}
-          >{f.label}</button>
-        ))}
-        <span style={{
-          marginLeft: 'auto', fontFamily: 'Manrope, sans-serif', fontSize: 12,
-          color: 'var(--muted)', alignSelf: 'center',
-        }}>
+      {/* Date range + count */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <label style={dateLabel}>De</label>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInputStyle} />
+        </div>
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <label style={dateLabel}>Até</label>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInputStyle} />
+        </div>
+        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', paddingBottom: 10, whiteSpace: 'nowrap' }}>
           {filtradas.length} venda{filtradas.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -113,7 +112,6 @@ export default function Historico({ vendas, deleteVenda, theme }) {
       ) : (
         groups.map(group => (
           <div key={group.label}>
-            {/* Day header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 2px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Calendar size={13} color="var(--muted)" />
@@ -126,12 +124,10 @@ export default function Historico({ vendas, deleteVenda, theme }) {
               </span>
             </div>
 
-            {/* Cards for this day */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {group.vendas.map(v => (
                 <div key={v.id} style={{
                   background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px',
-                  position: 'relative',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -171,7 +167,9 @@ export default function Historico({ vendas, deleteVenda, theme }) {
                         </div>
                       )}
 
-                      {v.obs && <p style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6, fontFamily: 'Manrope, sans-serif' }}>{v.obs}</p>}
+                      {v.obs && (
+                        <p style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6, fontFamily: 'Manrope, sans-serif' }}>{v.obs}</p>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>

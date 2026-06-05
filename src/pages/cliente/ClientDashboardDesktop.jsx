@@ -250,16 +250,18 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
 
 // ── Desktop Histórico (table) ─────────────────────────────────
 function DesktopHistorico({ vendas, deleteVenda, theme }) {
-  const [search,     setSearch]     = useState('')
-  const [filtro,     setFiltro]     = useState('todos')
-  const [confirmDel, setConfirmDel] = useState(null)
   const now = new Date()
+  const [search,     setSearch]     = useState('')
+  const [dateFrom,   setDateFrom]   = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  )
+  const [dateTo,     setDateTo]     = useState(now.toISOString().slice(0, 10))
+  const [confirmDel, setConfirmDel] = useState(null)
 
   const filtered = vendas.filter(v => {
     const d = new Date(v.data)
-    if (filtro === 'hoje')   return d.toDateString() === now.toDateString()
-    if (filtro === 'semana') { const c = new Date(now); c.setDate(now.getDate() - 7); return d >= c }
-    if (filtro === 'mes')    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
+    if (dateTo   && d > new Date(dateTo   + 'T23:59:59')) return false
     return true
   }).filter(v => {
     if (!search) return true
@@ -276,37 +278,40 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
     setConfirmDel(null)
   }
 
+  const dtInput = {
+    height: 40, border: '1.5px solid var(--line)', borderRadius: 10,
+    padding: '0 10px', fontFamily: 'Manrope, sans-serif', fontSize: 13,
+    color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+  }
+  const dtLabel = {
+    display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
+    textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'Manrope, sans-serif', marginBottom: 4,
+  }
+
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, vendedora, pagamento..."
             style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12, paddingLeft: 40, paddingRight: 14, fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-        {[
-          { id: 'todos', label: 'Todos' },
-          { id: 'hoje',  label: 'Hoje' },
-          { id: 'semana',label: '7 dias' },
-          { id: 'mes',   label: 'Mês' },
-        ].map(f => (
-          <button key={f.id} onClick={() => setFiltro(f.id)} style={{
-            padding: '8px 18px', borderRadius: 99, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-            border: filtro === f.id ? 'none' : '1px solid var(--line)',
-            background: filtro === f.id ? theme.primary : 'var(--surface)',
-            color: filtro === f.id ? '#fff' : 'var(--muted)',
-            boxShadow: filtro === f.id ? `0 2px 8px ${theme.primary}30` : 'none',
-          }}>{f.label}</button>
-        ))}
-        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginLeft: 4 }}>
+        <div style={{ flex: 1, minWidth: 130 }}>
+          <label style={dtLabel}>De</label>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dtInput} />
+        </div>
+        <div style={{ flex: 1, minWidth: 130 }}>
+          <label style={dtLabel}>Até</label>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dtInput} />
+        </div>
+        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', paddingBottom: 10 }}>
           {filtered.length} vendas · <strong style={{ color: theme.primary }}>{fmtR(total)}</strong>
         </span>
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif' }}>
           <thead>
             <tr style={{ background: theme.primary }}>
