@@ -115,7 +115,9 @@ export default function Sidebar() {
 
           {lojaInfo && (() => {
             const logoSrc = lojaInfo.logo_url
-              ? `${SUPABASE_URL}/storage/v1/object/public${lojaInfo.logo_url}`
+              ? (lojaInfo.logo_url.startsWith('http')
+                  ? lojaInfo.logo_url
+                  : `${SUPABASE_URL}/storage/v1/object/public${lojaInfo.logo_url}`)
               : fallbackLogoSrc()
             return (
               <img
