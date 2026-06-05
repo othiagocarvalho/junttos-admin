@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { gerarLogoDataURL } from '../utils/gerarLogoSVG'
 import {
   LayoutDashboard,
   Users,
@@ -40,6 +41,8 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
+const SUPABASE_URL = 'https://dbfxigylileupucnuhmb.supabase.co'
+
 function JunttosSymbol({ size = 34 }) {
   return (
     <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -62,7 +65,7 @@ export default function Sidebar() {
 
     const q = supabase.from('lf_config').select('nome, logo_url, cor_primaria')
     const finalQ = slug
-      ? q.eq('slug', slug).maybeSingle()
+      ? q.or(`slug.eq.${slug},slug.ilike.%${slug}%`).limit(1).maybeSingle()
       : q.limit(1).maybeSingle()
 
     finalQ.then(({ data }) => {
@@ -74,6 +77,15 @@ export default function Sidebar() {
       setLojaInfo({ nome: data.nome, logo_url: data.logo_url, cor_primaria: data.cor_primaria, iniciais })
     })
   }, [])
+
+  function fallbackLogoSrc() {
+    if (!lojaInfo?.nome) return null
+    return gerarLogoDataURL({
+      nome: lojaInfo.nome,
+      corPrimaria: lojaInfo.cor_primaria || S.coral,
+      corSecundaria: '#1A1A1A',
+    })
+  }
 
   function handleLogout() {
     logout()
@@ -101,30 +113,21 @@ export default function Sidebar() {
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <JunttosSymbol size={32} />
 
-          {lojaInfo && (
-            lojaInfo.logo_url
-              ? (
-                <img
-                  src={lojaInfo.logo_url}
-                  alt={lojaInfo.nome}
-                  width="40"
-                  height="40"
-                  border="1"
-                  style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
-                />
-              )
-              : (
-                <div style={{
-                  width: 40, height: 40, borderRadius: 8, flexShrink: 0,
-                  background: lojaInfo.cor_primaria || S.coral,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 700, fontSize: 14,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}>
-                  {lojaInfo.iniciais}
-                </div>
-              )
-          )}
+          {lojaInfo && (() => {
+            const logoSrc = lojaInfo.logo_url
+              ? `${SUPABASE_URL}/storage/v1/object/public${lojaInfo.logo_url}`
+              : fallbackLogoSrc()
+            return (
+              <img
+                src={logoSrc}
+                alt={lojaInfo.nome}
+                width="40"
+                height="40"
+                style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
+                onError={(e) => { e.target.src = fallbackLogoSrc() }}
+              />
+            )
+          })()}
         </div>
         <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
       </div>
