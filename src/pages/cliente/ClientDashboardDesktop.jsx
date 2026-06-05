@@ -4,7 +4,6 @@ import {
   Smartphone, Trash2, Search, Check, ChevronRight, X,
   User, Phone, CreditCard, ShoppingBag,
 } from 'lucide-react'
-import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
@@ -48,27 +47,23 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
-function toAbsolute(url) {
-  if (!url) return null
-  if (url.startsWith('http')) return url
-  // usa a origem atual — funciona tanto em produção (junttos.vercel.app) quanto em dev
-  const base = window.location.origin
-  return base + (url.startsWith('/') ? url : '/' + url)
+function EstradaLogo({ size = 32 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 8,
+      background: '#CC7870', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      <span style={{
+        fontSize: size * 0.28, fontWeight: 700, color: '#fff',
+        letterSpacing: '-0.5px', fontFamily: 'Georgia, serif', fontStyle: 'italic',
+      }}>E</span>
+    </div>
+  )
 }
 
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
-  const nome      = config?.nome || 'Loja'
-  const primary   = config?.cor_primaria   || theme.primary
-  const secondary = config?.cor_secundaria || '#1A1A1A'
-  const [imgErr, setImgErr] = useState(false)
-
-  const absoluteLogo = toAbsolute(logoUrl)
-
-  // logo_url (absoluta) → fallback data URL gerado automaticamente com cores da loja
-  const clientLogoSrc = (absoluteLogo && !imgErr)
-    ? absoluteLogo
-    : gerarLogoDataURL({ nome, corPrimaria: primary, corSecundaria: secondary })
 
   return (
     <aside style={{
@@ -88,16 +83,8 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
             <rect x="2" y="27" width="36" height="16" rx="8" fill="rgba(255,255,255,0.92)" />
           </svg>
 
-          {/* Separator */}
-          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', fontWeight: 300, flexShrink: 0 }}>+</span>
-
-          {/* Client logo — data URL gerado automaticamente se logo_url ausente ou falhar */}
-          <img
-            src={clientLogoSrc}
-            alt={nome}
-            style={{ height: 32, width: 'auto', maxWidth: 110, objectFit: 'contain', display: 'block', flexShrink: 0 }}
-            onError={() => setImgErr(true)}
-          />
+          <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+          <EstradaLogo size={32} />
         </div>
 
         <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
