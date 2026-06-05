@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
-import { gerarLogoDataURL } from '../utils/gerarLogoSVG'
 import {
   LayoutDashboard,
   Users,
@@ -41,7 +38,7 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
-const SUPABASE_URL = 'https://dbfxigylileupucnuhmb.supabase.co'
+// ── Logos estáticos — mesmo padrão do JunttosSymbol ──────────────────────────
 
 function JunttosSymbol({ size = 34 }) {
   return (
@@ -53,39 +50,26 @@ function JunttosSymbol({ size = 34 }) {
   )
 }
 
+// viewBox 200×60 → mantém proporção via size (altura)
+function EstradaLogo({ size = 32 }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 200 60"
+      height={size}
+      width={Math.round(size * 200 / 60)}
+      aria-label="Loja Estrada"
+    >
+      <text x="10" y="44" fontFamily="Georgia, serif" fontStyle="italic" fontSize="42" fontWeight="400" fill="#C9956C">estrada</text>
+    </svg>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  // { nome, logo_url, cor_primaria, iniciais }
-  const [lojaInfo, setLojaInfo] = useState(null)
-
-  useEffect(() => {
-    const pathSlug = window.location.pathname.split('/').filter(Boolean)[0]
-    const slug = pathSlug && pathSlug !== 'admin' ? pathSlug : null
-
-    const q = supabase.from('lf_config').select('nome, logo_url, cor_primaria')
-    const finalQ = slug
-      ? q.or(`slug.eq.${slug},slug.ilike.%${slug}%`).limit(1).maybeSingle()
-      : q.limit(1).maybeSingle()
-
-    finalQ.then(({ data }) => {
-      if (!data) return
-      const iniciais = data.nome
-        ? data.nome.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-        : '??'
-      console.log('[Sidebar] lf_config:', { nome: data.nome, logo_url: data.logo_url, iniciais })
-      setLojaInfo({ nome: data.nome, logo_url: data.logo_url, cor_primaria: data.cor_primaria, iniciais })
-    })
-  }, [])
-
-  function fallbackLogoSrc() {
-    if (!lojaInfo?.nome) return null
-    return gerarLogoDataURL({
-      nome: lojaInfo.nome,
-      corPrimaria: lojaInfo.cor_primaria || S.coral,
-      corSecundaria: '#1A1A1A',
-    })
-  }
 
   function handleLogout() {
     logout()
@@ -112,24 +96,7 @@ export default function Sidebar() {
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <JunttosSymbol size={32} />
-
-          {lojaInfo && (() => {
-            const logoSrc = lojaInfo.logo_url
-              ? (lojaInfo.logo_url.startsWith('http')
-                  ? lojaInfo.logo_url
-                  : `${SUPABASE_URL}/storage/v1/object/public${lojaInfo.logo_url}`)
-              : fallbackLogoSrc()
-            return (
-              <img
-                src={logoSrc}
-                alt={lojaInfo.nome}
-                width="40"
-                height="40"
-                style={{ borderRadius: '8px', objectFit: 'cover', display: 'block', flexShrink: 0 }}
-                onError={(e) => { e.target.src = fallbackLogoSrc() }}
-              />
-            )
-          })()}
+          <EstradaLogo size={32} />
         </div>
         <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
       </div>
