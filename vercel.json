@@ -1,1 +1,6 @@
-{"rewrites":[{"source":"/(.*)", "destination":"/"}]}
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/" }],
+  "env": {
+    "VERCEL_PREVIEW_FEEDBACK_ENABLED": "0"
+  }
+}
