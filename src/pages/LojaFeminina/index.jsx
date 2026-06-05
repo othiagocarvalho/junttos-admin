@@ -150,102 +150,92 @@ function Inicio({ vendas, metas }) {
 
 // ── AppHeader ───────────────────────────────────────────────
 
-function AppHeader({ nome, onSwitchToDesktop }) {
+function AppHeader({ primary, onSwitchToDesktop }) {
   return (
     <header style={{
+      background: primary || '#CC7870',
       paddingTop: 54, paddingBottom: 16,
       paddingLeft: 20, paddingRight: 20,
-      maxWidth: 480, margin: '0 auto',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative',
     }}>
-      <span style={{
-        fontFamily: "'Playfair Display', serif",
-        fontStyle: 'italic', fontWeight: 700, fontSize: 26,
-        color: 'var(--ink)', letterSpacing: '-0.02em',
-      }}>
-        {(nome || 'estrada').toLowerCase()}.
-      </span>
+      {/* Junttos symbol + separator + Estrada logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={onSwitchToDesktop} title="Versão Computador"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center' }}>
-          <Monitor size={18} color="var(--muted)" />
-        </button>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center' }}>
-          <Bell size={20} color="var(--muted)" />
-        </button>
-        <div style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: METALLIC,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', fontFamily: 'Manrope, sans-serif' }}>
-            {(nome || 'E')[0].toUpperCase()}
-          </span>
+        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
+          <circle cx="40" cy="37" r="14" fill="#6C3CE1" />
+          <circle cx="64" cy="39" r="14" fill="#F4613A" />
+        </svg>
+        <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+        <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
+          <img src="/logos/estrada.svg" alt="Loja Estrada"
+            style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
         </div>
       </div>
+      {/* Switch to desktop — subtle */}
+      <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
+        position: 'absolute', right: 16, bottom: 14,
+        background: 'none', border: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center',
+      }}>
+        <Monitor size={16} color="rgba(255,255,255,0.6)" />
+      </button>
     </header>
   )
 }
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab }) {
+function BottomTabBar({ tab, setTab, primary }) {
+  const activeColor = primary || '#CC7870'
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-      height: 78,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-      background: 'rgba(255,255,255,0.94)',
-      backdropFilter: 'blur(24px)',
-      WebkitBackdropFilter: 'blur(24px)',
-      borderTop: '1px solid var(--line)',
-      padding: '0 8px',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      background: '#F8F7F5',
+      borderTop: '1px solid #e8e4df',
     }}>
-      {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
-        if (isFAB) {
-          return (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              style={{
+      <div style={{
+        height: 72, width: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+        padding: '0 8px',
+      }}>
+        {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
+          if (isFAB) {
+            return (
+              <button key={id} onClick={() => setTab(id)} style={{
                 width: 56, height: 56, borderRadius: '50%',
-                background: METALLIC,
+                background: '#F4613A',
                 border: 'none', cursor: 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginTop: -28,
-                boxShadow: '0 4px 18px rgba(122,62,51,0.38)',
-              }}
-            >
-              <Icon size={24} color="#fff" strokeWidth={2.5} />
-            </button>
-          )
-        }
-        const active = tab === id
-        return (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            style={{
+                boxShadow: '0 4px 18px rgba(244,97,58,0.38)',
+              }}>
+                <Icon size={24} color="#fff" strokeWidth={2.5} />
+              </button>
+            )
+          }
+          const active = tab === id
+          return (
+            <button key={id} onClick={() => setTab(id)} style={{
               flex: 1, height: '100%', background: 'none', border: 'none',
               cursor: 'pointer', display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 4,
-            }}
-          >
-            <Icon
-              size={20}
-              color={active ? 'var(--rose-deep)' : 'var(--muted)'}
-              strokeWidth={active ? 2.2 : 1.5}
-            />
-            <span style={{
-              fontSize: 10, fontFamily: 'Manrope, sans-serif',
-              fontWeight: active ? 700 : 500,
-              color: active ? 'var(--rose-deep)' : 'var(--muted)',
-              letterSpacing: '0.03em',
-            }}>{label}</span>
-          </button>
-        )
-      })}
+            }}>
+              <Icon size={20} color={active ? activeColor : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
+              <span style={{
+                fontSize: 10, fontFamily: 'Manrope, sans-serif',
+                fontWeight: active ? 700 : 500,
+                color: active ? activeColor : '#bbb',
+                letterSpacing: '0.03em',
+              }}>{label}</span>
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ fontSize: 10, color: '#bbb', margin: '0 0 8px', fontFamily: 'Manrope, sans-serif', textAlign: 'center' }}>
+        jun<span style={{ color: '#F4613A' }}>tt</span>os
+      </p>
     </nav>
   )
 }
@@ -350,17 +340,17 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
-      <AppHeader nome={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 100px' }}>
+      <AppHeader primary={theme.primary} onSwitchToDesktop={() => setViewMode('desktop')} />
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
       </main>
       {showBottomBar
-        ? <BottomTabBar tab={tab} setTab={setTab} />
+        ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} />
         : (
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(24px)', borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', display: 'flex', justifyContent: 'center' }}>
             <button
               onClick={() => setTab('conta')}
-              style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--rose-deep)', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}
             >
               ← Voltar
             </button>
