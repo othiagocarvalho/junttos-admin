@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Home, Clock, Plus, Target, User, Bell, ShoppingBag, AlertCircle, Monitor } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
@@ -16,16 +16,17 @@ const METALLIC_SOFT = 'linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 const BOTTOM_TABS = [
-  { id: 'inicio',    label: 'Início',    Icon: Home   },
-  { id: 'historico', label: 'Histórico', Icon: Clock  },
-  { id: 'venda',     label: '',          Icon: Plus,  isFAB: true },
-  { id: 'meta',      label: 'Meta',      Icon: Target },
-  { id: 'conta',     label: 'Conta',     Icon: User   },
+  { id: 'inicio',     label: 'Início',    Icon: Home      },
+  { id: 'estoque',    label: 'Estoque',   Icon: Package   },
+  { id: 'venda',      label: '',          Icon: Plus,     isFAB: true },
+  { id: 'relatorios', label: 'Relatórios',Icon: BarChart2 },
+  { id: 'crm',        label: 'CRM',       Icon: Users,    isCRM: true },
+  { id: 'conta',      label: 'Fechamento',Icon: Wallet    },
 ]
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas }) {
+function Inicio({ vendas, metas, setTab }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const todayStr = now.toDateString()
@@ -105,6 +106,30 @@ function Inicio({ vendas, metas }) {
         ))}
       </div>
 
+      {/* Meta card clicável */}
+      <div onClick={() => setTab('meta')} style={{
+        background: 'var(--surface)', borderRadius: 16,
+        border: '1px solid var(--line)', padding: '16px 18px',
+        marginBottom: 16, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>Meta Mensal</p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+            {meta > 0 ? `${pctMeta.toFixed(0)}%` : '—'}
+          </p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            {meta > 0 ? fmtR(meta) : 'Toque para definir meta'}
+          </p>
+          {meta > 0 && (
+            <div style={{ marginTop: 8, height: 3, borderRadius: 2, background: 'var(--line)', width: 140 }}>
+              <div style={{ height: '100%', borderRadius: 2, background: 'var(--rose-deep)', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
+            </div>
+          )}
+        </div>
+        <ChevronRight size={16} color="var(--muted)" />
+      </div>
+
       {/* Top produtos */}
       {topProds.length > 0 && (
         <div style={{
@@ -148,9 +173,52 @@ function Inicio({ vendas, metas }) {
   )
 }
 
+// ── Estoque placeholder ─────────────────────────────────────
+function EstoquePlaceholder() {
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{
+        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
+        padding: '48px 24px', textAlign: 'center',
+      }}>
+        <Package size={36} color="var(--line)" style={{ margin: '0 auto 14px' }} />
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Estoque</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível.</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Relatórios mobile (Histórico + Faturamento) ─────────────
+function RelatoriosMobile({ data, theme }) {
+  const [subTab, setSubTab] = useState('historico')
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          { id: 'historico',   label: 'Histórico'   },
+          { id: 'faturamento', label: 'Faturamento'  },
+        ].map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
+            flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
+            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            border: subTab === st.id ? 'none' : '1px solid var(--line)',
+            background: subTab === st.id ? theme.primary : 'var(--surface)',
+            color: subTab === st.id ? '#fff' : 'var(--muted)',
+          }}>{st.label}</button>
+        ))}
+      </div>
+      {subTab === 'historico'
+        ? <Historico {...data} theme={theme} />
+        : <Faturamento {...data} theme={theme} />
+      }
+    </div>
+  )
+}
+
 // ── AppHeader ───────────────────────────────────────────────
 
-function AppHeader({ primary, onSwitchToDesktop }) {
+function AppHeader({ primary, logoUrl, storeName, onSwitchToDesktop }) {
   return (
     <header style={{
       background: primary || '#CC7870',
@@ -159,7 +227,6 @@ function AppHeader({ primary, onSwitchToDesktop }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative',
     }}>
-      {/* Junttos symbol + separator + Estrada logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
           <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
@@ -167,12 +234,13 @@ function AppHeader({ primary, onSwitchToDesktop }) {
           <circle cx="64" cy="39" r="14" fill="#F4613A" />
         </svg>
         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-        <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
-          <img src="/logos/estrada.svg" alt="Loja Estrada"
-            style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
-        </div>
+        {logoUrl && (
+          <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
+            <img src={logoUrl} alt={storeName || 'Loja'}
+              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
+          </div>
+        )}
       </div>
-      {/* Switch to desktop — subtle */}
       <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
         position: 'absolute', right: 16, bottom: 14,
         background: 'none', border: 'none', cursor: 'pointer',
@@ -186,8 +254,9 @@ function AppHeader({ primary, onSwitchToDesktop }) {
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, primary }) {
+function BottomTabBar({ tab, setTab, primary, config }) {
   const activeColor = primary || '#CC7870'
+  const crmEnabled = config?.features?.crm
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
@@ -198,20 +267,43 @@ function BottomTabBar({ tab, setTab, primary }) {
       <div style={{
         height: 72, width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-        padding: '0 8px',
+        padding: '0 4px',
       }}>
-        {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
+        {BOTTOM_TABS.map(({ id, label, Icon, isFAB, isCRM }) => {
           if (isFAB) {
             return (
               <button key={id} onClick={() => setTab(id)} style={{
-                width: 56, height: 56, borderRadius: '50%',
+                width: 52, height: 52, borderRadius: '50%',
                 background: '#F4613A',
                 border: 'none', cursor: 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                marginTop: -28,
+                marginTop: -26,
                 boxShadow: '0 4px 18px rgba(244,97,58,0.38)',
               }}>
-                <Icon size={24} color="#fff" strokeWidth={2.5} />
+                <Icon size={22} color="#fff" strokeWidth={2.5} />
+              </button>
+            )
+          }
+          if (isCRM) {
+            const locked = !crmEnabled
+            return (
+              <button key={id}
+                onClick={locked ? undefined : () => setTab(id)}
+                style={{
+                  flex: 1, height: '100%', background: 'none', border: 'none',
+                  cursor: locked ? 'default' : 'pointer',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 4,
+                  opacity: locked ? 0.4 : 1,
+                }}>
+                <div style={{ position: 'relative' }}>
+                  <Icon size={19} color={!locked && tab === id ? activeColor : '#bbb'} strokeWidth={1.5} />
+                  {locked && <Lock size={9} color="#bbb" style={{ position: 'absolute', top: -4, right: -6 }} />}
+                </div>
+                <span style={{
+                  fontSize: 10, fontFamily: 'Manrope, sans-serif', fontWeight: 500,
+                  color: '#bbb', letterSpacing: '0.03em',
+                }}>{label}</span>
               </button>
             )
           }
@@ -222,7 +314,7 @@ function BottomTabBar({ tab, setTab, primary }) {
               cursor: 'pointer', display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center', gap: 4,
             }}>
-              <Icon size={20} color={active ? activeColor : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
+              <Icon size={19} color={active ? activeColor : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
               <span style={{
                 fontSize: 10, fontFamily: 'Manrope, sans-serif',
                 fontWeight: active ? 700 : 500,
@@ -305,30 +397,27 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     )
   }
 
+  const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
+
   const panels = {
-    inicio:    <Inicio vendas={data.vendas} metas={data.metas} />,
-    historico: <Historico {...data} theme={theme} />,
-    venda:     <NovaVenda {...data} theme={theme} />,
-    meta:      <Meta {...data} theme={theme} />,
-    conta:     (
+    inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} />,
+    estoque:    <EstoquePlaceholder />,
+    venda:      <NovaVenda {...data} theme={theme} />,
+    relatorios: <RelatoriosMobile data={data} theme={theme} />,
+    meta:       <Meta {...data} theme={theme} />,
+    conta:      (
       <div>
         <Fechamento {...data} theme={theme} />
         <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Mais opções</p>
-          {[
-            { label: 'Relatórios de faturamento', component: 'faturamento' },
-            { label: 'Configurações da loja', component: 'config' },
-          ].map(({ label, component }) => (
-            <button
-              key={component}
-              onClick={() => setTab(component)}
-              style={{
-                width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
-                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
-              }}
-            >{label}</button>
-          ))}
+          <button
+            onClick={() => setTab('config')}
+            style={{
+              width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
+              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
+            }}
+          >Configurações da loja</button>
         </div>
       </div>
     ),
@@ -336,16 +425,16 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     config:      <LojaConfig {...data} theme={theme} />,
   }
 
-  const showBottomBar = !['faturamento', 'config'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
-      <AppHeader primary={theme.primary} onSwitchToDesktop={() => setViewMode('desktop')} />
+      <AppHeader primary={theme.primary} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
       </main>
       {showBottomBar
-        ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} />
+        ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} config={data.config} />
         : (
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', display: 'flex', justifyContent: 'center' }}>
             <button

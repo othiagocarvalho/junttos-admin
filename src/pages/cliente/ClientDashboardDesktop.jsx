@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import {
-  Home, Clock, Plus, Target, Wallet, Settings, BarChart2,
-  Smartphone, Trash2, Search, Check, ChevronRight, X,
-  User, Phone, CreditCard, ShoppingBag,
+  Home, Plus, Wallet, Settings, BarChart2,
+  Trash2, Search, Check, ChevronRight, X,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
@@ -18,11 +18,14 @@ function fmtDT(s) {
 }
 
 const NAV = [
-  { id: 'inicio',    label: 'Início',     Icon: Home   },
-  { id: 'historico', label: 'Histórico',  Icon: Clock  },
-  { id: 'venda',     label: 'Nova Venda', Icon: Plus   },
-  { id: 'meta',      label: 'Meta',       Icon: Target },
-  { id: 'conta',     label: 'Fechamento', Icon: Wallet },
+  { id: 'inicio',     label: 'Início',        Icon: Home      },
+  { id: 'venda',      label: 'Nova Venda',    Icon: Plus      },
+  { id: 'estoque',    label: 'Estoque',       Icon: Package   },
+  { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
+  { id: 'crm',        label: 'CRM',           Icon: Users,    locked: true },
+  { id: 'conta',      label: 'Fechamento',    Icon: Wallet    },
+  { divider: true },
+  { id: 'config',     label: 'Configurações', Icon: Settings  },
 ]
 
 const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
@@ -63,73 +66,49 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
       {/* Logos: Junttos + cliente */}
       <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          {/* Junttos SVG — mesmo viewBox do Login e Sidebar */}
           <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
             <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
             <circle cx="40" cy="37" r="14" fill="#341780" />
             <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
           </svg>
-
           <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
           {logoUrl && (
-            <div style={{
-              background: '#fff', borderRadius: 8, padding: 2,
-              flexShrink: 0, border: '1px solid #e8e4df',
-            }}>
-              <img
-                src={logoUrl}
-                alt={config?.nome || 'Loja'}
-                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }}
-              />
+            <div style={{ background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
+              <img src={logoUrl} alt={config?.nome || 'Loja'}
+                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }} />
             </div>
           )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {NAV.map(({ id, label, Icon }) => {
+      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+        {NAV.map((item, i) => {
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '8px 0' }} />
+          const { id, label, Icon, locked: lockedProp } = item
+          const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
           return (
-            <button key={id} onClick={() => setTab(id)} className="cds-nav-btn" style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
-              background: active ? '#fff' : 'transparent',
-              borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-              border: active ? `1px solid #e8e4df` : '1px solid transparent',
-              borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-              cursor: 'pointer', textAlign: 'left',
-              color: active ? '#2C1F14' : '#777',
-              fontSize: 14, fontWeight: active ? 600 : 400,
-              fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
-            }}>
-              <Icon size={15} style={{ flexShrink: 0 }} />
-              {label}
+            <button key={id}
+              onClick={isLocked ? undefined : () => setTab(id)}
+              className={isLocked ? '' : 'cds-nav-btn'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
+                background: active ? '#fff' : 'transparent',
+                border: active ? '1px solid #e8e4df' : '1px solid transparent',
+                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
+                cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
+                color: isLocked ? '#ccc' : (active ? '#2C1F14' : '#777'),
+                fontSize: 14, fontWeight: active ? 600 : 400,
+                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
+              }}>
+              <Icon size={15} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
+              <span style={{ flex: 1 }}>{label}</span>
+              {isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
             </button>
           )
         })}
-
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e8e4df' }}>
-          {[
-            { id: 'faturamento', label: 'Relatórios', Icon: BarChart2 },
-            { id: 'config',      label: 'Configurações', Icon: Settings },
-          ].map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setTab(id)} className="cds-nav-btn" style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '9px 14px 9px 11px', borderRadius: 10, width: '100%',
-              background: tab === id ? '#fff' : 'transparent',
-              borderLeft: `3px solid ${tab === id ? primary : 'transparent'}`,
-              border: tab === id ? '1px solid #e8e4df' : '1px solid transparent',
-              borderLeft: `3px solid ${tab === id ? primary : 'transparent'}`,
-              cursor: 'pointer', textAlign: 'left',
-              color: tab === id ? '#2C1F14' : '#777',
-              fontSize: 13, fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
-            }}>
-              <Icon size={14} style={{ flexShrink: 0 }} />
-              {label}
-            </button>
-          ))}
-        </div>
       </nav>
 
       {/* Footer */}
@@ -144,10 +123,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
           Versão Celular
         </button>
-
         <p style={{
-          marginTop: 10, paddingTop: 10,
-          borderTop: '1px solid #e8e4df',
           fontSize: 11, color: '#bbb',
           fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
         }}>
@@ -163,7 +139,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme }) {
+function DesktopInicio({ vendas, metas, theme, setTab }) {
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const todayStr = now.toDateString()
@@ -219,6 +195,34 @@ function DesktopInicio({ vendas, metas, theme }) {
             <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{sub}</p>
           </div>
         ))}
+      </div>
+
+      {/* Meta card clicável */}
+      <div
+        onClick={() => setTab('meta')}
+        onMouseEnter={e => e.currentTarget.style.background = '#f4f1ee'}
+        onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
+        style={{
+          cursor: 'pointer', background: 'var(--surface)', borderRadius: 16,
+          border: '1px solid var(--line)', padding: '20px 22px', marginBottom: 24,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          transition: 'background .15s',
+        }}>
+        <div>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Meta Mensal</p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>
+            {meta > 0 ? `${pct.toFixed(0)}%` : '—'}
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+            {meta > 0 ? fmtR(meta) : 'Clique para definir a meta'}
+          </p>
+          {meta > 0 && (
+            <div style={{ marginTop: 10, width: 200, height: 3, borderRadius: 2, background: 'var(--line)' }}>
+              <div style={{ height: '100%', borderRadius: 2, background: theme.primary, width: `${pct}%`, transition: 'width 0.7s' }} />
+            </div>
+          )}
+        </div>
+        <ChevronRight size={18} color="var(--muted)" />
       </div>
 
       {/* Top performers */}
@@ -548,6 +552,48 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
   )
 }
 
+// ── Desktop Estoque ────────────────────────────────────────────
+function DesktopEstoque() {
+  return (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
+      padding: '64px 24px', textAlign: 'center',
+    }}>
+      <Package size={40} color="var(--line)" style={{ margin: '0 auto 16px' }} />
+      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Estoque</p>
+      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível nesta versão.</p>
+    </div>
+  )
+}
+
+// ── Desktop Relatórios (Histórico + Faturamento) ───────────────
+function DesktopRelatorios({ data, theme }) {
+  const [subTab, setSubTab] = useState('historico')
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { id: 'historico',   label: 'Histórico'   },
+          { id: 'faturamento', label: 'Faturamento'  },
+        ].map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
+            padding: '8px 20px', borderRadius: 99, cursor: 'pointer',
+            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            border: subTab === st.id ? 'none' : '1px solid var(--line)',
+            background: subTab === st.id ? theme.primary : 'var(--surface)',
+            color: subTab === st.id ? '#fff' : 'var(--muted)',
+            boxShadow: subTab === st.id ? `0 2px 8px ${theme.primary}30` : 'none',
+          }}>{st.label}</button>
+        ))}
+      </div>
+      {subTab === 'historico'
+        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} theme={theme} />
+        : <Faturamento {...data} theme={theme} />
+      }
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
@@ -556,13 +602,13 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
 
   const panels = {
-    inicio:      <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} />,
-    historico:   <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} theme={theme} />,
-    venda:       <DesktopNovaVenda {...data} theme={theme} />,
-    meta:        <Meta             {...data} theme={theme} />,
-    conta:       <Fechamento       {...data} theme={theme} />,
-    faturamento: <Faturamento      {...data} theme={theme} />,
-    config:      <LojaConfig       {...data} theme={theme} />,
+    inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
+    venda:      <DesktopNovaVenda {...data} theme={theme} />,
+    estoque:    <DesktopEstoque />,
+    relatorios: <DesktopRelatorios data={data} theme={theme} />,
+    meta:       <Meta             {...data} theme={theme} />,
+    conta:      <Fechamento       {...data} theme={theme} />,
+    config:     <LojaConfig       {...data} theme={theme} />,
   }
 
   return (
