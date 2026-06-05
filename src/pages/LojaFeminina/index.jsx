@@ -9,6 +9,7 @@ import Meta from './Meta'
 import Fechamento from './Fechamento'
 import Faturamento from './Faturamento'
 import LojaConfig from './LojaConfig'
+import EstoquePage from '../cliente/EstoquePage'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const METALLIC_SOFT = 'linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%)'
@@ -173,21 +174,6 @@ function Inicio({ vendas, metas, setTab }) {
   )
 }
 
-// ── Estoque placeholder ─────────────────────────────────────
-function EstoquePlaceholder() {
-  return (
-    <div style={{ paddingTop: 8 }}>
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-        padding: '48px 24px', textAlign: 'center',
-      }}>
-        <Package size={36} color="var(--line)" style={{ margin: '0 auto 14px' }} />
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Estoque</p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível.</p>
-      </div>
-    </div>
-  )
-}
 
 // ── Relatórios mobile (Histórico + Faturamento) ─────────────
 function RelatoriosMobile({ data, theme }) {
@@ -401,7 +387,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   const panels = {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} />,
-    estoque:    <EstoquePlaceholder />,
+    estoque:    <EstoquePage estoque={data.estoque} addEstoqueItem={data.addEstoqueItem} updateEstoqueItem={data.updateEstoqueItem} deleteEstoqueItem={data.deleteEstoqueItem} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <RelatoriosMobile data={data} theme={theme} />,
     meta:       <Meta {...data} theme={theme} />,

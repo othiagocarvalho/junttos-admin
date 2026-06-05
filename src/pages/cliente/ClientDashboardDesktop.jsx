@@ -8,6 +8,7 @@ import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import EstoquePage from './EstoquePage'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -557,20 +558,6 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
   )
 }
 
-// ── Desktop Estoque ────────────────────────────────────────────
-function DesktopEstoque() {
-  return (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-      padding: '64px 24px', textAlign: 'center',
-    }}>
-      <Package size={40} color="var(--line)" style={{ margin: '0 auto 16px' }} />
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Estoque</p>
-      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível nesta versão.</p>
-    </div>
-  )
-}
-
 // ── Desktop Relatórios (Histórico + Faturamento) ───────────────
 function DesktopRelatorios({ data, theme }) {
   const [subTab, setSubTab] = useState('historico')
@@ -609,7 +596,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <DesktopEstoque />,
+    estoque:    <EstoquePage estoque={data.estoque} addEstoqueItem={data.addEstoqueItem} updateEstoqueItem={data.updateEstoqueItem} deleteEstoqueItem={data.deleteEstoqueItem} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
     conta:      <Fechamento       {...data} theme={theme} />,
