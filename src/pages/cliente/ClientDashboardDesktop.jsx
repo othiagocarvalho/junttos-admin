@@ -47,21 +47,6 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
-function EstradaLogo({ size = 32 }) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: 8,
-      background: '#CC7870', display: 'flex',
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    }}>
-      <span style={{
-        fontSize: size * 0.28, fontWeight: 700, color: '#fff',
-        letterSpacing: '-0.5px', fontFamily: 'Georgia, serif', fontStyle: 'italic',
-      }}>E</span>
-    </div>
-  )
-}
-
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
 
@@ -84,7 +69,19 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
           </svg>
 
           <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
-          <EstradaLogo size={32} />
+          <div style={{
+            background: '#fff',
+            borderRadius: 8,
+            padding: 2,
+            flexShrink: 0,
+            border: '1px solid #e8e4df',
+          }}>
+            <img
+              src="/logos/estrada.svg"
+              alt="Loja Estrada"
+              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
+            />
+          </div>
         </div>
 
         <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginTop: 10, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
