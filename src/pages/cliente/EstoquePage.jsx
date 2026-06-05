@@ -112,7 +112,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
         {[
           { label: 'Produtos',        value: estoque.length,                 alert: false },
           { label: 'Valor em estoque', value: fmtR(totalValue),             alert: false },
-          { label: 'Estoque crítico',  value: `${lowStock} item${lowStock !== 1 ? 's' : ''}`, alert: lowStock > 0 },
+          { label: 'Estoque crítico',  value: `${lowStock} ${lowStock !== 1 ? 'itens' : 'item'}`, alert: lowStock > 0 },
         ].map(({ label, value, alert }) => (
           <div key={label} style={{ background: 'var(--surface)', border: `1px solid ${alert ? '#fca5a5' : 'var(--line)'}`, borderRadius: 14, padding: '14px 16px' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: alert ? '#dc2626' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{label}</p>
