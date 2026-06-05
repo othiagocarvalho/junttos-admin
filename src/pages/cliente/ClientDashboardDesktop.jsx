@@ -63,11 +63,11 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
       {/* Logos: Junttos + cliente */}
       <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          {/* Junttos SVG */}
-          <svg width="40" height="40" viewBox="0 0 50 50" fill="none" style={{ flexShrink: 0 }}>
-            <circle cx="13" cy="12" r="10" fill="#5E2BD0" />
-            <circle cx="27" cy="15" r="9.5" fill="#FF6B47" />
-            <rect x="2" y="27" width="36" height="16" rx="8" fill="#5E2BD0" />
+          {/* Junttos SVG — mesmo viewBox do Login e Sidebar */}
+          <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+            <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+            <circle cx="40" cy="37" r="14" fill="#341780" />
+            <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
           </svg>
 
           <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
