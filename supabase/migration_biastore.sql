@@ -16,8 +16,8 @@ VALUES (
   'Usy Bia Store',
   'ativo',
   'basico',
-  '#1A1A1A',
-  '#C9A84C',
+  '#D4A017',
+  '#F0C040',
   '{"vendas":true,"historico":true,"metas":true,"fechamento_caixa":true,"relatorios":true,"clientes":false,"estoque":false}'
 )
 ON CONFLICT (loja_id) DO UPDATE SET
