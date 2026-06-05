@@ -98,18 +98,25 @@ export function useLojaData(lojaId = 'estrada') {
   async function addVenda(venda) {
     const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: lojaId })
     if (!error) {
-      // Desconta automaticamente o estoque de cada produto vendido
       for (const prod of (venda.produtos || [])) {
         const { data: item } = await supabase
           .from('lf_produtos')
-          .select('id, quantidade')
+          .select('id, quantidade, variacoes')
           .eq('loja_id', lojaId)
           .eq('nome', prod.nome)
           .eq('ativo', true)
           .maybeSingle()
-        if (item && Number(item.quantidade) > 0) {
-          await supabase
-            .from('lf_produtos')
+        if (!item) continue
+        const vars = item.variacoes || []
+        if (vars.length > 0 && prod.cor) {
+          const updated = vars.map(v =>
+            v.cor === prod.cor && Number(v.quantidade) > 0
+              ? { ...v, quantidade: Number(v.quantidade) - 1 }
+              : v
+          )
+          await supabase.from('lf_produtos').update({ variacoes: updated }).eq('id', item.id)
+        } else if (Number(item.quantidade) > 0) {
+          await supabase.from('lf_produtos')
             .update({ quantidade: Number(item.quantidade) - 1 })
             .eq('id', item.id)
         }
