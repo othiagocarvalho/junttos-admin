@@ -40,9 +40,9 @@ const navItems = [
 
 // ── Logos estáticos — mesmo padrão do JunttosSymbol ──────────────────────────
 
-function JunttosSymbol({ size = 34 }) {
+function JunttosSymbol({ size = 34, style }) {
   return (
-    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width={size} height={size} viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={style}>
       <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
       <circle cx="40" cy="37" r="14" fill="#341780" />
       <circle cx="64" cy="39" r="14" fill="#FF6B6B" />
@@ -105,7 +105,8 @@ export default function Sidebar() {
       {/* ── Logo: Junttos + cliente ── */}
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, overflow: 'visible', width: '100%' }}>
-          <JunttosSymbol size={32} />
+          <JunttosSymbol size={32} style={{ flexShrink: 0 }} />
+          <div style={{ width: 1, height: 24, background: '#ddd', flexShrink: 0 }} />
           <EstradaLogo size={32} />
         </div>
         <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
