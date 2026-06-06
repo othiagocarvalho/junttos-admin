@@ -110,6 +110,9 @@ export default function ClientLogin() {
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
   const [lojaConfig,  setLojaConfig]  = useState(null)
+  const [remember,    setRemember]    = useState(
+    () => localStorage.getItem('junttos_remember') === 'true'
+  )
 
   useEffect(() => {
     supabase
@@ -120,10 +123,28 @@ export default function ClientLogin() {
       .then(({ data }) => { if (data) setLojaConfig(data) })
   }, [lojaSlug])
 
+  useEffect(() => {
+    if (localStorage.getItem('junttos_remember') === 'true') {
+      const savedEmail = localStorage.getItem('junttos_saved_email') || ''
+      const savedPwd   = localStorage.getItem('junttos_saved_pwd')   || ''
+      if (savedEmail) setEmail(savedEmail)
+      if (savedPwd)   setPassword(savedPwd)
+    }
+  }, [])
+
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
     setError('')
+    if (remember) {
+      localStorage.setItem('junttos_remember',     'true')
+      localStorage.setItem('junttos_saved_email',  email)
+      localStorage.setItem('junttos_saved_pwd',    password)
+    } else {
+      localStorage.removeItem('junttos_remember')
+      localStorage.removeItem('junttos_saved_email')
+      localStorage.removeItem('junttos_saved_pwd')
+    }
     const { error: err } = await login(email, password)
     setLoading(false)
     if (err) setError('E-mail ou senha incorretos.')
@@ -216,7 +237,7 @@ export default function ClientLogin() {
           <div>
             <label style={labelStyle}>E-mail</label>
             <input
-              type="email" value={email} required
+              type="email" value={email} required autoComplete="off"
               onChange={e => { setEmail(e.target.value); setError('') }}
               placeholder="seu@email.com"
               style={inputStyle}
@@ -229,7 +250,7 @@ export default function ClientLogin() {
             <label style={labelStyle}>Senha</label>
             <div style={{ position: 'relative' }}>
               <input
-                type={showPwd ? 'text' : 'password'} value={password} required
+                type={showPwd ? 'text' : 'password'} value={password} required autoComplete="off"
                 onChange={e => { setPassword(e.target.value); setError('') }}
                 placeholder="••••••••"
                 style={{ ...inputStyle, paddingRight: 46 }}
@@ -247,6 +268,15 @@ export default function ClientLogin() {
               </button>
             </div>
           </div>
+
+          {/* Lembrar dados */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
+              style={{ width: 15, height: 15, accentColor: '#7B5DD4', cursor: 'pointer', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: '#7B7390' }}>Lembrar meus dados</span>
+          </label>
 
           {/* Erro */}
           {error && (
