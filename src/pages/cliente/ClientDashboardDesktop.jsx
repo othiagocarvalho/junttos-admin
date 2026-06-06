@@ -150,6 +150,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
 
 // ── Desktop Início ────────────────────────────────────────────
 function DesktopInicio({ vendas, metas, theme, setTab }) {
+  const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const todayStr = now.toDateString()
@@ -170,36 +171,36 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
     <div>
       {/* Hero — full width */}
       <div style={{
-        background: `linear-gradient(135deg, ${theme.primary}f0 0%, ${theme.primary} 100%)`,
+        background: isDark ? '#0F0E0C' : `linear-gradient(135deg, ${theme.primary}f0 0%, ${theme.primary} 100%)`,
+        borderTop: isDark ? '2px solid #D4A017' : undefined,
         borderRadius: 20, padding: '36px 40px', marginBottom: 24,
         position: 'relative', overflow: 'hidden',
       }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </p>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 56, fontWeight: 700, color: '#fff', lineHeight: 1, marginBottom: 10 }}>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 56, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 10 }}>
           {fmtR(totalMes)}
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'rgba(255,255,255,0.68)' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.68)' }}>
           {vendasMes.length} venda{vendasMes.length !== 1 ? 's' : ''}{' '}
           {meta > 0 ? `· ${pct.toFixed(0)}% da meta (${fmtR(meta)})` : '· sem meta definida'}
         </p>
         {meta > 0 && (
           <div style={{ marginTop: 20, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }}>
-            <div style={{ height: '100%', borderRadius: 2, background: '#fff', width: `${pct}%`, transition: 'width 0.7s' }} />
+            <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pct}%`, transition: 'width 0.7s' }} />
           </div>
         )}
       </div>
 
-      {/* 4-column KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* 3-column KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Hoje',           value: fmtR(totalHoje),  sub: `${vendasHoje.length} vendas` },
           { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
           { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
-          { label: 'Meta Mensal',    value: meta > 0 ? `${pct.toFixed(0)}%` : '—', sub: meta > 0 ? fmtR(meta) : 'não definida' },
         ].map(({ label, value, sub }, i) => (
-          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)', padding: '22px 20px' }}>
+          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)'), padding: '22px 20px' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
             <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>{value}</p>
             <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{sub}</p>
@@ -356,7 +357,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
                 <td colSpan={7} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>Nenhuma venda encontrada.</td>
               </tr>
             ) : filtered.map((v, i) => (
-              <tr key={v.id} style={{ borderBottom: '1px solid var(--line)', background: i % 2 === 0 ? '#fff' : 'var(--bg)' }}>
+              <tr key={v.id} style={{ borderBottom: '1px solid var(--line)', background: i % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
                 <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{fmtDT(v.data)}</td>
                 <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cliente_nome || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
                 <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--ink-soft)' }}>{v.vendedora || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
@@ -497,6 +498,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
 function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
+  const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(EMPTY_VENDA)
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
@@ -642,9 +644,9 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
             style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
               cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !pgtoOk ? 'var(--line)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
-              color: saving || !pgtoOk ? 'var(--muted)' : '#fff',
-              boxShadow: saving || !pgtoOk ? 'none' : '0 4px 16px rgba(107,79,187,0.4)',
+              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
+              color: saving || !pgtoOk ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
+              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'box-shadow .18s',
             }}
@@ -763,6 +765,17 @@ function DesktopRelatorios({ data, theme }) {
 // ── Main export ───────────────────────────────────────────────
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
+  const isDark = theme.isDark || theme.primary === '#D4A017'
+  const contentVars = isDark ? {
+    '--bg': '#0A0A0A',
+    '--surface': '#0F0E0C',
+    '--line': 'rgba(212,160,23,0.18)',
+    '--ink': '#D4A017',
+    '--ink-soft': '#A07830',
+    '--muted': '#A07830',
+    '--rose-deep': '#F0C040',
+    '--rose': '#D4A017',
+  } : {}
 
   // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
@@ -778,7 +791,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
       <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>

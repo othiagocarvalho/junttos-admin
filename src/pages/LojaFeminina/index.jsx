@@ -26,7 +26,7 @@ const BOTTOM_TABS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab }) {
+function Inicio({ vendas, metas, setTab, theme = {} }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const todayStr = now.toDateString()
@@ -48,6 +48,8 @@ function Inicio({ vendas, metas, setTab }) {
   }))
   const topProds = Object.entries(prodMap).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
+  const isDark = !!theme.isDark
+
   const kpis = [
     { label: 'Hoje', value: fmtR(totalHoje), sub: `${vendasHoje.length} venda${vendasHoje.length !== 1 ? 's' : ''}` },
     { label: 'Ticket médio', value: fmtR(ticketMedio), sub: 'este mês' },
@@ -59,29 +61,31 @@ function Inicio({ vendas, metas, setTab }) {
     <div style={{ paddingTop: 8 }}>
       {/* Hero */}
       <div style={{
-        background: METALLIC, borderRadius: 20,
+        background: isDark ? '#0F0E0C' : METALLIC,
+        borderTop: isDark ? '2px solid #D4A017' : undefined,
+        borderRadius: 20,
         padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden',
       }}>
         <p style={{
           fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700,
-          color: 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
+          color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
           textTransform: 'uppercase', marginBottom: 10,
         }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long' })}
         </p>
         <p style={{
           fontFamily: "'Playfair Display', serif",
-          fontSize: 42, fontWeight: 700, color: '#fff', lineHeight: 1, marginBottom: 4,
+          fontSize: 42, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
         }}>
           {fmtR(totalMes)}
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 10 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', marginTop: 10 }}>
           {vendasMes.length} venda{vendasMes.length !== 1 ? 's' : ''}{' '}
           {meta > 0 ? `· ${pctMeta.toFixed(0)}% da meta` : '· sem meta definida'}
         </p>
         {meta > 0 && (
           <div style={{ marginTop: 16, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }}>
-            <div style={{ height: '100%', borderRadius: 2, background: '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
+            <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
           </div>
         )}
       </div>
@@ -145,13 +149,13 @@ function Inicio({ vendas, metas, setTab }) {
               <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  background: i === 0 ? METALLIC : METALLIC_SOFT,
+                  background: isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? METALLIC : METALLIC_SOFT),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? '#fff' : 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
                 </div>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>{nome}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{qtd}×</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{qtd}×</span>
               </div>
             ))}
           </div>
@@ -340,11 +344,24 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
 
+  const primary = data.config?.cor_primaria || '#B47A6B'
+  const isDark = primary === '#D4A017'
   const theme = {
-    primary: data.config?.cor_primaria || '#B47A6B',
+    primary,
     accent:  data.config?.cor_secundaria || '#D9A99B',
     nome:    data.config?.nome || 'Loja Estrada',
+    isDark,
   }
+  const themeVars = isDark ? {
+    '--bg': '#0A0A0A',
+    '--surface': '#0F0E0C',
+    '--line': 'rgba(212,160,23,0.18)',
+    '--ink': '#D4A017',
+    '--ink-soft': '#A07830',
+    '--muted': '#A07830',
+    '--rose-deep': '#F0C040',
+    '--rose': '#D4A017',
+  } : {}
 
   useEffect(() => {
     if (!data.loading && !initDone) {
@@ -400,7 +417,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
 
   const panels = {
-    inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} />,
+    inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoquePlaceholder />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <RelatoriosMobile data={data} theme={theme} />,
@@ -428,7 +445,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
       <AppHeader primary={theme.primary} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
