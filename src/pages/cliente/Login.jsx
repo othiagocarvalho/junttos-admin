@@ -314,11 +314,8 @@ export default function ClientLogin() {
           </div>
         </form>
 
-        <p style={{ textAlign: 'center', fontSize: 12, color: '#9C8FC0', marginTop: 20, lineHeight: 1.6 }}>
-          Uma boa gestão não se faz sozinho(a). Vamos fazer{' '}
-          <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, color: '#5E2BD0' }}>
-            jun<span style={{ color: '#FF6B47' }}>tt</span>os
-          </span>?
+        <p style={{ textAlign: 'center', fontSize: 12, color: '#9C8FC0', marginTop: 20, lineHeight: 1.6, whiteSpace: 'nowrap' }}>
+          Uma boa gestão não se faz sozinho(a). Vamos fazer <span style={{ fontWeight: 700, color: '#5E2BD0' }}>Jun<span style={{ color: '#F4613A' }}>tt</span>os</span>?
         </p>
       </div>
     </div>
