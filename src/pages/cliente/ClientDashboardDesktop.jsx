@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
-  Trash2, Search, Check, ChevronRight, X,
+  Trash2, Search, Check, ChevronRight, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
@@ -16,6 +16,16 @@ function fmtDT(s) {
     hour: '2-digit', minute: '2-digit',
   })
 }
+function parsePgtos(v) {
+  try {
+    const arr = JSON.parse(v.forma_pgto)
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  return v.forma_pgto ? [{ forma: v.forma_pgto, valor: Number(v.valor) }] : []
+}
+function fmtPgtos(v) {
+  return parsePgtos(v).map(p => p.forma).join(' + ')
+}
 
 const NAV = [
   { id: 'inicio',     label: 'Início',        Icon: Home      },
@@ -28,7 +38,7 @@ const NAV = [
   { id: 'config',     label: 'Configurações', Icon: Settings  },
 ]
 
-const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
+const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 // ── Shared input style ───────────────────────────────────────
 const inp = (primary) => ({
@@ -249,11 +259,18 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
 }
 
 // ── Desktop Histórico (table) ─────────────────────────────────
-function DesktopHistorico({ vendas, deleteVenda, theme }) {
+function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
   const [search,     setSearch]     = useState('')
   const [filtro,     setFiltro]     = useState('todos')
   const [confirmDel, setConfirmDel] = useState(null)
+  const [editVenda,  setEditVenda]  = useState(null)
+  const [editPgtos,  setEditPgtos]  = useState([])
+  const [editSaving, setEditSaving] = useState(false)
   const now = new Date()
+
+  const editTotal = editVenda ? Number(editVenda.valor) : 0
+  const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
+  const editPgtoOk = editVenda && Math.abs(editAlloc - editTotal) < 0.005
 
   const filtered = vendas.filter(v => {
     const d = new Date(v.data)
@@ -266,7 +283,7 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
     const q = search.toLowerCase()
     return (v.cliente_nome || '').toLowerCase().includes(q) ||
       (v.vendedora || '').toLowerCase().includes(q) ||
-      (v.forma_pgto || '').toLowerCase().includes(q)
+      fmtPgtos(v).toLowerCase().includes(q)
   })
 
   const total = filtered.reduce((s, v) => s + Number(v.valor), 0)
@@ -274,6 +291,24 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
   async function confirmDelete() {
     await deleteVenda(confirmDel.id)
     setConfirmDel(null)
+  }
+
+  function openEdit(v) {
+    setEditPgtos(parsePgtos(v).map(p => ({ ...p, valor: String(p.valor) })))
+    setEditVenda(v)
+  }
+
+  async function handleSaveEdit() {
+    if (!editPgtoOk) return
+    setEditSaving(true)
+    await updateVenda(editVenda.id, {
+      forma_pgto: JSON.stringify(editPgtos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((String(p.valor) || '0').replace(',', '.')) || 0,
+      }))),
+    })
+    setEditSaving(false)
+    setEditVenda(null)
   }
 
   return (
@@ -331,7 +366,7 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
                 <td style={{ padding: '12px 16px' }}>
                   {v.forma_pgto && (
                     <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 99, background: `${theme.primary}15`, color: theme.primary, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {v.forma_pgto}
+                      {fmtPgtos(v)}
                     </span>
                   )}
                 </td>
@@ -339,11 +374,18 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
                   {fmtR(v.valor)}
                 </td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                  <button onClick={() => setConfirmDel(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
-                    <Trash2 size={14} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    <button onClick={() => openEdit(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = theme.primary}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => setConfirmDel(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -366,13 +408,96 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
           </div>
         </div>
       )}
+
+      {/* Edit payment modal */}
+      {editVenda && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+                Editar Pagamento — {fmtR(editVenda.valor)}
+              </p>
+              <button onClick={() => setEditVenda(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+              {editPgtos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select
+                    value={p.forma}
+                    onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
+                    style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                  >
+                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                  <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      value={p.valor}
+                      onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))}
+                      placeholder="0,00"
+                      style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 30px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  {editPgtos.length > 1 && (
+                    <button onClick={() => setEditPgtos(prev => prev.filter((_, idx) => idx !== i))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setEditPgtos(prev => [...prev, { forma: 'Pix', valor: '' }])}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
+              <Plus size={13} /> Adicionar forma
+            </button>
+
+            <div style={{
+              marginBottom: 20, padding: '8px 12px', borderRadius: 10,
+              background: editPgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+              border: `1px solid ${editPgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+              color: editPgtoOk ? '#16a34a' : '#dc2626',
+            }}>
+              {editPgtoOk
+                ? '✓ Valor alocado corretamente'
+                : `Alocado: ${fmtR(editAlloc)} · Total: ${fmtR(editTotal)}`
+              }
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditVenda(null)}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
+                style={{
+                  flex: 2, height: 46, borderRadius: 12, border: 'none',
+                  background: editPgtoOk && !editSaving ? theme.primary : 'var(--line)',
+                  cursor: editPgtoOk && !editSaving ? 'pointer' : 'not-allowed',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  color: editPgtoOk && !editSaving ? '#fff' : 'var(--muted)', fontSize: 14,
+                  boxShadow: editPgtoOk && !editSaving ? `0 4px 16px ${theme.primary}40` : 'none',
+                }}>
+                {editSaving ? 'Salvando...' : 'Salvar pagamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
+
 function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
-  const [form,       setForm]       = useState({ nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' })
+  const [form,       setForm]       = useState(EMPTY_VENDA)
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done,       setDone]       = useState(false)
@@ -391,13 +516,31 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
     setNewProd('')
     setAddingProd(false)
   }
+  function handleValorChange(val) {
+    setForm(prev => ({
+      ...prev, valor: val,
+      pagamentos: prev.pagamentos.length === 1 ? [{ ...prev.pagamentos[0], valor: val }] : prev.pagamentos,
+    }))
+  }
+  function addPgto() {
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
+  }
+  function removePgto(idx) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
+  }
+  function setPgto(idx, field, val) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((p, i) => i === idx ? { ...p, [field]: val } : p) }))
+  }
   async function handleSave() {
     setSaving(true)
     const err = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
       valor: parseFloat(form.valor.replace(',', '.')) || 0,
-      forma_pgto: form.pgto,
+      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+      }))),
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
@@ -406,9 +549,12 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm({ nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' }) }, 2200)
+      setTimeout(() => { setDone(false); setForm(EMPTY_VENDA) }, 2200)
     }
   }
+  const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
+  const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   const inputS = inp(theme.primary)
   const fo = onF(theme.primary)
@@ -457,33 +603,53 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
             <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
-              <input value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00"
+              <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
                 style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
             </div>
-            <label style={lbl}>Forma de Pagamento</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {PGTOS.map(p => (
-                <button key={p} type="button" onClick={() => setForm({ ...form, pgto: p })}
-                  style={{ padding: '7px 14px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, transition: 'all .15s',
-                    background: form.pgto === p ? theme.primary : 'var(--bg)',
-                    color: form.pgto === p ? '#fff' : 'var(--ink-soft)',
-                    boxShadow: form.pgto === p ? `0 2px 8px ${theme.primary}30` : 'none',
-                  }}>{p}</button>
+            <label style={lbl}>Formas de Pagamento</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {form.pagamentos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={p.forma} onChange={e => setPgto(i, 'forma', e.target.value)}
+                    style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                  <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input value={p.valor} onChange={e => setPgto(i, 'valor', e.target.value)} placeholder="0,00"
+                      style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={onF(theme.primary)} onBlur={onB} />
+                  </div>
+                  {form.pagamentos.length > 1 && (
+                    <button onClick={() => removePgto(i)} style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
+            <button type="button" onClick={addPgto}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+              <Plus size={13} /> Adicionar forma
+            </button>
+            {form.valor && (
+              <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
+                {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
+              </div>
+            )}
           </div>
-          <button type="button" disabled={saving || !form.valor} onClick={handleSave}
+          <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
             style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
-              cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+              cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !form.valor ? 'var(--line)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
-              color: saving || !form.valor ? 'var(--muted)' : '#fff',
-              boxShadow: saving || !form.valor ? 'none' : '0 4px 16px rgba(107,79,187,0.4)',
+              background: saving || !pgtoOk ? 'var(--line)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
+              color: saving || !pgtoOk ? 'var(--muted)' : '#fff',
+              boxShadow: saving || !pgtoOk ? 'none' : '0 4px 16px rgba(107,79,187,0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'box-shadow .18s',
             }}
-            onMouseEnter={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
-            onMouseLeave={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
+            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
+            onMouseLeave={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
           >
             {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
@@ -587,7 +753,7 @@ function DesktopRelatorios({ data, theme }) {
         ))}
       </div>
       {subTab === 'historico'
-        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} theme={theme} />
+        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} updateVenda={data.updateVenda} theme={theme} />
         : <Faturamento {...data} theme={theme} />
       }
     </div>

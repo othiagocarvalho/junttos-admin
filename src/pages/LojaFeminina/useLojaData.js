@@ -99,6 +99,12 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  async function updateVenda(id, updates) {
+    const { error } = await supabase.from('lf_vendas').update(updates).eq('id', id)
+    if (!error) await fetchAll()
+    return error
+  }
+
   async function fecharCaixa(caixa) {
     const { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: lojaId })
     if (!error) await fetchAll()
@@ -157,6 +163,7 @@ export function useLojaData(lojaId = 'estrada') {
     ensureDefaults,
     addVenda,
     deleteVenda,
+    updateVenda,
     fecharCaixa,
     salvarMeta,
     addProduto,

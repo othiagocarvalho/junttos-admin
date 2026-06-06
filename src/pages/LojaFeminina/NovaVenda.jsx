@@ -3,8 +3,8 @@ import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, Che
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 
-const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' }
+const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -64,13 +64,41 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
     setAddingProd(false)
   }
 
+  function handleValorChange(val) {
+    setForm(prev => ({
+      ...prev,
+      valor: val,
+      pagamentos: prev.pagamentos.length === 1
+        ? [{ ...prev.pagamentos[0], valor: val }]
+        : prev.pagamentos,
+    }))
+  }
+
+  function addPgto() {
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
+  }
+
+  function removePgto(idx) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
+  }
+
+  function setPgto(idx, field, val) {
+    setForm(prev => ({
+      ...prev,
+      pagamentos: prev.pagamentos.map((p, i) => i === idx ? { ...p, [field]: val } : p),
+    }))
+  }
+
   async function handleSave() {
     setSaving(true)
     const err = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel: form.tel || null,
       valor: parseFloat(form.valor.replace(',', '.')) || 0,
-      forma_pgto: form.pgto,
+      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+      }))),
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
@@ -82,6 +110,10 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
       setTimeout(() => { setDone(false); setForm(EMPTY); setStep(0) }, 2200)
     }
   }
+
+  const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
+  const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   if (done) {
     return (
@@ -241,13 +273,13 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e forma de pagamento</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e formas de pagamento</p>
             </div>
 
-            <Field label="Valor (R$)" Icon={CreditCard}>
+            <Field label="Valor Total (R$)" Icon={CreditCard}>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>R$</span>
-                <input value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })}
+                <input value={form.valor} onChange={e => handleValorChange(e.target.value)}
                   placeholder="0,00" autoFocus
                   style={{ ...inputBase, paddingLeft: 36, fontSize: 18, fontWeight: 700 }}
                   onFocus={focusIn} onBlur={focusOut} />
@@ -256,20 +288,80 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
 
             <div>
               <label style={labelStyle}>
-                <ShoppingBag size={12} /> Forma de Pagamento
+                <ShoppingBag size={12} /> Formas de Pagamento
               </label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {PGTOS.map(p => (
-                  <button key={p} onClick={() => setForm({ ...form, pgto: p })}
-                    style={{
-                      padding: '7px 14px', borderRadius: 99, fontSize: 12, fontFamily: 'Manrope, sans-serif', fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all .15s',
-                      background: form.pgto === p ? METALLIC : 'var(--bg)',
-                      color: form.pgto === p ? '#fff' : 'var(--ink-soft)',
-                    }}>
-                    {p}
-                  </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.pagamentos.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <select
+                      value={p.forma}
+                      onChange={e => setPgto(i, 'forma', e.target.value)}
+                      style={{
+                        height: 46, flex: '2 1 0', minWidth: 0,
+                        border: '1.5px solid var(--line)', borderRadius: 12,
+                        padding: '0 8px',
+                        fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                        color: 'var(--ink)', background: 'var(--bg)',
+                        outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+                      }}
+                    >
+                      {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                    <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                      <input
+                        value={p.valor}
+                        onChange={e => setPgto(i, 'valor', e.target.value)}
+                        placeholder="0,00"
+                        style={{
+                          width: '100%', height: 46,
+                          border: '1.5px solid var(--line)', borderRadius: 12,
+                          padding: '0 10px 0 28px',
+                          fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                          color: 'var(--ink)', background: 'var(--bg)',
+                          outline: 'none', boxSizing: 'border-box',
+                        }}
+                        onFocus={focusIn} onBlur={focusOut}
+                      />
+                    </div>
+                    {form.pagamentos.length > 1 && (
+                      <button
+                        onClick={() => removePgto(i)}
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
+
+              <button
+                onClick={addPgto}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                  padding: '7px 14px', borderRadius: 10,
+                  border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)',
+                }}
+              >
+                <Plus size={13} /> Adicionar forma
+              </button>
+
+              {form.valor && (
+                <div style={{
+                  marginTop: 10, padding: '8px 12px', borderRadius: 10,
+                  background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+                  border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                  color: pgtoOk ? '#16a34a' : '#dc2626',
+                }}>
+                  {pgtoOk
+                    ? '✓ Pagamento completo'
+                    : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`
+                  }
+                </div>
+              )}
             </div>
 
             <Field label="Observações">
@@ -294,15 +386,15 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(1)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
               <button
-                disabled={saving || !form.valor}
+                disabled={saving || !pgtoOk}
                 onClick={handleSave}
                 style={{
-                  flex: 1, height: 48, background: saving || !form.valor ? 'var(--line)' : METALLIC,
-                  color: saving || !form.valor ? 'var(--muted)' : '#fff',
-                  border: 'none', borderRadius: 99, cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+                  flex: 1, height: 48, background: saving || !pgtoOk ? 'var(--line)' : METALLIC,
+                  color: saving || !pgtoOk ? 'var(--muted)' : '#fff',
+                  border: 'none', borderRadius: 99, cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
                   fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: saving || !form.valor ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
+                  boxShadow: saving || !pgtoOk ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
                 }}
               >
                 {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
