@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Home, Plus, Wallet, Settings, BarChart2,
+  Home, ShoppingCart, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, X,
   User, Phone, CreditCard, Lock, Package, Users,
 } from 'lucide-react'
@@ -20,7 +20,7 @@ function fmtDT(s) {
 
 const NAV = [
   { id: 'inicio',     label: 'Início',        Icon: Home      },
-  { id: 'venda',      label: 'Nova Venda',    Icon: Plus      },
+  { id: 'venda',      label: 'Nova Venda',    Icon: ShoppingCart },
   { id: 'estoque',    label: 'Estoque',       Icon: Package   },
   { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
   { id: 'crm',        label: 'CRM',           Icon: Users,    locked: true },
@@ -53,80 +53,142 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--mut
 
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
-  const primary = config?.cor_primaria || theme.primary
+  const primary  = config?.cor_primaria || theme.primary
+  const [expanded, setExpanded] = useState(false)
 
   return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: 220, height: '100vh',
-      background: '#F8F7F5',
-      display: 'flex', flexDirection: 'column',
-      zIndex: 50, fontFamily: 'Manrope, sans-serif',
-      borderRight: '1px solid #e8e4df',
-    }}>
-      {/* Logos: Junttos + cliente */}
-      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-            <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
-            <circle cx="40" cy="37" r="14" fill="#341780" />
+    <aside
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+      style={{
+        position: 'fixed', left: 0, top: 0,
+        width: expanded ? 196 : 56,
+        height: '100vh',
+        background: '#F8F7F5',
+        display: 'flex', flexDirection: 'column',
+        zIndex: 50, fontFamily: 'Manrope, sans-serif',
+        borderRight: '1px solid #e8e4df',
+        overflow: 'hidden',
+        transition: 'width .22s cubic-bezier(.4,0,.2,1)',
+      }}
+    >
+      {/* Header: símbolo + divisor + logo */}
+      <div style={{
+        height: 52, padding: '0 10px', flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 8,
+        borderBottom: '1px solid #e8e4df',
+      }}>
+        {/* Símbolo Junttos — sempre visível */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 8,
+          background: '#6C3CE1', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <svg width="22" height="22" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
+            <circle cx="40" cy="37" r="14" fill="rgba(255,255,255,0.75)" />
             <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
           </svg>
-          <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
-          {logoUrl && (
-            <div style={{ background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
-              <img src={logoUrl} alt={config?.nome || 'Loja'}
-                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }} />
-            </div>
-          )}
         </div>
+
+        {/* Divisor — só aparece expandido */}
+        <div style={{
+          width: 1, height: 24, background: '#ddd', flexShrink: 0,
+          opacity: expanded ? 1 : 0,
+          transition: 'opacity .15s',
+        }} />
+
+        {/* Logo da loja — só aparece expandido */}
+        {logoUrl && (
+          <div style={{
+            background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0,
+            border: '1px solid #e8e4df',
+            opacity: expanded ? 1 : 0,
+            transition: 'opacity .15s',
+          }}>
+            <img src={logoUrl} alt={config?.nome || 'Loja'}
+              style={{ height: 32, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
+          </div>
+        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '8px 0' }} />
+          if (item.divider) return (
+            <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '6px 10px' }} />
+          )
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
-          const active = tab === id
+          const active   = tab === id
           return (
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
               className={isLocked ? '' : 'cds-nav-btn'}
+              title={expanded ? undefined : label}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
+                display: 'flex', alignItems: 'center', gap: 8,
+                height: 38, padding: '0 10px 0 7px', boxSizing: 'border-box',
+                borderRadius: 10, width: '100%',
                 background: active ? '#fff' : 'transparent',
                 border: active ? '1px solid #e8e4df' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
                 cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
                 color: isLocked ? '#ccc' : (active ? '#2C1F14' : '#777'),
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
+                fontFamily: 'Manrope, sans-serif',
+                transition: 'background .15s, color .15s',
+                overflow: 'hidden',
               }}>
-              <Icon size={15} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
+              {/* Ícone: sempre centralizado em 36px */}
+              <div style={{ width: 36, minWidth: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={15} style={{ opacity: isLocked ? 0.4 : 1 }} />
+              </div>
+              {/* Texto: aparece com opacity */}
+              <span style={{
+                fontSize: 14, fontWeight: active ? 600 : 400, flex: 1,
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity .15s',
+                whiteSpace: 'nowrap', overflow: 'hidden',
+              }}>
+                {label}
+              </span>
+              {isLocked && (
+                <Lock size={11} style={{
+                  flexShrink: 0,
+                  opacity: expanded ? 0.4 : 0,
+                  transition: 'opacity .15s',
+                }} />
+              )}
             </button>
           )
         })}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid #e8e4df' }}>
+      <div style={{ padding: '8px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
         <button onClick={onSwitchToMobile} style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 14px', borderRadius: 10, width: '100%',
-          border: '1px solid #e8e4df',
+          height: 38, padding: '0 10px 0 7px', boxSizing: 'border-box',
+          borderRadius: 10, width: '100%',
+          border: '1px solid transparent',
           background: 'transparent', cursor: 'pointer',
           color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
+          overflow: 'hidden',
         }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
-          Versão Celular
+          <div style={{ width: 36, minWidth: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
+          </div>
+          <span style={{
+            opacity: expanded ? 1 : 0,
+            transition: 'opacity .15s',
+            whiteSpace: 'nowrap', overflow: 'hidden',
+          }}>
+            Versão Celular
+          </span>
         </button>
         <p style={{
           fontSize: 11, color: '#bbb',
-          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
+          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '6px 0 0',
         }}>
           jun<span style={{ color: '#F4613A' }}>tt</span>os
         </p>
@@ -639,7 +701,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
+      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
         </div>
