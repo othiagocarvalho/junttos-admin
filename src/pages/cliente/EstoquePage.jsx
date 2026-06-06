@@ -152,6 +152,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
     return (item.nome || '').toLowerCase().includes(q) || (item.categoria || '').toLowerCase().includes(q)
   })
 
+  const totalCost   = estoque.reduce((s, i) => s + (totalQty(i) * Number(i.preco_custo || 0)), 0)
   const totalValue  = estoque.reduce((s, i) => s + (totalQty(i) * Number(i.preco_venda || 0)), 0)
   const criticalCnt = estoque.filter(hasLow).length
 
@@ -178,9 +179,10 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
       </div>
 
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {[
           { label: 'Produtos',         value: estoque.length,       alert: false },
+          { label: 'Custo total',       value: fmtR(totalCost),      alert: false },
           { label: 'Valor em estoque', value: fmtR(totalValue),     alert: false },
           { label: 'Estoque crítico',  value: `${criticalCnt} ${criticalCnt !== 1 ? 'itens' : 'item'}`, alert: criticalCnt > 0 },
         ].map(({ label, value, alert }) => (
