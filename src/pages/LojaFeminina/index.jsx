@@ -235,7 +235,8 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
   return (
     <header style={{
       background: primary || '#CC7870',
-      paddingTop: 54, paddingBottom: 16,
+      paddingTop: 'max(8px, env(safe-area-inset-top))',
+      paddingBottom: 10,
       paddingLeft: 20, paddingRight: 20,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative',
@@ -422,7 +423,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     )
   }
 
-  const effectiveLogo = data.config?.logo_url || null
+  const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
 
   const panels = {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
