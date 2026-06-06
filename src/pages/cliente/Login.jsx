@@ -77,7 +77,7 @@ function ClientLogo({ lojaSlug, lojaConfig }) {
       <img
         src={src}
         alt={nome}
-        style={{ height: 52, width: 'auto', objectFit: 'contain', display: 'block' }}
+        style={{ height: 68, width: 'auto', objectFit: 'contain', display: 'block' }}
         onError={isBiaStore ? undefined : () => setImgErr(true)}
       />
     </div>
