@@ -315,10 +315,10 @@ export default function ClientLogin() {
         </form>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#9C8FC0', marginTop: 20, lineHeight: 1.6 }}>
-          Dificuldades? Contate a{' '}
+          Uma boa gestão não se faz sozinho(a). Vamos fazer{' '}
           <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, color: '#5E2BD0' }}>
             jun<span style={{ color: '#FF6B47' }}>tt</span>os
-          </span>.
+          </span>?
         </p>
       </div>
     </div>
