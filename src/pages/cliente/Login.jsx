@@ -77,14 +77,6 @@ function ClientLogo({ lojaSlug, lojaConfig }) {
         style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }}
         onError={() => setImgErr(true)}
       />
-      <span style={{
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600, fontSize: 9,
-        color: 'rgba(255,255,255,0.75)',
-        textTransform: 'uppercase', letterSpacing: '1.5px',
-      }}>
-        {nome}
-      </span>
     </div>
   )
 }
