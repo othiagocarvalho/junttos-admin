@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Settings, Save, Palette, ToggleLeft, ToggleRight, Lock } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useClientAuth } from '../../context/ClientAuthContext'
 
 const PRESETS = [
   { label: 'Junttos', primary: '#5E2BD0', accent: '#FF6F5E' },
@@ -20,12 +22,18 @@ const FEATURE_LABELS = {
 }
 
 export default function LojaConfig({ config, features, saveConfig, theme }) {
+  const { user } = useClientAuth()
+
   const [nome, setNome] = useState(config?.nome || '')
   const [primary, setPrimary] = useState(config?.cor_primaria || '#5E2BD0')
   const [accent, setAccent] = useState(config?.cor_secundaria || '#FF6F5E')
   const [feats, setFeats] = useState({ ...features })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const [pwdForm,   setPwdForm]   = useState({ current: '', novo: '', confirm: '' })
+  const [pwdSaving, setPwdSaving] = useState(false)
+  const [pwdMsg,    setPwdMsg]    = useState(null) // { type: 'success'|'error', text }
 
   useEffect(() => {
     if (config) {
@@ -51,6 +59,40 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleChangePwd() {
+    const { current, novo, confirm } = pwdForm
+    if (novo !== confirm) {
+      setPwdMsg({ type: 'error', text: 'A nova senha e a confirmação não coincidem.' })
+      return
+    }
+    if (novo.length < 6) {
+      setPwdMsg({ type: 'error', text: 'A nova senha deve ter pelo menos 6 caracteres.' })
+      return
+    }
+    setPwdSaving(true)
+    setPwdMsg(null)
+    const { error: authErr } = await supabase.auth.signInWithPassword({
+      email: user?.email,
+      password: current,
+    })
+    if (authErr) {
+      setPwdSaving(false)
+      setPwdMsg({ type: 'error', text: 'Senha atual incorreta.' })
+      return
+    }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: novo })
+    if (updateErr) {
+      setPwdSaving(false)
+      setPwdMsg({ type: 'error', text: 'Erro ao atualizar senha. Tente novamente.' })
+      return
+    }
+    await saveConfig({ senha: novo })
+    setPwdSaving(false)
+    setPwdMsg({ type: 'success', text: 'Senha alterada com sucesso!' })
+    setPwdForm({ current: '', novo: '', confirm: '' })
+    setTimeout(() => setPwdMsg(null), 4000)
   }
 
   return (
@@ -197,6 +239,62 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
         <Save className="w-4 h-4" />
         {saved ? 'Configurações salvas!' : saving ? 'Salvando...' : 'Salvar configurações'}
       </button>
+
+      {/* Alterar senha */}
+      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
+        <p className="text-sm font-semibold text-[#16101F] mb-4 flex items-center gap-2">
+          <Lock className="w-4 h-4" style={{ color: theme.primary }} />
+          Alterar Senha
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">Senha atual</label>
+            <input
+              type="password" value={pwdForm.current} autoComplete="current-password"
+              onChange={e => setPwdForm({ ...pwdForm, current: e.target.value })}
+              placeholder="••••••••"
+              className={inp}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">Nova senha</label>
+            <input
+              type="password" value={pwdForm.novo} autoComplete="new-password"
+              onChange={e => setPwdForm({ ...pwdForm, novo: e.target.value })}
+              placeholder="Mínimo 6 caracteres"
+              className={inp}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-[#7B7390] uppercase tracking-wider mb-1.5 block">Confirmar nova senha</label>
+            <input
+              type="password" value={pwdForm.confirm} autoComplete="new-password"
+              onChange={e => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+              placeholder="••••••••"
+              className={inp}
+            />
+          </div>
+
+          {pwdMsg && (
+            <div className={`px-4 py-2.5 rounded-xl text-sm font-medium ${
+              pwdMsg.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-600'
+            }`}>
+              {pwdMsg.text}
+            </div>
+          )}
+
+          <button
+            onClick={handleChangePwd}
+            disabled={pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition"
+            style={{ background: theme.primary }}
+          >
+            {pwdSaving ? 'Salvando...' : 'Salvar nova senha'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
