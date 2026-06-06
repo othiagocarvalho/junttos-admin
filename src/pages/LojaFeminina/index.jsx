@@ -55,7 +55,6 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
     { label: 'Hoje', value: fmtR(totalHoje), sub: `${vendasHoje.length} venda${vendasHoje.length !== 1 ? 's' : ''}` },
     { label: 'Ticket médio', value: fmtR(ticketMedio), sub: 'este mês' },
     { label: 'Vendas no mês', value: vendasMes.length, sub: 'transações' },
-    { label: 'Meta mensal', value: meta > 0 ? `${pctMeta.toFixed(0)}%` : '—', sub: meta > 0 ? fmtR(meta) : 'não definida' },
   ]
 
   return (
@@ -91,12 +90,13 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
         )}
       </div>
 
-      {/* KPI 2×2 */}
+      {/* KPI grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-        {kpis.map(({ label, value, sub }) => (
+        {kpis.map(({ label, value, sub }, i) => (
           <div key={label} style={{
             background: 'var(--surface)', borderRadius: 16,
             border: '1px solid var(--line)', padding: '16px 14px',
+            gridColumn: i === 2 ? '1 / -1' : 'auto',
           }}>
             <p style={{
               fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
@@ -235,11 +235,10 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
   return (
     <header style={{
       background: primary || '#CC7870',
-      paddingTop: 'max(8px, env(safe-area-inset-top))',
-      paddingBottom: 10,
+      height: 56,
       paddingLeft: 20, paddingRight: 20,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative',
+      position: 'relative', flexShrink: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
