@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
+import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
@@ -222,7 +223,15 @@ function RelatoriosMobile({ data, theme }) {
 
 // ── AppHeader ───────────────────────────────────────────────
 
-function AppHeader({ primary, logoUrl, storeName, onSwitchToDesktop }) {
+function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
+  const [imgErr, setImgErr] = useState(false)
+  const fallbackSrc = gerarLogoDataURL({
+    nome: storeName || 'Loja',
+    corPrimaria: primary || '#B47A6B',
+    corSecundaria: accent || '#2A1F1F',
+  })
+  const src = logoUrl && !imgErr ? logoUrl : fallbackSrc
+
   return (
     <header style={{
       background: primary || '#CC7870',
@@ -238,12 +247,11 @@ function AppHeader({ primary, logoUrl, storeName, onSwitchToDesktop }) {
           <circle cx="64" cy="39" r="14" fill="#F4613A" />
         </svg>
         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-        {logoUrl && (
-          <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
-            <img src={logoUrl} alt={storeName || 'Loja'}
-              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
-          </div>
-        )}
+        <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
+          <img src={src} alt={storeName || 'Loja'}
+            style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
+            onError={() => setImgErr(true)} />
+        </div>
       </div>
       <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
         position: 'absolute', right: 16, bottom: 14,
@@ -414,7 +422,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     )
   }
 
-  const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
+  const effectiveLogo = data.config?.logo_url || null
 
   const panels = {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
@@ -446,7 +454,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
-      <AppHeader primary={theme.primary} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
+      <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
       </main>

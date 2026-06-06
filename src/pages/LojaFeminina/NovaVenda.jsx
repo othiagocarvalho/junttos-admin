@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
@@ -36,6 +37,7 @@ function focusOut(e) {
 }
 
 export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
+  const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
   const [newProd, setNewProd] = useState('')
@@ -121,8 +123,8 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
         background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)',
         padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Check size={26} color="#fff" strokeWidth={2.5} />
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
         </div>
         <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
@@ -149,7 +151,7 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 700, fontFamily: 'Manrope, sans-serif',
                     ...(past
-                      ? { background: METALLIC, color: '#fff' }
+                      ? { background: isDark ? GOLD : METALLIC, color: isDark ? '#0A0A0A' : '#fff' }
                       : active
                         ? { background: 'none', color: 'var(--rose-deep)', border: '2px solid var(--rose-deep)' }
                         : { background: 'var(--bg)', color: 'var(--muted)' }),
@@ -189,7 +191,7 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
-              <MetallicBtn onClick={() => setStep(1)}>
+              <MetallicBtn onClick={() => setStep(1)} isDark={isDark}>
                 Próximo — Produtos <ChevronRight size={16} />
               </MetallicBtn>
             </div>
@@ -225,7 +227,7 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
                   onKeyDown={e => e.key === 'Enter' && handleAddProd()}
                   placeholder="Nome do produto..." autoFocus
                   style={{ ...inputBase, flex: 1 }} onFocus={focusIn} onBlur={focusOut} />
-                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: METALLIC, border: 'none', color: '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: isDark ? GOLD : METALLIC, border: 'none', color: isDark ? '#0A0A0A' : '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
                 <button onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 14, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
                   <X size={15} />
                 </button>
@@ -241,7 +243,7 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
                       style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sel ? 'rgba(217,169,155,0.06)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                       <div style={{
                         width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                        background: sel ? METALLIC : '#fff',
+                        background: sel ? (isDark ? GOLD : METALLIC) : '#fff',
                         border: sel ? 'none' : '1.5px solid var(--line)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
@@ -263,7 +265,7 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
 
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(0)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
-              <MetallicBtn onClick={() => setStep(2)}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
+              <MetallicBtn onClick={() => setStep(2)} isDark={isDark}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
           </div>
         )}
@@ -389,12 +391,12 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
                 disabled={saving || !pgtoOk}
                 onClick={handleSave}
                 style={{
-                  flex: 1, height: 48, background: saving || !pgtoOk ? 'var(--line)' : METALLIC,
-                  color: saving || !pgtoOk ? 'var(--muted)' : '#fff',
+                  flex: 1, height: 48, background: saving || !pgtoOk ? 'var(--line)' : (isDark ? GOLD : METALLIC),
+                  color: saving || !pgtoOk ? 'var(--muted)' : (isDark ? '#0A0A0A' : '#fff'),
                   border: 'none', borderRadius: 99, cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
                   fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: saving || !pgtoOk ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
+                  boxShadow: saving || !pgtoOk ? 'none' : (isDark ? '0 4px 16px rgba(212,160,23,0.35)' : '0 4px 16px rgba(122,62,51,0.28)'),
                 }}
               >
                 {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
@@ -416,16 +418,17 @@ function Field({ label: lbl, Icon, children }) {
   )
 }
 
-function MetallicBtn({ onClick, children, disabled }) {
+function MetallicBtn({ onClick, children, disabled, isDark }) {
+  const bg = isDark ? GOLD : METALLIC
   return (
     <button onClick={onClick} disabled={disabled} style={{
       display: 'flex', alignItems: 'center', gap: 6,
       padding: '0 20px', height: 44, borderRadius: 99,
-      background: disabled ? 'var(--line)' : METALLIC,
-      color: disabled ? 'var(--muted)' : '#fff',
+      background: disabled ? 'var(--line)' : bg,
+      color: disabled ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
       border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
       fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
-      boxShadow: disabled ? 'none' : '0 4px 14px rgba(122,62,51,0.25)',
+      boxShadow: disabled ? 'none' : isDark ? '0 4px 14px rgba(212,160,23,0.30)' : '0 4px 14px rgba(122,62,51,0.25)',
       marginLeft: 'auto',
     }}>{children}</button>
   )
