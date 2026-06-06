@@ -225,6 +225,8 @@ function RelatoriosMobile({ data, theme }) {
 
 function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
   const [imgErr, setImgErr] = useState(false)
+  const isDarkTheme = primary === '#D4A017'
+
   const fallbackSrc = gerarLogoDataURL({
     nome: storeName || 'Loja',
     corPrimaria: primary || '#B47A6B',
@@ -247,11 +249,16 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
           <circle cx="64" cy="39" r="14" fill="#F4613A" />
         </svg>
         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-        <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
-          <img src={src} alt={storeName || 'Loja'}
-            style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
-            onError={() => setImgErr(true)} />
-        </div>
+        {isDarkTheme ? (
+          <img src="/logos/biastore-black.svg" alt={storeName || 'Loja'}
+            style={{ height: 52, width: 'auto', display: 'block', flexShrink: 0 }} />
+        ) : (
+          <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
+            <img src={src} alt={storeName || 'Loja'}
+              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
+              onError={() => setImgErr(true)} />
+          </div>
+        )}
       </div>
       <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
         position: 'absolute', right: 16, bottom: 14,
