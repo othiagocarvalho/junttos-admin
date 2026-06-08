@@ -12,14 +12,13 @@ const DEFAULT_FEATURES = {
 }
 
 export function useLojaData(lojaId = 'estrada') {
-  const [vendas,   setVendas]   = useState([])
-  const [caixas,   setCaixas]   = useState([])
-  const [metas,    setMetas]    = useState({})
-  const [produtos, setProdutos] = useState([])   // string[] — nomes para o form de venda
-  const [estoque,  setEstoque]  = useState([])   // object[] — registros completos para EstoquePage
-  const [config,   setConfig]   = useState(null)
-  const [loading,  setLoading]  = useState(true)
-  const [dbError,  setDbError]  = useState(null)
+  const [vendas, setVendas] = useState([])
+  const [caixas, setCaixas] = useState([])
+  const [metas, setMetas] = useState({})
+  const [produtos, setProdutos] = useState([])
+  const [config, setConfig] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [dbError, setDbError] = useState(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
@@ -32,9 +31,9 @@ export function useLojaData(lojaId = 'estrada') {
         supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
       ])
 
-      if (vendasRes.error)   throw vendasRes.error
-      if (caixasRes.error)   throw caixasRes.error
-      if (metasRes.error)    throw metasRes.error
+      if (vendasRes.error) throw vendasRes.error
+      if (caixasRes.error) throw caixasRes.error
+      if (metasRes.error) throw metasRes.error
       if (produtosRes.error) throw produtosRes.error
 
       setVendas(vendasRes.data || [])
@@ -44,10 +43,7 @@ export function useLojaData(lojaId = 'estrada') {
       ;(metasRes.data || []).forEach(m => { metasMap[m.mes] = m.valor })
       setMetas(metasMap)
 
-      const prods = produtosRes.data || []
-      setProdutos(prods.map(p => p.nome))   // nomes para o formulário de venda
-      setEstoque(prods)                      // objetos completos para EstoquePage
-
+      setProdutos((produtosRes.data || []).map(p => p.nome))
       setConfig(configRes.data || null)
       setDbError(null)
     } catch (e) {
@@ -85,44 +81,15 @@ export function useLojaData(lojaId = 'estrada') {
         ['Vestido', 'Cropped', 'Blusa', 'Saia', 'Short', 'Calça', 'Conjunto'].map(nome => ({
           loja_id: lojaId,
           nome,
-          quantidade: 0,
-          preco_custo: 0,
-          preco_venda: 0,
         }))
       )
       await fetchAll()
     }
   }
 
-  // ── Vendas ────────────────────────────────────────────────────
   async function addVenda(venda) {
     const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: lojaId })
-    if (!error) {
-      for (const prod of (venda.produtos || [])) {
-        const { data: item } = await supabase
-          .from('lf_produtos')
-          .select('id, quantidade, variacoes')
-          .eq('loja_id', lojaId)
-          .eq('nome', prod.nome)
-          .eq('ativo', true)
-          .maybeSingle()
-        if (!item) continue
-        const vars = item.variacoes || []
-        if (vars.length > 0 && prod.cor) {
-          const updated = vars.map(v =>
-            v.cor === prod.cor && Number(v.quantidade) > 0
-              ? { ...v, quantidade: Number(v.quantidade) - 1 }
-              : v
-          )
-          await supabase.from('lf_produtos').update({ variacoes: updated }).eq('id', item.id)
-        } else if (Number(item.quantidade) > 0) {
-          await supabase.from('lf_produtos')
-            .update({ quantidade: Number(item.quantidade) - 1 })
-            .eq('id', item.id)
-        }
-      }
-      await fetchAll()
-    }
+    if (!error) await fetchAll()
     return error
   }
 
@@ -132,14 +99,18 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  // ── Caixas ────────────────────────────────────────────────────
+  async function updateVenda(id, updates) {
+    const { error } = await supabase.from('lf_vendas').update(updates).eq('id', id)
+    if (!error) await fetchAll()
+    return error
+  }
+
   async function fecharCaixa(caixa) {
     const { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: lojaId })
     if (!error) await fetchAll()
     return error
   }
 
-  // ── Metas ─────────────────────────────────────────────────────
   async function salvarMeta(mes, valor) {
     const { error } = await supabase
       .from('lf_metas')
@@ -148,9 +119,8 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  // ── Produtos (catálogo de nomes para venda) ───────────────────
   async function addProduto(nome) {
-    const { error } = await supabase.from('lf_produtos').insert({ loja_id: lojaId, nome, quantidade: 0, preco_custo: 0, preco_venda: 0 })
+    const { error } = await supabase.from('lf_produtos').insert({ loja_id: lojaId, nome })
     if (!error) await fetchAll()
     return error
   }
@@ -165,26 +135,6 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  // ── Estoque CRUD ──────────────────────────────────────────────
-  async function addEstoqueItem(item) {
-    const { error } = await supabase.from('lf_produtos').insert({ ...item, loja_id: lojaId, ativo: true })
-    if (!error) await fetchAll()
-    return error
-  }
-
-  async function updateEstoqueItem(id, updates) {
-    const { error } = await supabase.from('lf_produtos').update(updates).eq('id', id)
-    if (!error) await fetchAll()
-    return error
-  }
-
-  async function deleteEstoqueItem(id) {
-    const { error } = await supabase.from('lf_produtos').update({ ativo: false }).eq('id', id)
-    if (!error) await fetchAll()
-    return error
-  }
-
-  // ── Config ────────────────────────────────────────────────────
   async function saveConfig(updates) {
     const { error } = await supabase
       .from('lf_config')
@@ -205,7 +155,6 @@ export function useLojaData(lojaId = 'estrada') {
     caixas,
     metas,
     produtos,
-    estoque,
     config,
     features,
     LOJA_ID: lojaId,
@@ -214,13 +163,11 @@ export function useLojaData(lojaId = 'estrada') {
     ensureDefaults,
     addVenda,
     deleteVenda,
+    updateVenda,
     fecharCaixa,
     salvarMeta,
     addProduto,
     removeProduto,
-    addEstoqueItem,
-    updateEstoqueItem,
-    deleteEstoqueItem,
     saveConfig,
   }
 }

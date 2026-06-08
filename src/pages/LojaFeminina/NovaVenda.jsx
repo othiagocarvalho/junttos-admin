@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft } from 'lucide-react'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
-const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' }
+const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -35,45 +36,75 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ estoque = [], addVenda, addProduto, theme }) {
-  const primary = theme?.primary || '#B47A6B'
-  const isDark  = primary === '#D4A017'
+export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
+  const isDark = !!theme.isDark
+  const [step, setStep] = useState(0)
+  const [form, setForm] = useState(EMPTY)
+  const [newProd, setNewProd] = useState('')
+  const [addingProd, setAddingProd] = useState(false)
+  const [done, setDone] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const [step,    setStep]    = useState(0)
-  const [form,    setForm]    = useState(EMPTY)
-  const [done,    setDone]    = useState(false)
-  const [saving,  setSaving]  = useState(false)
-
-  // toggle product selection
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome)
     setForm({
       ...form,
       produtos: exists
         ? form.produtos.filter(p => p.nome !== nome)
-        : [...form.produtos, { nome, cor: null, obs: '' }],
+        : [...form.produtos, { nome, obs: '' }],
     })
-  }
-
-  function setCor(nome, cor) {
-    setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, cor } : p) })
   }
 
   function setProdObs(nome, obs) {
     setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, obs } : p) })
   }
 
+  async function handleAddProd() {
+    if (!newProd.trim()) return
+    await addProduto(newProd.trim())
+    setNewProd('')
+    setAddingProd(false)
+  }
+
+  function handleValorChange(val) {
+    setForm(prev => ({
+      ...prev,
+      valor: val,
+      pagamentos: prev.pagamentos.length === 1
+        ? [{ ...prev.pagamentos[0], valor: val }]
+        : prev.pagamentos,
+    }))
+  }
+
+  function addPgto() {
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
+  }
+
+  function removePgto(idx) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
+  }
+
+  function setPgto(idx, field, val) {
+    setForm(prev => ({
+      ...prev,
+      pagamentos: prev.pagamentos.map((p, i) => i === idx ? { ...p, [field]: val } : p),
+    }))
+  }
+
   async function handleSave() {
     setSaving(true)
     const err = await addVenda({
       cliente_nome: form.nome || null,
-      cliente_tel:  form.tel  || null,
-      valor:        parseFloat(form.valor.replace(',', '.')) || 0,
-      forma_pgto:   form.pgto,
-      obs:          form.obs || null,
-      produtos:     form.produtos,
-      vendedora:    form.vendedora || null,
-      data:         new Date().toISOString(),
+      cliente_tel: form.tel || null,
+      valor: parseFloat(form.valor.replace(',', '.')) || 0,
+      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+      }))),
+      obs: form.obs || null,
+      produtos: form.produtos,
+      vendedora: form.vendedora || null,
+      data: new Date().toISOString(),
     })
     setSaving(false)
     if (!err) {
@@ -82,13 +113,17 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
     }
   }
 
+  const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
+  const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
+
   if (done) {
     return (
       <div style={{
         background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)',
         padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
       }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? primary : METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
         </div>
         <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
@@ -96,17 +131,6 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
       </div>
     )
   }
-
-  const activeColor = isDark ? primary : 'var(--rose-deep)'
-  const activeBg    = isDark ? `${primary}10` : 'rgba(217,169,155,0.06)'
-  const activeBorder = isDark ? primary : 'var(--rose)'
-  const chip = (active) => ({
-    padding: '5px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
-    fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, transition: 'all .15s',
-    background: active ? primary : 'var(--bg)',
-    color: active ? (isDark ? '#0A0A0A' : '#fff') : 'var(--ink-soft)',
-    boxShadow: active ? `0 2px 8px ${primary}30` : 'none',
-  })
 
   return (
     <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', overflow: 'hidden' }}>
@@ -118,16 +142,18 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
             const active = i === step
             return (
               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {i > 0 && <div style={{ width: 28, height: 1, background: past ? activeColor : 'var(--line)' }} />}
+                {i > 0 && (
+                  <div style={{ width: 28, height: 1, background: past ? 'var(--rose-deep)' : 'var(--line)' }} />
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{
                     width: 26, height: 26, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 700, fontFamily: 'Manrope, sans-serif',
                     ...(past
-                      ? { background: isDark ? primary : METALLIC, color: isDark ? '#0A0A0A' : '#fff' }
+                      ? { background: isDark ? GOLD : METALLIC, color: isDark ? '#0A0A0A' : '#fff' }
                       : active
-                        ? { background: 'none', color: activeColor, border: `2px solid ${activeColor}` }
+                        ? { background: 'none', color: 'var(--rose-deep)', border: '2px solid var(--rose-deep)' }
                         : { background: 'var(--bg)', color: 'var(--muted)' }),
                   }}>
                     {past ? <Check size={13} strokeWidth={2.5} /> : i + 1}
@@ -165,9 +191,9 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
-              <ActionBtn primary={primary} isDark={isDark} onClick={() => setStep(1)}>
+              <MetallicBtn onClick={() => setStep(1)} isDark={isDark}>
                 Próximo — Produtos <ChevronRight size={16} />
-              </ActionBtn>
+              </MetallicBtn>
             </div>
           </div>
         )}
@@ -175,68 +201,61 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
         {/* ── Step 1: Produtos ── */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
-                {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
-              </p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
+                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
+                </p>
+              </div>
+              <button
+                onClick={() => setAddingProd(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 12px', borderRadius: 10, cursor: 'pointer',
+                  border: '1px solid var(--line)', background: 'var(--bg)',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
+                }}
+              >
+                <Plus size={13} /> Novo
+              </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {estoque.map(item => {
-                const vars     = item.variacoes || []
-                const selEntry = form.produtos.find(p => p.nome === item.nome)
-                const isSel    = !!selEntry
+            {addingProd && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={newProd} onChange={e => setNewProd(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddProd()}
+                  placeholder="Nome do produto..." autoFocus
+                  style={{ ...inputBase, flex: 1 }} onFocus={focusIn} onBlur={focusOut} />
+                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: isDark ? GOLD : METALLIC, border: 'none', color: isDark ? '#0A0A0A' : '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+                <button onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 14, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+                  <X size={15} />
+                </button>
+              </div>
+            )}
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {produtos.map(nome => {
+                const sel = form.produtos.find(p => p.nome === nome)
                 return (
-                  <div key={item.id || item.nome} style={{
-                    border: `1.5px solid ${isSel ? activeBorder : 'var(--line)'}`,
-                    borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s',
-                  }}>
-                    <button onClick={() => toggleProd(item.nome)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: isSel ? activeBg : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div key={nome} style={{ border: `1.5px solid ${sel ? 'var(--rose)' : 'var(--line)'}`, borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s' }}>
+                    <button onClick={() => toggleProd(nome)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sel ? 'rgba(217,169,155,0.06)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                       <div style={{
                         width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                        background: isSel ? (isDark ? primary : METALLIC) : 'transparent',
-                        border: isSel ? 'none' : '1.5px solid var(--line)',
+                        background: sel ? (isDark ? GOLD : METALLIC) : '#fff',
+                        border: sel ? 'none' : '1.5px solid var(--line)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        {isSel && <Check size={12} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />}
+                        {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
                       </div>
-                      <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: isSel ? 600 : 400 }}>
-                        {item.nome}
-                      </span>
-                      {vars.length > 0 && (
-                        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
-                          {vars.reduce((s, v) => s + Number(v.quantidade || 0), 0)} un
-                        </span>
-                      )}
+                      <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
                     </button>
-
-                    {isSel && (
+                    {sel && (
                       <div style={{ padding: '0 14px 12px' }}>
-                        {/* Color chips for products with variacoes */}
-                        {vars.length > 0 && (
-                          <div style={{ marginBottom: 8 }}>
-                            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 6 }}>Cor / Modelo</p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {vars.map(v => (
-                                <button key={v.cor}
-                                  onClick={e => { e.stopPropagation(); setCor(item.nome, v.cor) }}
-                                  style={{
-                                    ...chip(selEntry.cor === v.cor),
-                                    opacity: Number(v.quantidade) === 0 ? 0.45 : 1,
-                                  }}>
-                                  {v.cor}
-                                  {Number(v.quantidade) === 0 && ' (0)'}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <input value={selEntry.obs} onChange={e => setProdObs(item.nome, e.target.value)}
-                          onClick={e => e.stopPropagation()} placeholder="Obs: tamanho, cor manual..."
-                          style={{ ...inputBase, height: 38, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
+                        <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)}
+                          onClick={e => e.stopPropagation()} placeholder="Obs: cor, tamanho, modelo..."
+                          style={{ ...inputBase, height: 40, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
                       </div>
                     )}
                   </div>
@@ -246,9 +265,7 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
 
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(0)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
-              <ActionBtn primary={primary} isDark={isDark} onClick={() => setStep(2)}>
-                Próximo — Pagamento <ChevronRight size={16} />
-              </ActionBtn>
+              <MetallicBtn onClick={() => setStep(2)} isDark={isDark}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
           </div>
         )}
@@ -258,13 +275,13 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e forma de pagamento</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e formas de pagamento</p>
             </div>
 
-            <Field label="Valor (R$)" Icon={CreditCard}>
+            <Field label="Valor Total (R$)" Icon={CreditCard}>
               <div style={{ position: 'relative' }}>
                 <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>R$</span>
-                <input value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })}
+                <input value={form.valor} onChange={e => handleValorChange(e.target.value)}
                   placeholder="0,00" autoFocus
                   style={{ ...inputBase, paddingLeft: 36, fontSize: 18, fontWeight: 700 }}
                   onFocus={focusIn} onBlur={focusOut} />
@@ -272,14 +289,81 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
             </Field>
 
             <div>
-              <label style={labelStyle}><ShoppingBag size={12} /> Forma de Pagamento</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {PGTOS.map(p => (
-                  <button key={p} onClick={() => setForm({ ...form, pgto: p })} style={chip(form.pgto === p)}>
-                    {p}
-                  </button>
+              <label style={labelStyle}>
+                <ShoppingBag size={12} /> Formas de Pagamento
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {form.pagamentos.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <select
+                      value={p.forma}
+                      onChange={e => setPgto(i, 'forma', e.target.value)}
+                      style={{
+                        height: 46, flex: '2 1 0', minWidth: 0,
+                        border: '1.5px solid var(--line)', borderRadius: 12,
+                        padding: '0 8px',
+                        fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                        color: 'var(--ink)', background: 'var(--bg)',
+                        outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+                      }}
+                    >
+                      {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                    <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                      <input
+                        value={p.valor}
+                        onChange={e => setPgto(i, 'valor', e.target.value)}
+                        placeholder="0,00"
+                        style={{
+                          width: '100%', height: 46,
+                          border: '1.5px solid var(--line)', borderRadius: 12,
+                          padding: '0 10px 0 28px',
+                          fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                          color: 'var(--ink)', background: 'var(--bg)',
+                          outline: 'none', boxSizing: 'border-box',
+                        }}
+                        onFocus={focusIn} onBlur={focusOut}
+                      />
+                    </div>
+                    {form.pagamentos.length > 1 && (
+                      <button
+                        onClick={() => removePgto(i)}
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
+
+              <button
+                onClick={addPgto}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                  padding: '7px 14px', borderRadius: 10,
+                  border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)',
+                }}
+              >
+                <Plus size={13} /> Adicionar forma
+              </button>
+
+              {form.valor && (
+                <div style={{
+                  marginTop: 10, padding: '8px 12px', borderRadius: 10,
+                  background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+                  border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                  color: pgtoOk ? '#16a34a' : '#dc2626',
+                }}>
+                  {pgtoOk
+                    ? '✓ Pagamento completo'
+                    : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`
+                  }
+                </div>
+              )}
             </div>
 
             <Field label="Observações">
@@ -293,8 +377,8 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
                 <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10, fontFamily: 'Manrope, sans-serif' }}>Resumo dos produtos</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {form.produtos.map(p => (
-                    <span key={p.nome + (p.cor || '')} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                      {p.nome}{p.cor ? ` — ${p.cor}` : ''}{p.obs ? ` (${p.obs})` : ''}
+                    <span key={p.nome} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                      {p.nome}{p.obs ? ` — ${p.obs}` : ''}
                     </span>
                   ))}
                 </div>
@@ -304,16 +388,15 @@ export default function NovaVenda({ estoque = [], addVenda, addProduto, theme })
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(1)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
               <button
-                disabled={saving || !form.valor}
+                disabled={saving || !pgtoOk}
                 onClick={handleSave}
                 style={{
-                  flex: 1, height: 48,
-                  background: saving || !form.valor ? 'var(--line)' : (isDark ? primary : METALLIC),
-                  color: saving || !form.valor ? 'var(--muted)' : (isDark ? '#0A0A0A' : '#fff'),
-                  border: 'none', borderRadius: 99, cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+                  flex: 1, height: 48, background: saving || !pgtoOk ? 'var(--line)' : (isDark ? GOLD : METALLIC),
+                  color: saving || !pgtoOk ? 'var(--muted)' : (isDark ? '#0A0A0A' : '#fff'),
+                  border: 'none', borderRadius: 99, cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
                   fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  boxShadow: saving || !form.valor ? 'none' : `0 4px 16px ${isDark ? 'rgba(212,160,23,0.3)' : 'rgba(122,62,51,0.28)'}`,
+                  boxShadow: saving || !pgtoOk ? 'none' : (isDark ? '0 4px 16px rgba(212,160,23,0.35)' : '0 4px 16px rgba(122,62,51,0.28)'),
                 }}
               >
                 {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
@@ -335,16 +418,17 @@ function Field({ label: lbl, Icon, children }) {
   )
 }
 
-function ActionBtn({ onClick, children, disabled, primary, isDark }) {
+function MetallicBtn({ onClick, children, disabled, isDark }) {
+  const bg = isDark ? GOLD : METALLIC
   return (
     <button onClick={onClick} disabled={disabled} style={{
       display: 'flex', alignItems: 'center', gap: 6,
       padding: '0 20px', height: 44, borderRadius: 99,
-      background: disabled ? 'var(--line)' : primary,
-      color: disabled ? 'var(--muted)' : (isDark ? '#0A0A0A' : '#fff'),
+      background: disabled ? 'var(--line)' : bg,
+      color: disabled ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
       border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
       fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
-      boxShadow: disabled ? 'none' : `0 4px 14px ${primary}40`,
+      boxShadow: disabled ? 'none' : isDark ? '0 4px 14px rgba(212,160,23,0.30)' : '0 4px 14px rgba(122,62,51,0.25)',
       marginLeft: 'auto',
     }}>{children}</button>
   )

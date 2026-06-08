@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import {
-  Home, ShoppingCart, Wallet, Settings, BarChart2,
-  Trash2, Search, Check, ChevronRight, X,
-  User, Phone, CreditCard, Lock, Package, Users,
+  Home, Plus, Wallet, Settings, BarChart2,
+  Trash2, Search, Check, ChevronRight, X, Pencil,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
-import EstoquePage from './EstoquePage'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -17,10 +16,20 @@ function fmtDT(s) {
     hour: '2-digit', minute: '2-digit',
   })
 }
+function parsePgtos(v) {
+  try {
+    const arr = JSON.parse(v.forma_pgto)
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  return v.forma_pgto ? [{ forma: v.forma_pgto, valor: Number(v.valor) }] : []
+}
+function fmtPgtos(v) {
+  return parsePgtos(v).map(p => p.forma).join(' + ')
+}
 
 const NAV = [
   { id: 'inicio',     label: 'Início',        Icon: Home      },
-  { id: 'venda',      label: 'Nova Venda',    Icon: ShoppingCart },
+  { id: 'venda',      label: 'Nova Venda',    Icon: Plus      },
   { id: 'estoque',    label: 'Estoque',       Icon: Package   },
   { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
   { id: 'crm',        label: 'CRM',           Icon: Users,    locked: true },
@@ -29,7 +38,7 @@ const NAV = [
   { id: 'config',     label: 'Configurações', Icon: Settings  },
 ]
 
-const PGTOS = ['Dinheiro', 'Pix', 'Débito', 'Crédito', 'Fiado']
+const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 // ── Shared input style ───────────────────────────────────────
 const inp = (primary) => ({
@@ -53,142 +62,80 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--mut
 
 // ── Sidebar ──────────────────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
-  const primary  = config?.cor_primaria || theme.primary
-  const [expanded, setExpanded] = useState(false)
+  const primary = config?.cor_primaria || theme.primary
 
   return (
-    <aside
-      onMouseEnter={() => setExpanded(true)}
-      onMouseLeave={() => setExpanded(false)}
-      style={{
-        position: 'fixed', left: 0, top: 0,
-        width: expanded ? 196 : 56,
-        height: '100vh',
-        background: '#F8F7F5',
-        display: 'flex', flexDirection: 'column',
-        zIndex: 50, fontFamily: 'Manrope, sans-serif',
-        borderRight: '1px solid #e8e4df',
-        overflow: 'hidden',
-        transition: 'width .22s cubic-bezier(.4,0,.2,1)',
-      }}
-    >
-      {/* Header: símbolo + divisor + logo */}
-      <div style={{
-        height: 52, padding: '0 10px', flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 8,
-        borderBottom: '1px solid #e8e4df',
-      }}>
-        {/* Símbolo Junttos — sempre visível */}
-        <div style={{
-          width: 36, height: 36, borderRadius: 8,
-          background: '#6C3CE1', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="22" height="22" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg">
-            <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
-            <circle cx="40" cy="37" r="14" fill="rgba(255,255,255,0.75)" />
+    <aside style={{
+      position: 'fixed', left: 0, top: 0,
+      width: 220, height: '100vh',
+      background: '#F8F7F5',
+      display: 'flex', flexDirection: 'column',
+      zIndex: 50, fontFamily: 'Manrope, sans-serif',
+      borderRight: '1px solid #e8e4df',
+    }}>
+      {/* Logos: Junttos + cliente */}
+      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+            <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+            <circle cx="40" cy="37" r="14" fill="#341780" />
             <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
           </svg>
+          <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
+          {logoUrl && (
+            <div style={{ background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
+              <img src={logoUrl} alt={config?.nome || 'Loja'}
+                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }} />
+            </div>
+          )}
         </div>
-
-        {/* Divisor — só aparece expandido */}
-        <div style={{
-          width: 1, height: 24, background: '#ddd', flexShrink: 0,
-          opacity: expanded ? 1 : 0,
-          transition: 'opacity .15s',
-        }} />
-
-        {/* Logo da loja — só aparece expandido */}
-        {logoUrl && (
-          <div style={{
-            background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0,
-            border: '1px solid #e8e4df',
-            opacity: expanded ? 1 : 0,
-            transition: 'opacity .15s',
-          }}>
-            <img src={logoUrl} alt={config?.nome || 'Loja'}
-              style={{ height: 32, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
-          </div>
-        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return (
-            <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '6px 10px' }} />
-          )
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '8px 0' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
-          const active   = tab === id
+          const active = tab === id
           return (
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
               className={isLocked ? '' : 'cds-nav-btn'}
-              title={expanded ? undefined : label}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                height: 38, padding: '0 10px 0 7px', boxSizing: 'border-box',
-                borderRadius: 10, width: '100%',
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
                 background: active ? '#fff' : 'transparent',
                 border: active ? '1px solid #e8e4df' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
                 cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
                 color: isLocked ? '#ccc' : (active ? '#2C1F14' : '#777'),
-                fontFamily: 'Manrope, sans-serif',
-                transition: 'background .15s, color .15s',
-                overflow: 'hidden',
+                fontSize: 14, fontWeight: active ? 600 : 400,
+                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
               }}>
-              {/* Ícone: sempre centralizado em 36px */}
-              <div style={{ width: 36, minWidth: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={15} style={{ opacity: isLocked ? 0.4 : 1 }} />
-              </div>
-              {/* Texto: aparece com opacity */}
-              <span style={{
-                fontSize: 14, fontWeight: active ? 600 : 400, flex: 1,
-                opacity: expanded ? 1 : 0,
-                transition: 'opacity .15s',
-                whiteSpace: 'nowrap', overflow: 'hidden',
-              }}>
-                {label}
-              </span>
-              {isLocked && (
-                <Lock size={11} style={{
-                  flexShrink: 0,
-                  opacity: expanded ? 0.4 : 0,
-                  transition: 'opacity .15s',
-                }} />
-              )}
+              <Icon size={15} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
+              <span style={{ flex: 1 }}>{label}</span>
+              {isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
             </button>
           )
         })}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '8px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
+      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid #e8e4df' }}>
         <button onClick={onSwitchToMobile} style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          height: 38, padding: '0 10px 0 7px', boxSizing: 'border-box',
-          borderRadius: 10, width: '100%',
-          border: '1px solid transparent',
+          padding: '9px 14px', borderRadius: 10, width: '100%',
+          border: '1px solid #e8e4df',
           background: 'transparent', cursor: 'pointer',
           color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
-          overflow: 'hidden',
         }}>
-          <div style={{ width: 36, minWidth: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
-          </div>
-          <span style={{
-            opacity: expanded ? 1 : 0,
-            transition: 'opacity .15s',
-            whiteSpace: 'nowrap', overflow: 'hidden',
-          }}>
-            Versão Celular
-          </span>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
+          Versão Celular
         </button>
         <p style={{
           fontSize: 11, color: '#bbb',
-          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '6px 0 0',
+          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
         }}>
           jun<span style={{ color: '#F4613A' }}>tt</span>os
         </p>
@@ -246,13 +193,12 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
         )}
       </div>
 
-      {/* 4-column KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* 3-column KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
           { label: 'Hoje',           value: fmtR(totalHoje),  sub: `${vendasHoje.length} vendas` },
           { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
           { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
-          { label: 'Meta Mensal',    value: meta > 0 ? `${pct.toFixed(0)}%` : '—', sub: meta > 0 ? fmtR(meta) : 'não definida' },
         ].map(({ label, value, sub }, i) => (
           <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)'), padding: '22px 20px' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
@@ -314,26 +260,31 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
 }
 
 // ── Desktop Histórico (table) ─────────────────────────────────
-function DesktopHistorico({ vendas, deleteVenda, theme }) {
-  const now = new Date()
+function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
   const [search,     setSearch]     = useState('')
-  const [dateFrom,   setDateFrom]   = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-  )
-  const [dateTo,     setDateTo]     = useState(now.toISOString().slice(0, 10))
+  const [filtro,     setFiltro]     = useState('todos')
   const [confirmDel, setConfirmDel] = useState(null)
+  const [editVenda,  setEditVenda]  = useState(null)
+  const [editPgtos,  setEditPgtos]  = useState([])
+  const [editSaving, setEditSaving] = useState(false)
+  const now = new Date()
+
+  const editTotal = editVenda ? Number(editVenda.valor) : 0
+  const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
+  const editPgtoOk = editVenda && Math.abs(editAlloc - editTotal) < 0.005
 
   const filtered = vendas.filter(v => {
     const d = new Date(v.data)
-    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
-    if (dateTo   && d > new Date(dateTo   + 'T23:59:59')) return false
+    if (filtro === 'hoje')   return d.toDateString() === now.toDateString()
+    if (filtro === 'semana') { const c = new Date(now); c.setDate(now.getDate() - 7); return d >= c }
+    if (filtro === 'mes')    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     return true
   }).filter(v => {
     if (!search) return true
     const q = search.toLowerCase()
     return (v.cliente_nome || '').toLowerCase().includes(q) ||
       (v.vendedora || '').toLowerCase().includes(q) ||
-      (v.forma_pgto || '').toLowerCase().includes(q)
+      fmtPgtos(v).toLowerCase().includes(q)
   })
 
   const total = filtered.reduce((s, v) => s + Number(v.valor), 0)
@@ -343,40 +294,55 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
     setConfirmDel(null)
   }
 
-  const dtInput = {
-    height: 40, border: '1.5px solid var(--line)', borderRadius: 10,
-    padding: '0 10px', fontFamily: 'Manrope, sans-serif', fontSize: 13,
-    color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+  function openEdit(v) {
+    setEditPgtos(parsePgtos(v).map(p => ({ ...p, valor: String(p.valor) })))
+    setEditVenda(v)
   }
-  const dtLabel = {
-    display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
-    textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'Manrope, sans-serif', marginBottom: 4,
+
+  async function handleSaveEdit() {
+    if (!editPgtoOk) return
+    setEditSaving(true)
+    await updateVenda(editVenda.id, {
+      forma_pgto: JSON.stringify(editPgtos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((String(p.valor) || '0').replace(',', '.')) || 0,
+      }))),
+    })
+    setEditSaving(false)
+    setEditVenda(null)
   }
 
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, vendedora, pagamento..."
             style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12, paddingLeft: 40, paddingRight: 14, fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }} />
         </div>
-        <div style={{ flex: 1, minWidth: 130 }}>
-          <label style={dtLabel}>De</label>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dtInput} />
-        </div>
-        <div style={{ flex: 1, minWidth: 130 }}>
-          <label style={dtLabel}>Até</label>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dtInput} />
-        </div>
-        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', paddingBottom: 10 }}>
+        {[
+          { id: 'todos', label: 'Todos' },
+          { id: 'hoje',  label: 'Hoje' },
+          { id: 'semana',label: '7 dias' },
+          { id: 'mes',   label: 'Mês' },
+        ].map(f => (
+          <button key={f.id} onClick={() => setFiltro(f.id)} style={{
+            padding: '8px 18px', borderRadius: 99, cursor: 'pointer',
+            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+            border: filtro === f.id ? 'none' : '1px solid var(--line)',
+            background: filtro === f.id ? theme.primary : 'var(--surface)',
+            color: filtro === f.id ? '#fff' : 'var(--muted)',
+            boxShadow: filtro === f.id ? `0 2px 8px ${theme.primary}30` : 'none',
+          }}>{f.label}</button>
+        ))}
+        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginLeft: 4 }}>
           {filtered.length} vendas · <strong style={{ color: theme.primary }}>{fmtR(total)}</strong>
         </span>
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflowX: 'auto' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif' }}>
           <thead>
             <tr style={{ background: theme.primary }}>
@@ -401,7 +367,7 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
                 <td style={{ padding: '12px 16px' }}>
                   {v.forma_pgto && (
                     <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 99, background: `${theme.primary}15`, color: theme.primary, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {v.forma_pgto}
+                      {fmtPgtos(v)}
                     </span>
                   )}
                 </td>
@@ -409,11 +375,18 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
                   {fmtR(v.valor)}
                 </td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                  <button onClick={() => setConfirmDel(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
-                    <Trash2 size={14} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                    <button onClick={() => openEdit(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = theme.primary}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => setConfirmDel(v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--line)', padding: 4, display: 'flex', alignItems: 'center', transition: 'color .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -436,51 +409,154 @@ function DesktopHistorico({ vendas, deleteVenda, theme }) {
           </div>
         </div>
       )}
+
+      {/* Edit payment modal */}
+      {editVenda && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+                Editar Pagamento — {fmtR(editVenda.valor)}
+              </p>
+              <button onClick={() => setEditVenda(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+              {editPgtos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select
+                    value={p.forma}
+                    onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
+                    style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                  >
+                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                  <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      value={p.valor}
+                      onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))}
+                      placeholder="0,00"
+                      style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 30px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  {editPgtos.length > 1 && (
+                    <button onClick={() => setEditPgtos(prev => prev.filter((_, idx) => idx !== i))}
+                      style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setEditPgtos(prev => [...prev, { forma: 'Pix', valor: '' }])}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
+              <Plus size={13} /> Adicionar forma
+            </button>
+
+            <div style={{
+              marginBottom: 20, padding: '8px 12px', borderRadius: 10,
+              background: editPgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+              border: `1px solid ${editPgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+              color: editPgtoOk ? '#16a34a' : '#dc2626',
+            }}>
+              {editPgtoOk
+                ? '✓ Valor alocado corretamente'
+                : `Alocado: ${fmtR(editAlloc)} · Total: ${fmtR(editTotal)}`
+              }
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditVenda(null)}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
+                style={{
+                  flex: 2, height: 46, borderRadius: 12, border: 'none',
+                  background: editPgtoOk && !editSaving ? theme.primary : 'var(--line)',
+                  cursor: editPgtoOk && !editSaving ? 'pointer' : 'not-allowed',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  color: editPgtoOk && !editSaving ? '#fff' : 'var(--muted)', fontSize: 14,
+                  boxShadow: editPgtoOk && !editSaving ? `0 4px 16px ${theme.primary}40` : 'none',
+                }}>
+                {editSaving ? 'Salvando...' : 'Salvar pagamento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-function DesktopNovaVenda({ estoque = [], addVenda, theme }) {
-  const isDark    = theme.primary === '#D4A017'
-  const btnColor  = isDark ? '#0A0A0A' : '#fff'
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
-  const [form,    setForm]    = useState({ nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' })
-  const [done,    setDone]    = useState(false)
-  const [saving,  setSaving]  = useState(false)
+function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
+  const isDark = theme.primary === '#D4A017'
+  const [form,       setForm]       = useState(EMPTY_VENDA)
+  const [newProd,    setNewProd]    = useState('')
+  const [addingProd, setAddingProd] = useState(false)
+  const [done,       setDone]       = useState(false)
+  const [saving,     setSaving]     = useState(false)
 
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome)
-    setForm({ ...form, produtos: exists
-      ? form.produtos.filter(p => p.nome !== nome)
-      : [...form.produtos, { nome, cor: null, obs: '' }]
-    })
-  }
-  function setCor(nome, cor) {
-    setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, cor } : p) })
+    setForm({ ...form, produtos: exists ? form.produtos.filter(p => p.nome !== nome) : [...form.produtos, { nome, obs: '' }] })
   }
   function setProdObs(nome, obs) {
     setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, obs } : p) })
   }
-
+  async function handleAddProd() {
+    if (!newProd.trim()) return
+    await addProduto(newProd.trim())
+    setNewProd('')
+    setAddingProd(false)
+  }
+  function handleValorChange(val) {
+    setForm(prev => ({
+      ...prev, valor: val,
+      pagamentos: prev.pagamentos.length === 1 ? [{ ...prev.pagamentos[0], valor: val }] : prev.pagamentos,
+    }))
+  }
+  function addPgto() {
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
+  }
+  function removePgto(idx) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
+  }
+  function setPgto(idx, field, val) {
+    setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((p, i) => i === idx ? { ...p, [field]: val } : p) }))
+  }
   async function handleSave() {
     setSaving(true)
     const err = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
-      valor:        parseFloat(form.valor.replace(',', '.')) || 0,
-      forma_pgto:   form.pgto,
-      obs:          form.obs || null,
-      produtos:     form.produtos,
-      vendedora:    form.vendedora || null,
-      data:         new Date().toISOString(),
+      valor: parseFloat(form.valor.replace(',', '.')) || 0,
+      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+        forma: p.forma,
+        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+      }))),
+      obs: form.obs || null,
+      produtos: form.produtos,
+      vendedora: form.vendedora || null,
+      data: new Date().toISOString(),
     })
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm({ nome: '', tel: '', produtos: [], valor: '', pgto: 'Pix', obs: '', vendedora: '' }) }, 2200)
+      setTimeout(() => { setDone(false); setForm(EMPTY_VENDA) }, 2200)
     }
   }
+  const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
+  const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   const inputS = inp(theme.primary)
   const fo = onF(theme.primary)
@@ -489,7 +565,7 @@ function DesktopNovaVenda({ estoque = [], addVenda, theme }) {
     return (
       <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', padding: '64px 24px', textAlign: 'center' }}>
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Check size={26} color={btnColor} strokeWidth={2.5} />
+          <Check size={26} color="#fff" strokeWidth={2.5} />
         </div>
         <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Venda registrada!</p>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
@@ -529,95 +605,97 @@ function DesktopNovaVenda({ estoque = [], addVenda, theme }) {
             <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
-              <input value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })} placeholder="0,00"
+              <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
                 style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
             </div>
-            <label style={lbl}>Forma de Pagamento</label>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {PGTOS.map(p => (
-                <button key={p} type="button" onClick={() => setForm({ ...form, pgto: p })}
-                  style={{ padding: '7px 14px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, transition: 'all .15s',
-                    background: form.pgto === p ? theme.primary : 'var(--bg)',
-                    color: form.pgto === p ? btnColor : 'var(--ink-soft)',
-                    boxShadow: form.pgto === p ? `0 2px 8px ${theme.primary}30` : 'none',
-                  }}>{p}</button>
+            <label style={lbl}>Formas de Pagamento</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {form.pagamentos.map((p, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={p.forma} onChange={e => setPgto(i, 'forma', e.target.value)}
+                    style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                  <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input value={p.valor} onChange={e => setPgto(i, 'valor', e.target.value)} placeholder="0,00"
+                      style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={onF(theme.primary)} onBlur={onB} />
+                  </div>
+                  {form.pagamentos.length > 1 && (
+                    <button onClick={() => removePgto(i)} style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
+            <button type="button" onClick={addPgto}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+              <Plus size={13} /> Adicionar forma
+            </button>
+            {form.valor && (
+              <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
+                {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
+              </div>
+            )}
           </div>
-          <button type="button" disabled={saving || !form.valor} onClick={handleSave}
+          <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
             style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
-              cursor: saving || !form.valor ? 'not-allowed' : 'pointer',
+              cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !form.valor ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
-              color: saving || !form.valor ? 'var(--muted)' : btnColor,
-              boxShadow: saving || !form.valor ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)',
+              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
+              color: saving || !pgtoOk ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
+              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'box-shadow .18s',
             }}
-            onMouseEnter={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = isDark ? '0 4px 22px rgba(212,160,23,0.55)' : '0 4px 22px rgba(255,107,71,0.45)' }}
-            onMouseLeave={e => { if (!saving && form.valor) e.currentTarget.style.boxShadow = isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)' }}
+            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
+            onMouseLeave={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
           >
             {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
         </div>
       </div>
 
-      {/* Right: Produtos com variações */}
+      {/* Right: Produtos */}
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Produtos</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
-            {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Produtos</p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}</p>
+          </div>
+          <button type="button" onClick={() => setAddingProd(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
+            <ShoppingBag size={13} /> Novo produto
+          </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 460, overflowY: 'auto' }}>
-          {estoque.map(item => {
-            const vars     = item.variacoes || []
-            const sel      = form.produtos.find(p => p.nome === item.nome)
-            const isSel    = !!sel
+        {addingProd && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <input value={newProd} onChange={e => setNewProd(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddProd()}
+              placeholder="Nome do produto..." autoFocus style={{ ...inputS, flex: 1 }} onFocus={fo} onBlur={onB} />
+            <button type="button" onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 12, background: theme.primary, border: 'none', color: '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+            <button type="button" onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 12, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={15} /></button>
+          </div>
+        )}
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflowY: 'auto' }}>
+          {produtos.map(nome => {
+            const sel = form.produtos.find(p => p.nome === nome)
             return (
-              <div key={item.id || item.nome} style={{ border: `1.5px solid ${isSel ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
-                <button type="button" onClick={() => toggleProd(item.nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: isSel ? `${theme.primary}08` : 'var(--surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: isSel ? theme.primary : 'var(--surface)', border: isSel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {isSel && <Check size={12} color={btnColor} strokeWidth={2.5} />}
+              <div key={nome} style={{ border: `1.5px solid ${sel ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
+                <button type="button" onClick={() => toggleProd(nome)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: sel ? `${theme.primary}06` : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: sel ? theme.primary : '#fff', border: sel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
                   </div>
-                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: isSel ? 600 : 400 }}>{item.nome}</span>
-                  {vars.length > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
-                      {vars.reduce((s, v) => s + Number(v.quantidade || 0), 0)} un
-                    </span>
-                  )}
+                  <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
                 </button>
-
-                {isSel && (
+                {sel && (
                   <div style={{ padding: '0 14px 10px' }}>
-                    {vars.length > 0 && (
-                      <div style={{ marginBottom: 8 }}>
-                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 6 }}>Cor / Modelo</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {vars.map(v => (
-                            <button key={v.cor} type="button"
-                              onClick={e => { e.stopPropagation(); setCor(item.nome, v.cor) }}
-                              style={{
-                                padding: '5px 11px', borderRadius: 99, border: 'none', cursor: 'pointer',
-                                fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, transition: 'all .15s',
-                                background: sel.cor === v.cor ? theme.primary : 'var(--bg)',
-                                color: sel.cor === v.cor ? btnColor : 'var(--ink-soft)',
-                                opacity: Number(v.quantidade) === 0 ? 0.45 : 1,
-                                boxShadow: sel.cor === v.cor ? `0 2px 8px ${theme.primary}30` : 'none',
-                              }}>
-                              {v.cor}{Number(v.quantidade) === 0 ? ' (0)' : ''}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <input value={sel.obs} onChange={e => setProdObs(item.nome, e.target.value)}
-                      onClick={e => e.stopPropagation()} placeholder="Obs: tamanho, modelo..."
-                      style={{ ...inputS, height: 36, fontSize: 13 }} onFocus={fo} onBlur={onB} />
+                    <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)} onClick={e => e.stopPropagation()}
+                      placeholder="Obs: cor, tamanho..." style={{ ...inputS, height: 36, fontSize: 13 }} onFocus={fo} onBlur={onB} />
                   </div>
                 )}
               </div>
@@ -626,18 +704,32 @@ function DesktopNovaVenda({ estoque = [], addVenda, theme }) {
         </div>
 
         {form.produtos.length > 0 && (
-          <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--bg)', borderRadius: 12 }}>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg)', borderRadius: 12 }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {form.produtos.map(p => (
-                <span key={p.nome + (p.cor || '')} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                  {p.nome}{p.cor ? ` — ${p.cor}` : ''}{p.obs ? ` (${p.obs})` : ''}
+                <span key={p.nome} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                  {p.nome}{p.obs ? ` — ${p.obs}` : ''}
                 </span>
               ))}
             </div>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Desktop Estoque ────────────────────────────────────────────
+function DesktopEstoque() {
+  return (
+    <div style={{
+      background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
+      padding: '64px 24px', textAlign: 'center',
+    }}>
+      <Package size={40} color="var(--line)" style={{ margin: '0 auto 16px' }} />
+      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Estoque</p>
+      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível nesta versão.</p>
     </div>
   )
 }
@@ -663,7 +755,7 @@ function DesktopRelatorios({ data, theme }) {
         ))}
       </div>
       {subTab === 'historico'
-        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} theme={theme} />
+        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} updateVenda={data.updateVenda} theme={theme} />
         : <Faturamento {...data} theme={theme} />
       }
     </div>
@@ -691,7 +783,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <EstoquePage estoque={data.estoque} addEstoqueItem={data.addEstoqueItem} updateEstoqueItem={data.updateEstoqueItem} deleteEstoqueItem={data.deleteEstoqueItem} theme={theme} />,
+    estoque:    <DesktopEstoque />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
     conta:      <Fechamento       {...data} theme={theme} />,
@@ -701,7 +793,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
+      <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
         </div>

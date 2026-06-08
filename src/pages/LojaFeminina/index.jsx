@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
+import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
@@ -9,7 +10,6 @@ import Meta from './Meta'
 import Fechamento from './Fechamento'
 import Faturamento from './Faturamento'
 import LojaConfig from './LojaConfig'
-import EstoquePage from '../cliente/EstoquePage'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const METALLIC_SOFT = 'linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%)'
@@ -49,52 +49,54 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
   }))
   const topProds = Object.entries(prodMap).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
+  const isDark = !!theme.isDark
+
   const kpis = [
     { label: 'Hoje', value: fmtR(totalHoje), sub: `${vendasHoje.length} venda${vendasHoje.length !== 1 ? 's' : ''}` },
     { label: 'Ticket médio', value: fmtR(ticketMedio), sub: 'este mês' },
     { label: 'Vendas no mês', value: vendasMes.length, sub: 'transações' },
-    { label: 'Meta mensal', value: meta > 0 ? `${pctMeta.toFixed(0)}%` : '—', sub: meta > 0 ? fmtR(meta) : 'não definida' },
   ]
 
   return (
     <div style={{ paddingTop: 8 }}>
       {/* Hero */}
       <div style={{
-        background: theme.isDark ? '#0F0E0C' : METALLIC,
-        borderTop: theme.isDark ? '2px solid #D4A017' : undefined,
+        background: isDark ? '#0F0E0C' : METALLIC,
+        borderTop: isDark ? '2px solid #D4A017' : undefined,
         borderRadius: 20,
         padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden',
       }}>
         <p style={{
           fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700,
-          color: theme.isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
+          color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
           textTransform: 'uppercase', marginBottom: 10,
         }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long' })}
         </p>
         <p style={{
           fontFamily: "'Playfair Display', serif",
-          fontSize: 42, fontWeight: 700, color: theme.isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
+          fontSize: 42, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
         }}>
           {fmtR(totalMes)}
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: theme.isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', marginTop: 10 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', marginTop: 10 }}>
           {vendasMes.length} venda{vendasMes.length !== 1 ? 's' : ''}{' '}
           {meta > 0 ? `· ${pctMeta.toFixed(0)}% da meta` : '· sem meta definida'}
         </p>
         {meta > 0 && (
           <div style={{ marginTop: 16, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.25)' }}>
-            <div style={{ height: '100%', borderRadius: 2, background: theme.isDark ? '#D4A017' : '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
+            <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
           </div>
         )}
       </div>
 
-      {/* KPI 2×2 */}
+      {/* KPI grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-        {kpis.map(({ label, value, sub }) => (
+        {kpis.map(({ label, value, sub }, i) => (
           <div key={label} style={{
             background: 'var(--surface)', borderRadius: 16,
             border: '1px solid var(--line)', padding: '16px 14px',
+            gridColumn: i === 2 ? '1 / -1' : 'auto',
           }}>
             <p style={{
               fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
@@ -148,13 +150,13 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
               <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  background: theme.isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? METALLIC : METALLIC_SOFT),
+                  background: isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? METALLIC : METALLIC_SOFT),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: theme.isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
                 </div>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>{nome}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: theme.isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{qtd}×</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{qtd}×</span>
               </div>
             ))}
           </div>
@@ -176,6 +178,21 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
   )
 }
 
+// ── Estoque placeholder ─────────────────────────────────────
+function EstoquePlaceholder() {
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{
+        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
+        padding: '48px 24px', textAlign: 'center',
+      }}>
+        <Package size={36} color="var(--line)" style={{ margin: '0 auto 14px' }} />
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Estoque</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível.</p>
+      </div>
+    </div>
+  )
+}
 
 // ── Relatórios mobile (Histórico + Faturamento) ─────────────
 function RelatoriosMobile({ data, theme }) {
@@ -206,14 +223,24 @@ function RelatoriosMobile({ data, theme }) {
 
 // ── AppHeader ───────────────────────────────────────────────
 
-function AppHeader({ primary, logoUrl, storeName, onSwitchToDesktop }) {
+function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
+  const [imgErr, setImgErr] = useState(false)
+  const isDarkTheme = primary === '#D4A017'
+
+  const fallbackSrc = gerarLogoDataURL({
+    nome: storeName || 'Loja',
+    corPrimaria: primary || '#B47A6B',
+    corSecundaria: accent || '#2A1F1F',
+  })
+  const src = logoUrl && !imgErr ? logoUrl : fallbackSrc
+
   return (
     <header style={{
       background: primary || '#CC7870',
-      paddingTop: 54, paddingBottom: 16,
+      height: 56,
       paddingLeft: 20, paddingRight: 20,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative',
+      position: 'relative', flexShrink: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -222,10 +249,14 @@ function AppHeader({ primary, logoUrl, storeName, onSwitchToDesktop }) {
           <circle cx="64" cy="39" r="14" fill="#F4613A" />
         </svg>
         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
-        {logoUrl && (
+        {isDarkTheme ? (
+          <img src="/logos/biastore-black.svg" alt={storeName || 'Loja'}
+            style={{ height: 52, width: 'auto', display: 'block', flexShrink: 0 }} />
+        ) : (
           <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
-            <img src={logoUrl} alt={storeName || 'Loja'}
-              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }} />
+            <img src={src} alt={storeName || 'Loja'}
+              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
+              onError={() => setImgErr(true)} />
           </div>
         )}
       </div>
@@ -402,7 +433,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   const panels = {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
-    estoque:    <EstoquePage estoque={data.estoque} addEstoqueItem={data.addEstoqueItem} updateEstoqueItem={data.updateEstoqueItem} deleteEstoqueItem={data.deleteEstoqueItem} theme={theme} />,
+    estoque:    <EstoquePlaceholder />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <RelatoriosMobile data={data} theme={theme} />,
     meta:       <Meta {...data} theme={theme} />,
@@ -430,7 +461,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
-      <AppHeader primary={theme.primary} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
+      <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
       </main>

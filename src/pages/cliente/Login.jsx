@@ -61,10 +61,13 @@ function ClientLogo({ lojaSlug, lojaConfig }) {
   const secondary = lojaConfig?.cor_secundaria || '#1A1A1A'
   const [imgErr, setImgErr] = useState(false)
 
-  // logo_url do banco → fallback automático com iniciais geradas via SVG data URL
-  const src = (logoUrl && !imgErr)
-    ? logoUrl
-    : gerarLogoDataURL({ nome, corPrimaria: primary, corSecundaria: secondary })
+  const isBiaStore = lojaSlug === 'biastore'
+
+  const src = isBiaStore
+    ? '/logos/biastore-gold.svg'
+    : (logoUrl && !imgErr
+        ? logoUrl
+        : gerarLogoDataURL({ nome, corPrimaria: primary, corSecundaria: secondary }))
 
   return (
     <div style={{
@@ -74,17 +77,9 @@ function ClientLogo({ lojaSlug, lojaConfig }) {
       <img
         src={src}
         alt={nome}
-        style={{ height: 40, width: 'auto', objectFit: 'contain', display: 'block' }}
-        onError={() => setImgErr(true)}
+        style={{ height: 68, width: 'auto', objectFit: 'contain', display: 'block' }}
+        onError={isBiaStore ? undefined : () => setImgErr(true)}
       />
-      <span style={{
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600, fontSize: 9,
-        color: 'rgba(255,255,255,0.75)',
-        textTransform: 'uppercase', letterSpacing: '1.5px',
-      }}>
-        {nome}
-      </span>
     </div>
   )
 }
