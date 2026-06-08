@@ -3,39 +3,18 @@ import { BarChart2, TrendingUp, ShoppingBag, CreditCard } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
-const FILTERS = [
-  { id: 'today', label: 'Hoje' },
-  { id: 'week', label: '7 dias' },
-  { id: 'month', label: 'Este mês' },
-  { id: 'custom', label: 'Período' },
-]
-
 export default function Faturamento({ vendas, theme }) {
-  const [filtro, setFiltro] = useState('month')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
   const filtered = useMemo(() => {
-    const now = new Date()
     return vendas.filter(v => {
       const d = new Date(v.data)
-      if (filtro === 'today') return d.toDateString() === now.toDateString()
-      if (filtro === 'week') {
-        const cutoff = new Date(now)
-        cutoff.setDate(now.getDate() - 7)
-        return d >= cutoff
-      }
-      if (filtro === 'month') {
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-      }
-      if (filtro === 'custom' && dateFrom && dateTo) {
-        const from = new Date(dateFrom + 'T00:00:00')
-        const to = new Date(dateTo + 'T23:59:59')
-        return d >= from && d <= to
-      }
+      if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
+      if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [vendas, filtro, dateFrom, dateTo])
+  }, [vendas, dateFrom, dateTo])
 
   const totalVendas = filtered.reduce((s, v) => s + Number(v.valor), 0)
   const ticketMedio = filtered.length > 0 ? totalVendas / filtered.length : 0
@@ -56,36 +35,17 @@ export default function Faturamento({ vendas, theme }) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        {FILTERS.map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFiltro(f.id)}
-            className="px-4 py-2 rounded-xl text-sm font-medium border transition"
-            style={
-              filtro === f.id
-                ? { background: theme.primary, color: '#fff', borderColor: theme.primary }
-                : { background: '#fff', color: '#7B7390', borderColor: '#E6E0F0' }
-            }
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {filtro === 'custom' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">De</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">Até</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inp} />
-          </div>
+      {/* Date range filter */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">De</label>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
         </div>
-      )}
+        <div>
+          <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">Até</label>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inp} />
+        </div>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
