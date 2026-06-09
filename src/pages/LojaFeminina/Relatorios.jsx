@@ -320,61 +320,74 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
     )
   }
 
+  const labelStyle = {
+    display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+    color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5,
+  }
+  const inputStyle = {
+    width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 12,
+    padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+    color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
+  }
+
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Date range filter */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">De</label>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>De</label>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
         </div>
-        <div>
-          <label className="text-xs font-semibold text-[#7B7390] mb-1.5 block">Até</label>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inp} />
+        <div style={{ flex: 1 }}>
+          <label style={labelStyle}>Até</label>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {[
           { label: 'Faturamento',  value: fmtR(totalVendas), Icon: TrendingUp },
           { label: 'Nº de Vendas', value: nVendas,           Icon: ShoppingBag },
           { label: 'Ticket Médio', value: fmtR(ticketMedio), Icon: BarChart2 },
           { label: 'P.A.',         value: pa, sub: 'peças/atend.', Icon: BarChart2 },
         ].map(({ label, value, sub, Icon }) => (
-          <div key={label} className="bg-white border border-[#E6E0F0] rounded-xl p-3 min-w-0">
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                style={{ background: theme.primary + '15' }}>
-                <Icon className="w-3 h-3" style={{ color: theme.primary }} />
+          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 12px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: theme.primary + '22' }}>
+                <Icon size={12} style={{ color: theme.primary }} />
               </div>
-              <span className="text-xs font-medium text-[#7B7390] truncate">{label}</span>
+              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             </div>
-            <p className="text-base font-bold text-[#16101F] truncate">{value}</p>
-            {sub && <p className="text-xs text-[#7B7390] mt-0.5">{sub}</p>}
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: sub ? 4 : 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
+            {sub && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{sub}</p>}
           </div>
         ))}
       </div>
 
       {/* Payment breakdown */}
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-        <p className="text-sm font-semibold text-[#16101F] mb-4">Por forma de pagamento</p>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+          Por forma de pagamento
+        </p>
         {Object.keys(pgtoMap).length === 0 ? (
-          <p className="text-[#7B7390] text-sm text-center py-6">Sem dados para o período</p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '16px 0' }}>
+            Sem dados para o período
+          </p>
         ) : (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {Object.entries(pgtoMap).sort((a, b) => b[1] - a[1]).map(([pgto, val]) => {
               const pct = totalVendas > 0 ? (val / totalVendas) * 100 : 0
               return (
                 <div key={pgto}>
-                  <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-[#16101F]">{pgto}</span>
-                    <span className="font-semibold" style={{ color: theme.primary }}>{fmtR(val)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{pgto}</span>
+                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary }}>{fmtR(val)}</span>
                   </div>
-                  <div className="h-1.5 rounded-full" style={{ background: '#E6E0F0' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: theme.primary }} />
+                  <div style={{ height: 6, borderRadius: 3, background: 'var(--line)' }}>
+                    <div style={{ height: '100%', borderRadius: 3, background: theme.primary, width: `${pct}%`, transition: 'width 0.5s' }} />
                   </div>
-                  <p className="text-xs text-[#7B7390] mt-0.5">{pct.toFixed(0)}%</p>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{pct.toFixed(0)}%</p>
                 </div>
               )
             })}
@@ -383,19 +396,27 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       </div>
 
       {/* Vendas detalhadas card */}
-      <button
+      <div
         onClick={() => setShowDetalhadas(true)}
-        className="w-full bg-white border border-[#E6E0F0] rounded-2xl p-5 flex items-center justify-between text-left cursor-pointer"
+        style={{
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16,
+          padding: '16px 18px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}
       >
         <div>
-          <p className="text-sm font-semibold text-[#16101F] mb-1">Vendas Detalhadas</p>
-          <p className="text-xs text-[#7B7390]">{nVendas} venda{nVendas !== 1 ? 's' : ''} no período</p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>
+            Vendas Detalhadas
+          </p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+            {nVendas}
+          </p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            venda{nVendas !== 1 ? 's' : ''} no período
+          </p>
         </div>
-        <ChevronRight size={18} color="#7B7390" className="flex-shrink-0" />
-      </button>
+        <ChevronRight size={20} color="var(--muted)" />
+      </div>
     </div>
   )
 }
-
-const inp =
-  'w-full bg-[#F6F3FA] border border-[#E6E0F0] rounded-xl px-3.5 py-2.5 text-sm text-[#16101F] placeholder-[#7B7390] focus:outline-none focus:border-[#5E2BD0] transition'
