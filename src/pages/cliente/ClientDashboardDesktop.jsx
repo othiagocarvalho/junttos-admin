@@ -749,15 +749,22 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
                               }
                             }}
                             style={{
-                              padding: '5px 12px', borderRadius: 8, cursor: esgotado ? 'not-allowed' : 'pointer',
-                              border: `1.5px solid ${isSel ? theme.primary : 'var(--line)'}`,
-                              background: isSel ? `${theme.primary}20` : 'var(--surface)',
+                              padding: '5px 12px', borderRadius: 8,
+                              cursor: esgotado ? 'not-allowed' : 'pointer',
                               fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-                              color: isSel ? theme.primary : esgotado ? 'var(--muted)' : 'var(--ink)',
                               opacity: esgotado ? 0.5 : 1,
+                              ...(isSel ? {
+                                border: `1.5px solid ${theme.primary}`,
+                                background: `${theme.primary}20`,
+                                color: theme.primary,
+                              } : {
+                                border: '1px solid var(--line)',
+                                background: 'var(--surface)',
+                                color: 'var(--ink)',
+                              }),
                             }}>
                             {label}
-                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isSel ? theme.primary : 'var(--muted)' }}>
+                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: 'var(--muted)' }}>
                               {qty === 0 ? '(esgotado)' : `(${qty})`}
                             </span>
                           </button>
