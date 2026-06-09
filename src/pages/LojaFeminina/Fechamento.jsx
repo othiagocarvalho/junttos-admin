@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { Wallet, History } from 'lucide-react'
 
-const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
-
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR') }
 
@@ -15,7 +13,7 @@ const labelStyle = {
   fontFamily: 'Manrope, sans-serif',
 }
 
-function CurrField({ k, label, form, setForm }) {
+function CurrField({ k, label, form, setForm, theme }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -34,7 +32,7 @@ function CurrField({ k, label, form, setForm }) {
             outline: 'none', boxSizing: 'border-box',
             transition: 'border-color .18s',
           }}
-          onFocus={e => { e.target.style.borderColor = 'var(--rose-deep)'; e.target.style.background = '#fff' }}
+          onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.background = '#fff' }}
           onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.background = 'var(--bg)' }}
         />
       </div>
@@ -79,21 +77,21 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
         </p>
 
         {/* Recebimentos */}
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--rose-deep)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} />
-          <CurrField k="pix" label="Pix" form={form} setForm={setForm} />
-          <CurrField k="debito" label="Débito" form={form} setForm={setForm} />
-          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} />
+          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} theme={theme} />
+          <CurrField k="pix" label="Pix" form={form} setForm={setForm} theme={theme} />
+          <CurrField k="debito" label="Débito" form={form} setForm={setForm} theme={theme} />
+          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} theme={theme} />
         </div>
 
         {/* Caixa */}
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--rose-deep)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Caixa</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Caixa</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} />
-          <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} />
+          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} theme={theme} />
+          <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} theme={theme} />
         </div>
-        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} />
+        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} theme={theme} />
 
         <div style={{ marginTop: 14 }}>
           <label style={labelStyle}>Observações</label>
@@ -104,13 +102,13 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
               padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
               color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
             }}
-            onFocus={e => { e.target.style.borderColor = 'var(--rose-deep)'; e.target.style.background = '#fff' }}
+            onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.background = '#fff' }}
             onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.background = 'var(--bg)' }}
           />
         </div>
 
         {/* Hero total */}
-        <div style={{ marginTop: 18, background: METALLIC, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
+        <div style={{ marginTop: 18, background: theme.primary, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
             Total de Vendas do Dia
           </p>
@@ -162,7 +160,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
                   {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Manrope, sans-serif' }}>{c.obs}</p>}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: 'var(--rose-deep)' }}>{fmtR(c.total)}</p>
+                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(c.total)}</p>
                   <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
                 </div>
               </div>
