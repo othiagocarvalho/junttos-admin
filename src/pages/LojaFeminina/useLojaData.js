@@ -15,8 +15,8 @@ export function useLojaData(lojaId = 'estrada') {
   const [vendas, setVendas] = useState([])
   const [caixas, setCaixas] = useState([])
   const [metas, setMetas] = useState({})
-  const [produtos, setProdutos] = useState([])
-  const [estoque, setEstoque]   = useState([])
+  const [produtos, setProdutos]         = useState([])
+  const [produtosData, setProdutosData] = useState([])
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
@@ -24,13 +24,12 @@ export function useLojaData(lojaId = 'estrada') {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [vendasRes, caixasRes, metasRes, produtosRes, configRes, estoqueRes] = await Promise.all([
+      const [vendasRes, caixasRes, metasRes, produtosRes, configRes] = await Promise.all([
         supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_caixas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
         supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
         supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
-        supabase.from('lf_estoque').select('*').eq('loja_id', lojaId).order('produto').order('cor'),
       ])
 
       if (vendasRes.error) throw vendasRes.error
@@ -45,8 +44,9 @@ export function useLojaData(lojaId = 'estrada') {
       ;(metasRes.data || []).forEach(m => { metasMap[m.mes] = m.valor })
       setMetas(metasMap)
 
-      setProdutos((produtosRes.data || []).map(p => p.nome))
-      setEstoque(estoqueRes.data || [])
+      const prods = produtosRes.data || []
+      setProdutos(prods.map(p => p.nome))
+      setProdutosData(prods)
       setConfig(configRes.data || null)
       setDbError(null)
     } catch (e) {
@@ -138,20 +138,11 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  async function addEstoqueItem(item) {
-    const { error } = await supabase.from('lf_estoque').insert({ ...item, loja_id: lojaId })
-    if (!error) await fetchAll()
-    return error
-  }
-
-  async function updateEstoqueItem(id, updates) {
-    const { error } = await supabase.from('lf_estoque').update(updates).eq('id', id)
-    if (!error) await fetchAll()
-    return error
-  }
-
-  async function deleteEstoqueItem(id) {
-    const { error } = await supabase.from('lf_estoque').delete().eq('id', id)
+  async function updateVariacoes(id, variacoes) {
+    const { error } = await supabase
+      .from('lf_produtos')
+      .update({ variacoes })
+      .eq('id', id)
     if (!error) await fetchAll()
     return error
   }
@@ -176,7 +167,7 @@ export function useLojaData(lojaId = 'estrada') {
     caixas,
     metas,
     produtos,
-    estoque,
+    produtosData,
     config,
     features,
     LOJA_ID: lojaId,
@@ -190,9 +181,7 @@ export function useLojaData(lojaId = 'estrada') {
     salvarMeta,
     addProduto,
     removeProduto,
-    addEstoqueItem,
-    updateEstoqueItem,
-    deleteEstoqueItem,
+    updateVariacoes,
     saveConfig,
   }
 }

@@ -4,8 +4,8 @@ import { Search, Plus, X, ChevronDown, ChevronRight, Package } from 'lucide-reac
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 const BADGE = {
-  critico: { label: 'Crítico',  bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
-  atencao: { label: 'Atenção',  bg: '#fef9c3', color: '#b45309', border: '#fde68a' },
+  critico: { label: 'Crítico', bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
+  atencao: { label: 'Atenção', bg: '#fef9c3', color: '#b45309', border: '#fde68a' },
 }
 
 const labelStyle = {
@@ -26,28 +26,30 @@ function statusOf(qty) {
   return null
 }
 
-function productStatus(items) {
-  if (items.some(i => statusOf(i.quantidade) === 'critico')) return 'critico'
-  if (items.some(i => statusOf(i.quantidade) === 'atencao')) return 'atencao'
+function productStatus(variacoes) {
+  if (!variacoes?.length) return null
+  if (variacoes.some(v => statusOf(v.quantidade) === 'critico')) return 'critico'
+  if (variacoes.some(v => statusOf(v.quantidade) === 'atencao')) return 'atencao'
   return null
 }
 
-export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEstoqueItem, deleteEstoqueItem, theme }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, theme }) {
   const [search, setSearch]     = useState('')
   const [expanded, setExpanded] = useState({})
-  const [modal, setModal]       = useState(null)
+  const [modal, setModal]       = useState(null) // { mode, produto, idx? }
   const [form, setForm]         = useState({ cor: '', quantidade: '0', custo: '' })
   const [saving, setSaving]     = useState(false)
 
-  const allNames = [...new Set(estoque.map(i => i.produto))].sort()
-  const filteredNames = allNames.filter(n => n.toLowerCase().includes(search.toLowerCase()))
-  const grouped = name => estoque.filter(i => i.produto === name)
+  const filtered = produtosData.filter(p =>
+    p.nome.toLowerCase().includes(search.toLowerCase())
+  )
 
-  const totalCusto = estoque.reduce((s, i) => s + Number(i.quantidade || 0) * Number(i.custo || 0), 0)
-  const totalPecas = estoque.reduce((s, i) => s + Number(i.quantidade || 0), 0)
+  const allVars  = produtosData.flatMap(p => p.variacoes || [])
+  const totalCusto = allVars.reduce((s, v) => s + Number(v.quantidade || 0) * Number(v.custo || 0), 0)
+  const totalPecas = allVars.reduce((s, v) => s + Number(v.quantidade || 0), 0)
 
-  function toggleExpand(name) {
-    setExpanded(prev => ({ ...prev, [name]: !prev[name] }))
+  function toggleExpand(id) {
+    setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   function openAdd(produto) {
@@ -55,32 +57,33 @@ export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEsto
     setModal({ mode: 'add', produto })
   }
 
-  function openEdit(item) {
-    setForm({ cor: item.cor, quantidade: String(item.quantidade), custo: item.custo ? String(item.custo) : '' })
-    setModal({ mode: 'edit', produto: item.produto, item })
+  function openEdit(produto, idx) {
+    const v = produto.variacoes[idx]
+    setForm({ cor: v.cor, quantidade: String(v.quantidade), custo: v.custo ? String(v.custo) : '' })
+    setModal({ mode: 'edit', produto, idx })
   }
 
   async function handleSave() {
     if (!form.cor.trim()) return
     setSaving(true)
-    const payload = {
-      produto: modal.produto,
+    const item = {
       cor: form.cor.trim(),
       quantidade: parseInt(form.quantidade) || 0,
       custo: parseFloat((form.custo || '').replace(',', '.')) || 0,
     }
-    if (modal.mode === 'add') {
-      await addEstoqueItem(payload)
-    } else {
-      await updateEstoqueItem(modal.item.id, payload)
-    }
+    const current = modal.produto.variacoes || []
+    const updated = modal.mode === 'add'
+      ? [...current, item]
+      : current.map((v, i) => i === modal.idx ? item : v)
+    await updateVariacoes(modal.produto.id, updated)
     setSaving(false)
     setModal(null)
   }
 
   async function handleDelete() {
     setSaving(true)
-    await deleteEstoqueItem(modal.item.id)
+    const updated = (modal.produto.variacoes || []).filter((_, i) => i !== modal.idx)
+    await updateVariacoes(modal.produto.id, updated)
     setSaving(false)
     setModal(null)
   }
@@ -123,35 +126,35 @@ export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEsto
         />
       </div>
 
-      {/* Lista de produtos */}
-      {filteredNames.length === 0 ? (
+      {/* Lista */}
+      {filtered.length === 0 ? (
         <div style={{
           background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
           padding: '48px 24px', textAlign: 'center',
         }}>
           <Package size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
-            {search ? 'Nenhum produto encontrado.' : 'Nenhum item no estoque ainda.'}
+            {search ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}
           </p>
         </div>
       ) : (
-        filteredNames.map(name => {
-          const items  = grouped(name)
-          const isOpen = !!expanded[name]
-          const total  = items.reduce((s, i) => s + Number(i.quantidade || 0), 0)
-          const ps     = productStatus(items)
+        filtered.map(produto => {
+          const variacoes = produto.variacoes || []
+          const isOpen    = !!expanded[produto.id]
+          const total     = variacoes.reduce((s, v) => s + Number(v.quantidade || 0), 0)
+          const ps        = productStatus(variacoes)
 
           return (
-            <div key={name} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
+            <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
 
               {/* Cabeçalho colapsável */}
               <button
-                onClick={() => toggleExpand(name)}
+                onClick={() => toggleExpand(produto.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{name}</span>
+                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
                     {ps && (
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
@@ -161,7 +164,7 @@ export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEsto
                     )}
                   </div>
                   <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
-                    {items.length} variação{items.length !== 1 ? 'ões' : ''} · {total} peça{total !== 1 ? 's' : ''}
+                    {variacoes.length} variação{variacoes.length !== 1 ? 'ões' : ''} · {total} peça{total !== 1 ? 's' : ''}
                   </p>
                 </div>
                 {isOpen
@@ -173,53 +176,59 @@ export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEsto
               {/* Variações expandidas */}
               {isOpen && (
                 <div style={{ borderTop: '1px solid var(--line)', padding: '12px 18px 16px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {items.map(item => {
-                      const s = statusOf(item.quantidade)
-                      return (
-                        <div key={item.id} style={{
-                          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                          background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--line)',
-                        }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: item.custo > 0 ? 2 : 0 }}>
-                              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{item.cor}</span>
-                              {s && (
-                                <span style={{
-                                  fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
-                                  background: BADGE[s].bg, color: BADGE[s].color, border: `1px solid ${BADGE[s].border}`,
-                                  fontFamily: 'Manrope, sans-serif',
-                                }}>{BADGE[s].label}</span>
+                  {variacoes.length === 0 ? (
+                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10, textAlign: 'center' }}>
+                      Nenhuma variação cadastrada.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                      {variacoes.map((v, idx) => {
+                        const s = statusOf(v.quantidade)
+                        return (
+                          <div key={idx} style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                            background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--line)',
+                          }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: v.custo > 0 ? 2 : 0 }}>
+                                <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cor}</span>
+                                {s && (
+                                  <span style={{
+                                    fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
+                                    background: BADGE[s].bg, color: BADGE[s].color, border: `1px solid ${BADGE[s].border}`,
+                                    fontFamily: 'Manrope, sans-serif',
+                                  }}>{BADGE[s].label}</span>
+                                )}
+                              </div>
+                              {v.custo > 0 && (
+                                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                                  {fmtR(v.custo)} / peça
+                                </p>
                               )}
                             </div>
-                            {item.custo > 0 && (
-                              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
-                                {fmtR(item.custo)} / peça
-                              </p>
-                            )}
+                            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
+                              {v.quantidade}
+                            </span>
+                            <button
+                              onClick={() => openEdit(produto, idx)}
+                              style={{
+                                background: 'none', border: '1px solid var(--line)', borderRadius: 8,
+                                padding: '5px 11px', cursor: 'pointer',
+                                fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)',
+                              }}
+                            >
+                              Editar
+                            </button>
                           </div>
-                          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
-                            {item.quantidade}
-                          </span>
-                          <button
-                            onClick={() => openEdit(item)}
-                            style={{
-                              background: 'none', border: '1px solid var(--line)', borderRadius: 8,
-                              padding: '5px 11px', cursor: 'pointer',
-                              fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)',
-                            }}
-                          >
-                            Editar
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  )}
 
                   <button
-                    onClick={() => openAdd(name)}
+                    onClick={() => openAdd(produto)}
                     style={{
-                      marginTop: 10, display: 'flex', alignItems: 'center', gap: 6,
+                      display: 'flex', alignItems: 'center', gap: 6,
                       padding: '8px 14px', borderRadius: 10,
                       border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
                       fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
@@ -234,14 +243,14 @@ export default function EstoqueMobile({ estoque = [], addEstoqueItem, updateEsto
         })
       )}
 
-      {/* Modal adicionar/editar */}
+      {/* Modal */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
-                {modal.mode === 'add' ? `Nova variação — ${modal.produto}` : `Editar — ${modal.item.cor}`}
+                {modal.mode === 'add' ? `Nova variação — ${modal.produto.nome}` : `Editar — ${modal.produto.variacoes[modal.idx].cor}`}
               </p>
               <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
                 <X size={18} />
