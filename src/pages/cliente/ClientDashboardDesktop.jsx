@@ -53,7 +53,7 @@ const inp = (primary) => ({
 const onF = (primary) => (e) => {
   e.target.style.borderColor = primary
   e.target.style.boxShadow = `0 0 0 3px ${primary}20`
-  e.target.style.background = '#fff'
+  e.target.style.background = 'var(--surface)'
 }
 const onB = (e) => {
   e.target.style.borderColor = 'var(--line)'
@@ -421,13 +421,13 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       {/* Delete modal */}
       {confirmDel && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 8 }}>Excluir venda?</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 24, fontFamily: 'Manrope, sans-serif' }}>
               Venda de <strong>{fmtR(confirmDel.valor)}</strong>{confirmDel.cliente_nome ? ` para ${confirmDel.cliente_nome}` : ''}. Esta ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
+              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
               <button onClick={confirmDelete} style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>Excluir</button>
             </div>
           </div>
@@ -437,7 +437,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       {/* Edit payment modal */}
       {editVenda && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Editar Pagamento — {fmtR(editVenda.valor)}
@@ -496,7 +496,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditVenda(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
@@ -710,8 +710,8 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
             return (
               <div key={nome} style={{ border: `1.5px solid ${sel ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
                 <button type="button" onClick={() => toggleProd(nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: sel ? `${theme.primary}06` : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: sel ? theme.primary : '#fff', border: sel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: sel ? `${theme.primary}18` : 'var(--bg)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: sel ? theme.primary : 'var(--bg)', border: sel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
                   </div>
                   <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
