@@ -34,22 +34,14 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-const FILTROS = [
-  { id: 'todos',  label: 'Todos' },
-  { id: 'hoje',   label: 'Hoje' },
-  { id: 'semana', label: '7 dias' },
-  { id: 'mes',    label: 'Mês' },
-]
-
 export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
   const [search, setSearch] = useState('')
-  const [filtro, setFiltro] = useState('todos')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
-
-  const now = new Date()
 
   const editTotal = editVenda ? Number(editVenda.valor) : 0
   const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
@@ -57,9 +49,8 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
 
   const filtradas = vendas.filter(v => {
     const d = new Date(v.data)
-    if (filtro === 'hoje') return d.toDateString() === now.toDateString()
-    if (filtro === 'semana') { const cut = new Date(now); cut.setDate(now.getDate() - 7); return d >= cut }
-    if (filtro === 'mes') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
+    if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
     return true
   }).filter(v => {
     if (!search) return true
@@ -112,26 +103,31 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
         />
       </div>
 
-      {/* Filter chips */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {FILTROS.map(f => (
-          <button
-            key={f.id} onClick={() => setFiltro(f.id)}
+      {/* Date range filter */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5 }}>De</label>
+          <input
+            type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
             style={{
-              padding: '6px 14px', borderRadius: 99, cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-              background: filtro === f.id ? METALLIC : 'var(--surface)',
-              color: filtro === f.id ? '#fff' : 'var(--muted)',
-              border: filtro === f.id ? 'none' : '1px solid var(--line)',
-              boxShadow: filtro === f.id ? '0 2px 8px rgba(122,62,51,0.22)' : 'none',
-              transition: 'all .15s',
+              width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 12,
+              padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+              color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
             }}
-          >{f.label}</button>
-        ))}
-        <span style={{
-          marginLeft: 'auto', fontFamily: 'Manrope, sans-serif', fontSize: 12,
-          color: 'var(--muted)', alignSelf: 'center',
-        }}>
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5 }}>Até</label>
+          <input
+            type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            style={{
+              width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 12,
+              padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+              color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
+            }}
+          />
+        </div>
+        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', paddingBottom: 10 }}>
           {filtradas.length} venda{filtradas.length !== 1 ? 's' : ''}
         </span>
       </div>

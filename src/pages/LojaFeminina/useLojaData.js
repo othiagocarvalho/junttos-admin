@@ -15,7 +15,8 @@ export function useLojaData(lojaId = 'estrada') {
   const [vendas, setVendas] = useState([])
   const [caixas, setCaixas] = useState([])
   const [metas, setMetas] = useState({})
-  const [produtos, setProdutos] = useState([])
+  const [produtos, setProdutos]         = useState([])
+  const [produtosData, setProdutosData] = useState([])
   const [config, setConfig] = useState(null)
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
@@ -43,7 +44,9 @@ export function useLojaData(lojaId = 'estrada') {
       ;(metasRes.data || []).forEach(m => { metasMap[m.mes] = m.valor })
       setMetas(metasMap)
 
-      setProdutos((produtosRes.data || []).map(p => p.nome))
+      const prods = produtosRes.data || []
+      setProdutos(prods.map(p => p.nome))
+      setProdutosData(prods)
       setConfig(configRes.data || null)
       setDbError(null)
     } catch (e) {
@@ -135,6 +138,15 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  async function updateVariacoes(id, variacoes) {
+    const { error } = await supabase
+      .from('lf_produtos')
+      .update({ variacoes })
+      .eq('id', id)
+    if (!error) await fetchAll()
+    return error
+  }
+
   async function saveConfig(updates) {
     const { error } = await supabase
       .from('lf_config')
@@ -155,6 +167,7 @@ export function useLojaData(lojaId = 'estrada') {
     caixas,
     metas,
     produtos,
+    produtosData,
     config,
     features,
     LOJA_ID: lojaId,
@@ -168,6 +181,7 @@ export function useLojaData(lojaId = 'estrada') {
     salvarMeta,
     addProduto,
     removeProduto,
+    updateVariacoes,
     saveConfig,
   }
 }

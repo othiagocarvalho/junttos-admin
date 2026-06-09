@@ -9,6 +9,14 @@ function monthStartStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }
 
+function parsePgtos(v) {
+  try {
+    const arr = JSON.parse(v.forma_pgto)
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  return v.forma_pgto ? [{ forma: v.forma_pgto, valor: Number(v.valor) }] : []
+}
+
 const dateInputStyle = {
   height: 40, border: '1.5px solid var(--line)', borderRadius: 10,
   padding: '0 10px', fontFamily: 'Manrope, sans-serif', fontSize: 13,
@@ -39,7 +47,9 @@ export default function Faturamento({ vendas, theme }) {
 
   const pgtoMap = {}
   filtered.forEach(v => {
-    if (v.forma_pgto) pgtoMap[v.forma_pgto] = (pgtoMap[v.forma_pgto] || 0) + Number(v.valor)
+    parsePgtos(v).forEach(p => {
+      pgtoMap[p.forma] = (pgtoMap[p.forma] || 0) + Number(p.valor)
+    })
   })
   const topPgto = Object.keys(pgtoMap).sort((a, b) => pgtoMap[b] - pgtoMap[a])[0] || '—'
 
@@ -54,33 +64,33 @@ export default function Faturamento({ vendas, theme }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Date range */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 130 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1 }}>
           <label style={dateLabel}>De</label>
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInputStyle} />
         </div>
-        <div style={{ flex: 1, minWidth: 130 }}>
+        <div style={{ flex: 1 }}>
           <label style={dateLabel}>Até</label>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInputStyle} />
         </div>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+      {/* KPIs — grid 2 colunas fixo para não extravazar em mobile */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {[
           { label: 'Faturamento', value: fmtR(totalVendas), Icon: TrendingUp },
           { label: 'Qtd. Vendas',  value: filtered.length,   Icon: ShoppingBag },
           { label: 'Ticket Médio', value: fmtR(ticketMedio), Icon: BarChart2 },
           { label: 'Pgto + usado', value: topPgto,            Icon: CreditCard },
         ].map(({ label, value, Icon }) => (
-          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '16px' }}>
+          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '14px', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.primary + '18', flexShrink: 0 }}>
-                <Icon size={14} style={{ color: theme.primary }} />
+              <div style={{ width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.primary + '18', flexShrink: 0 }}>
+                <Icon size={13} style={{ color: theme.primary }} />
               </div>
-              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{label}</span>
+              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             </div>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{value}</p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
           </div>
         ))}
       </div>

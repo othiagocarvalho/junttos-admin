@@ -134,10 +134,10 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
           onClick={handleSave} disabled={saving || done || totalVendas === 0}
           style={{
             width: '100%', height: 50, marginTop: 14, border: 'none', borderRadius: 99, cursor: saving || done || totalVendas === 0 ? 'not-allowed' : 'pointer',
-            background: done ? '#16a34a' : (saving || totalVendas === 0) ? 'var(--line)' : METALLIC,
+            background: done ? '#16a34a' : (saving || totalVendas === 0) ? 'var(--line)' : theme.primary,
             color: done || (!saving && totalVendas > 0) ? '#fff' : 'var(--muted)',
             fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
-            boxShadow: done || saving || totalVendas === 0 ? 'none' : '0 4px 16px rgba(122,62,51,0.28)',
+            boxShadow: done || saving || totalVendas === 0 ? 'none' : '0 4px 16px rgba(0,0,0,0.18)',
             transition: 'opacity .18s',
           }}
         >
