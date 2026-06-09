@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
@@ -9,6 +9,7 @@ import Historico from './Historico'
 import Meta from './Meta'
 import Fechamento from './Fechamento'
 import Faturamento from './Faturamento'
+import Relatorios from './Relatorios'
 import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
 
@@ -420,7 +421,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
-    relatorios: <RelatoriosMobile data={data} theme={theme} />,
+    relatorios: <Relatorios {...data} theme={theme} />,
     meta:       <Meta {...data} theme={theme} />,
     conta:      (
       <div>
