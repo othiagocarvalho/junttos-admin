@@ -49,3 +49,9 @@ body {
 .bg-white [class*="from-"].text-white,
 .bg-white [class*="from-"] .text-white,
 .bg-white [class*="from-"] * { color: white !important; }
+
+/* Nova Venda desktop — force button text color (overrides body/Tailwind cascade) */
+.nv-btn-dark,
+.nv-btn-dark * { color: #D4A017 !important; }
+.nv-btn-light,
+.nv-btn-light * { color: #2A1F1F !important; }

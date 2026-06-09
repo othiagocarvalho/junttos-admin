@@ -723,12 +723,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
             return (
               <div key={nome} style={{ border: `1.5px solid ${selCount > 0 ? theme.primary : (isDark ? 'rgba(212,160,23,0.22)' : '#EDE2DA')}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
                 <button type="button"
+                  className={selCount > 0 ? '' : (isDark ? 'nv-btn-dark' : 'nv-btn-light')}
                   onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: selCount > 0 ? `${theme.primary}18` : (isDark ? '#0F0E0C' : '#FFFFFF'), border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: selCount > 0 ? `${theme.primary}18` : (isDark ? '#0F0E0C' : '#FFFFFF'), border: 'none', cursor: 'pointer', textAlign: 'left', color: selCount > 0 ? theme.primary : (isDark ? '#D4A017' : '#1a1a1a') }}>
                   <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? theme.primary : (isDark ? '#0F0E0C' : '#FFFFFF'), border: selCount > 0 ? 'none' : `1.5px solid ${isDark ? 'rgba(212,160,23,0.22)' : '#EDE2DA'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
                   </div>
-                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: isDark ? '#D4A017' : '#2A1F1F', fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: isDark ? '#D4A017' : '#1a1a1a', fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
                   {selCount > 0 && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 99, background: `${theme.primary}20`, color: theme.primary, fontWeight: 700, flexShrink: 0 }}>{selCount}×</span>}
                   {hasVars && <ChevronDown size={14} color={isDark ? '#A07830' : '#9C8580'} style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />}
                 </button>
@@ -741,6 +742,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
                         const esgotado = qty === 0 && !isSel
                         return (
                           <button key={idx} type="button"
+                            className={isSel ? '' : (isDark ? 'nv-btn-dark' : 'nv-btn-light')}
                             onClick={() => {
                               if (isSel) {
                                 setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
@@ -760,7 +762,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
                               } : {
                                 border: `1px solid ${isDark ? 'rgba(212,160,23,0.3)' : '#EDE2DA'}`,
                                 background: isDark ? '#1C1A14' : '#FFFFFF',
-                                color: isDark ? '#D4A017' : '#2A1F1F',
+                                color: isDark ? '#D4A017' : '#1a1a1a',
                               }),
                             }}>
                             {label}
