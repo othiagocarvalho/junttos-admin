@@ -332,6 +332,19 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Header */}
+      <div style={{ background: theme.primary, borderRadius: 16, padding: '22px 20px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+          Relatórios
+        </p>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 34, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+          {fmtR(totalVendas)}
+        </p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+          {nVendas} venda{nVendas !== 1 ? 's' : ''} no período
+        </p>
+      </div>
+
       {/* Date range filter */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
