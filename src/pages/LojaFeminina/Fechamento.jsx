@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Wallet, History } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
-function fmtDate(s) { return new Date(s + 'T00:00:00').toLocaleDateString('pt-BR') }
+function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 
 const EMPTY = { dinheiro: '', pix: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
 
@@ -52,7 +52,8 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
 
   async function handleSave() {
     setSaving(true)
-    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const err = await fecharCaixa({
       data: today,
       dinheiro: n('dinheiro'), pix: n('pix'),
