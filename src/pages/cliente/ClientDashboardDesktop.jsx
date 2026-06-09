@@ -97,7 +97,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
         {open && logoUrl && (
           <>
             <div style={{ width: 1, height: 22, background: '#ddd', flexShrink: 0 }} />
-            <div style={{ background: '#fff', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid var(--line)' }}>
               <img src={logoUrl} alt={config?.nome || 'Loja'}
                 style={{ height: 28, width: 'auto', maxWidth: 76, objectFit: 'contain', display: 'block' }} />
             </div>
@@ -108,7 +108,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
       {/* Nav */}
       <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '6px 0' }} />
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
@@ -123,11 +123,11 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
                 justifyContent: open ? 'flex-start' : 'center',
                 padding: open ? '10px 12px 10px 10px' : '10px 0',
                 borderRadius: 10, width: '100%',
-                background: active ? '#fff' : 'transparent',
-                border: active ? '1px solid #e8e4df' : '1px solid transparent',
+                background: active ? 'var(--surface)' : 'transparent',
+                border: active ? '1px solid var(--line)' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
                 cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
-                color: isLocked ? '#ccc' : (active ? '#2C1F14' : '#777'),
+                color: isLocked ? 'var(--muted)' : (active ? 'var(--ink)' : 'var(--ink-soft)'),
                 fontSize: 14, fontWeight: active ? 600 : 400,
                 fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
               }}>
@@ -721,20 +721,20 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
             const selCount = selItems.length
             const isOpen = varModal === nome
             return (
-              <div key={nome} style={{ border: `1.5px solid ${selCount > 0 ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
+              <div key={nome} style={{ border: `1.5px solid ${selCount > 0 ? theme.primary : (isDark ? 'rgba(212,160,23,0.22)' : '#EDE2DA')}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
                 <button type="button"
                   onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: selCount > 0 ? `${theme.primary}18` : 'var(--surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? theme.primary : 'var(--surface)', border: selCount > 0 ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: selCount > 0 ? `${theme.primary}18` : (isDark ? '#0F0E0C' : '#FFFFFF'), border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? theme.primary : (isDark ? '#0F0E0C' : '#FFFFFF'), border: selCount > 0 ? 'none' : `1.5px solid ${isDark ? 'rgba(212,160,23,0.22)' : '#EDE2DA'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
                   </div>
-                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: isDark ? '#D4A017' : '#2A1F1F', fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
                   {selCount > 0 && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 99, background: `${theme.primary}20`, color: theme.primary, fontWeight: 700, flexShrink: 0 }}>{selCount}×</span>}
-                  {hasVars && <ChevronDown size={14} color="var(--muted)" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />}
+                  {hasVars && <ChevronDown size={14} color={isDark ? '#A07830' : '#9C8580'} style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />}
                 </button>
                 {hasVars && isOpen && (
-                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid var(--line)', background: 'var(--bg)' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                  <div style={{ padding: '10px 14px 12px', borderTop: `1px solid ${isDark ? 'rgba(212,160,23,0.18)' : '#EDE2DA'}`, background: isDark ? '#050504' : '#F6EFE8' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {vars.map(({ label, qty }, idx) => {
                         const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
@@ -755,16 +755,16 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
                               opacity: esgotado ? 0.5 : 1,
                               ...(isSel ? {
                                 border: `1.5px solid ${theme.primary}`,
-                                background: `${theme.primary}20`,
+                                background: isDark ? `${theme.primary}30` : `${theme.primary}18`,
                                 color: theme.primary,
                               } : {
-                                border: '1px solid var(--line)',
-                                background: 'var(--surface)',
-                                color: 'var(--ink)',
+                                border: `1px solid ${isDark ? 'rgba(212,160,23,0.3)' : '#EDE2DA'}`,
+                                background: isDark ? '#1C1A14' : '#FFFFFF',
+                                color: isDark ? '#D4A017' : '#2A1F1F',
                               }),
                             }}>
                             {label}
-                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: 'var(--muted)' }}>
+                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isDark ? '#A07830' : '#9C8580' }}>
                               {qty === 0 ? '(esgotado)' : `(${qty})`}
                             </span>
                           </button>
@@ -785,11 +785,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
         </div>
 
         {form.produtos.length > 0 && (
-          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg)', borderRadius: 12 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: isDark ? '#050504' : '#F6EFE8', borderRadius: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {form.produtos.map((p, i) => (
-                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: isDark ? '#1C1A14' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : '#EDE2DA'}`, color: isDark ? '#D4A017' : '#2A1F1F', fontFamily: 'Manrope, sans-serif' }}>
                   {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}
                 </span>
               ))}
