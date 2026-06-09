@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
-  Trash2, Search, Check, ChevronRight, X, Pencil,
+  Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
@@ -521,14 +521,19 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
-function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, theme }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(EMPTY_VENDA)
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done,       setDone]       = useState(false)
   const [saving,     setSaving]     = useState(false)
+  const [varModal,   setVarModal]   = useState(null)
 
+  function getVarLabel(v) {
+    const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    return k ? String(v[k]) : null
+  }
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome)
     setForm({ ...form, produtos: exists ? form.produtos.filter(p => p.nome !== nome) : [...form.produtos, { nome, obs: '' }] })
@@ -706,19 +711,64 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflowY: 'auto' }}>
           {produtos.map(nome => {
-            const sel = form.produtos.find(p => p.nome === nome)
+            const pd = produtosData.find(p => p.nome === nome)
+            const vars = (pd?.variacoes || []).map(v => {
+              const label = getVarLabel(v)
+              return label ? { label, qty: Number(v.quantidade || 0) } : null
+            }).filter(Boolean)
+            const hasVars = vars.length > 0
+            const selItems = form.produtos.filter(p => p.nome === nome)
+            const selCount = selItems.length
+            const isOpen = varModal === nome
             return (
-              <div key={nome} style={{ border: `1.5px solid ${sel ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
-                <button type="button" onClick={() => toggleProd(nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: sel ? `${theme.primary}18` : 'var(--bg)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: sel ? theme.primary : 'var(--bg)', border: sel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
+              <div key={nome} style={{ border: `1.5px solid ${selCount > 0 ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
+                <button type="button"
+                  onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: selCount > 0 ? `${theme.primary}18` : 'var(--surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? theme.primary : 'var(--surface)', border: selCount > 0 ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
                   </div>
-                  <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
+                  <span style={{ flex: 1, fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                  {selCount > 0 && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 99, background: `${theme.primary}20`, color: theme.primary, fontWeight: 700, flexShrink: 0 }}>{selCount}×</span>}
+                  {hasVars && <ChevronDown size={14} color="var(--muted)" style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />}
                 </button>
-                {sel && (
+                {hasVars && isOpen && (
+                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid var(--line)', background: 'var(--bg)' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {vars.map(({ label, qty }, idx) => {
+                        const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
+                        const esgotado = qty === 0 && !isSel
+                        return (
+                          <button key={idx} type="button"
+                            onClick={() => {
+                              if (isSel) {
+                                setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                              } else if (!esgotado) {
+                                setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                              }
+                            }}
+                            style={{
+                              padding: '5px 12px', borderRadius: 8, cursor: esgotado ? 'not-allowed' : 'pointer',
+                              border: `1.5px solid ${isSel ? theme.primary : 'var(--line)'}`,
+                              background: isSel ? `${theme.primary}20` : 'var(--surface)',
+                              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                              color: isSel ? theme.primary : esgotado ? 'var(--muted)' : 'var(--ink)',
+                              opacity: esgotado ? 0.5 : 1,
+                            }}>
+                            {label}
+                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isSel ? theme.primary : 'var(--muted)' }}>
+                              {qty === 0 ? '(esgotado)' : `(${qty})`}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                {!hasVars && selCount > 0 && (
                   <div style={{ padding: '0 14px 10px' }}>
-                    <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)} onClick={e => e.stopPropagation()}
+                    <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value)} onClick={e => e.stopPropagation()}
                       placeholder="Obs: cor, tamanho..." style={{ ...inputS, height: 36, fontSize: 13 }} onFocus={fo} onBlur={onB} />
                   </div>
                 )}
@@ -731,9 +781,9 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
           <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg)', borderRadius: 12 }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {form.produtos.map(p => (
-                <span key={p.nome} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                  {p.nome}{p.obs ? ` — ${p.obs}` : ''}
+              {form.produtos.map((p, i) => (
+                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                  {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}
                 </span>
               ))}
             </div>
