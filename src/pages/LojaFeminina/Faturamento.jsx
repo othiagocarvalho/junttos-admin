@@ -3,6 +3,14 @@ import { BarChart2, TrendingUp, ShoppingBag, CreditCard } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
+function parsePgtos(v) {
+  try {
+    const arr = JSON.parse(v.forma_pgto)
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  return v.forma_pgto ? [{ forma: v.forma_pgto, valor: Number(v.valor) }] : []
+}
+
 export default function Faturamento({ vendas, theme }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -21,7 +29,9 @@ export default function Faturamento({ vendas, theme }) {
 
   const pgtoMap = {}
   filtered.forEach(v => {
-    if (v.forma_pgto) pgtoMap[v.forma_pgto] = (pgtoMap[v.forma_pgto] || 0) + Number(v.valor)
+    parsePgtos(v).forEach(p => {
+      pgtoMap[p.forma] = (pgtoMap[p.forma] || 0) + Number(p.valor)
+    })
   })
   const topPgto = Object.keys(pgtoMap).sort((a, b) => pgtoMap[b] - pgtoMap[a])[0] || '—'
 
@@ -48,24 +58,24 @@ export default function Faturamento({ vendas, theme }) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { label: 'Faturamento', value: fmtR(totalVendas), Icon: TrendingUp },
           { label: 'Qtd. Vendas', value: filtered.length, Icon: ShoppingBag },
           { label: 'Ticket Médio', value: fmtR(ticketMedio), Icon: BarChart2 },
           { label: 'Pgto + usado', value: topPgto, Icon: CreditCard },
         ].map(({ label, value, Icon }) => (
-          <div key={label} className="bg-white border border-[#E6E0F0] rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
+          <div key={label} className="bg-white border border-[#E6E0F0] rounded-xl p-3 min-w-0">
+            <div className="flex items-center gap-1.5 mb-2">
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                 style={{ background: theme.primary + '15' }}
               >
-                <Icon className="w-3.5 h-3.5" style={{ color: theme.primary }} />
+                <Icon className="w-3 h-3" style={{ color: theme.primary }} />
               </div>
-              <span className="text-xs font-medium text-[#7B7390]">{label}</span>
+              <span className="text-xs font-medium text-[#7B7390] truncate">{label}</span>
             </div>
-            <p className="text-xl font-bold text-[#16101F]">{value}</p>
+            <p className="text-base font-bold text-[#16101F] truncate">{value}</p>
           </div>
         ))}
       </div>
