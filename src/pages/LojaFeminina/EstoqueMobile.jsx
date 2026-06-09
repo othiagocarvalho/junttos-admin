@@ -44,9 +44,13 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
 
-  const allVars  = produtosData.flatMap(p => p.variacoes || [])
-  const totalCusto = allVars.reduce((s, v) => s + Number(v.quantidade || 0) * Number(v.custo || 0), 0)
-  const totalPecas = allVars.reduce((s, v) => s + Number(v.quantidade || 0), 0)
+  const totalPecas = produtosData.reduce((s, p) =>
+    s + (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0), 0
+  )
+  const totalCusto = produtosData.reduce((s, p) => {
+    const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
+    return s + qtd * Number(p.preco_custo || 0)
+  }, 0)
 
   function toggleExpand(id) {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
@@ -190,7 +194,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
                             background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--line)',
                           }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: v.custo > 0 ? 2 : 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: produto.preco_custo > 0 ? 2 : 0 }}>
                                 <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cor}</span>
                                 {s && (
                                   <span style={{
@@ -200,9 +204,9 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
                                   }}>{BADGE[s].label}</span>
                                 )}
                               </div>
-                              {v.custo > 0 && (
+                              {produto.preco_custo > 0 && (
                                 <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
-                                  {fmtR(v.custo)} / peça
+                                  {fmtR(produto.preco_custo)} / peça
                                 </p>
                               )}
                             </div>
