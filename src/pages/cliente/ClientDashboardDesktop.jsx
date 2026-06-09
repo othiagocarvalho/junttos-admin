@@ -8,6 +8,7 @@ import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import RelatoriosDesktop from './RelatoriosDesktop'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -734,31 +735,15 @@ function DesktopEstoque() {
   )
 }
 
-// ── Desktop Relatórios (Histórico + Faturamento) ───────────────
+// ── Desktop Relatórios ────────────────────────────────────────
 function DesktopRelatorios({ data, theme }) {
-  const [subTab, setSubTab] = useState('historico')
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {[
-          { id: 'historico',   label: 'Histórico'   },
-          { id: 'faturamento', label: 'Faturamento'  },
-        ].map(st => (
-          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
-            padding: '8px 20px', borderRadius: 99, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
-            border: subTab === st.id ? 'none' : '1px solid var(--line)',
-            background: subTab === st.id ? theme.primary : 'var(--surface)',
-            color: subTab === st.id ? '#fff' : 'var(--muted)',
-            boxShadow: subTab === st.id ? `0 2px 8px ${theme.primary}30` : 'none',
-          }}>{st.label}</button>
-        ))}
-      </div>
-      {subTab === 'historico'
-        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} updateVenda={data.updateVenda} theme={theme} />
-        : <Faturamento {...data} theme={theme} />
-      }
-    </div>
+    <RelatoriosDesktop
+      vendas={data.vendas}
+      deleteVenda={data.deleteVenda}
+      updateVenda={data.updateVenda}
+      theme={theme}
+    />
   )
 }
 
@@ -766,16 +751,19 @@ function DesktopRelatorios({ data, theme }) {
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
   const isDark = theme.isDark || theme.primary === '#D4A017'
-  const contentVars = isDark ? {
-    '--bg': '#0A0A0A',
-    '--surface': '#0F0E0C',
-    '--line': 'rgba(212,160,23,0.18)',
-    '--ink': '#D4A017',
-    '--ink-soft': '#A07830',
-    '--muted': '#A07830',
-    '--rose-deep': '#F0C040',
-    '--rose': '#D4A017',
-  } : {}
+  const contentVars = {
+    '--primary': theme.primary,
+    ...(isDark ? {
+      '--bg': '#0A0A0A',
+      '--surface': '#0F0E0C',
+      '--line': 'rgba(212,160,23,0.18)',
+      '--ink': '#D4A017',
+      '--ink-soft': '#A07830',
+      '--muted': '#A07830',
+      '--rose-deep': '#F0C040',
+      '--rose': '#D4A017',
+    } : {}),
+  }
 
   // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
