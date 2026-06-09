@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import NovaVenda from './NovaVenda'
+import Historico from './Historico'
 import Meta from './Meta'
 import Fechamento from './Fechamento'
-import Relatorios from './Relatorios'
+import Faturamento from './Faturamento'
 import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
 
@@ -174,6 +175,33 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
           </p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Relatórios mobile (Histórico + Faturamento) ─────────────
+function RelatoriosMobile({ data, theme }) {
+  const [subTab, setSubTab] = useState('historico')
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          { id: 'historico',   label: 'Histórico'   },
+          { id: 'faturamento', label: 'Faturamento'  },
+        ].map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
+            flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
+            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            border: subTab === st.id ? 'none' : '1px solid var(--line)',
+            background: subTab === st.id ? theme.primary : 'var(--surface)',
+            color: subTab === st.id ? '#fff' : 'var(--muted)',
+          }}>{st.label}</button>
+        ))}
+      </div>
+      {subTab === 'historico'
+        ? <Historico {...data} theme={theme} />
+        : <Faturamento {...data} theme={theme} />
+      }
     </div>
   )
 }
@@ -392,7 +420,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
-    relatorios: <Relatorios {...data} theme={theme} />,
+    relatorios: <RelatoriosMobile data={data} theme={theme} />,
     meta:       <Meta {...data} theme={theme} />,
     conta:      (
       <div>
@@ -410,10 +438,11 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
         </div>
       </div>
     ),
+    faturamento: <Faturamento {...data} theme={theme} />,
     config:      <LojaConfig {...data} theme={theme} />,
   }
 
-  const showBottomBar = !['config', 'meta'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
