@@ -9,6 +9,7 @@ import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
+import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -61,41 +62,53 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
-// ── Sidebar ──────────────────────────────────────────────────
+// ── Sidebar (mini 56px → hover 196px) ────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
+  const [open, setOpen] = useState(false)
   const primary = config?.cor_primaria || theme.primary
 
   return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: 220, height: '100vh',
-      background: '#F8F7F5',
-      display: 'flex', flexDirection: 'column',
-      zIndex: 50, fontFamily: 'Manrope, sans-serif',
-      borderRight: '1px solid #e8e4df',
-    }}>
-      {/* Logos: Junttos + cliente */}
-      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-            <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
-            <circle cx="40" cy="37" r="14" fill="#341780" />
-            <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
-          </svg>
-          <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
-          {logoUrl && (
-            <div style={{ background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
+    <aside
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{
+        position: 'fixed', left: 0, top: 0,
+        width: open ? 196 : 56, height: '100vh',
+        background: '#F8F7F5',
+        display: 'flex', flexDirection: 'column',
+        zIndex: 50, fontFamily: 'Manrope, sans-serif',
+        borderRight: '1px solid #e8e4df',
+        transition: 'width 0.2s ease',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Logo area */}
+      <div style={{
+        padding: open ? '18px 14px 16px' : '12px 0',
+        borderBottom: '1px solid #e8e4df',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        minHeight: 64, flexShrink: 0,
+      }}>
+        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+          <circle cx="40" cy="37" r="14" fill="#341780" />
+          <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
+        </svg>
+        {open && logoUrl && (
+          <>
+            <div style={{ width: 1, height: 22, background: '#ddd', flexShrink: 0 }} />
+            <div style={{ background: '#fff', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
               <img src={logoUrl} alt={config?.nome || 'Loja'}
-                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }} />
+                style={{ height: 28, width: 'auto', maxWidth: 76, objectFit: 'contain', display: 'block' }} />
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '8px 0' }} />
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '6px 0' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
@@ -103,9 +116,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
               className={isLocked ? '' : 'cds-nav-btn'}
+              title={!open ? label : undefined}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
+                display: 'flex', alignItems: 'center',
+                gap: open ? 10 : 0,
+                justifyContent: open ? 'flex-start' : 'center',
+                padding: open ? '10px 12px 10px 10px' : '10px 0',
+                borderRadius: 10, width: '100%',
                 background: active ? '#fff' : 'transparent',
                 border: active ? '1px solid #e8e4df' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
@@ -114,32 +131,38 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
                 fontSize: 14, fontWeight: active ? 600 : 400,
                 fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
               }}>
-              <Icon size={15} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
+              <Icon size={16} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
+              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
+              {open && isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
             </button>
           )
         })}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid #e8e4df' }}>
-        <button onClick={onSwitchToMobile} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 14px', borderRadius: 10, width: '100%',
-          border: '1px solid #e8e4df',
-          background: 'transparent', cursor: 'pointer',
-          color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
-        }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
-          Versão Celular
-        </button>
-        <p style={{
-          fontSize: 11, color: '#bbb',
-          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
-        }}>
-          jun<span style={{ color: '#F4613A' }}>tt</span>os
-        </p>
+      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
+        {open ? (
+          <>
+            <button onClick={onSwitchToMobile} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', borderRadius: 10, width: '100%',
+              border: '1px solid #e8e4df',
+              background: 'transparent', cursor: 'pointer',
+              color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
+              Versão Celular
+            </button>
+            <p style={{ fontSize: 10, color: '#bbb', fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '8px 0 0' }}>
+              jun<span style={{ color: '#F4613A' }}>tt</span>os
+            </p>
+          </>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -721,19 +744,6 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
   )
 }
 
-// ── Desktop Estoque ────────────────────────────────────────────
-function DesktopEstoque() {
-  return (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-      padding: '64px 24px', textAlign: 'center',
-    }}>
-      <Package size={40} color="var(--line)" style={{ margin: '0 auto 16px' }} />
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Estoque</p>
-      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível nesta versão.</p>
-    </div>
-  )
-}
 
 // ── Desktop Relatórios ────────────────────────────────────────
 function DesktopRelatorios({ data, theme }) {
@@ -771,7 +781,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <DesktopEstoque />,
+    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
     conta:      <Fechamento       {...data} theme={theme} />,
@@ -781,7 +791,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
+      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
         </div>
