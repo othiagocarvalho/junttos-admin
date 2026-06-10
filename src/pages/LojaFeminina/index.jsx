@@ -240,11 +240,9 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
           <img src="/logos/biastore-black.svg" alt={storeName || 'Loja'}
             style={{ height: 52, width: 'auto', display: 'block', flexShrink: 0 }} />
         ) : (
-          <div style={{ background: '#fff', borderRadius: 6, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 }}>
-            <img src={src} alt={storeName || 'Loja'}
-              style={{ height: 28, width: 'auto', maxWidth: 80, objectFit: 'contain', display: 'block' }}
-              onError={() => setImgErr(true)} />
-          </div>
+          <img src={src} alt={storeName || 'Loja'}
+            style={{ height: 32, width: 'auto', maxWidth: 90, objectFit: 'contain', display: 'block', flexShrink: 0 }}
+            onError={() => setImgErr(true)} />
         )}
       </div>
       <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
