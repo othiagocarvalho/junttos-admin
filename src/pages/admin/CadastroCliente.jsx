@@ -57,6 +57,8 @@ const EMPTY_FORM = {
   cor_secundaria: S.coral,
   logoFile: null,
   logoPreview: null,
+  email_acesso: '',
+  senha_acesso: '',
 }
 
 // ── Modal ────────────────────────────────────────────────────────
@@ -126,6 +128,8 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         cor_secundaria: form.cor_secundaria,
         features:       { ...DEFAULT_FEATURES },
         logo_url:       logoUrl,
+        email_acesso:   form.email_acesso || null,
+        senha_acesso:   form.senha_acesso || null,
         updated_at:     new Date().toISOString(),
       }
 
@@ -296,6 +300,32 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Credenciais de acesso */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: S.ink, marginBottom: 6 }}>
+              Email de acesso
+            </label>
+            <input
+              type="email"
+              value={form.email_acesso}
+              onChange={e => setForm(p => ({ ...p, email_acesso: e.target.value }))}
+              placeholder="loja@email.com"
+              style={inp}
+            />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: S.ink, marginBottom: 6 }}>
+              Senha de acesso
+            </label>
+            <input
+              type="text"
+              value={form.senha_acesso}
+              onChange={e => setForm(p => ({ ...p, senha_acesso: e.target.value }))}
+              placeholder="Ex: loja@2026"
+              style={inp}
+            />
           </div>
 
           {/* Alerts */}
