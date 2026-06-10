@@ -137,6 +137,12 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         .from('lf_config').upsert(payload, { onConflict: 'loja_id' })
       if (cfgErr) throw new Error(cfgErr.message)
 
+      if (form.email_acesso && form.senha_acesso) {
+        await supabase.functions.invoke('create-user', {
+          body: { email: form.email_acesso, password: form.senha_acesso },
+        })
+      }
+
       const link = `${PROD_BASE}/${form.slug}/`
       setSuccessLink(link)
       onCreated()
