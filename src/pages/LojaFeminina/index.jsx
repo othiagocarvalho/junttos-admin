@@ -12,6 +12,7 @@ import Faturamento from './Faturamento'
 import Relatorios from './Relatorios'
 import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
+import WelcomeOnboarding from './WelcomeOnboarding'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const METALLIC_SOFT = 'linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%)'
@@ -418,7 +419,9 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
 
   const panels = {
-    inicio:     <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
+    inicio: data.produtosData.length === 0
+      ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <Relatorios {...data} theme={theme} />,
