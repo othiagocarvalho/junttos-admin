@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
@@ -36,7 +36,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, theme }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
@@ -44,6 +44,12 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
   const [addingProd, setAddingProd] = useState(false)
   const [done, setDone] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [expandedProd, setExpandedProd] = useState(null)
+
+  function getVarLabel(v) {
+    const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    return k ? String(v[k]) : null
+  }
 
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome)
@@ -236,24 +242,128 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {produtos.map(nome => {
-                const sel = form.produtos.find(p => p.nome === nome)
+                const pd = produtosData.find(p => p.nome === nome)
+                const vars = (pd?.variacoes || []).map(v => {
+                  const label = getVarLabel(v)
+                  return label ? { label, qty: Number(v.quantidade || 0) } : null
+                }).filter(Boolean)
+                const hasVars = vars.length > 0
+                const selItems = form.produtos.filter(p => p.nome === nome)
+                const selCount = selItems.length
+                const isOpen = expandedProd === nome
                 return (
-                  <div key={nome} style={{ border: `1.5px solid ${sel ? 'var(--rose)' : 'var(--line)'}`, borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s' }}>
-                    <button onClick={() => toggleProd(nome)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sel ? 'rgba(217,169,155,0.06)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                      <div style={{
-                        width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                        background: sel ? (isDark ? GOLD : METALLIC) : '#fff',
-                        border: sel ? 'none' : '1.5px solid var(--line)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
+                  <div key={nome}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome)}
+                      onKeyDown={e => e.key === 'Enter' && (hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome))}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
+                        borderRadius: isOpen ? '14px 14px 0 0' : 14,
+                        border: selCount > 0
+                          ? `1.5px solid ${theme.primary}`
+                          : (isDark ? '1px solid #3a3a3a' : '1px solid #ddd'),
+                        background: selCount > 0
+                          ? (isDark ? '#2a1f00' : `${theme.primary}20`)
+                          : (isDark ? '#1a1a1a' : '#f5f5f5'),
+                        color: selCount > 0 ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
+                        transition: 'background .15s, border-color .15s',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{
+                          width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                          background: selCount > 0 ? (isDark ? GOLD : METALLIC) : 'transparent',
+                          border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #ddd'),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {selCount > 0 && <Check size={12} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />}
+                        </div>
+                        <span style={{
+                          fontSize: 14, fontFamily: 'Manrope, sans-serif',
+                          color: selCount > 0 ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
+                          fontWeight: selCount > 0 ? 600 : 400,
+                        }}>{nome}</span>
                       </div>
-                      <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
-                    </button>
-                    {sel && (
-                      <div style={{ padding: '0 14px 12px' }}>
-                        <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {selCount > 0 && (
+                          <span style={{
+                            fontSize: 11, padding: '2px 7px', borderRadius: 99,
+                            background: isDark ? `${theme.primary}30` : `${theme.primary}20`,
+                            color: theme.primary, fontWeight: 700,
+                          }}>{selCount}×</span>
+                        )}
+                        {hasVars && (
+                          <ChevronDown size={14} color={isDark ? theme.primary : '#9C8580'}
+                            style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
+                        )}
+                      </div>
+                    </div>
+
+                    {hasVars && isOpen && (
+                      <div style={{
+                        padding: '10px 14px 12px',
+                        borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderBottom: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderRadius: '0 0 14px 14px',
+                        background: isDark ? '#111110' : '#F6EFE8',
+                      }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {vars.map(({ label, qty }, idx) => {
+                            const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
+                            const esgotado = qty === 0 && !isSel
+                            return (
+                              <div key={idx} role="button" tabIndex={0}
+                                onClick={() => {
+                                  if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                  else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key !== 'Enter') return
+                                  if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                  else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                                }}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center',
+                                  padding: '5px 12px', borderRadius: 8,
+                                  cursor: esgotado ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                                  userSelect: 'none', opacity: esgotado ? 0.5 : 1,
+                                  ...(isSel ? {
+                                    border: `1.5px solid ${theme.primary}`,
+                                    background: isDark ? '#2a1f00' : `${theme.primary}20`,
+                                    color: theme.primary,
+                                  } : {
+                                    border: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                                    background: isDark ? '#1a1a1a' : '#f5f5f5',
+                                    color: isDark ? theme.primary : '#1a1a1a',
+                                  }),
+                                }}>
+                                {label}
+                                <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isDark ? '#A07830' : '#9C8580' }}>
+                                  {qty === 0 ? '(esgotado)' : `(${qty})`}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {!hasVars && selCount > 0 && (
+                      <div style={{
+                        padding: '0 14px 12px',
+                        borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderBottom: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                        borderRadius: '0 0 14px 14px',
+                        background: isDark ? '#1a1a1a' : '#f5f5f5',
+                      }}>
+                        <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value)}
                           onClick={e => e.stopPropagation()} placeholder="Obs: cor, tamanho, modelo..."
                           style={{ ...inputBase, height: 40, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
                       </div>
