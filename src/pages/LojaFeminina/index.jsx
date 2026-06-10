@@ -232,8 +232,8 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
           <rect x="20" y="55" width="60" height="28" rx="14" fill="rgba(255,255,255,0.9)" />
-          <circle cx="40" cy="37" r="14" fill="#6C3CE1" />
-          <circle cx="64" cy="39" r="14" fill="#F4613A" />
+          <circle cx="40" cy="37" r="14" fill="rgba(255,255,255,0.85)" />
+          <circle cx="64" cy="39" r="14" fill="rgba(255,255,255,0.65)" />
         </svg>
         <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
         {isDarkTheme ? (
@@ -354,16 +354,21 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     nome:    data.config?.nome || 'Loja Estrada',
     isDark,
   }
-  const themeVars = isDark ? {
-    '--bg': '#0A0A0A',
-    '--surface': '#0F0E0C',
-    '--line': 'rgba(212,160,23,0.18)',
-    '--ink': '#D4A017',
-    '--ink-soft': '#A07830',
-    '--muted': '#A07830',
-    '--rose-deep': '#F0C040',
-    '--rose': '#D4A017',
-  } : {}
+  const themeVars = {
+    '--primary':   primary,
+    '--rose':      primary,
+    '--rose-deep': primary,
+    ...(isDark ? {
+      '--bg':      '#0A0A0A',
+      '--surface': '#0F0E0C',
+      '--line':    'rgba(212,160,23,0.18)',
+      '--ink':     '#D4A017',
+      '--ink-soft':'#A07830',
+      '--muted':   '#A07830',
+      '--rose-deep':'#F0C040',
+      '--rose':    '#D4A017',
+    } : {}),
+  }
 
   useEffect(() => {
     if (!data.loading && !initDone) {
