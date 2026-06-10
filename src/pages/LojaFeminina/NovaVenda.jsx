@@ -238,21 +238,42 @@ export default function NovaVenda({ produtos, addVenda, addProduto, theme }) {
               {produtos.map(nome => {
                 const sel = form.produtos.find(p => p.nome === nome)
                 return (
-                  <div key={nome} style={{ border: `1.5px solid ${sel ? 'var(--rose)' : 'var(--line)'}`, borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s' }}>
-                    <button onClick={() => toggleProd(nome)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: sel ? 'rgba(217,169,155,0.06)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div key={nome} style={{
+                    border: sel
+                      ? `1.5px solid ${theme.primary}`
+                      : (isDark ? '1px solid #3a3a3a' : '1px solid #ddd'),
+                    borderRadius: 14, overflow: 'hidden', transition: 'border-color .15s',
+                  }}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleProd(nome)}
+                      onKeyDown={e => e.key === 'Enter' && toggleProd(nome)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
+                        background: sel
+                          ? (isDark ? '#2a1f00' : `${theme.primary}20`)
+                          : (isDark ? '#1a1a1a' : '#f5f5f5'),
+                        color: sel ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
+                      }}
+                    >
                       <div style={{
                         width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                        background: sel ? (isDark ? GOLD : METALLIC) : '#fff',
-                        border: sel ? 'none' : '1.5px solid var(--line)',
+                        background: sel ? (isDark ? GOLD : METALLIC) : 'transparent',
+                        border: sel ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #ddd'),
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
+                        {sel && <Check size={12} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />}
                       </div>
-                      <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
-                    </button>
+                      <span style={{
+                        fontSize: 14, fontFamily: 'Manrope, sans-serif',
+                        color: sel ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
+                        fontWeight: sel ? 600 : 400,
+                      }}>{nome}</span>
+                    </div>
                     {sel && (
-                      <div style={{ padding: '0 14px 12px' }}>
+                      <div style={{ padding: '0 14px 12px', background: isDark ? '#1a1a1a' : '#f5f5f5' }}>
                         <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)}
                           onClick={e => e.stopPropagation()} placeholder="Obs: cor, tamanho, modelo..."
                           style={{ ...inputBase, height: 40, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
