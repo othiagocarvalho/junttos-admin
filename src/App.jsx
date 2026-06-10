@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
@@ -16,14 +17,7 @@ import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 import CadastroCliente from './pages/admin/CadastroCliente'
-
-// Lojas conhecidas — adicionar novo slug aqui para cadastrar nova cliente
-const LOJA_IDS = ['estrada', 'biastore']
-
-function getLojaId() {
-  const path = window.location.pathname
-  return LOJA_IDS.find(id => path.startsWith(`/${id}`)) ?? null
-}
+import { supabase } from './lib/supabase'
 
 function ProtectedLayout({ children }) {
   return (
@@ -81,7 +75,39 @@ function AdminApp() {
 }
 
 export default function App() {
-  const lojaId = getLojaId()
+  const [lojaId, setLojaId] = useState(null)
+  const [ready,  setReady]  = useState(false)
+
+  useEffect(() => {
+    const segment = window.location.pathname.split('/').filter(Boolean)[0] ?? ''
+    if (!segment) {
+      setReady(true)
+      return
+    }
+    supabase
+      .from('lf_config')
+      .select('loja_id')
+      .eq('loja_id', segment)
+      .maybeSingle()
+      .then(({ data }) => {
+        setLojaId(data?.loja_id ?? null)
+        setReady(true)
+      })
+  }, [])
+
+  if (!ready) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F7F5' }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: '50%',
+          border: '2.5px solid #7B5DD4', borderTopColor: 'transparent',
+          animation: 'spin 1s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
   if (lojaId) return <LojaClientApp lojaId={lojaId} />
   return <AdminApp />
 }
