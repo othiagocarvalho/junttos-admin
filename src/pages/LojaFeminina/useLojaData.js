@@ -122,8 +122,14 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  async function addProduto(nome) {
-    const { error } = await supabase.from('lf_produtos').insert({ loja_id: lojaId, nome })
+  async function addProduto(nome, extras = {}) {
+    const { error } = await supabase.from('lf_produtos').insert({
+      loja_id: lojaId,
+      nome,
+      preco_custo: extras.precoCusto || 0,
+      preco_venda: extras.precoVenda || 0,
+      variacoes: extras.variacoes || [],
+    })
     if (!error) await fetchAll()
     return error
   }

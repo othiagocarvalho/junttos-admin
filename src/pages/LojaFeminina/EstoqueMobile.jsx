@@ -33,12 +33,17 @@ function productStatus(variacoes) {
   return null
 }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, theme }) {
-  const [search, setSearch]     = useState('')
-  const [expanded, setExpanded] = useState({})
-  const [modal, setModal]       = useState(null) // { mode, produto, idx? }
-  const [form, setForm]         = useState({ cor: '', quantidade: '0', custo: '' })
-  const [saving, setSaving]     = useState(false)
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [] }
+
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, theme }) {
+  const [search, setSearch]         = useState('')
+  const [expanded, setExpanded]     = useState({})
+  const [modal, setModal]           = useState(null) // { mode, produto, idx? }
+  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '' })
+  const [saving, setSaving]         = useState(false)
+  const [newProdOpen, setNewProdOpen] = useState(false)
+  const [newProd, setNewProd]         = useState(EMPTY_NEW)
+  const [newProdSaving, setNewProdSaving] = useState(false)
 
   const filtered = produtosData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
@@ -94,6 +99,36 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
 
   const canSave = form.cor.trim() && !saving
 
+  function addNewVar() {
+    setNewProd(prev => ({ ...prev, variacoes: [...prev.variacoes, { nome: '', quantidade: '1' }] }))
+  }
+
+  function removeNewVar(idx) {
+    setNewProd(prev => ({ ...prev, variacoes: prev.variacoes.filter((_, i) => i !== idx) }))
+  }
+
+  function setNewVar(idx, field, val) {
+    setNewProd(prev => ({
+      ...prev,
+      variacoes: prev.variacoes.map((v, i) => i === idx ? { ...v, [field]: val } : v),
+    }))
+  }
+
+  async function handleAddProduto() {
+    if (!newProd.nome.trim() || newProdSaving) return
+    setNewProdSaving(true)
+    const variacoes = newProd.variacoes
+      .filter(v => v.nome.trim())
+      .map(v => ({ cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }))
+    const err = await addProduto(newProd.nome.trim(), {
+      precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
+      precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
+      variacoes,
+    })
+    setNewProdSaving(false)
+    if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8 }}>
 
@@ -116,18 +151,34 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
         </div>
       </div>
 
-      {/* Busca */}
-      <div style={{ position: 'relative' }}>
-        <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar produto..."
+      {/* Busca + botão novo produto */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar produto..."
+            style={{
+              width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
+              padding: '0 14px 0 40px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+              color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+        <div
+          role="button" tabIndex={0}
+          onClick={() => { setNewProd(EMPTY_NEW); setNewProdOpen(true) }}
+          onKeyDown={e => e.key === 'Enter' && (setNewProd(EMPTY_NEW), setNewProdOpen(true))}
           style={{
-            width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
-            padding: '0 14px 0 40px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
-            color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '0 16px', height: 46, borderRadius: 14, flexShrink: 0,
+            background: theme.primary, color: '#fff',
+            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+            cursor: 'pointer', userSelect: 'none',
           }}
-        />
+        >
+          <Plus size={14} color="#fff" /> Novo
+        </div>
       </div>
 
       {/* Lista */}
@@ -247,7 +298,150 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, them
         })
       )}
 
-      {/* Modal */}
+      {/* Modal — Novo Produto */}
+      {newProdOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setNewProdOpen(false)}>
+          <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+                Novo Produto
+              </p>
+              <div role="button" tabIndex={0} onClick={() => setNewProdOpen(false)}
+                onKeyDown={e => e.key === 'Enter' && setNewProdOpen(false)}
+                style={{ cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
+                <X size={18} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* Nome */}
+              <div>
+                <label style={{ ...labelStyle, color: theme.primary }}>Nome do Produto *</label>
+                <input
+                  value={newProd.nome} onChange={e => setNewProd(p => ({ ...p, nome: e.target.value }))}
+                  placeholder="Ex: Vestido Floral, Blusa Básica..."
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+
+              {/* Preços */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ ...labelStyle, color: theme.primary }}>Preço de Custo</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={newProd.precoCusto} onChange={e => setNewProd(p => ({ ...p, precoCusto: e.target.value }))}
+                      placeholder="0,00"
+                      style={{ ...inputStyle, paddingLeft: 36 }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: theme.primary }}>Preço de Venda</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={newProd.precoVenda} onChange={e => setNewProd(p => ({ ...p, precoVenda: e.target.value }))}
+                      placeholder="0,00"
+                      style={{ ...inputStyle, paddingLeft: 36 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Variações */}
+              <div>
+                <label style={{ ...labelStyle, color: theme.primary, marginBottom: 10 }}>Variações</label>
+                {newProd.variacoes.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                    {newProd.variacoes.map((v, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input
+                          value={v.nome} onChange={e => setNewVar(idx, 'nome', e.target.value)}
+                          placeholder="Ex: P, M, G, Preta, Azul..."
+                          style={{ ...inputStyle, flex: 2, height: 42 }}
+                        />
+                        <input
+                          type="number" min="0"
+                          value={v.quantidade} onChange={e => setNewVar(idx, 'quantidade', e.target.value)}
+                          placeholder="Qtd"
+                          style={{ ...inputStyle, flex: 1, height: 42, textAlign: 'center' }}
+                        />
+                        <div role="button" tabIndex={0}
+                          onClick={() => removeNewVar(idx)}
+                          onKeyDown={e => e.key === 'Enter' && removeNewVar(idx)}
+                          style={{
+                            width: 36, height: 42, borderRadius: 10, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'var(--bg)', border: '1px solid var(--line)',
+                            cursor: 'pointer', color: 'var(--muted)',
+                          }}>
+                          <X size={14} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div role="button" tabIndex={0}
+                  onClick={addNewVar}
+                  onKeyDown={e => e.key === 'Enter' && addNewVar()}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '8px 14px', borderRadius: 10,
+                    border: `1px dashed ${theme.primary}80`, background: `${theme.primary}08`,
+                    cursor: 'pointer', userSelect: 'none',
+                    fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
+                  }}>
+                  <Plus size={13} /> Adicionar variação
+                </div>
+                {newProd.variacoes.length === 0 && (
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                    Sem variações — salva como produto simples.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Botões */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <div role="button" tabIndex={0}
+                onClick={() => setNewProdOpen(false)}
+                onKeyDown={e => e.key === 'Enter' && setNewProdOpen(false)}
+                style={{
+                  flex: 1, height: 48, borderRadius: 14, border: '1px solid var(--line)',
+                  background: 'var(--bg)', cursor: 'pointer', userSelect: 'none',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                Cancelar
+              </div>
+              <div role="button" tabIndex={0}
+                onClick={handleAddProduto}
+                onKeyDown={e => e.key === 'Enter' && handleAddProduto()}
+                style={{
+                  flex: 2, height: 48, borderRadius: 14,
+                  background: newProd.nome.trim() && !newProdSaving ? theme.primary : 'var(--line)',
+                  cursor: newProd.nome.trim() && !newProdSaving ? 'pointer' : 'not-allowed',
+                  userSelect: 'none',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  color: newProd.nome.trim() && !newProdSaving ? '#fff' : 'var(--muted)', fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                {newProdSaving ? 'Salvando...' : 'Salvar Produto'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal — Editar/Adicionar variação existente */}
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>

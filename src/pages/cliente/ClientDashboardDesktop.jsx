@@ -887,7 +887,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} theme={theme} />,
+    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
     conta:      <Fechamento       {...data} theme={theme} />,
