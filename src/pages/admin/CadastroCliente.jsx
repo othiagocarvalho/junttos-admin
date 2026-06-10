@@ -45,9 +45,9 @@ async function uploadLogo(slug, file) {
   const ext = file.name.split('.').pop().toLowerCase()
   const path = `${slug}/logo.${ext}`
   const { error } = await supabase.storage
-    .from('logos').upload(path, file, { upsert: true, contentType: file.type })
+    .from('Logo').upload(path, file, { upsert: true, contentType: file.type })
   if (error) throw new Error(`Upload: ${error.message}`)
-  const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(path)
+  const { data: { publicUrl } } = supabase.storage.from('Logo').getPublicUrl(path)
   return publicUrl
 }
 
