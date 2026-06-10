@@ -15,4 +15,13 @@ export const ADMIN_USERS = [
     role: 'Gestor',
     avatar: 'GJ',
   },
+  {
+    id: 3,
+    name: 'Du Charme Lingerie',
+    email: 'ducharme@junttos.com.br',
+    password: 'ducharme@2026',
+    role: 'Loja',
+    avatar: 'DC',
+    slug: 'ducharmelingerie',
+  },
 ]
