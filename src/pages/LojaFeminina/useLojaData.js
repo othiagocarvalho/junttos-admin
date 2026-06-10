@@ -72,22 +72,19 @@ export function useLojaData(lojaId = 'estrada') {
         features: DEFAULT_FEATURES,
       })
     }
+  }
 
-    const { data: prods } = await supabase
-      .from('lf_produtos')
-      .select('id')
-      .eq('loja_id', lojaId)
-      .limit(1)
-
-    if (!prods || prods.length === 0) {
-      await supabase.from('lf_produtos').insert(
-        ['Vestido', 'Cropped', 'Blusa', 'Saia', 'Short', 'Calça', 'Conjunto'].map(nome => ({
-          loja_id: lojaId,
-          nome,
-        }))
-      )
-      await fetchAll()
-    }
+  async function importarProdutos(lista) {
+    const rows = lista.map(p => ({
+      loja_id:     lojaId,
+      nome:        p.nome,
+      preco_custo: p.precoCusto || 0,
+      preco_venda: p.precoVenda || 0,
+      variacoes:   p.variacoes  || [],
+    }))
+    const { error } = await supabase.from('lf_produtos').insert(rows)
+    if (!error) await fetchAll()
+    return error
   }
 
   async function addVenda(venda) {
@@ -188,6 +185,7 @@ export function useLojaData(lojaId = 'estrada') {
     addProduto,
     removeProduto,
     updateVariacoes,
+    importarProdutos,
     saveConfig,
   }
 }

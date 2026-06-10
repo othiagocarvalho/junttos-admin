@@ -10,6 +10,7 @@ import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
 import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
+import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -885,7 +886,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
 
   const panels = {
-    inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
+    inicio: data.produtosData.length === 0
+      ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
