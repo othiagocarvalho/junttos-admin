@@ -11,7 +11,6 @@ import {
   ChevronRight,
   BarChart2,
   Network,
-  ShoppingBag,
   Building2,
 } from 'lucide-react'
 
@@ -33,7 +32,6 @@ const navItems = [
   { to: '/finance', icon: DollarSign, label: 'Faturamento' },
   { to: '/reports', icon: BarChart2, label: 'Relatórios' },
   { to: '/arquitetura', icon: Network, label: 'Arquitetura' },
-  { to: '/loja-feminina', icon: ShoppingBag, label: 'Loja Feminina' },
   { to: '/clientes', icon: Building2, label: 'Painel Clientes' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
@@ -47,31 +45,6 @@ function JunttosSymbol({ size = 34, style }) {
       <circle cx="40" cy="37" r="14" fill="#341780" />
       <circle cx="64" cy="39" r="14" fill="#FF6B6B" />
     </svg>
-  )
-}
-
-function EstradaLogo({ size = 32 }) {
-  console.log('EstradaLogo renderizou')
-  return (
-    <div style={{
-      width: size,
-      height: size,
-      borderRadius: 8,
-      background: '#CC7870',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      <span style={{
-        fontSize: size * 0.28,
-        fontWeight: 700,
-        color: '#fff',
-        letterSpacing: '-0.5px',
-        fontFamily: 'Georgia, serif',
-        fontStyle: 'italic',
-      }}>E</span>
-    </div>
   )
 }
 
@@ -106,8 +79,6 @@ export default function Sidebar() {
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, overflow: 'visible', width: '100%' }}>
           <JunttosSymbol size={32} style={{ flexShrink: 0 }} />
-          <div style={{ width: 1, height: 24, background: '#ddd', flexShrink: 0 }} />
-          <EstradaLogo size={32} />
         </div>
         <hr style={{ border: 'none', borderTop: `1px solid ${S.line}`, margin: '14px 0 0' }} />
       </div>
