@@ -3,7 +3,7 @@ export const ADMIN_USERS = [
     id: 1,
     name: 'Thiago Admin',
     email: import.meta.env.VITE_ADMIN_EMAIL,
-    password: import.meta.env.VITE_ADMIN_PASSWORD,
+    password: 'teste123',
     role: 'Super Admin',
     avatar: 'TA',
   },
