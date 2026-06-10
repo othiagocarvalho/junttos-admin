@@ -2,7 +2,7 @@ export const ADMIN_USERS = [
   {
     id: 1,
     name: 'Thiago Admin',
-    email: import.meta.env.VITE_ADMIN_EMAIL,
+    email: 'admin@junttos.com.br',
     password: 'teste123',
     role: 'Super Admin',
     avatar: 'TA',
