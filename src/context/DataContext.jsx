@@ -17,35 +17,35 @@ function save(key, value) {
 }
 
 export function DataProvider({ children }) {
-  const [clients, setClients] = useState(() => load('junttos_clients', initialClients))
-  const [visits, setVisits] = useState(() => load('junttos_visits', initialVisits))
+  const [clients, setClients] = useState(() => load('junttos_clients_v2', initialClients))
+  const [visits, setVisits] = useState(() => load('junttos_visits_v2', initialVisits))
   const consultants = consultantsList
 
   function addClient(data) {
     const client = { ...data, id: Date.now().toString() }
     const updated = [client, ...clients]
     setClients(updated)
-    save('junttos_clients', updated)
+    save('junttos_clients_v2', updated)
     return client
   }
 
   function updateClient(id, data) {
     const updated = clients.map((c) => (c.id === id ? { ...c, ...data } : c))
     setClients(updated)
-    save('junttos_clients', updated)
+    save('junttos_clients_v2', updated)
   }
 
   function deleteClient(id) {
     const updated = clients.filter((c) => c.id !== id)
     setClients(updated)
-    save('junttos_clients', updated)
+    save('junttos_clients_v2', updated)
   }
 
   function addVisit(data) {
     const visit = { ...data, id: Date.now().toString() }
     const updated = [visit, ...visits]
     setVisits(updated)
-    save('junttos_visits', updated)
+    save('junttos_visits_v2', updated)
     return visit
   }
 

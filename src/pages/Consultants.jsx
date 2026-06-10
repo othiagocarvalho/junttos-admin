@@ -1,5 +1,5 @@
 ﻿import { useData } from '../context/DataContext'
-import { Users, DollarSign, MapPin, TrendingUp, Star, Award } from 'lucide-react'
+import { Users, DollarSign, MapPin, TrendingUp, Award, UserX } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -67,6 +67,22 @@ export default function Consultants() {
       )
     }
     return null
+  }
+
+  if (consultants.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[#16101F]">Consultores</h1>
+          <p className="text-[#7B7390] text-sm mt-1">Desempenho e métricas da equipe comercial</p>
+        </div>
+        <div className="bg-white border border-[#E6E0F0] rounded-2xl flex flex-col items-center justify-center py-20 text-center">
+          <UserX className="w-10 h-10 text-[#E6E0F0] mb-3" />
+          <p className="text-[#7B7390] font-medium">Nenhum consultor cadastrado</p>
+          <p className="text-[#7B7390] text-sm mt-1">Os consultores aparecerão aqui quando cadastrados.</p>
+        </div>
+      </div>
+    )
   }
 
   return (

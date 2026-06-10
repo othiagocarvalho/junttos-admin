@@ -286,10 +286,14 @@ export default function Clients() {
                 value={form.consultantId}
                 onChange={(e) => setForm({ ...form, consultantId: e.target.value })}
                 className={inputClass}
+                disabled={consultants.length === 0}
               >
-                {[{ id: 1, name: 'Carlos Mendes' }, { id: 2, name: 'Ana Lima' }].map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
+                {consultants.length === 0
+                  ? <option value="">Nenhum consultor cadastrado</option>
+                  : consultants.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))
+                }
               </select>
             </FormField>
           </div>

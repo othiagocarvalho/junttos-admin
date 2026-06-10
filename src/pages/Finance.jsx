@@ -1,5 +1,5 @@
 ﻿import { useData } from '../context/DataContext'
-import { DollarSign, TrendingUp, Users, Zap } from 'lucide-react'
+import { DollarSign, TrendingUp, Users, Zap, BarChart2 } from 'lucide-react'
 import {
   BarChart,
   Bar,
@@ -11,7 +11,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   AreaChart,
   Area,
 } from 'recharts'
@@ -23,14 +22,6 @@ const PRODUCT_COLORS = {
   'Inventário': '#06b6d4',
 }
 
-const mrrHistory = [
-  { month: 'Jul', mrr: 18200 },
-  { month: 'Ago', mrr: 21500 },
-  { month: 'Set', mrr: 24800 },
-  { month: 'Out', mrr: 28100 },
-  { month: 'Nov', mrr: 31400 },
-  { month: 'Dez', mrr: 34050 },
-]
 
 export default function Finance() {
   const { clients, consultants } = useData()
@@ -140,29 +131,14 @@ export default function Finance() {
       {/* MRR History Chart */}
       <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6 mb-6">
         <div className="mb-5">
-          <h2 className="text-white font-semibold">Evolução do MRR</h2>
+          <h2 className="text-[#16101F] font-semibold">Evolução do MRR</h2>
           <p className="text-[#7B7390] text-sm">Crescimento da receita recorrente mensal</p>
         </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={mrrHistory}>
-            <defs>
-              <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E6E0F0" />
-            <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis
-              tick={{ fill: '#64748b', fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Area type="monotone" dataKey="mrr" name="MRR" stroke="#3b82f6" strokeWidth={2.5} fill="url(#mrrGrad)" dot={{ fill: '#3b82f6', r: 4 }} activeDot={{ r: 6 }} />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <BarChart2 className="w-8 h-8 text-[#E6E0F0] mb-3" />
+          <p className="text-[#7B7390] text-sm font-medium">Nenhum dado disponível</p>
+          <p className="text-[#7B7390] text-xs mt-1">O histórico de MRR aparecerá aqui quando disponível.</p>
+        </div>
       </div>
 
       {/* By polo and by product */}
