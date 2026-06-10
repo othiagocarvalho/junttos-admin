@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
-  Trash2, Search, Check, ChevronRight, X, Pencil,
+  Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import RelatoriosDesktop from './RelatoriosDesktop'
+import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -51,7 +53,7 @@ const inp = (primary) => ({
 const onF = (primary) => (e) => {
   e.target.style.borderColor = primary
   e.target.style.boxShadow = `0 0 0 3px ${primary}20`
-  e.target.style.background = '#fff'
+  e.target.style.background = 'var(--surface)'
 }
 const onB = (e) => {
   e.target.style.borderColor = 'var(--line)'
@@ -60,41 +62,53 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
-// ── Sidebar ──────────────────────────────────────────────────
+// ── Sidebar (mini 56px → hover 196px) ────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
+  const [open, setOpen] = useState(false)
   const primary = config?.cor_primaria || theme.primary
 
   return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: 220, height: '100vh',
-      background: '#F8F7F5',
-      display: 'flex', flexDirection: 'column',
-      zIndex: 50, fontFamily: 'Manrope, sans-serif',
-      borderRight: '1px solid #e8e4df',
-    }}>
-      {/* Logos: Junttos + cliente */}
-      <div style={{ padding: '24px 18px 18px', borderBottom: '1px solid #e8e4df' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <svg width="40" height="40" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-            <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
-            <circle cx="40" cy="37" r="14" fill="#341780" />
-            <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
-          </svg>
-          <div style={{ width: 1, height: 28, background: '#ddd', flexShrink: 0 }} />
-          {logoUrl && (
-            <div style={{ background: '#fff', borderRadius: 8, padding: 2, flexShrink: 0, border: '1px solid #e8e4df' }}>
+    <aside
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{
+        position: 'fixed', left: 0, top: 0,
+        width: open ? 196 : 56, height: '100vh',
+        background: '#F8F7F5',
+        display: 'flex', flexDirection: 'column',
+        zIndex: 50, fontFamily: 'Manrope, sans-serif',
+        borderRight: '1px solid #e8e4df',
+        transition: 'width 0.2s ease',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Logo area */}
+      <div style={{
+        padding: open ? '18px 14px 16px' : '12px 0',
+        borderBottom: '1px solid #e8e4df',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        minHeight: 64, flexShrink: 0,
+      }}>
+        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+          <circle cx="40" cy="37" r="14" fill="#341780" />
+          <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
+        </svg>
+        {open && logoUrl && (
+          <>
+            <div style={{ width: 1, height: 22, background: '#ddd', flexShrink: 0 }} />
+            <div style={{ background: 'var(--surface)', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid var(--line)' }}>
               <img src={logoUrl} alt={config?.nome || 'Loja'}
-                style={{ height: 36, width: 'auto', maxWidth: 100, objectFit: 'contain', display: 'block' }} />
+                style={{ height: 28, width: 'auto', maxWidth: 76, objectFit: 'contain', display: 'block' }} />
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: '#e8e4df', margin: '8px 0' }} />
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
@@ -102,43 +116,53 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
               className={isLocked ? '' : 'cds-nav-btn'}
+              title={!open ? label : undefined}
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px 10px 11px', borderRadius: 10, width: '100%',
-                background: active ? '#fff' : 'transparent',
-                border: active ? '1px solid #e8e4df' : '1px solid transparent',
+                display: 'flex', alignItems: 'center',
+                gap: open ? 10 : 0,
+                justifyContent: open ? 'flex-start' : 'center',
+                padding: open ? '10px 12px 10px 10px' : '10px 0',
+                borderRadius: 10, width: '100%',
+                background: active ? 'var(--surface)' : 'transparent',
+                border: active ? '1px solid var(--line)' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
                 cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
-                color: isLocked ? '#ccc' : (active ? '#2C1F14' : '#777'),
+                color: isLocked ? 'var(--muted)' : (active ? 'var(--ink)' : 'var(--ink-soft)'),
                 fontSize: 14, fontWeight: active ? 600 : 400,
                 fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
               }}>
-              <Icon size={15} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
+              <Icon size={16} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
+              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
+              {open && isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
             </button>
           )
         })}
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid #e8e4df' }}>
-        <button onClick={onSwitchToMobile} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 14px', borderRadius: 10, width: '100%',
-          border: '1px solid #e8e4df',
-          background: 'transparent', cursor: 'pointer',
-          color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 500,
-        }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
-          Versão Celular
-        </button>
-        <p style={{
-          fontSize: 11, color: '#bbb',
-          fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '10px 0 0',
-        }}>
-          jun<span style={{ color: '#F4613A' }}>tt</span>os
-        </p>
+      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
+        {open ? (
+          <>
+            <button onClick={onSwitchToMobile} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', borderRadius: 10, width: '100%',
+              border: '1px solid #e8e4df',
+              background: 'transparent', cursor: 'pointer',
+              color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
+              Versão Celular
+            </button>
+            <p style={{ fontSize: 10, color: '#bbb', fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '8px 0 0' }}>
+              jun<span style={{ color: '#F4613A' }}>tt</span>os
+            </p>
+          </>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -397,13 +421,13 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       {/* Delete modal */}
       {confirmDel && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 8 }}>Excluir venda?</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 24, fontFamily: 'Manrope, sans-serif' }}>
               Venda de <strong>{fmtR(confirmDel.valor)}</strong>{confirmDel.cliente_nome ? ` para ${confirmDel.cliente_nome}` : ''}. Esta ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
+              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
               <button onClick={confirmDelete} style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>Excluir</button>
             </div>
           </div>
@@ -413,7 +437,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       {/* Edit payment modal */}
       {editVenda && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Editar Pagamento — {fmtR(editVenda.valor)}
@@ -472,7 +496,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditVenda(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
@@ -497,14 +521,19 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
-function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, theme }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(EMPTY_VENDA)
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done,       setDone]       = useState(false)
   const [saving,     setSaving]     = useState(false)
+  const [varModal,   setVarModal]   = useState(null)
 
+  function getVarLabel(v) {
+    const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    return k ? String(v[k]) : null
+  }
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome)
     setForm({ ...form, produtos: exists ? form.produtos.filter(p => p.nome !== nome) : [...form.produtos, { nome, obs: '' }] })
@@ -680,21 +709,122 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 420, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 420, overflowY: 'auto' }}>
           {produtos.map(nome => {
-            const sel = form.produtos.find(p => p.nome === nome)
+            const pd = produtosData.find(p => p.nome === nome)
+            const vars = (pd?.variacoes || []).map(v => {
+              const label = getVarLabel(v)
+              return label ? { label, qty: Number(v.quantidade || 0) } : null
+            }).filter(Boolean)
+            const hasVars = vars.length > 0
+            const selItems = form.produtos.filter(p => p.nome === nome)
+            const selCount = selItems.length
+            const isOpen = varModal === nome
             return (
-              <div key={nome} style={{ border: `1.5px solid ${sel ? theme.primary : 'var(--line)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color .15s' }}>
-                <button type="button" onClick={() => toggleProd(nome)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: sel ? `${theme.primary}06` : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: sel ? theme.primary : '#fff', border: sel ? 'none' : '1.5px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {sel && <Check size={12} color="#fff" strokeWidth={2.5} />}
+              <div key={nome} style={{ marginBottom: 6 }}>
+                {/* Produto item — div em vez de button para evitar Tailwind Preflight color:inherit */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome)}
+                  onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome))}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderRadius: isOpen ? '10px 10px 0 0' : 10,
+                    border: selCount > 0
+                      ? (isDark ? '1.5px solid #D4A017' : `1.5px solid ${theme.primary}`)
+                      : (isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA'),
+                    background: selCount > 0
+                      ? (isDark ? '#2a1f00' : `${theme.primary}18`)
+                      : (isDark ? '#1a1a1a' : '#FFFFFF'),
+                    color: isDark ? '#D4A017' : (selCount > 0 ? theme.primary : '#1a1a1a'),
+                    fontSize: 14, fontFamily: 'Manrope, sans-serif',
+                    cursor: 'pointer', userSelect: 'none',
+                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                      background: selCount > 0 ? (isDark ? '#D4A017' : theme.primary) : 'transparent',
+                      border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #EDE2DA'),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {selCount > 0 && <Check size={12} color={isDark ? '#1a1a1a' : '#fff'} strokeWidth={2.5} />}
+                    </div>
+                    <span style={{ fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
                   </div>
-                  <span style={{ fontSize: 14, fontFamily: 'Manrope, sans-serif', color: 'var(--ink)', fontWeight: sel ? 600 : 400 }}>{nome}</span>
-                </button>
-                {sel && (
-                  <div style={{ padding: '0 14px 10px' }}>
-                    <input value={sel.obs} onChange={e => setProdObs(nome, e.target.value)} onClick={e => e.stopPropagation()}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {selCount > 0 && (
+                      <span style={{
+                        fontSize: 11, padding: '2px 7px', borderRadius: 99,
+                        background: isDark ? '#D4A01730' : `${theme.primary}20`,
+                        color: isDark ? '#D4A017' : theme.primary, fontWeight: 700,
+                      }}>{selCount}×</span>
+                    )}
+                    {hasVars && (
+                      <ChevronDown size={14} color={isDark ? '#D4A017' : '#9C8580'}
+                        style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Picker de variações */}
+                {hasVars && isOpen && (
+                  <div style={{
+                    padding: '10px 14px 12px',
+                    borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
+                    borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
+                    borderBottom: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
+                    borderRadius: '0 0 10px 10px',
+                    background: isDark ? '#111110' : '#F6EFE8',
+                  }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {vars.map(({ label, qty }, idx) => {
+                        const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
+                        const esgotado = qty === 0 && !isSel
+                        return (
+                          <div key={idx} role="button" tabIndex={0}
+                            onClick={() => {
+                              if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                              else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                            }}
+                            onKeyDown={e => {
+                              if (e.key !== 'Enter') return
+                              if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                              else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                            }}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center',
+                              padding: '5px 12px', borderRadius: 8,
+                              cursor: esgotado ? 'not-allowed' : 'pointer',
+                              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                              userSelect: 'none', opacity: esgotado ? 0.5 : 1,
+                              ...(isSel ? {
+                                border: '1.5px solid #D4A017',
+                                background: isDark ? '#D4A01720' : `${theme.primary}18`,
+                                color: isDark ? '#D4A017' : theme.primary,
+                              } : {
+                                border: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
+                                background: isDark ? '#1a1a1a' : '#FFFFFF',
+                                color: isDark ? '#D4A017' : '#1a1a1a',
+                              }),
+                            }}>
+                            {label}
+                            <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isDark ? '#A07830' : '#9C8580' }}>
+                              {qty === 0 ? '(esgotado)' : `(${qty})`}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Campo obs para produtos sem variação */}
+                {!hasVars && selCount > 0 && (
+                  <div style={{ paddingTop: 6 }}>
+                    <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value)}
                       placeholder="Obs: cor, tamanho..." style={{ ...inputS, height: 36, fontSize: 13 }} onFocus={fo} onBlur={onB} />
                   </div>
                 )}
@@ -704,12 +834,12 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
         </div>
 
         {form.produtos.length > 0 && (
-          <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg)', borderRadius: 12 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
+          <div style={{ marginTop: 16, padding: '12px 14px', background: isDark ? '#050504' : '#F6EFE8', borderRadius: 12 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {form.produtos.map(p => (
-                <span key={p.nome} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                  {p.nome}{p.obs ? ` — ${p.obs}` : ''}
+              {form.produtos.map((p, i) => (
+                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: isDark ? '#1C1A14' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : '#EDE2DA'}`, color: isDark ? '#D4A017' : '#2A1F1F', fontFamily: 'Manrope, sans-serif' }}>
+                  {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}
                 </span>
               ))}
             </div>
@@ -720,45 +850,16 @@ function DesktopNovaVenda({ produtos, addVenda, addProduto, theme }) {
   )
 }
 
-// ── Desktop Estoque ────────────────────────────────────────────
-function DesktopEstoque() {
-  return (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-      padding: '64px 24px', textAlign: 'center',
-    }}>
-      <Package size={40} color="var(--line)" style={{ margin: '0 auto 16px' }} />
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Estoque</p>
-      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Em breve disponível nesta versão.</p>
-    </div>
-  )
-}
 
-// ── Desktop Relatórios (Histórico + Faturamento) ───────────────
+// ── Desktop Relatórios ────────────────────────────────────────
 function DesktopRelatorios({ data, theme }) {
-  const [subTab, setSubTab] = useState('historico')
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {[
-          { id: 'historico',   label: 'Histórico'   },
-          { id: 'faturamento', label: 'Faturamento'  },
-        ].map(st => (
-          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
-            padding: '8px 20px', borderRadius: 99, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
-            border: subTab === st.id ? 'none' : '1px solid var(--line)',
-            background: subTab === st.id ? theme.primary : 'var(--surface)',
-            color: subTab === st.id ? '#fff' : 'var(--muted)',
-            boxShadow: subTab === st.id ? `0 2px 8px ${theme.primary}30` : 'none',
-          }}>{st.label}</button>
-        ))}
-      </div>
-      {subTab === 'historico'
-        ? <DesktopHistorico vendas={data.vendas} deleteVenda={data.deleteVenda} updateVenda={data.updateVenda} theme={theme} />
-        : <Faturamento {...data} theme={theme} />
-      }
-    </div>
+    <RelatoriosDesktop
+      vendas={data.vendas}
+      deleteVenda={data.deleteVenda}
+      updateVenda={data.updateVenda}
+      theme={theme}
+    />
   )
 }
 
@@ -766,16 +867,19 @@ function DesktopRelatorios({ data, theme }) {
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
   const isDark = theme.isDark || theme.primary === '#D4A017'
-  const contentVars = isDark ? {
-    '--bg': '#0A0A0A',
-    '--surface': '#0F0E0C',
-    '--line': 'rgba(212,160,23,0.18)',
-    '--ink': '#D4A017',
-    '--ink-soft': '#A07830',
-    '--muted': '#A07830',
-    '--rose-deep': '#F0C040',
-    '--rose': '#D4A017',
-  } : {}
+  const contentVars = {
+    '--primary': theme.primary,
+    ...(isDark ? {
+      '--bg': '#0A0A0A',
+      '--surface': '#0F0E0C',
+      '--line': 'rgba(212,160,23,0.18)',
+      '--ink': '#D4A017',
+      '--ink-soft': '#A07830',
+      '--muted': '#A07830',
+      '--rose-deep': '#F0C040',
+      '--rose': '#D4A017',
+    } : {}),
+  }
 
   // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
@@ -783,7 +887,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio:     <DesktopInicio    vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <DesktopEstoque />,
+    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
     conta:      <Fechamento       {...data} theme={theme} />,
@@ -793,7 +897,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 220, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
+      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
         </div>
