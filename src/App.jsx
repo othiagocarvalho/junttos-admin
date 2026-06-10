@@ -59,7 +59,7 @@ function AdminApp() {
   return (
     <AuthProvider>
       <DataProvider>
-        <BrowserRouter basename="/admin">
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
