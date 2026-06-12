@@ -22,7 +22,7 @@ export default function Layout({ children }) {
       )}
 
       <main
-        className="lg:ml-[248px]"
+        className="lg:ml-[64px]"
         style={{
           flex: 1,
           minWidth: 0,
