@@ -6,6 +6,7 @@ import { ClientAuthProvider, ClientPrivateRoute } from './context/ClientAuthCont
 import PrivateRoute from './components/PrivateRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import LoginCliente from './pages/LoginCliente'
 import ClientLogin from './pages/cliente/Login'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
@@ -55,7 +56,9 @@ function AdminApp() {
       <DataProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Login />} />
+            <Route path="/"            element={<Login />} />
+            <Route path="/admin/login" element={<Login />} />
+            <Route path="/login"       element={<LoginCliente />} />
             <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/clients" element={<ProtectedLayout><Clients /></ProtectedLayout>} />
             <Route path="/consultants" element={<ProtectedLayout><Consultants /></ProtectedLayout>} />
