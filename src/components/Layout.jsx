@@ -10,6 +10,13 @@ export default function Layout({ children }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: T.bg }}>
 
+      {/* Sidebar always occupies 64px on desktop — content never shifts on expand */}
+      <style>{`
+        @media (min-width: 1024px) {
+          .jt-main-content { margin-left: 64px; }
+        }
+      `}</style>
+
       <Sidebar navOpen={navOpen} onClose={() => setNavOpen(false)} />
 
       {/* Mobile overlay */}
@@ -22,13 +29,13 @@ export default function Layout({ children }) {
       )}
 
       <main
-        className="lg:ml-[64px]"
+        className="jt-main-content"
         style={{
-          flex: 1,
-          minWidth: 0,
-          height: '100vh',
-          overflowY: 'auto',
-          display: 'flex',
+          flex:          1,
+          minWidth:      0,
+          height:        '100vh',
+          overflowY:     'auto',
+          display:       'flex',
           flexDirection: 'column',
         }}
       >
@@ -36,12 +43,16 @@ export default function Layout({ children }) {
         <div
           className="lg:hidden"
           style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 20px',
-            background: T.white,
-            borderBottom: `1px solid ${T.line}`,
-            position: 'sticky', top: 0, zIndex: 30,
-            flexShrink: 0,
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'space-between',
+            padding:        '14px 20px',
+            background:     T.white,
+            borderBottom:   `1px solid ${T.line}`,
+            position:       'sticky',
+            top:            0,
+            zIndex:         30,
+            flexShrink:     0,
           }}
         >
           <button
