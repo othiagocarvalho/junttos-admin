@@ -1,209 +1,151 @@
-﻿import { useData } from '../context/DataContext'
-import { DollarSign, TrendingUp, Users, Zap, BarChart2 } from 'lucide-react'
+import { useData } from '../context/DataContext'
+import { DollarSign, TrendingUp, Users, Zap } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
 } from 'recharts'
+import StatCard from '../components/junttos/StatCard'
+import Panel from '../components/junttos/Panel'
+import ProgressBar from '../components/junttos/ProgressBar'
+import EmptyState from '../components/junttos/EmptyState'
+import { T } from '../theme/tokens'
 
 const PRODUCTS = ['Sistema de Gestão', 'Catálogo de Vendas', 'Inventário']
 const PRODUCT_COLORS = {
-  'Sistema de Gestão': '#3b82f6',
-  'Catálogo de Vendas': '#7c3aed',
-  'Inventário': '#06b6d4',
+  'Sistema de Gestão': T.purple,
+  'Catálogo de Vendas': T.lilac,
+  'Inventário':         T.coral,
 }
 
+const ChartTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard,
+      padding: '10px 14px', fontSize: 13, boxShadow: T.cardShadow, fontFamily: T.ui,
+    }}>
+      {label && <p style={{ color: T.muted, marginBottom: 6, fontWeight: 600 }}>{label}</p>}
+      {payload.map((p) => (
+        <p key={p.name} style={{ color: p.color, fontWeight: 700 }}>
+          {p.name}: {Number(p.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+const PieTooltip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard,
+      padding: '10px 14px', fontSize: 13, boxShadow: T.cardShadow, fontFamily: T.ui,
+    }}>
+      <p style={{ color: payload[0].payload.color, fontWeight: 700 }}>{payload[0].name}</p>
+      <p style={{ color: T.ink, fontWeight: 700 }}>
+        {Number(payload[0].value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+      </p>
+    </div>
+  )
+}
 
 export default function Finance() {
   const { clients, consultants } = useData()
 
   const activeClients = clients.filter((c) => c.status === 'Ativo')
-  const totalMRR = activeClients.reduce((sum, c) => sum + c.value, 0)
-  const totalARR = totalMRR * 12
+  const totalMRR  = activeClients.reduce((sum, c) => sum + c.value, 0)
+  const totalARR  = totalMRR * 12
   const avgTicket = activeClients.length > 0 ? Math.round(totalMRR / activeClients.length) : 0
   const churnRate = clients.length > 0
     ? ((clients.filter((c) => c.status === 'Cancelado').length / clients.length) * 100).toFixed(1)
     : 0
 
-  // By polo
   const polos = ['Fortaleza', 'Belém']
   const mrrByPolo = polos.map((polo) => ({
     polo,
-    mrr: activeClients.filter((c) => c.polo === polo).reduce((sum, c) => sum + c.value, 0),
+    mrr:   activeClients.filter((c) => c.polo === polo).reduce((sum, c) => sum + c.value, 0),
     count: activeClients.filter((c) => c.polo === polo).length,
   }))
 
-  // By product
   const mrrByProduct = PRODUCTS.map((product) => ({
-    product: product.replace('Sistema de ', '').replace('Catálogo de ', 'Cat. '),
+    product:  product.replace('Sistema de ', '').replace('Catálogo de ', 'Cat. '),
     fullName: product,
-    mrr: activeClients.filter((c) => c.product === product).reduce((sum, c) => sum + c.value, 0),
+    mrr:   activeClients.filter((c) => c.product === product).reduce((sum, c) => sum + c.value, 0),
     count: activeClients.filter((c) => c.product === product).length,
     color: PRODUCT_COLORS[product],
   }))
 
-  // By consultant
-  const mrrByConsultant = consultants.map((c) => ({
-    name: c.name.split(' ')[0],
-    mrr: activeClients.filter((cl) => cl.consultantId === c.id).reduce((sum, cl) => sum + cl.value, 0),
-    color: c.id === 1 ? '#3b82f6' : '#7c3aed',
+  const mrrByConsultant = consultants.map((c, i) => ({
+    name:  c.name.split(' ')[0],
+    mrr:   activeClients.filter((cl) => cl.consultantId === c.id).reduce((sum, cl) => sum + cl.value, 0),
+    color: i === 0 ? T.purple : T.lilac,
   }))
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload?.length) {
-      return (
-        <div className="bg-white border border-[#E6E0F0] rounded-xl p-3 text-sm shadow-xl">
-          <p className="text-[#7B7390] mb-1.5 font-medium">{label}</p>
-          {payload.map((p) => (
-            <p key={p.name} style={{ color: p.color }} className="font-semibold">
-              {p.name}: {Number(p.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </p>
-          ))}
-        </div>
-      )
-    }
-    return null
-  }
-
-  const PieTooltip = ({ active, payload }) => {
-    if (active && payload?.length) {
-      return (
-        <div className="bg-white border border-[#E6E0F0] rounded-xl p-3 text-sm shadow-xl">
-          <p style={{ color: payload[0].payload.color }} className="font-semibold">{payload[0].name}</p>
-          <p className="text-white font-bold">
-            {Number(payload[0].value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          </p>
-        </div>
-      )
-    }
-    return null
-  }
-
   return (
-    <div className="max-w-7xl mx-auto">
+    <div style={{ maxWidth: 1200, fontFamily: T.ui }}>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#16101F]">Faturamento</h1>
-        <p className="text-[#7B7390] text-sm mt-1">Visão completa de receita e métricas financeiras</p>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>
+          Faturamento
+        </h1>
+        <p style={{ fontSize: 13.5, color: T.muted }}>Visão completa de receita e métricas financeiras</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard
-          icon={DollarSign}
-          label="MRR Total"
-          value={`R$ ${totalMRR.toLocaleString('pt-BR')}`}
-          sub="Receita recorrente mensal"
-          color="from-[#5E2BD0] to-[#7B7390]"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="ARR"
-          value={`R$ ${(totalARR / 1000).toFixed(0)}k`}
-          sub="Receita anual recorrente"
-          color="bg-[#5E2BD0]"
-        />
-        <KpiCard
-          icon={Users}
-          label="Ticket Médio"
-          value={`R$ ${avgTicket.toLocaleString('pt-BR')}`}
-          sub="Por cliente ativo"
-          color="from-emerald-600 to-teal-600"
-        />
-        <KpiCard
-          icon={Zap}
-          label="Churn Rate"
-          value={`${churnRate}%`}
-          sub="Taxa de cancelamento"
-          color="from-orange-500 to-amber-500"
-        />
+      {/* KPI StatCards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+        <StatCard icon={DollarSign} color="purple" label="MRR Total"    value={`R$ ${totalMRR.toLocaleString('pt-BR')}`} />
+        <StatCard icon={TrendingUp} color="lilac"  label="ARR"          value={`R$ ${(totalARR / 1000).toFixed(0)}k`} />
+        <StatCard icon={Users}      color="coral"  label="Ticket Médio" value={`R$ ${avgTicket.toLocaleString('pt-BR')}`} />
+        <StatCard icon={Zap}        color="deep"   label="Churn Rate"   value={`${churnRate}%`} />
       </div>
 
-      {/* MRR History Chart */}
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6 mb-6">
-        <div className="mb-5">
-          <h2 className="text-[#16101F] font-semibold">Evolução do MRR</h2>
-          <p className="text-[#7B7390] text-sm">Crescimento da receita recorrente mensal</p>
-        </div>
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <BarChart2 className="w-8 h-8 text-[#E6E0F0] mb-3" />
-          <p className="text-[#7B7390] text-sm font-medium">Nenhum dado disponível</p>
-          <p className="text-[#7B7390] text-xs mt-1">O histórico de MRR aparecerá aqui quando disponível.</p>
-        </div>
-      </div>
+      {/* MRR History — empty state */}
+      <Panel title="Evolução do MRR" subtitle="Crescimento da receita recorrente mensal" style={{ marginBottom: 24 }}>
+        <EmptyState
+          title="Nenhum dado disponível"
+          description="O histórico de MRR aparecerá aqui quando disponível."
+        />
+      </Panel>
 
-      {/* By polo and by product */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* By polo + by product */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20, marginBottom: 20 }}>
         {/* By polo */}
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
-          <h2 className="text-white font-semibold mb-1">MRR por Polo</h2>
-          <p className="text-[#7B7390] text-sm mb-5">Receita recorrente por regional</p>
-          <div className="space-y-4 mb-5">
-            {mrrByPolo.map((p) => {
-              const pct = totalMRR > 0 ? (p.mrr / totalMRR) * 100 : 0
-              const color = p.polo === 'Fortaleza' ? 'bg-blue-500' : 'bg-violet-500'
-              const textColor = p.polo === 'Fortaleza' ? 'text-[#5E2BD0]' : 'text-[#5E2BD0]'
-              return (
-                <div key={p.polo}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <span className="text-white font-medium text-sm">{p.polo}</span>
-                      <span className="text-[#7B7390] text-xs ml-2">{p.count} clientes ativos</span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`font-bold text-sm ${textColor}`}>
-                        R$ {p.mrr.toLocaleString('pt-BR')}
-                      </span>
-                      <span className="text-[#7B7390] text-xs ml-2">{pct.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                  <div className="h-2.5 bg-[#E6E0F0] rounded-full overflow-hidden">
-                    <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )
-            })}
+        <Panel title="MRR por Polo" subtitle="Receita recorrente por regional">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 20 }}>
+            {mrrByPolo.map((p, i) => (
+              <ProgressBar
+                key={p.polo}
+                name={p.polo}
+                description={`${p.count} clientes ativos`}
+                value={`R$ ${p.mrr.toLocaleString('pt-BR')}`}
+                percent={totalMRR > 0 ? (p.mrr / totalMRR) * 100 : 0}
+                color={i === 0 ? T.purple : T.lilac}
+              />
+            ))}
           </div>
-          <ResponsiveContainer width="100%" height={160}>
+          <ResponsiveContainer width="100%" height={150}>
             <BarChart data={mrrByPolo} barCategoryGap="40%">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E6E0F0" />
-              <XAxis dataKey="polo" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip content={<CustomTooltip />} />
+              <CartesianGrid strokeDasharray="3 3" stroke={T.line} />
+              <XAxis dataKey="polo" tick={{ fill: T.muted, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false}
+                tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip content={<ChartTooltip />} />
               <Bar dataKey="mrr" name="MRR" radius={[6, 6, 0, 0]}>
-                {mrrByPolo.map((entry) => (
-                  <Cell key={entry.polo} fill={entry.polo === 'Fortaleza' ? '#3b82f6' : '#7c3aed'} />
+                {mrrByPolo.map((entry, i) => (
+                  <Cell key={entry.polo} fill={i === 0 ? T.purple : T.lilac} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </Panel>
 
         {/* By product */}
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
-          <h2 className="text-white font-semibold mb-1">MRR por Produto</h2>
-          <p className="text-[#7B7390] text-sm mb-5">Distribuição de receita por produto</p>
-          <ResponsiveContainer width="100%" height={200}>
+        <Panel title="MRR por Produto" subtitle="Distribuição de receita por produto">
+          <ResponsiveContainer width="100%" height={190}>
             <PieChart>
-              <Pie
-                data={mrrByProduct}
-                cx="50%"
-                cy="50%"
-                innerRadius={55}
-                outerRadius={85}
-                paddingAngle={4}
-                dataKey="mrr"
-                nameKey="fullName"
-              >
+              <Pie data={mrrByProduct} cx="50%" cy="50%"
+                innerRadius={50} outerRadius={80} paddingAngle={4}
+                dataKey="mrr" nameKey="fullName">
                 {mrrByProduct.map((entry) => (
                   <Cell key={entry.fullName} fill={entry.color} />
                 ))}
@@ -211,64 +153,48 @@ export default function Finance() {
               <Tooltip content={<PieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="space-y-3 mt-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
             {mrrByProduct.map((p) => {
               const pct = totalMRR > 0 ? ((p.mrr / totalMRR) * 100).toFixed(0) : 0
               return (
-                <div key={p.fullName} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: p.color }} />
-                    <span className="text-[#16101F] text-sm">{p.fullName}</span>
-                    <span className="text-[#7B7390] text-xs">{p.count} clientes</span>
+                <div key={p.fullName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 3, background: p.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13.5, color: T.ink }}>{p.fullName}</span>
+                    <span style={{ fontSize: 12, color: T.muted }}>{p.count} clientes</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-white font-semibold text-sm">R$ {p.mrr.toLocaleString('pt-BR')}</span>
-                    <span className="text-[#7B7390] text-xs ml-2">{pct}%</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>
+                      R$ {p.mrr.toLocaleString('pt-BR')}
+                    </span>
+                    <span style={{ fontSize: 12, color: T.muted, marginLeft: 7 }}>{pct}%</span>
                   </div>
                 </div>
               )
             })}
           </div>
-        </div>
+        </Panel>
       </div>
 
       {/* By consultant */}
-      <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
-        <h2 className="text-white font-semibold mb-1">MRR por Consultor</h2>
-        <p className="text-[#7B7390] text-sm mb-6">Receita recorrente gerada por cada consultor</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Panel title="MRR por Consultor" subtitle="Receita recorrente gerada por cada consultor">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {mrrByConsultant.map((c) => {
             const pct = totalMRR > 0 ? (c.mrr / totalMRR) * 100 : 0
             return (
-              <div key={c.name} className="bg-[#F6F3FA] rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-white font-medium">{c.name}</span>
-                  <span className="font-bold text-lg" style={{ color: c.color }}>
+              <div key={c.name} style={{ background: T.mist, borderRadius: T.rCard, padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{c.name}</span>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: c.color }}>
                     R$ {c.mrr.toLocaleString('pt-BR')}
                   </span>
                 </div>
-                <div className="h-2.5 bg-[#E6E0F0] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: c.color }} />
-                </div>
-                <p className="text-[#7B7390] text-xs mt-1.5">{pct.toFixed(0)}% do MRR total</p>
+                <ProgressBar percent={pct} color={c.color} />
               </div>
             )
           })}
         </div>
-      </div>
-    </div>
-  )
-}
-
-function KpiCard({ icon: Icon, label, value, sub, color }) {
-  return (
-    <div className="bg-white border border-[#E6E0F0] rounded-2xl p-5">
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4`}>
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <p className="text-[#7B7390] text-xs mb-0.5">{label}</p>
-      <p className="text-white text-xl font-bold">{value}</p>
-      <p className="text-[#7B7390] text-xs mt-1">{sub}</p>
+      </Panel>
     </div>
   )
 }

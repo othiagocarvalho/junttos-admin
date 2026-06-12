@@ -1,50 +1,41 @@
-﻿import { useData } from '../context/DataContext'
+import { useData } from '../context/DataContext'
 import { Users, DollarSign, MapPin, TrendingUp, Award, UserX } from 'lucide-react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
+import Panel from '../components/junttos/Panel'
+import ProgressBar from '../components/junttos/ProgressBar'
+import EmptyState from '../components/junttos/EmptyState'
+import { T } from '../theme/tokens'
+
+const CONSULTANT_COLORS = [T.purple, T.lilac, T.coral, T.purpleDeep]
 
 export default function Consultants() {
   const { consultants, clients, visits } = useData()
 
-  const consultantStats = consultants.map((consultant) => {
-    const myClients = clients.filter((c) => c.consultantId === consultant.id)
+  const consultantStats = consultants.map((consultant, i) => {
+    const myClients     = clients.filter((c) => c.consultantId === consultant.id)
     const activeClients = myClients.filter((c) => c.status === 'Ativo')
-    const trialClients = myClients.filter((c) => c.status === 'Trial')
+    const trialClients  = myClients.filter((c) => c.status === 'Trial')
     const canceledClients = myClients.filter((c) => c.status === 'Cancelado')
-    const mrr = activeClients.reduce((sum, c) => sum + c.value, 0)
-    const totalRevenue = myClients
-      .filter((c) => c.status !== 'Cancelado')
-      .reduce((sum, c) => sum + c.value, 0)
-    const myVisits = visits.filter((v) => v.consultantId === consultant.id)
-    const closedVisits = myVisits.filter((v) => v.result === 'Fechou').length
-    const conversionRate = myVisits.length > 0
-      ? Math.round((closedVisits / myVisits.length) * 100)
-      : 0
-
+    const mrr           = activeClients.reduce((sum, c) => sum + c.value, 0)
+    const myVisits      = visits.filter((v) => v.consultantId === consultant.id)
+    const closedVisits  = myVisits.filter((v) => v.result === 'Fechou').length
+    const conversionRate = myVisits.length > 0 ? Math.round((closedVisits / myVisits.length) * 100) : 0
     return {
       ...consultant,
+      color: CONSULTANT_COLORS[i % CONSULTANT_COLORS.length],
       totalClients: myClients.length,
       activeClients: activeClients.length,
       trialClients: trialClients.length,
       canceledClients: canceledClients.length,
-      mrr,
-      totalRevenue,
-      totalVisits: myVisits.length,
-      closedVisits,
-      conversionRate,
+      mrr, totalVisits: myVisits.length, closedVisits, conversionRate,
     }
   })
 
   const productData = ['Sistema de Gestão', 'Catálogo de Vendas', 'Inventário'].map((product) => {
-    const entry = { product: product.split(' ')[0] + (product === 'Catálogo de Vendas' ? ' Vendas' : product === 'Sistema de Gestão' ? ' Gestão' : '') }
+    const label = product.split(' ')[0] + (product === 'Catálogo de Vendas' ? ' Vendas' : product === 'Sistema de Gestão' ? ' Gestão' : '')
+    const entry = { product: label }
     consultantStats.forEach((c) => {
       entry[c.name.split(' ')[0]] = clients.filter(
         (cl) => cl.consultantId === c.id && cl.product === product && cl.status === 'Ativo'
@@ -53,186 +44,176 @@ export default function Consultants() {
     return entry
   })
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload?.length) {
-      return (
-        <div className="bg-white border border-[#E6E0F0] rounded-xl p-3 text-sm shadow-xl">
-          <p className="text-[#7B7390] mb-1.5 font-medium">{label}</p>
-          {payload.map((p) => (
-            <p key={p.name} style={{ color: p.color }} className="font-semibold">
-              {p.name}: {p.value} clientes
-            </p>
-          ))}
-        </div>
-      )
-    }
-    return null
+  const ChartTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    return (
+      <div style={{ background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard, padding: '10px 14px', fontSize: 13, boxShadow: T.cardShadow, fontFamily: T.ui }}>
+        <p style={{ color: T.muted, marginBottom: 6, fontWeight: 600 }}>{label}</p>
+        {payload.map((p) => (
+          <p key={p.name} style={{ color: p.color, fontWeight: 700 }}>{p.name}: {p.value} clientes</p>
+        ))}
+      </div>
+    )
   }
 
   if (consultants.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-[#16101F]">Consultores</h1>
-          <p className="text-[#7B7390] text-sm mt-1">Desempenho e métricas da equipe comercial</p>
+      <div style={{ maxWidth: 1200 }}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em' }}>Consultores</h1>
+          <p style={{ fontSize: 13.5, color: T.muted, marginTop: 4 }}>Desempenho e métricas da equipe comercial</p>
         </div>
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl flex flex-col items-center justify-center py-20 text-center">
-          <UserX className="w-10 h-10 text-[#E6E0F0] mb-3" />
-          <p className="text-[#7B7390] font-medium">Nenhum consultor cadastrado</p>
-          <p className="text-[#7B7390] text-sm mt-1">Os consultores aparecerão aqui quando cadastrados.</p>
+        <div style={{ background: T.white, borderRadius: T.rCard, boxShadow: T.cardShadow, border: `1px solid ${T.line}` }}>
+          <EmptyState
+            title="Nenhum consultor cadastrado"
+            description="Os consultores aparecerão aqui quando cadastrados."
+          />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div style={{ maxWidth: 1200, fontFamily: T.ui }}>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[#16101F]">Consultores</h1>
-        <p className="text-[#7B7390] text-sm mt-1">Desempenho e métricas da equipe comercial</p>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>
+          Consultores
+        </h1>
+        <p style={{ fontSize: 13.5, color: T.muted }}>Desempenho e métricas da equipe comercial</p>
       </div>
 
       {/* Consultant cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20, marginBottom: 24 }}>
         {consultantStats.map((c, idx) => (
-          <div key={c.id} className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
+          <div key={c.id} style={{ background: T.white, borderRadius: T.rCard, boxShadow: T.cardShadow, border: `1px solid ${T.line}`, padding: 24 }}>
             {/* Profile */}
-            <div className="flex items-start gap-4 mb-6">
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${c.color} flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-lg`}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 24 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 16, flexShrink: 0,
+                background: T.iconGrad,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 20, fontWeight: 700, color: T.white,
+                boxShadow: '0 4px 12px rgba(94,43,208,0.3)',
+              }}>
                 {c.avatar}
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-white font-bold text-lg">{c.name}</h2>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 700, color: T.ink, margin: 0 }}>{c.name}</h2>
                   {idx === 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
-                      <Award className="w-3 h-3" /> Top
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: T.statusTrialBg, color: T.statusTrialTx, fontSize: 10, fontWeight: 700, borderRadius: T.rPill, padding: '2px 8px' }}>
+                      <Award style={{ width: 10, height: 10 }} /> Top
                     </span>
                   )}
                 </div>
-                <p className="text-[#7B7390] text-sm">{c.email}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs font-medium bg-[#E6E0F0] text-[#16101F] px-2.5 py-0.5 rounded-full">
+                <p style={{ fontSize: 13, color: T.muted, margin: '0 0 5px' }}>{c.email}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, background: T.tintPurple, color: T.purpleText, borderRadius: T.rPill, padding: '2px 9px' }}>
                     Polo {c.polo}
                   </span>
-                  <span className="text-xs text-[#7B7390]">{c.phone}</span>
+                  <span style={{ fontSize: 12, color: T.muted }}>{c.phone}</span>
                 </div>
               </div>
             </div>
 
             {/* Stats grid */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <StatBox
-                icon={Users}
-                label="Clientes Ativos"
-                value={c.activeClients}
-                color="text-emerald-400"
-                bg="bg-emerald-500/10"
-              />
-              <StatBox
-                icon={DollarSign}
-                label="MRR Gerado"
-                value={`R$ ${c.mrr.toLocaleString('pt-BR')}`}
-                color="text-[#5E2BD0]"
-                bg="bg-blue-500/10"
-              />
-              <StatBox
-                icon={MapPin}
-                label="Visitas Feitas"
-                value={c.totalVisits}
-                color="text-[#5E2BD0]"
-                bg="bg-violet-500/10"
-              />
-              <StatBox
-                icon={TrendingUp}
-                label="Taxa Conversão"
-                value={`${c.conversionRate}%`}
-                color="text-amber-400"
-                bg="bg-amber-500/10"
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+              {[
+                { icon: Users,      label: 'Clientes Ativos', value: c.activeClients,                             color: T.statusAtivoTx,  tint: T.statusAtivoBg },
+                { icon: DollarSign, label: 'MRR Gerado',      value: `R$ ${c.mrr.toLocaleString('pt-BR')}`,      color: T.purple,         tint: T.tintPurple },
+                { icon: MapPin,     label: 'Visitas Feitas',  value: c.totalVisits,                              color: T.lilac,          tint: T.tintLilac },
+                { icon: TrendingUp, label: 'Taxa Conversão',  value: `${c.conversionRate}%`,                     color: T.statusTrialTx,  tint: T.statusTrialBg },
+              ].map(({ icon: Icon, label, value, color, tint }) => (
+                <div key={label} style={{ background: T.mist, borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: tint, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon style={{ width: 15, height: 15, color, strokeWidth: 1.9 }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: T.muted, margin: 0 }}>{label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color, margin: 0 }}>{value}</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Status breakdown */}
-            <div className="border border-[#E6E0F0] rounded-xl p-4">
-              <p className="text-[#7B7390] text-xs font-medium mb-3">Distribuição de Clientes</p>
-              <div className="flex gap-3">
-                <PillStat label="Ativos" value={c.activeClients} color="bg-emerald-500" />
-                <PillStat label="Trial" value={c.trialClients} color="bg-amber-500" />
-                <PillStat label="Cancelados" value={c.canceledClients} color="bg-red-500" />
+            <div style={{ border: `1px solid ${T.line}`, borderRadius: 12, padding: 14 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: T.muted, marginBottom: 10 }}>Distribuição de Clientes</p>
+              <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+                {[
+                  { label: 'Ativos',     value: c.activeClients,   color: T.statusAtivoTx },
+                  { label: 'Trial',      value: c.trialClients,    color: T.statusTrialTx },
+                  { label: 'Cancelados', value: c.canceledClients, color: T.coralText },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />
+                    <span style={{ fontSize: 12, color: T.muted }}>{label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: T.ink }}>{value}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex gap-1 mt-3 h-2 rounded-full overflow-hidden bg-[#E6E0F0]">
-                {c.activeClients > 0 && (
-                  <div
-                    className="bg-emerald-500 transition-all"
-                    style={{ width: `${(c.activeClients / c.totalClients) * 100}%` }}
-                  />
-                )}
-                {c.trialClients > 0 && (
-                  <div
-                    className="bg-amber-500 transition-all"
-                    style={{ width: `${(c.trialClients / c.totalClients) * 100}%` }}
-                  />
-                )}
-                {c.canceledClients > 0 && (
-                  <div
-                    className="bg-red-500 transition-all"
-                    style={{ width: `${(c.canceledClients / c.totalClients) * 100}%` }}
-                  />
-                )}
+              <div style={{ height: 8, borderRadius: T.rPill, background: T.line, overflow: 'hidden', display: 'flex' }}>
+                {c.activeClients > 0   && <div style={{ background: T.statusAtivoTx, width: `${(c.activeClients   / c.totalClients) * 100}%`, transition: 'width .4s' }} />}
+                {c.trialClients > 0    && <div style={{ background: T.statusTrialTx, width: `${(c.trialClients    / c.totalClients) * 100}%`, transition: 'width .4s' }} />}
+                {c.canceledClients > 0 && <div style={{ background: T.coral,         width: `${(c.canceledClients / c.totalClients) * 100}%`, transition: 'width .4s' }} />}
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Comparison chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
-          <h2 className="text-white font-semibold mb-1">Clientes por Produto</h2>
-          <p className="text-[#7B7390] text-sm mb-5">Distribuição de produtos ativos por consultor</p>
+      {/* Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20 }}>
+        <Panel title="Clientes por Produto" subtitle="Distribuição de produtos ativos por consultor">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={productData} barCategoryGap="30%">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E6E0F0" />
-              <XAxis dataKey="product" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend formatter={(v) => <span style={{ color: '#7B7390', fontSize: 12 }}>{v}</span>} />
-              <Bar dataKey="Carlos" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="Ana" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={T.line} />
+              <XAxis dataKey="product" tick={{ fill: T.muted, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: T.muted, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip content={<ChartTooltip />} />
+              <Legend formatter={(v) => <span style={{ color: T.muted, fontSize: 12 }}>{v}</span>} />
+              {consultantStats.map((c, i) => (
+                <Bar key={c.id} dataKey={c.name.split(' ')[0]} fill={CONSULTANT_COLORS[i % CONSULTANT_COLORS.length]} radius={[6, 6, 0, 0]} />
+              ))}
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </Panel>
 
-        <div className="bg-white border border-[#E6E0F0] rounded-2xl p-6">
-          <h2 className="text-white font-semibold mb-1">Ranking de Desempenho</h2>
-          <p className="text-[#7B7390] text-sm mb-5">Comparativo geral entre consultores</p>
-          <div className="space-y-4">
+        <Panel title="Ranking de Desempenho" subtitle="Comparativo geral entre consultores">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {[
-              { label: 'Clientes Ativos', values: consultantStats.map((c) => c.activeClients), suffix: '' },
-              { label: 'MRR Gerado', values: consultantStats.map((c) => c.mrr), prefix: 'R$ ', suffix: '', format: true },
-              { label: 'Visitas Realizadas', values: consultantStats.map((c) => c.totalVisits), suffix: '' },
-              { label: 'Taxa de Conversão', values: consultantStats.map((c) => c.conversionRate), suffix: '%' },
+              { label: 'Clientes Ativos',    values: consultantStats.map((c) => c.activeClients),   suffix: '' },
+              { label: 'MRR Gerado',         values: consultantStats.map((c) => c.mrr),             format: true },
+              { label: 'Visitas Realizadas', values: consultantStats.map((c) => c.totalVisits),     suffix: '' },
+              { label: 'Taxa de Conversão',  values: consultantStats.map((c) => c.conversionRate),  suffix: '%' },
             ].map((metric) => {
-              const max = Math.max(...metric.values)
+              const max = Math.max(...metric.values, 1)
               return (
                 <div key={metric.label}>
-                  <p className="text-[#7B7390] text-xs mb-2">{metric.label}</p>
+                  <p style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>{metric.label}</p>
                   {consultantStats.map((c, i) => (
-                    <div key={c.id} className="flex items-center gap-3 mb-1.5">
-                      <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${c.color} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                        background: T.iconGrad,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 9, fontWeight: 700, color: T.white,
+                      }}>
                         {c.avatar}
                       </div>
-                      <div className="flex-1 bg-[#E6E0F0] rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${i === 0 ? 'bg-blue-500' : 'bg-violet-500'}`}
-                          style={{ width: max > 0 ? `${(metric.values[i] / max) * 100}%` : '0%' }}
-                        />
+                      <div style={{ flex: 1, background: T.line, borderRadius: T.rPill, height: 8, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: T.rPill, transition: 'width .4s',
+                          background: CONSULTANT_COLORS[i % CONSULTANT_COLORS.length],
+                          width: `${(metric.values[i] / max) * 100}%`,
+                        }} />
                       </div>
-                      <span className="text-white text-xs font-semibold min-w-[60px] text-right">
-                        {metric.prefix || ''}
-                        {metric.format ? metric.values[i].toLocaleString('pt-BR') : metric.values[i]}
-                        {metric.suffix}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.ink, minWidth: 64, textAlign: 'right', fontFamily: T.mono }}>
+                        {metric.format
+                          ? `R$ ${metric.values[i].toLocaleString('pt-BR')}`
+                          : `${metric.values[i]}${metric.suffix || ''}`
+                        }
                       </span>
                     </div>
                   ))}
@@ -240,32 +221,8 @@ export default function Consultants() {
               )
             })}
           </div>
-        </div>
+        </Panel>
       </div>
-    </div>
-  )
-}
-
-function StatBox({ icon: Icon, label, value, color, bg }) {
-  return (
-    <div className="bg-[#F6F3FA] rounded-xl p-3.5 flex items-center gap-3">
-      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
-        <Icon className={`w-4 h-4 ${color}`} />
-      </div>
-      <div>
-        <p className="text-[#7B7390] text-[11px]">{label}</p>
-        <p className={`font-bold text-sm ${color}`}>{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function PillStat({ label, value, color }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className={`w-2 h-2 rounded-full ${color}`} />
-      <span className="text-[#7B7390] text-xs">{label}</span>
-      <span className="text-white text-xs font-bold">{value}</span>
     </div>
   )
 }
