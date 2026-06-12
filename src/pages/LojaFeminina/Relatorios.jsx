@@ -285,10 +285,11 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
   const [showDetalhadas, setShowDetalhadas] = useState(false)
 
   const filtered = useMemo(() => {
+    if (!dateFrom || !dateTo) return []
     return vendas.filter(v => {
       const d = new Date(v.data)
-      if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
-      if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
+      if (d < new Date(dateFrom + 'T00:00:00')) return false
+      if (d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
   }, [vendas, dateFrom, dateTo])

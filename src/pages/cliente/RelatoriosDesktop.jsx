@@ -293,12 +293,15 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
 
-  const filtered = useMemo(() => vendas.filter(v => {
-    const d = new Date(v.data)
-    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
-    if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
-    return true
-  }), [vendas, dateFrom, dateTo])
+  const filtered = useMemo(() => {
+    if (!dateFrom || !dateTo) return []
+    return vendas.filter(v => {
+      const d = new Date(v.data)
+      if (d < new Date(dateFrom + 'T00:00:00')) return false
+      if (d > new Date(dateTo + 'T23:59:59')) return false
+      return true
+    })
+  }, [vendas, dateFrom, dateTo])
 
   const totalVendas = filtered.reduce((s, v) => s + Number(v.valor), 0)
   const nVendas = filtered.length
