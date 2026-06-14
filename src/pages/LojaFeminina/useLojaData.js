@@ -89,7 +89,39 @@ export function useLojaData(lojaId = 'estrada') {
 
   async function addVenda(venda) {
     const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: lojaId })
-    if (!error) await fetchAll()
+    if (!error) {
+      const itensComVariacao = (venda.produtos || []).filter(p => p.variacao)
+      if (itensComVariacao.length > 0) {
+        const porProduto = {}
+        itensComVariacao.forEach(item => {
+          if (!porProduto[item.nome]) porProduto[item.nome] = []
+          porProduto[item.nome].push(item.variacao)
+        })
+        for (const [nomeProd, variacoesVendidas] of Object.entries(porProduto)) {
+          const { data: prod } = await supabase
+            .from('lf_produtos')
+            .select('id, variacoes')
+            .eq('loja_id', lojaId)
+            .eq('nome', nomeProd)
+            .maybeSingle()
+          if (prod) {
+            const novasVariacoes = (prod.variacoes || []).map(v => {
+              const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+              const labelVal = labelKey ? String(v[labelKey]) : null
+              const vezes = variacoesVendidas.filter(vv => vv === labelVal).length
+              return vezes > 0
+                ? { ...v, quantidade: Math.max(0, Number(v.quantidade || 0) - vezes) }
+                : v
+            })
+            await supabase
+              .from('lf_produtos')
+              .update({ variacoes: novasVariacoes })
+              .eq('id', prod.id)
+          }
+        }
+      }
+      await fetchAll()
+    }
     return error
   }
 
