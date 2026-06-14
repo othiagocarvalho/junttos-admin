@@ -33,13 +33,13 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [] }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '' }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, theme }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme }) {
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
-  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '' })
+  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', referencia: '', fornecedor: '' })
   const [saving, setSaving]         = useState(false)
   const [newProdOpen, setNewProdOpen] = useState(false)
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
@@ -68,7 +68,11 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
 
   function openEdit(produto, idx) {
     const v = produto.variacoes[idx]
-    setForm({ cor: v.cor, quantidade: String(v.quantidade), custo: v.custo ? String(v.custo) : '' })
+    setForm({
+      cor: v.cor, quantidade: String(v.quantidade), custo: v.custo ? String(v.custo) : '',
+      referencia: produto.referencia || '',
+      fornecedor: produto.fornecedor || '',
+    })
     setModal({ mode: 'edit', produto, idx })
   }
 
@@ -85,6 +89,12 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       ? [...current, item]
       : current.map((v, i) => i === modal.idx ? item : v)
     await updateVariacoes(modal.produto.id, updated)
+    if (features?.atacado && updateProduto) {
+      await updateProduto(modal.produto.id, {
+        referencia: form.referencia || null,
+        fornecedor: form.fornecedor || null,
+      })
+    }
     setSaving(false)
     setModal(null)
   }
@@ -124,6 +134,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
+      referencia: features?.atacado ? (newProd.referencia || null) : null,
+      fornecedor: features?.atacado ? (newProd.fornecedor || null) : null,
     })
     setNewProdSaving(false)
     if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
@@ -191,6 +203,68 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
             {search ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}
           </p>
+        </div>
+      ) : features?.atacado ? (
+        /* ── Modo Atacado: tabela plana por variação ── */
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif', minWidth: 700 }}>
+              <thead>
+                <tr style={{ background: theme.primary }}>
+                  {['Referência', 'Descrição', 'Fornecedor', 'Tamanho', 'Custo', 'Venda', 'Qtd', ''].map(h => (
+                    <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.flatMap(produto => {
+                  const vars = produto.variacoes || []
+                  const tdBase = { padding: '10px 14px', fontSize: 13, color: 'var(--ink)', borderBottom: '1px solid var(--line)', verticalAlign: 'middle' }
+                  if (vars.length === 0) {
+                    return [(
+                      <tr key={produto.id} style={{ background: 'var(--surface)' }}>
+                        <td style={tdBase}>{produto.referencia || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
+                        <td style={{ ...tdBase, fontWeight: 600 }}>{produto.nome}</td>
+                        <td style={tdBase}>{produto.fornecedor || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
+                        <td style={{ ...tdBase, color: 'var(--muted)' }}>—</td>
+                        <td style={tdBase}>{fmtR(produto.preco_custo)}</td>
+                        <td style={tdBase}>{fmtR(produto.preco_venda)}</td>
+                        <td style={{ ...tdBase, color: 'var(--muted)' }}>—</td>
+                        <td style={{ ...tdBase, textAlign: 'right' }}>
+                          <button onClick={() => openAdd(produto)} style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${theme.primary}`, background: 'none', color: theme.primary, fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Var</button>
+                        </td>
+                      </tr>
+                    )]
+                  }
+                  return vars.map((v, idx) => {
+                    const s = statusOf(v.quantidade)
+                    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+                    const tamanho = labelKey ? String(v[labelKey]) : '—'
+                    const isFirst = idx === 0
+                    return (
+                      <tr key={`${produto.id}-${idx}`} style={{ background: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
+                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.referencia || '—') : ''}</td>
+                        <td style={{ ...tdBase, fontWeight: isFirst ? 600 : 400 }}>{isFirst ? produto.nome : ''}</td>
+                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.fornecedor || '—') : ''}</td>
+                        <td style={tdBase}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {tamanho}
+                            {s && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 99, background: BADGE[s].bg, color: BADGE[s].color, border: `1px solid ${BADGE[s].border}`, fontWeight: 700 }}>{BADGE[s].label}</span>}
+                          </span>
+                        </td>
+                        <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_custo)}</td>
+                        <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_venda)}</td>
+                        <td style={{ ...tdBase, fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: s ? BADGE[s].color : 'var(--ink)' }}>{v.quantidade}</td>
+                        <td style={{ ...tdBase, textAlign: 'right' }}>
+                          <button onClick={() => openEdit(produto, idx)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         filtered.map(produto => {
@@ -328,6 +402,28 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 />
               </div>
 
+              {/* Referência e Fornecedor — apenas modo atacado */}
+              {features?.atacado && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ ...labelStyle, color: theme.primary }}>Referência</label>
+                    <input
+                      value={newProd.referencia} onChange={e => setNewProd(p => ({ ...p, referencia: e.target.value }))}
+                      placeholder="Ex: DC-001"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, color: theme.primary }}>Fornecedor</label>
+                    <input
+                      value={newProd.fornecedor} onChange={e => setNewProd(p => ({ ...p, fornecedor: e.target.value }))}
+                      placeholder="Nome do fornecedor"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Preços */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
@@ -456,6 +552,26 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {features?.atacado && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingBottom: 4, borderBottom: '1px solid var(--line)', marginBottom: 2 }}>
+                  <div>
+                    <label style={labelStyle}>Referência</label>
+                    <input
+                      value={form.referencia} onChange={e => setForm({ ...form, referencia: e.target.value })}
+                      placeholder="Ex: DC-001"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Fornecedor</label>
+                    <input
+                      value={form.fornecedor} onChange={e => setForm({ ...form, fornecedor: e.target.value })}
+                      placeholder="Nome do fornecedor"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
               <div>
                 <label style={labelStyle}>Cor / Variação</label>
                 <input
