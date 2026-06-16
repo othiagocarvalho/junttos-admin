@@ -81,6 +81,8 @@ export function useLojaData(lojaId = 'estrada') {
       preco_custo: p.precoCusto || 0,
       preco_venda: p.precoVenda || 0,
       variacoes:   p.variacoes  || [],
+      fornecedor:  p.fornecedor || null,
+      referencia:  p.referencia || null,
     }))
     const { error } = await supabase.from('lf_produtos').insert(rows)
     if (!error) await fetchAll()
@@ -195,8 +197,19 @@ export function useLojaData(lojaId = 'estrada') {
       nome,
       preco_custo: extras.precoCusto || 0,
       preco_venda: extras.precoVenda || 0,
-      variacoes: extras.variacoes || [],
+      variacoes:   extras.variacoes  || [],
+      fornecedor:  extras.fornecedor || null,
+      referencia:  extras.referencia || null,
     })
+    if (!error) await fetchAll()
+    return error
+  }
+
+  async function updateProduto(id, updates) {
+    const { error } = await supabase
+      .from('lf_produtos')
+      .update(updates)
+      .eq('id', id)
     if (!error) await fetchAll()
     return error
   }
@@ -253,6 +266,7 @@ export function useLojaData(lojaId = 'estrada') {
     fecharCaixa,
     salvarMeta,
     addProduto,
+    updateProduto,
     removeProduto,
     updateVariacoes,
     importarProdutos,
