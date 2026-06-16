@@ -56,6 +56,10 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
     return s + qtd * Number(p.preco_custo || 0)
   }, 0)
+  const totalVenda = produtosData.reduce((s, p) => {
+    const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
+    return s + qtd * Number(p.preco_venda || 0)
+  }, 0)
 
   function toggleExpand(id) {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
@@ -144,22 +148,39 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8 }}>
 
-      {/* Custo total */}
-      <div style={{
-        background: theme.primary, borderRadius: 16, padding: '22px 20px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
-            Custo Total do Estoque
-          </p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 34, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-            {fmtR(totalCusto)}
-          </p>
+      {/* Totais */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {/* Custo total */}
+        <div style={{
+          background: theme.primary, borderRadius: 16, padding: '18px 14px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+              Custo Total do Estoque
+            </p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+              {fmtR(totalCusto)}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
+        {/* Venda total */}
+        <div style={{
+          background: theme.primary, borderRadius: 16, padding: '18px 14px',
+          display: 'flex', alignItems: 'center',
+        }}>
+          <div>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+              Venda Total
+            </p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+              {fmtR(totalVenda)}
+            </p>
+          </div>
         </div>
       </div>
 
