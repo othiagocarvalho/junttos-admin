@@ -264,8 +264,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     const isFirst = idx === 0
                     return (
                       <tr key={`${produto.id}-${idx}`} style={{ background: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
-                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.referencia || '—') : ''}</td>
-                        <td style={{ ...tdBase, fontWeight: isFirst ? 600 : 400 }}>{isFirst ? produto.nome : ''}</td>
+                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{produto.referencia || '—'}</td>
+                        <td style={{ ...tdBase, fontWeight: 600 }}>{produto.nome}</td>
                         <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.fornecedor || '—') : ''}</td>
                         <td style={tdBase}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
