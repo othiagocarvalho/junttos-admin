@@ -19,7 +19,9 @@ function parsePgtos(v) {
 }
 
 function fmtPgtos(v) {
-  return parsePgtos(v).map(p => p.forma).join(' + ')
+  return parsePgtos(v).map(p =>
+    p.forma === 'Boleto' && p.vencimento ? `Boleto ${p.vencimento}d` : p.forma
+  ).join(' + ')
 }
 
 function groupByDay(vendas) {
@@ -34,7 +36,7 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
+export default function Historico({ vendas, deleteVenda, updateVenda, features = {}, theme }) {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -186,12 +188,20 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: v.produtos?.length ? 8 : 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
                         <Clock size={11} color="var(--muted)" />
                         <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
                           {fmtTime(v.data)}{v.cliente_tel ? ` · ${v.cliente_tel}` : ''}
                         </span>
                       </div>
+
+                      {features?.atacado && (v.nome_loja || v.cidade_estado || v.forma_envio) && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                          {v.nome_loja && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-soft)', fontFamily: 'Manrope, sans-serif', fontWeight: 600 }}>{v.nome_loja}</span>}
+                          {v.cidade_estado && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{v.cidade_estado}</span>}
+                          {v.forma_envio && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{v.forma_envio}</span>}
+                        </div>
+                      )}
 
                       {v.produtos?.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

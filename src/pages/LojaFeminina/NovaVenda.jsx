@@ -5,7 +5,7 @@ const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -36,7 +36,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, theme }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
@@ -106,11 +106,17 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+        ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       }))),
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
       data: new Date().toISOString(),
+      ...(features?.atacado ? {
+        nome_loja: form.nome_loja || null,
+        cidade_estado: form.cidade_estado || null,
+        forma_envio: form.forma_envio || null,
+      } : {}),
     })
     setSaving(false)
     if (!err) {
@@ -121,7 +127,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOpts = features?.atacado ? ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto'] : PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
+    && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   if (done) {
     return (
@@ -196,6 +204,20 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
+            {features?.atacado && (<>
+              <Field label="Nome da Loja">
+                <input value={form.nome_loja} onChange={e => setForm({ ...form, nome_loja: e.target.value })}
+                  placeholder="Ex: Boutique da Maria" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              </Field>
+              <Field label="Cidade / Estado">
+                <input value={form.cidade_estado} onChange={e => setForm({ ...form, cidade_estado: e.target.value })}
+                  placeholder="Ex: Fortaleza / CE" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              </Field>
+              <Field label="Forma de Envio">
+                <input value={form.forma_envio} onChange={e => setForm({ ...form, forma_envio: e.target.value })}
+                  placeholder="Ex: Transportadora, Motoboy, Retirada" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              </Field>
+            </>)}
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
               <MetallicBtn onClick={() => setStep(1)} isDark={isDark}>
                 Próximo — Produtos <ChevronRight size={16} />
@@ -404,45 +426,64 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {form.pagamentos.map((p, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <select
-                      value={p.forma}
-                      onChange={e => setPgto(i, 'forma', e.target.value)}
-                      style={{
-                        height: 46, flex: '2 1 0', minWidth: 0,
-                        border: '1.5px solid var(--line)', borderRadius: 12,
-                        padding: '0 8px',
-                        fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-                        color: 'var(--ink)', background: 'var(--bg)',
-                        outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
-                      }}
-                    >
-                      {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                    <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
-                      <input
-                        value={p.valor}
-                        onChange={e => setPgto(i, 'valor', e.target.value)}
-                        placeholder="0,00"
-                        style={{
-                          width: '100%', height: 46,
-                          border: '1.5px solid var(--line)', borderRadius: 12,
-                          padding: '0 10px 0 28px',
-                          fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
-                          color: 'var(--ink)', background: 'var(--bg)',
-                          outline: 'none', boxSizing: 'border-box',
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <select
+                        value={p.forma}
+                        onChange={e => {
+                          const f = e.target.value
+                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
                         }}
-                        onFocus={focusIn} onBlur={focusOut}
-                      />
-                    </div>
-                    {form.pagamentos.length > 1 && (
-                      <button
-                        onClick={() => removePgto(i)}
-                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        style={{
+                          height: 46, flex: '2 1 0', minWidth: 0,
+                          border: '1.5px solid var(--line)', borderRadius: 12,
+                          padding: '0 8px',
+                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                          color: 'var(--ink)', background: 'var(--bg)',
+                          outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
+                        }}
                       >
-                        <X size={14} />
-                      </button>
+                        {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <input
+                          value={p.valor}
+                          onChange={e => setPgto(i, 'valor', e.target.value)}
+                          placeholder="0,00"
+                          style={{
+                            width: '100%', height: 46,
+                            border: '1.5px solid var(--line)', borderRadius: 12,
+                            padding: '0 10px 0 28px',
+                            fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                            color: 'var(--ink)', background: 'var(--bg)',
+                            outline: 'none', boxSizing: 'border-box',
+                          }}
+                          onFocus={focusIn} onBlur={focusOut}
+                        />
+                      </div>
+                      {form.pagamentos.length > 1 && (
+                        <button
+                          onClick={() => removePgto(i)}
+                          style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {p.forma === 'Boleto' && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
+                        {[15, 30, 45, 60].map(dias => (
+                          <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
+                            padding: '5px 14px', borderRadius: 8, cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                            border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
+                            background: p.vencimento === dias ? theme.primary : 'var(--bg)',
+                            color: p.vencimento === dias ? '#fff' : 'var(--muted)',
+                          }}>{dias} dias</button>
+                        ))}
+                        {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Manrope, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
+                      </div>
                     )}
                   </div>
                 ))}
