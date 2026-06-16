@@ -27,7 +27,9 @@ function parsePgtos(v) {
   return v.forma_pgto ? [{ forma: v.forma_pgto, valor: Number(v.valor) }] : []
 }
 function fmtPgtos(v) {
-  return parsePgtos(v).map(p => p.forma).join(' + ')
+  return parsePgtos(v).map(p =>
+    p.forma === 'Boleto' && p.vencimento ? `Boleto ${p.vencimento}d` : p.forma
+  ).join(' + ')
 }
 
 const NAV = [
@@ -520,9 +522,9 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, theme }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(EMPTY_VENDA)
   const [newProd,    setNewProd]    = useState('')
@@ -572,11 +574,17 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
       forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+        ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       }))),
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
       data: new Date().toISOString(),
+      ...(features?.atacado ? {
+        nome_loja: form.nome_loja || null,
+        cidade_estado: form.cidade_estado || null,
+        forma_envio: form.forma_envio || null,
+      } : {}),
     })
     setSaving(false)
     if (!err) {
@@ -586,7 +594,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
   }
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
+  const pgtoOpts = features?.atacado ? ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto'] : PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
+    && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   const inputS = inp(theme.primary)
   const fo = onF(theme.primary)
@@ -622,6 +632,20 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
               <label style={lbl}>Vendedora</label>
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
             </div>
+            {features?.atacado && (<>
+              <div>
+                <label style={lbl}>Nome da Loja</label>
+                <input value={form.nome_loja} onChange={e => setForm({ ...form, nome_loja: e.target.value })} placeholder="Ex: Boutique da Maria" style={inputS} onFocus={fo} onBlur={onB} />
+              </div>
+              <div>
+                <label style={lbl}>Cidade / Estado</label>
+                <input value={form.cidade_estado} onChange={e => setForm({ ...form, cidade_estado: e.target.value })} placeholder="Ex: Fortaleza / CE" style={inputS} onFocus={fo} onBlur={onB} />
+              </div>
+              <div>
+                <label style={lbl}>Forma de Envio</label>
+                <input value={form.forma_envio} onChange={e => setForm({ ...form, forma_envio: e.target.value })} placeholder="Ex: Transportadora, Motoboy, Retirada" style={inputS} onFocus={fo} onBlur={onB} />
+              </div>
+            </>)}
             <div>
               <label style={lbl}>Observações</label>
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Anotações sobre esta venda..." style={inputS} onFocus={fo} onBlur={onB} />
@@ -641,10 +665,15 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
             <label style={lbl}>Formas de Pagamento</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {form.pagamentos.map((p, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <select value={p.forma} onChange={e => setPgto(i, 'forma', e.target.value)}
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select value={p.forma}
+                    onChange={e => {
+                      const f = e.target.value
+                      setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
+                    }}
                     style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
-                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                     <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
@@ -656,6 +685,21 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, t
                     <button onClick={() => removePgto(i)} style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <X size={14} />
                     </button>
+                  )}
+                  </div>
+                  {p.forma === 'Boleto' && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
+                      {[15, 30, 45, 60].map(dias => (
+                        <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
+                          padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
+                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                          border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
+                          background: p.vencimento === dias ? theme.primary : 'var(--bg)',
+                          color: p.vencimento === dias ? '#fff' : 'var(--muted)',
+                        }}>{dias} dias</button>
+                      ))}
+                      {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Manrope, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
+                    </div>
                   )}
                 </div>
               ))}
