@@ -221,7 +221,7 @@ export default function ClientLogin() {
           color: '#3A2470', marginBottom: 5,
           letterSpacing: '-0.01em',
         }}>
-          Bem-vinda de volta
+          Olá, que bom te ver!
         </h2>
         <p style={{ fontSize: 13, color: '#7B7390', marginBottom: 24, lineHeight: 1.5 }}>
           Entre com suas credenciais para continuar.
