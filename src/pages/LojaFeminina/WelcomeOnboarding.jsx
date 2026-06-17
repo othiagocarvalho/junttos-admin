@@ -38,7 +38,7 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
         fontSize: 30, fontWeight: 700, color: 'var(--ink)',
         marginBottom: 12, lineHeight: 1.2,
       }}>
-        Bem-vinda, {storeName}!
+        Olá, que bom te ver!
       </h1>
       <p style={{
         fontFamily: 'Manrope, sans-serif', fontSize: 14,
