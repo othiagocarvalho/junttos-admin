@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react'
+import { useLojaTheme } from '../../hooks/useLojaTheme'
 import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
@@ -14,8 +15,6 @@ import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
 import WelcomeOnboarding from './WelcomeOnboarding'
 
-const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
-const METALLIC_SOFT = 'linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%)'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -64,7 +63,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
     <div style={{ paddingTop: 8 }}>
       {/* Hero */}
       <div style={{
-        background: isDark ? '#0F0E0C' : METALLIC,
+        background: isDark ? '#0F0E0C' : 'linear-gradient(135deg, var(--primary) 0%, var(--rose-deep) 100%)',
         borderTop: isDark ? '2px solid #D4A017' : undefined,
         borderRadius: 20,
         padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden',
@@ -153,7 +152,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
               <div key={nome} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  background: isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? METALLIC : METALLIC_SOFT),
+                  background: isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? 'var(--primary)' : 'var(--rose)'),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
@@ -340,6 +339,7 @@ function BottomTabBar({ tab, setTab, primary, config }) {
 
 export default function LojaFeminina({ lojaId = 'estrada' }) {
   const data = useLojaData(lojaId)
+  useLojaTheme(data.config)
   const { viewMode, setViewMode } = useViewMode()
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
