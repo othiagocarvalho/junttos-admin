@@ -8,7 +8,7 @@ export default function Layout({ children }) {
   const [navOpen, setNavOpen] = useState(false)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: T.bg }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: T.bg }}>
 
       {/* Sidebar always occupies 64px on desktop — content never shifts on expand */}
       <style>{`
@@ -33,7 +33,7 @@ export default function Layout({ children }) {
         style={{
           flex:          1,
           minWidth:      0,
-          height:        '100vh',
+          height:        '100dvh',
           overflowY:     'auto',
           display:       'flex',
           flexDirection: 'column',

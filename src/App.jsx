@@ -101,7 +101,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F7F5' }}>
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F7F5' }}>
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
           border: '2.5px solid #7B5DD4', borderTopColor: 'transparent',

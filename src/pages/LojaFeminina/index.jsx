@@ -266,6 +266,7 @@ function BottomTabBar({ tab, setTab, primary, config }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       background: '#F8F7F5',
       borderTop: '1px solid #e8e4df',
+      paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       <div style={{
         height: 72, width: '100%',
@@ -386,7 +387,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   if (data.loading) {
     return (
       <div style={{
-        minHeight: '100vh', background: 'var(--bg)',
+        minHeight: '100dvh', background: 'var(--bg)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{
@@ -402,7 +403,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   if (data.dbError) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px', maxWidth: 400 }}>
           <div style={{ display: 'flex', gap: 12 }}>
             <AlertCircle size={20} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -449,7 +450,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
       <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
         {panels[tab]}
@@ -457,7 +458,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       {showBottomBar
         ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} config={data.config} />
         : (
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
               onClick={() => setTab('conta')}
               style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}

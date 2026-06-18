@@ -123,7 +123,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
   }
 
   return (
-    <div style={{ background: 'var(--bg)', padding: '0 16px 32px', minHeight: '100vh' }}>
+    <div style={{ background: 'var(--bg)', padding: '0 16px 32px', minHeight: '100dvh' }}>
 
       {/* Identidade */}
       <div style={card}>

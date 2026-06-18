@@ -31,7 +31,7 @@ export default function LoginCliente() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: T.ui }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', fontFamily: T.ui }}>
 
       {/* ── Left brand panel (lg+) ── */}
       <div
