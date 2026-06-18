@@ -76,7 +76,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
       onMouseLeave={() => setOpen(false)}
       style={{
         position: 'fixed', left: 0, top: 0,
-        width: open ? 196 : 56, height: '100vh',
+        width: open ? 196 : 56, height: '100dvh',
         background: '#F8F7F5',
         display: 'flex', flexDirection: 'column',
         zIndex: 50, fontFamily: 'Manrope, sans-serif',
@@ -942,9 +942,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100vh' }}>
+      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
         </div>
