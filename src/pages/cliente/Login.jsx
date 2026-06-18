@@ -113,7 +113,7 @@ export default function ClientLogin() {
     supabase
       .from('lf_config')
       .select('nome, logo_url, cor_primaria, cor_secundaria')
-      .eq('loja_id', lojaSlug)
+      .eq('slug', lojaSlug)
       .maybeSingle()
       .then(({ data }) => { if (data) setLojaConfig(data) })
   }, [lojaSlug])
