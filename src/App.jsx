@@ -32,10 +32,10 @@ function ClientDashboard({ lojaId }) {
   return <LojaFeminina lojaId={lojaId} />
 }
 
-function LojaClientApp({ lojaId }) {
+function LojaClientApp({ segment, lojaId }) {
   return (
     <ClientAuthProvider>
-      <BrowserRouter basename={`/${lojaId}`}>
+      <BrowserRouter basename={`/${segment}`}>
         <Routes>
           <Route path="/" element={<ClientLogin />} />
           <Route path="/dashboard" element={
@@ -78,22 +78,23 @@ function AdminApp() {
 }
 
 export default function App() {
-  const [lojaId, setLojaId] = useState(null)
-  const [ready,  setReady]  = useState(false)
+  const [lojaSegment, setLojaSegment] = useState(null) // URL path segment (basename do router)
+  const [lojaId,      setLojaId]      = useState(null) // loja_id real do banco (para queries)
+  const [ready,       setReady]       = useState(false)
 
   useEffect(() => {
     const segment = window.location.pathname.split('/').filter(Boolean)[0] ?? ''
-    if (!segment) {
-      setReady(true)
-      return
-    }
+    if (!segment) { setReady(true); return }
     supabase
       .from('lf_config')
       .select('loja_id')
-      .eq('loja_id', segment)
+      .or(`loja_id.eq.${segment},slug.eq.${segment}`)
       .maybeSingle()
       .then(({ data }) => {
-        setLojaId(data?.loja_id ?? null)
+        if (data) {
+          setLojaSegment(segment)
+          setLojaId(data.loja_id)
+        }
         setReady(true)
       })
   }, [])
@@ -111,6 +112,6 @@ export default function App() {
     )
   }
 
-  if (lojaId) return <LojaClientApp lojaId={lojaId} />
+  if (lojaSegment) return <LojaClientApp segment={lojaSegment} lojaId={lojaId} />
   return <AdminApp />
 }
