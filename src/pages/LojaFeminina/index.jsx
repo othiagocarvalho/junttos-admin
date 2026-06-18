@@ -353,9 +353,6 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     isDark,
   }
   const themeVars = {
-    '--primary':   primary,
-    '--rose':      primary,
-    '--rose-deep': primary,
     ...(isDark ? {
       '--bg':      '#0A0A0A',
       '--surface': '#0F0E0C',
