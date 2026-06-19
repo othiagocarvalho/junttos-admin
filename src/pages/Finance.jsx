@@ -94,7 +94,7 @@ export default function Finance() {
       {/* KPI StatCards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
         <StatCard icon={DollarSign} color="purple" label="MRR Total"    value={`R$ ${totalMRR.toLocaleString('pt-BR')}`} />
-        <StatCard icon={TrendingUp} color="lilac"  label="ARR"          value={`R$ ${(totalARR / 1000).toFixed(0)}k`} />
+        <StatCard icon={TrendingUp} color="lilac"  label="ARR"          value={totalARR >= 1000 ? `R$ ${(totalARR / 1000).toFixed(0)}k` : `R$ ${totalARR.toLocaleString('pt-BR')}`} />
         <StatCard icon={Users}      color="coral"  label="Ticket Médio" value={`R$ ${avgTicket.toLocaleString('pt-BR')}`} />
         <StatCard icon={Zap}        color="deep"   label="Churn Rate"   value={`${churnRate}%`} />
       </div>
