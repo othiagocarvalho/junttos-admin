@@ -4,20 +4,19 @@ import { useAuth } from '../context/AuthContext'
 import Logo from './junttos/Logo'
 import {
   LayoutDashboard, Users, UserCheck, DollarSign, MapPin,
-  Settings, LogOut, BarChart2, Network, Building2,
+  Settings, LogOut, BarChart2, Network,
   ChevronsRight, ChevronsLeft,
 } from 'lucide-react'
 import { T } from '../theme/tokens'
 
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/clients',     icon: Users,           label: 'Clientes' },
+  { to: '/clientes',    icon: Users,           label: 'Clientes' },
   { to: '/consultants', icon: UserCheck,       label: 'Consultores' },
   { to: '/visits',      icon: MapPin,          label: 'Visitas e Rotas' },
   { to: '/finance',     icon: DollarSign,      label: 'Faturamento' },
   { to: '/reports',     icon: BarChart2,       label: 'Relatórios' },
   { to: '/arquitetura', icon: Network,         label: 'Arquitetura' },
-  { to: '/clientes',    icon: Building2,       label: 'Painel Clientes' },
   { to: '/settings',    icon: Settings,        label: 'Configurações' },
 ]
 
