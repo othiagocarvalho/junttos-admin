@@ -9,7 +9,6 @@ import Login from './pages/Login'
 import LoginCliente from './pages/LoginCliente'
 import ClientLogin from './pages/cliente/Login'
 import Dashboard from './pages/Dashboard'
-import Clients from './pages/Clients'
 import Consultants from './pages/Consultants'
 import Visits from './pages/Visits'
 import Finance from './pages/Finance'
@@ -60,7 +59,6 @@ function AdminApp() {
             <Route path="/admin/login" element={<Login />} />
             <Route path="/login"       element={<LoginCliente />} />
             <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-            <Route path="/clients" element={<ProtectedLayout><Clients /></ProtectedLayout>} />
             <Route path="/consultants" element={<ProtectedLayout><Consultants /></ProtectedLayout>} />
             <Route path="/visits" element={<ProtectedLayout><Visits /></ProtectedLayout>} />
             <Route path="/finance" element={<ProtectedLayout><Finance /></ProtectedLayout>} />
