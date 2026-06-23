@@ -271,7 +271,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 }).filter(Boolean)
                 const hasVars = vars.length > 0
                 const selItems = form.produtos.filter(p => p.nome === nome)
-                const selCount = selItems.length
+                const selCount = selItems.reduce((sum, p) => sum + (p.quantidade || 1), 0)
                 const isOpen = expandedProd === nome
                 return (
                   <div key={nome}>
@@ -337,17 +337,48 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
                             const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
+                            const selQty = isSel ? (form.produtos.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
                             const esgotado = qty === 0 && !isSel
+                            if (isSel) {
+                              return (
+                                <div key={idx} style={{
+                                  display: 'inline-flex', alignItems: 'center',
+                                  borderRadius: 8, overflow: 'hidden', userSelect: 'none',
+                                  border: `1.5px solid ${theme.primary}`,
+                                  background: theme.primary,
+                                  fontFamily: 'Manrope, sans-serif',
+                                }}>
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      if (selQty <= 1) {
+                                        setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                      } else {
+                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                      }
+                                    }}
+                                    style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
+                                  >−</button>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      if (selQty < qty) {
+                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                      }
+                                    }}
+                                    style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: selQty >= qty ? 'not-allowed' : 'pointer', color: selQty >= qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
+                                  >+</button>
+                                </div>
+                              )
+                            }
                             return (
                               <div key={idx} role="button" tabIndex={0}
                                 onClick={() => {
-                                  if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
-                                  else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                                  if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] }))
                                 }}
                                 onKeyDown={e => {
-                                  if (e.key !== 'Enter') return
-                                  if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
-                                  else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
+                                  if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] }))
                                 }}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center',
@@ -355,15 +386,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                   cursor: esgotado ? 'not-allowed' : 'pointer',
                                   fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
                                   userSelect: 'none', opacity: esgotado ? 0.5 : 1,
-                                  ...(isSel ? {
-                                    border: `1.5px solid ${theme.primary}`,
-                                    background: isDark ? '#2a1f00' : `${theme.primary}20`,
-                                    color: theme.primary,
-                                  } : {
-                                    border: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
-                                    background: isDark ? '#1a1a1a' : '#f5f5f5',
-                                    color: isDark ? theme.primary : '#1a1a1a',
-                                  }),
+                                  border: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
+                                  background: isDark ? '#1a1a1a' : '#f5f5f5',
+                                  color: isDark ? theme.primary : '#1a1a1a',
                                 }}>
                                 {label}
                                 <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isDark ? '#A07830' : '#9C8580' }}>
@@ -527,9 +552,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '14px 16px' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10, fontFamily: 'Manrope, sans-serif' }}>Resumo dos produtos</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {form.produtos.map(p => (
-                    <span key={p.nome} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                      {p.nome}{p.obs ? ` — ${p.obs}` : ''}
+                  {form.produtos.map((p, idx) => (
+                    <span key={idx} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                      {p.nome}{p.obs ? ` — ${p.obs}` : ''}{p.quantidade > 1 ? ` ×${p.quantidade}` : ''}
                     </span>
                   ))}
                 </div>
