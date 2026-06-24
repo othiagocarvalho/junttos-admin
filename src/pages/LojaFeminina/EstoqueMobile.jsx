@@ -227,8 +227,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
         </div>
       ) : features?.atacado ? (
         /* ── Modo Atacado: tabela plana por variação ── */
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
+          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif', minWidth: 700 }}>
               <thead>
                 <tr style={{ background: theme.primary }}>
