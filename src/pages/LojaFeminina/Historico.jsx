@@ -90,7 +90,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Search */}
       <div style={{ position: 'relative' }}>
         <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />

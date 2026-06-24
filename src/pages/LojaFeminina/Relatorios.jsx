@@ -332,7 +332,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div style={{ background: theme.primary, borderRadius: 16, padding: '22px 20px' }}>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>

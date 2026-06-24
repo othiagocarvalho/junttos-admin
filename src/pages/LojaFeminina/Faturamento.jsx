@@ -62,7 +62,7 @@ export default function Faturamento({ vendas, theme }) {
   const rankProd = Object.entries(prodMap).sort((a, b) => b[1] - a[1]).slice(0, 5)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Date range */}
       <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ flex: 1 }}>
