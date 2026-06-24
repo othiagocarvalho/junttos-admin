@@ -59,7 +59,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
   ]
 
   return (
-    <div style={{ paddingTop: 8 }}>
+    <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Hero */}
       <div style={{
         background: isDark ? '#0F0E0C' : 'linear-gradient(135deg, var(--primary) 0%, var(--rose-deep) 100%)',
@@ -92,12 +92,13 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
       </div>
 
       {/* KPI grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         {kpis.map(({ label, value, sub }, i) => (
           <div key={label} style={{
             background: 'var(--surface)', borderRadius: 16,
             border: '1px solid var(--line)', padding: '16px 14px',
             gridColumn: i === 2 ? '1 / -1' : 'auto',
+            minWidth: 0, boxSizing: 'border-box', overflow: 'hidden',
           }}>
             <p style={{
               fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
@@ -226,6 +227,7 @@ function AppHeader({ primary, accent, logoUrl, storeName, onSwitchToDesktop }) {
       paddingLeft: 20, paddingRight: 20,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative', flexShrink: 0,
+      width: '100%', maxWidth: '100vw', overflow: 'hidden', boxSizing: 'border-box',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
