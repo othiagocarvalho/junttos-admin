@@ -146,7 +146,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
 
       {/* Totais */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
