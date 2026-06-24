@@ -16,7 +16,7 @@ export default function Layout({ children }) {
           .jt-main-content { margin-left: 64px; }
         }
         @media (max-width: 768px) {
-          .jt-inner-pad { padding: 16px 16px !important; }
+          .jt-inner-pad { padding: 16px !important; }
         }
       `}</style>
 
@@ -68,7 +68,7 @@ export default function Layout({ children }) {
           <div style={{ width: 30 }} />
         </div>
 
-        <div className="jt-inner-pad" style={{ padding: '30px 32px', flex: 1 }}>
+        <div className="jt-inner-pad" style={{ padding: '30px 32px', flex: 1, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
           {children}
         </div>
       </main>
