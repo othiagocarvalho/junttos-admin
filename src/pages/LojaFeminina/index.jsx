@@ -24,7 +24,6 @@ const BOTTOM_TABS = [
   { id: 'venda',      label: '',          Icon: Plus,     isFAB: true },
   { id: 'relatorios', label: 'Relatórios',Icon: BarChart2 },
   { id: 'crm',        label: 'CRM',       Icon: Users,    isCRM: true },
-  { id: 'conta',      label: 'Fechamento',Icon: Wallet    },
 ]
 
 // ── Sub-views ──────────────────────────────────────────────
@@ -270,8 +269,9 @@ function BottomTabBar({ tab, setTab, primary, config }) {
     }}>
       <div style={{
         height: 72, width: '100%',
-        display: 'grid', gridTemplateColumns: `repeat(${BOTTOM_TABS.length}, 1fr)`,
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
         alignItems: 'center',
+        overflow: 'hidden',
       }}>
         {BOTTOM_TABS.map(({ id, Icon, isFAB, isCRM }) => {
           if (isFAB) {
@@ -440,9 +440,9 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', ...themeVars }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
       <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} onSwitchToDesktop={() => setViewMode('desktop')} />
-      <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px' }}>
+      <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px', overflowX: 'hidden', boxSizing: 'border-box' }}>
         {panels[tab]}
       </main>
       {showBottomBar
