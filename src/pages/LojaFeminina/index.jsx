@@ -270,18 +270,18 @@ function BottomTabBar({ tab, setTab, primary, config }) {
     }}>
       <div style={{
         height: 72, width: '100%',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
-        padding: '0 4px',
+        display: 'grid', gridTemplateColumns: `repeat(${BOTTOM_TABS.length}, 1fr)`,
+        alignItems: 'center',
       }}>
-        {BOTTOM_TABS.map(({ id, label, Icon, isFAB, isCRM }) => {
+        {BOTTOM_TABS.map(({ id, Icon, isFAB, isCRM }) => {
           if (isFAB) {
             return (
               <button key={id} onClick={() => setTab(id)} style={{
                 width: 52, height: 52, borderRadius: '50%',
                 background: '#F4613A',
-                border: 'none', cursor: 'pointer', flexShrink: 0,
+                border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                marginTop: -26,
+                margin: '0 auto', marginTop: -26,
                 boxShadow: '0 4px 18px rgba(244,97,58,0.38)',
               }}>
                 <Icon size={22} color="#fff" strokeWidth={2.5} />
@@ -294,37 +294,27 @@ function BottomTabBar({ tab, setTab, primary, config }) {
               <button key={id}
                 onClick={locked ? undefined : () => setTab(id)}
                 style={{
-                  flex: 1, height: '100%', background: 'none', border: 'none',
+                  height: '100%', background: 'none', border: 'none',
                   cursor: locked ? 'default' : 'pointer',
                   display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 4,
+                  alignItems: 'center', justifyContent: 'center',
                   opacity: locked ? 0.4 : 1,
                 }}>
                 <div style={{ position: 'relative' }}>
                   <Icon size={19} color={!locked && tab === id ? activeColor : '#bbb'} strokeWidth={1.5} />
                   {locked && <Lock size={9} color="#bbb" style={{ position: 'absolute', top: -4, right: -6 }} />}
                 </div>
-                <span style={{
-                  fontSize: 10, fontFamily: 'Manrope, sans-serif', fontWeight: 500,
-                  color: '#bbb', letterSpacing: '0.03em',
-                }}>{label}</span>
               </button>
             )
           }
           const active = tab === id
           return (
             <button key={id} onClick={() => setTab(id)} style={{
-              flex: 1, height: '100%', background: 'none', border: 'none',
+              height: '100%', background: 'none', border: 'none',
               cursor: 'pointer', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center', gap: 4,
+              alignItems: 'center', justifyContent: 'center',
             }}>
               <Icon size={19} color={active ? activeColor : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
-              <span style={{
-                fontSize: 10, fontFamily: 'Manrope, sans-serif',
-                fontWeight: active ? 700 : 500,
-                color: active ? activeColor : '#bbb',
-                letterSpacing: '0.03em',
-              }}>{label}</span>
             </button>
           )
         })}
