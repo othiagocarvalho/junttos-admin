@@ -15,6 +15,9 @@ export default function Layout({ children }) {
         @media (min-width: 1024px) {
           .jt-main-content { margin-left: 64px; }
         }
+        @media (max-width: 768px) {
+          .jt-inner-pad { padding: 16px 16px !important; }
+        }
       `}</style>
 
       <Sidebar navOpen={navOpen} onClose={() => setNavOpen(false)} />
@@ -65,7 +68,7 @@ export default function Layout({ children }) {
           <div style={{ width: 30 }} />
         </div>
 
-        <div style={{ padding: '30px 32px', flex: 1 }}>
+        <div className="jt-inner-pad" style={{ padding: '30px 32px', flex: 1 }}>
           {children}
         </div>
       </main>
