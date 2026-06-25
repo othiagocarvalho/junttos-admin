@@ -207,7 +207,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {v.produtos.map((p, i) => (
                             <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-soft)', fontFamily: 'Manrope, sans-serif' }}>
-                              {p.nome}{p.obs ? ` — ${p.obs}` : ''}
+                              {p.nome}{p.obs && p.obs !== 'Único' ? ` — ${p.obs}` : ''}
                             </span>
                           ))}
                         </div>
