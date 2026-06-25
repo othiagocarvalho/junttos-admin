@@ -52,6 +52,48 @@ const EMPTY_FORM = {
   logoPreview: null,
   email_acesso: '',
   senha_acesso: '',
+  status: 'Trial',
+  valor_mensal: '',
+  features: { atacado: false, crm: false },
+  enviarBV: true,
+}
+
+// ── Toggle component ─────────────────────────────────────────────
+function Toggle({ value, onChange, label, sub }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+      <div>
+        <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: sub ? 2 : 0 }}>{label}</p>
+        {sub && <p style={{ fontSize: 11, color: T.muted }}>{sub}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        style={{
+          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+          background: value ? T.purple : T.line,
+          position: 'relative', transition: 'background .2s', flexShrink: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute', top: 2,
+          left: value ? 22 : 2,
+          width: 20, height: 20, borderRadius: '50%', background: T.white,
+          transition: 'left .2s', boxShadow: '0 1px 4px rgba(0,0,0,.18)',
+        }} />
+      </button>
+    </div>
+  )
+}
+
+// ── Section divider ──────────────────────────────────────────────
+function Section({ title }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 14px' }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap' }}>{title}</p>
+      <div style={{ flex: 1, height: 1, background: T.line }} />
+    </div>
+  )
 }
 
 // ── Modal ────────────────────────────────────────────────────────
@@ -89,25 +131,54 @@ function NovoClienteModal({ open, onClose, onCreated }) {
     try {
       let logoUrl = null
       if (form.logoFile) logoUrl = await uploadLogo(form.slug, form.logoFile)
+
+      const features = {
+        ...DEFAULT_FEATURES,
+        atacado: form.features.atacado,
+        crm: form.features.crm,
+      }
+
       const payload = {
         loja_id:        form.slug,
         slug:           form.slug,
         nome:           form.nome,
-        status:         'ativo',
+        status:         form.status,
         plano:          'basico',
+        valor_mensal:   parseFloat(form.valor_mensal) || 0,
         cor_primaria:   form.cor_primaria,
         cor_secundaria: form.cor_secundaria,
-        features:       { ...DEFAULT_FEATURES },
+        features,
         logo_url:       logoUrl,
         email_acesso:   form.email_acesso || null,
         senha_acesso:   form.senha_acesso || null,
         updated_at:     new Date().toISOString(),
       }
+
       const { error: cfgErr } = await supabase.from('lf_config').upsert(payload, { onConflict: 'loja_id' })
       if (cfgErr) throw new Error(cfgErr.message)
+
       if (form.email_acesso && form.senha_acesso) {
         await supabase.functions.invoke('create-user', { body: { email: form.email_acesso, password: form.senha_acesso } })
       }
+
+      // Criar primeira cobrança
+      const venc = new Date()
+      venc.setDate(venc.getDate() + 30)
+      await supabase.from('jt_cobrancas').insert({
+        loja_id:    form.slug,
+        valor:      parseFloat(form.valor_mensal) || 0,
+        vencimento: venc.toISOString().split('T')[0],
+        status:     'pendente',
+      })
+
+      if (form.enviarBV) {
+        console.log('[Boas-vindas] Email seria enviado para:', {
+          nome: form.nome,
+          email: form.email_acesso,
+          link: `${PROD_BASE}/${form.slug}/`,
+        })
+      }
+
       setSuccessLink(`${PROD_BASE}/${form.slug}/`)
       onCreated()
     } catch (err) { setError(err.message) }
@@ -125,7 +196,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 520, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui }}>
+      <div style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 540, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px 0' }}>
           <div>
@@ -137,14 +208,16 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           </button>
         </div>
 
-        <form onSubmit={handleSave} style={{ padding: '24px 28px 28px' }}>
-          {/* Nome */}
+        <form onSubmit={handleSave} style={{ padding: '20px 28px 28px' }}>
+
+          {/* ── Dados básicos ── */}
+          <Section title="Dados da loja" />
+
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Nome da loja</label>
             <input value={form.nome} onChange={e => handleNome(e.target.value)} placeholder="Ex: Maria Store" style={inp} autoFocus />
           </div>
 
-          {/* Slug */}
           <div style={{ marginBottom: 20 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Slug — URL de acesso</label>
             <div style={{ position: 'relative' }}>
@@ -158,11 +231,10 @@ function NovoClienteModal({ open, onClose, onCreated }) {
             )}
           </div>
 
-          {/* Logo upload */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 10 }}>
-              Logo da loja {extracting && <span style={{ fontWeight: 400, color: T.muted, marginLeft: 8 }}>extraindo cores...</span>}
-            </label>
+          {/* ── Logo ── */}
+          <Section title="Logo da loja" />
+
+          <div style={{ marginBottom: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 64, height: 64, borderRadius: 14, flexShrink: 0, border: `2px dashed ${form.logoPreview ? 'transparent' : T.line}`, background: T.mist, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {form.logoPreview ? <img src={form.logoPreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <Building2 size={22} color={T.line} />}
@@ -178,7 +250,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           </div>
 
           {/* Colors */}
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 4, marginTop: 16 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 10 }}>
               Cores {!form.logoFile && <span style={{ fontWeight: 400, color: T.muted }}>(padrão Junttos)</span>}
             </label>
@@ -198,56 +270,116 @@ function NovoClienteModal({ open, onClose, onCreated }) {
             </div>
           </div>
 
-          {/* Credentials */}
-          <div style={{ marginBottom: 24 }}>
+          {/* ── Plano e cobrança ── */}
+          <Section title="Plano e cobrança" />
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 0 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Plano</label>
+              <select
+                value={form.status}
+                onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                style={{ ...inp, cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%237B7390' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center' }}
+              >
+                <option value="Trial">Trial</option>
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Valor mensal (R$)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.valor_mensal}
+                onChange={e => setForm(p => ({ ...p, valor_mensal: e.target.value }))}
+                placeholder="0,00"
+                style={inp}
+              />
+            </div>
+          </div>
+
+          {/* ── Credenciais ── */}
+          <Section title="Acesso do cliente" />
+
+          <div style={{ marginBottom: 14 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Email de acesso</label>
             <input type="email" value={form.email_acesso} onChange={e => setForm(p => ({ ...p, email_acesso: e.target.value }))} placeholder="loja@email.com" style={inp} />
           </div>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 4 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Senha de acesso</label>
             <input type="text" value={form.senha_acesso} onChange={e => setForm(p => ({ ...p, senha_acesso: e.target.value }))} placeholder="Ex: loja@2026" style={inp} />
           </div>
 
+          {/* ── Funcionalidades ── */}
+          <Section title="Funcionalidades" />
+
+          <div style={{ background: T.mist, borderRadius: T.rCard, padding: '4px 14px', marginBottom: 4 }}>
+            <Toggle
+              value={form.features.atacado}
+              onChange={v => setForm(p => ({ ...p, features: { ...p.features, atacado: v } }))}
+              label="Modo atacado"
+              sub="Estoque com variações e tabela de preços"
+            />
+            <div style={{ height: 1, background: T.line }} />
+            <Toggle
+              value={form.features.crm}
+              onChange={v => setForm(p => ({ ...p, features: { ...p.features, crm: v } }))}
+              label="CRM"
+              sub="Histórico de clientes e relacionamento"
+            />
+            <div style={{ height: 1, background: T.line }} />
+            <Toggle
+              value={form.enviarBV}
+              onChange={v => setForm(p => ({ ...p, enviarBV: v }))}
+              label="Enviar email de boas-vindas"
+              sub="Notifica o cliente com o link de acesso"
+            />
+          </div>
+
           {/* Alerts */}
           {error && (
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginTop: 16, marginBottom: 16 }}>
               <AlertCircle size={14} color={T.coralText} style={{ flexShrink: 0, marginTop: 1 }} />
               <p style={{ fontSize: 13, color: T.coralText, lineHeight: 1.5 }}>{error}</p>
             </div>
           )}
 
-          {successLink ? (
-            <div style={{ background: T.statusAtivoBg, border: `1px solid ${T.statusAtivoTx}44`, borderRadius: T.rCard, padding: '16px 18px', marginBottom: 16 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: T.statusAtivoTx, marginBottom: 8 }}>Cliente criada com sucesso!</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <code style={{ flex: 1, fontSize: 12, background: T.white, padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.statusAtivoTx}28`, color: T.ink, wordBreak: 'break-all', fontFamily: T.mono }}>
-                  {successLink}
-                </code>
-                <button type="button" onClick={() => navigator.clipboard.writeText(successLink)} style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.line}`, background: T.white, cursor: 'pointer', flexShrink: 0 }}>
-                  <Copy size={13} color={T.muted} />
+          <div style={{ marginTop: 20 }}>
+            {successLink ? (
+              <div style={{ background: T.statusAtivoBg, border: `1px solid ${T.statusAtivoTx}44`, borderRadius: T.rCard, padding: '16px 18px', marginBottom: 16 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: T.statusAtivoTx, marginBottom: 8 }}>Cliente criada com sucesso!</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <code style={{ flex: 1, fontSize: 12, background: T.white, padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.statusAtivoTx}28`, color: T.ink, wordBreak: 'break-all', fontFamily: T.mono }}>
+                    {successLink}
+                  </code>
+                  <button type="button" onClick={() => navigator.clipboard.writeText(successLink)} style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.line}`, background: T.white, cursor: 'pointer', flexShrink: 0 }}>
+                    <Copy size={13} color={T.muted} />
+                  </button>
+                  <a href={successLink} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 10px', borderRadius: 8, background: T.purple, color: T.white, textDecoration: 'none', flexShrink: 0 }}>
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+                <button type="button" onClick={handleClose} style={{ marginTop: 14, width: '100%', height: 42, borderRadius: T.rInput, border: 'none', background: T.mist, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.ink }}>
+                  Fechar
                 </button>
-                <a href={successLink} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 10px', borderRadius: 8, background: T.purple, color: T.white, textDecoration: 'none', flexShrink: 0 }}>
-                  <ExternalLink size={13} />
-                </a>
               </div>
-              <button type="button" onClick={handleClose} style={{ marginTop: 14, width: '100%', height: 42, borderRadius: T.rInput, border: 'none', background: T.mist, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.ink }}>
-                Fechar
+            ) : (
+              <button type="submit" disabled={saving || extracting} style={{
+                width: '100%', height: 48, borderRadius: T.rCard,
+                background: saving || extracting ? T.mist : T.coral,
+                color: saving || extracting ? T.muted : T.white,
+                border: 'none', cursor: saving || extracting ? 'not-allowed' : 'pointer',
+                fontFamily: T.ui, fontSize: 15, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                boxShadow: saving || extracting ? 'none' : '0 4px 16px rgba(255,111,94,0.32)',
+                transition: 'all .18s',
+              }}>
+                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</> : <><Check size={16} /> Criar Cliente</>}
               </button>
-            </div>
-          ) : (
-            <button type="submit" disabled={saving || extracting} style={{
-              width: '100%', height: 48, borderRadius: T.rCard,
-              background: saving || extracting ? T.mist : T.coral,
-              color: saving || extracting ? T.muted : T.white,
-              border: 'none', cursor: saving || extracting ? 'not-allowed' : 'pointer',
-              fontFamily: T.ui, fontSize: 15, fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              boxShadow: saving || extracting ? 'none' : '0 4px 16px rgba(255,111,94,0.32)',
-              transition: 'all .18s',
-            }}>
-              {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</> : <><Check size={16} /> Criar Cliente</>}
-            </button>
-          )}
+            )}
+          </div>
         </form>
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
