@@ -17,6 +17,7 @@ import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 import CadastroCliente from './pages/admin/CadastroCliente'
+import Cobrancas from './pages/admin/Cobrancas'
 import { supabase } from './lib/supabase'
 
 function ProtectedLayout({ children }) {
@@ -67,6 +68,7 @@ function AdminApp() {
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
             <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
             <Route path="/clientes" element={<ProtectedLayout><CadastroCliente /></ProtectedLayout>} />
+            <Route path="/cobrancas" element={<ProtectedLayout><Cobrancas /></ProtectedLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

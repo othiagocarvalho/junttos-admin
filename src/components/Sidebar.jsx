@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import Logo from './junttos/Logo'
 import {
   LayoutDashboard, Users, UserCheck, DollarSign, MapPin,
-  Settings, LogOut, BarChart2, Network,
+  Settings, LogOut, BarChart2, Network, CreditCard,
   ChevronsRight, ChevronsLeft,
 } from 'lucide-react'
 import { T } from '../theme/tokens'
@@ -12,6 +12,7 @@ import { T } from '../theme/tokens'
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/clientes',    icon: Users,           label: 'Clientes' },
+  { to: '/cobrancas',   icon: CreditCard,      label: 'Cobranças' },
   { to: '/consultants', icon: UserCheck,       label: 'Consultores' },
   { to: '/visits',      icon: MapPin,          label: 'Visitas e Rotas' },
   { to: '/finance',     icon: DollarSign,      label: 'Faturamento' },
