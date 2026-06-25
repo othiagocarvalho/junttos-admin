@@ -33,7 +33,7 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '' }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', quantidade_total: '' }
 
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme }) {
   const [search, setSearch]         = useState('')
@@ -130,10 +130,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
 
   async function handleAddProduto() {
     if (!newProd.nome.trim() || newProdSaving) return
+    const semVariacoes = newProd.variacoes.filter(v => v.nome.trim()).length === 0
+    if (semVariacoes && (parseInt(newProd.quantidade_total) || 0) < 1) return
     setNewProdSaving(true)
-    const variacoes = newProd.variacoes
-      .filter(v => v.nome.trim())
-      .map(v => ({ cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }))
+    const variacoes = semVariacoes
+      ? [{ cor: 'Único', quantidade: parseInt(newProd.quantidade_total) || 0 }]
+      : newProd.variacoes
+          .filter(v => v.nome.trim())
+          .map(v => ({ cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }))
     const err = await addProduto(newProd.nome.trim(), {
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
@@ -519,9 +523,23 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   <Plus size={13} /> Adicionar variação
                 </div>
                 {newProd.variacoes.length === 0 && (
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
-                    Sem variações — salva como produto simples.
-                  </p>
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ ...labelStyle, color: theme.primary }}>Quantidade em Estoque *</label>
+                    <input
+                      type="number" min="1"
+                      value={newProd.quantidade_total}
+                      onChange={e => setNewProd(p => ({ ...p, quantidade_total: e.target.value }))}
+                      placeholder="Ex: 10"
+                      style={{
+                        ...inputStyle,
+                        border: `1.5px solid ${theme.primary}`,
+                        boxShadow: `0 0 0 3px ${theme.primary}22`,
+                      }}
+                    />
+                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                      Produto sem variações — informe a quantidade total.
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -544,11 +562,11 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 onKeyDown={e => e.key === 'Enter' && handleAddProduto()}
                 style={{
                   flex: 2, height: 48, borderRadius: 14,
-                  background: newProd.nome.trim() && !newProdSaving ? theme.primary : 'var(--line)',
-                  cursor: newProd.nome.trim() && !newProdSaving ? 'pointer' : 'not-allowed',
+                  background: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? theme.primary : 'var(--line)',
+                  cursor: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? 'pointer' : 'not-allowed',
                   userSelect: 'none',
                   fontFamily: 'Manrope, sans-serif', fontWeight: 700,
-                  color: newProd.nome.trim() && !newProdSaving ? '#fff' : 'var(--muted)', fontSize: 14,
+                  color: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? '#fff' : 'var(--muted)', fontSize: 14,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                 {newProdSaving ? 'Salvando...' : 'Salvar Produto'}

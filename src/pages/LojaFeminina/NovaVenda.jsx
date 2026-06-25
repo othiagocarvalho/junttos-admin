@@ -269,17 +269,29 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   const label = getVarLabel(v)
                   return label ? { label, qty: Number(v.quantidade || 0) } : null
                 }).filter(Boolean)
-                const hasVars = vars.length > 0
+                const isSimples = vars.length === 1 && vars[0].label === 'Único'
+                const hasVars = vars.length > 0 && !isSimples
                 const selItems = form.produtos.filter(p => p.nome === nome)
                 const selCount = selItems.reduce((sum, p) => sum + (p.quantidade || 1), 0)
                 const isOpen = expandedProd === nome
+
+                function toggleSimples() {
+                  const exists = form.produtos.find(p => p.nome === nome && p.variacao === 'Único')
+                  setForm(f => ({
+                    ...f,
+                    produtos: exists
+                      ? f.produtos.filter(p => !(p.nome === nome && p.variacao === 'Único'))
+                      : [...f.produtos, { nome, variacao: 'Único', obs: '', quantidade: 1 }],
+                  }))
+                }
+
                 return (
                   <div key={nome}>
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome)}
-                      onKeyDown={e => e.key === 'Enter' && (hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome))}
+                      onClick={() => isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome)}
+                      onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome))}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
@@ -317,7 +329,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             color: theme.primary, fontWeight: 700,
                           }}>{selCount}×</span>
                         )}
-                        {hasVars && (
+                        {hasVars && !isSimples && (
                           <ChevronDown size={14} color={isDark ? theme.primary : '#9C8580'}
                             style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
                         )}
