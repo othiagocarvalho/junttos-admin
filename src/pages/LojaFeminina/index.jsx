@@ -23,7 +23,7 @@ const BOTTOM_TABS = [
   { id: 'estoque',    label: 'Estoque',   Icon: Package   },
   { id: 'venda',      label: '',          Icon: Plus,     isFAB: true },
   { id: 'relatorios', label: 'Relatórios',Icon: BarChart2 },
-  { id: 'crm',        label: 'CRM',       Icon: Users,    isCRM: true },
+  { id: 'conta',      label: 'Fechamento',Icon: Wallet    },
 ]
 
 // ── Sub-views ──────────────────────────────────────────────
