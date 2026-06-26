@@ -2,10 +2,11 @@ import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText,
 } from 'lucide-react'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
+import ContasPagar from '../LojaFeminina/ContasPagar'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
@@ -140,6 +141,30 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
             </button>
           )
         })}
+        {config?.features?.atacado && (
+          <button
+            onClick={() => setTab('contas_pagar')}
+            className={tab === 'contas_pagar' ? '' : 'cds-nav-btn'}
+            title={!open ? 'Contas a Pagar' : undefined}
+            style={{
+              display: 'flex', alignItems: 'center',
+              gap: open ? 10 : 0,
+              justifyContent: open ? 'flex-start' : 'center',
+              padding: open ? '10px 12px 10px 10px' : '10px 0',
+              borderRadius: 10, width: '100%',
+              background: tab === 'contas_pagar' ? '#FDEEE8' : 'transparent',
+              border: tab === 'contas_pagar' ? '1px solid #F0C870' : '1px solid transparent',
+              borderLeft: `3px solid ${tab === 'contas_pagar' ? '#B85C38' : 'transparent'}`,
+              cursor: 'pointer', textAlign: 'left',
+              color: tab === 'contas_pagar' ? '#B85C38' : 'var(--ink-soft)',
+              fontSize: 14, fontWeight: tab === 'contas_pagar' ? 600 : 400,
+              fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
+            }}
+          >
+            <FileText size={16} style={{ flexShrink: 0 }} />
+            {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>}
+          </button>
+        )}
       </nav>
 
       {/* Footer */}
@@ -526,7 +551,10 @@ const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{
 
 function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
   const isDark = theme.primary === '#D4A017'
-  const [form,       setForm]       = useState(EMPTY_VENDA)
+  const [form,       setForm]       = useState(() => ({
+    ...EMPTY_VENDA,
+    pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }],
+  }))
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done,       setDone]       = useState(false)
@@ -557,7 +585,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }))
   }
   function addPgto() {
-    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] }))
   }
   function removePgto(idx) {
     setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
@@ -589,12 +617,14 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm(EMPTY_VENDA) }, 2200)
+      setTimeout(() => { setDone(false); setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] }) }, 2200)
     }
   }
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = features?.atacado ? ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto'] : PGTOS
+  const pgtoOpts = features?.atacado
+    ? ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
+    : PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
     && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
@@ -937,8 +967,11 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
     meta:       <Meta             {...data} theme={theme} />,
-    conta:      <Fechamento       {...data} theme={theme} />,
-    config:     <LojaConfig       {...data} theme={theme} />,
+    conta:        <Fechamento       {...data} theme={theme} />,
+    config:       <LojaConfig       {...data} theme={theme} />,
+    contas_pagar: data.features?.atacado
+      ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
+      : null,
   }
 
   return (
