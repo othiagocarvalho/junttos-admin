@@ -13,6 +13,7 @@ import Faturamento from './Faturamento'
 import Relatorios from './Relatorios'
 import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
+import ContasPagar from './ContasPagar'
 import WelcomeOnboarding from './WelcomeOnboarding'
 
 
@@ -410,6 +411,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   }
 
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
+  const features = data.features
 
   const panels = {
     inicio: data.produtosData.length === 0
@@ -432,14 +434,27 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
             }}
           >Configurações da loja</button>
+          {features?.atacado && (
+            <button
+              onClick={() => setTab('contas_pagar')}
+              style={{
+                width: '100%', background: 'var(--surface)', border: '1px solid #F0C870',
+                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#B85C38', fontWeight: 600,
+              }}
+            >Contas a Pagar</button>
+          )}
         </div>
       </div>
     ),
-    faturamento: <Faturamento {...data} theme={theme} />,
-    config:      <LojaConfig {...data} theme={theme} />,
+    faturamento:   <Faturamento {...data} theme={theme} />,
+    config:        <LojaConfig {...data} theme={theme} />,
+    contas_pagar:  features?.atacado
+      ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={lojaId} />
+      : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

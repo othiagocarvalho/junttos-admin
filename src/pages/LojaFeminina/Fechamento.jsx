@@ -4,7 +4,7 @@ import { Wallet, History } from 'lucide-react'
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 
-const EMPTY = { dinheiro: '', pix: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
+const EMPTY = { dinheiro: '', pix: '', pix_santander: '', pix_bb: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
 
 const labelStyle = {
   display: 'block', fontSize: 11, fontWeight: 700,
@@ -40,13 +40,15 @@ function CurrField({ k, label, form, setForm, theme }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, theme }) {
+export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
   const n = k => parseFloat(form[k] || 0) || 0
-  const totalVendas = n('dinheiro') + n('pix') + n('debito') + n('credito')
+  const totalVendas = features?.atacado
+    ? n('dinheiro') + n('pix_santander') + n('pix_bb') + n('debito') + n('credito')
+    : n('dinheiro') + n('pix') + n('debito') + n('credito')
   const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria')
   const liquido = totalVendas - n('despesas')
 
@@ -56,7 +58,9 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const err = await fecharCaixa({
       data: today,
-      dinheiro: n('dinheiro'), pix: n('pix'),
+      dinheiro: n('dinheiro'),
+      pix: features?.atacado ? n('pix_santander') + n('pix_bb') : n('pix'),
+      ...(features?.atacado ? { pix_santander: n('pix_santander'), pix_bb: n('pix_bb') } : {}),
       debito: n('debito'), credito: n('credito'),
       saldo_ini: n('saldo_ini'), sangria: n('sangria'),
       despesas: n('despesas'), obs: form.obs || null,
@@ -81,7 +85,14 @@ export default function Fechamento({ caixas, fecharCaixa, theme }) {
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} theme={theme} />
-          <CurrField k="pix" label="Pix" form={form} setForm={setForm} theme={theme} />
+          {features?.atacado ? (
+            <>
+              <CurrField k="pix_santander" label="PIX Santander" form={form} setForm={setForm} theme={theme} />
+              <CurrField k="pix_bb" label="PIX Banco do Brasil" form={form} setForm={setForm} theme={theme} />
+            </>
+          ) : (
+            <CurrField k="pix" label="Pix" form={form} setForm={setForm} theme={theme} />
+          )}
           <CurrField k="debito" label="Débito" form={form} setForm={setForm} theme={theme} />
           <CurrField k="credito" label="Crédito" form={form} setForm={setForm} theme={theme} />
         </div>
