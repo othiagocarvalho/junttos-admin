@@ -5,6 +5,7 @@ const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
+const PGTOS_ATACADO = ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
 const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
@@ -39,7 +40,10 @@ function focusOut(e) {
 export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState(EMPTY)
+  const [form, setForm] = useState(() => ({
+    ...EMPTY,
+    pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }],
+  }))
   const [newProd, setNewProd] = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done, setDone] = useState(false)
@@ -121,13 +125,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm(EMPTY); setStep(0) }, 2200)
+      setTimeout(() => { setDone(false); setForm({ ...EMPTY, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] }); setStep(0) }, 2200)
     }
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = features?.atacado ? ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto'] : PGTOS
+  const pgtoOpts = features?.atacado ? PGTOS_ATACADO : PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
     && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 

@@ -33,7 +33,7 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', quantidade_total: '' }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme }) {
   const [search, setSearch]         = useState('')
@@ -144,6 +144,11 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       variacoes,
       referencia: features?.atacado ? (newProd.referencia || null) : null,
       fornecedor: features?.atacado ? (newProd.fornecedor || null) : null,
+      ...(features?.atacado ? {
+        valor_lote:      parseFloat(newProd.valor_lote) || null,
+        data_vencimento: newProd.data_vencimento || null,
+        status_pgto:     newProd.status_pgto || 'a_pagar',
+      } : {}),
     })
     setNewProdSaving(false)
     if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
@@ -445,6 +450,68 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                       placeholder="Nome do fornecedor"
                       style={inputStyle}
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Pagamento ao fornecedor — apenas Du Charme (atacado) */}
+              {features?.atacado && (
+                <div>
+                  <div style={{ borderTop: '1px dashed var(--line)', margin: '4px 0 12px' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                      Pagamento ao fornecedor
+                    </span>
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: '#FDEEE8', color: '#B85C38', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
+                      novo
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ ...labelStyle, color: theme.primary }}>Valor total do lote</label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={newProd.valor_lote}
+                          onChange={e => setNewProd(p => ({ ...p, valor_lote: e.target.value }))}
+                          placeholder="0,00"
+                          style={{ ...inputStyle, paddingLeft: 36 }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, color: theme.primary }}>Vencimento</label>
+                      <input
+                        type="date"
+                        value={newProd.data_vencimento}
+                        onChange={e => setNewProd(p => ({ ...p, data_vencimento: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  <label style={{ ...labelStyle, color: theme.primary, marginBottom: 8 }}>Status do pagamento</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[
+                      { val: 'pago',    label: 'Pago',     bg: '#E6F6EE', border: '#9ED8B8', color: '#1F8A5B' },
+                      { val: 'a_pagar', label: 'A pagar',  bg: '#FFF4E0', border: '#F0C870', color: '#B7791F' },
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setNewProd(p => ({ ...p, status_pgto: opt.val }))}
+                        style={{
+                          flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
+                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
+                          background: newProd.status_pgto === opt.val ? opt.bg : 'var(--bg)',
+                          border: newProd.status_pgto === opt.val ? `2px solid ${opt.border}` : '1px solid var(--line)',
+                          color: newProd.status_pgto === opt.val ? opt.color : 'var(--muted)',
+                          transition: 'all .15s',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
