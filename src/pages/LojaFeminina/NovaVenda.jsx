@@ -322,13 +322,42 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         }}>{nome}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {selCount > 0 && (
+                        {isSimples && selCount > 0 ? (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            borderRadius: 8, overflow: 'hidden', userSelect: 'none',
+                            border: `1.5px solid ${theme.primary}`,
+                            background: theme.primary,
+                          }}>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (selCount <= 1) {
+                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === 'Único')) }))
+                                } else {
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                }
+                              }}
+                              style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                            >−</button>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (selCount < vars[0].qty) {
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                }
+                              }}
+                              style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: selCount >= vars[0].qty ? 'not-allowed' : 'pointer', color: selCount >= vars[0].qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                            >+</button>
+                          </div>
+                        ) : selCount > 0 ? (
                           <span style={{
                             fontSize: 11, padding: '2px 7px', borderRadius: 99,
                             background: isDark ? `${theme.primary}30` : `${theme.primary}20`,
                             color: theme.primary, fontWeight: 700,
                           }}>{selCount}×</span>
-                        )}
+                        ) : null}
                         {hasVars && !isSimples && (
                           <ChevronDown size={14} color={isDark ? theme.primary : '#9C8580'}
                             style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
@@ -413,7 +442,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                       </div>
                     )}
 
-                    {!hasVars && selCount > 0 && (
+                    {!hasVars && !isSimples && selCount > 0 && (
                       <div style={{
                         padding: '0 14px 12px',
                         borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
@@ -566,7 +595,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {form.produtos.map((p, idx) => (
                     <span key={idx} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
-                      {p.nome}{p.obs ? ` — ${p.obs}` : ''}{p.quantidade > 1 ? ` ×${p.quantidade}` : ''}
+                      {p.nome}{p.obs && p.obs !== 'Único' && p.variacao !== 'Único' ? ` — ${p.obs}` : ''}{p.quantidade > 1 ? ` ×${p.quantidade}` : ''}
                     </span>
                   ))}
                 </div>
