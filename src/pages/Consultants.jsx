@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseAdmin } from '../lib/supabase'
 import { Plus, Trash2, Edit2, MapPin, TrendingUp, Award } from 'lucide-react'
 import EmptyState from '../components/junttos/EmptyState'
 import Modal from '../components/Modal'
@@ -39,10 +39,10 @@ export default function Consultants() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (editing) {
-      const { error } = await supabase.from('jt_consultants').update(form).eq('id', editing.id)
+      const { error } = await supabaseAdmin.from('jt_consultants').update(form).eq('id', editing.id)
       if (error) { console.error('Erro ao editar consultor:', error); return }
     } else {
-      const { error } = await supabase.from('jt_consultants').insert(form)
+      const { error } = await supabaseAdmin.from('jt_consultants').insert(form)
       if (error) { console.error('Erro ao cadastrar consultor:', error); return }
     }
     setModalOpen(false)
@@ -50,7 +50,7 @@ export default function Consultants() {
   }
 
   async function handleDelete(id) {
-    await supabase.from('jt_consultants').delete().eq('id', id)
+    await supabaseAdmin.from('jt_consultants').delete().eq('id', id)
     setConsultants(prev => prev.filter(c => c.id !== id))
     setConfirmDel(null)
   }
