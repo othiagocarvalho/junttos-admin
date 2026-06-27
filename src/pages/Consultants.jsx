@@ -39,13 +39,14 @@ export default function Consultants() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (editing) {
-      const { data } = await supabase.from('jt_consultants').update(form).eq('id', editing.id).select().single()
-      setConsultants(prev => prev.map(c => c.id === editing.id ? data : c))
+      const { error } = await supabase.from('jt_consultants').update(form).eq('id', editing.id)
+      if (error) { console.error('Erro ao editar consultor:', error); return }
     } else {
-      const { data } = await supabase.from('jt_consultants').insert(form).select().single()
-      setConsultants(prev => [...prev, data])
+      const { error } = await supabase.from('jt_consultants').insert(form)
+      if (error) { console.error('Erro ao cadastrar consultor:', error); return }
     }
     setModalOpen(false)
+    fetchAll()
   }
 
   async function handleDelete(id) {
