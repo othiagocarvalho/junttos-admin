@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, supabaseAdmin } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal'
 import { Plus, MapPin, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import StatCard from '../components/junttos/StatCard'
@@ -70,7 +70,7 @@ export default function Visits() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const { error } = await supabaseAdmin.from('jt_visits').insert(form)
+    const { error } = await supabase.from('jt_visits').insert(form)
     if (error) { console.error('Erro ao registrar visita:', error); return }
     setModalOpen(false)
     fetchAll()
