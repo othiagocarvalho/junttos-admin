@@ -2,8 +2,10 @@ import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target,
 } from 'lucide-react'
+import { temAcesso, PLANOS } from '../../utils/planos'
+import UpgradeWall from '../../components/UpgradeWall'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import ContasPagar from '../LojaFeminina/ContasPagar'
@@ -66,8 +68,20 @@ const onB = (e) => {
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
+const PLANO_NAV_ITEMS = [
+  { id: 'clientes',  label: 'Clientes',        Icon: Users,    planoMinimo: 'starter'  },
+  { id: 'meta',      label: 'Metas',            Icon: Target,   planoMinimo: 'pro'      },
+  { id: 'catalogo',  label: 'Catálogo online',  Icon: ShoppingBag, planoMinimo: 'business' },
+  { id: 'financeiro',label: 'Financeiro',       Icon: CreditCard,  planoMinimo: 'business' },
+]
+
+const PLANO_BADGE_DESKTOP = {
+  pro:      { bg: '#dbeafe', color: '#1d4ed8', label: 'Pro' },
+  business: { bg: '#ede9fe', color: '#6d28d9', label: 'Business' },
+}
+
 // ── Sidebar (mini 56px → hover 196px) ────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile }) {
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, onSwitchToMobile }) {
   const [open, setOpen] = useState(false)
   const primary = config?.cor_primaria || theme.primary
 
@@ -165,6 +179,46 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, onSwitchToMobile 
             {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>}
           </button>
         )}
+        <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
+        {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
+          const hasAccess = temAcesso(plano, planoMinimo)
+          const active = tab === id
+          const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
+          return (
+            <button key={id}
+              onClick={() => setTab(id)}
+              className={active ? '' : 'cds-nav-btn'}
+              title={!open ? label : undefined}
+              style={{
+                display: 'flex', alignItems: 'center',
+                gap: open ? 10 : 0,
+                justifyContent: open ? 'flex-start' : 'center',
+                padding: open ? '10px 12px 10px 10px' : '10px 0',
+                borderRadius: 10, width: '100%',
+                background: active ? 'var(--surface)' : 'transparent',
+                border: active ? '1px solid var(--line)' : '1px solid transparent',
+                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
+                cursor: 'pointer', textAlign: 'left',
+                color: active ? 'var(--ink)' : 'var(--ink-soft)',
+                fontSize: 14, fontWeight: active ? 600 : 400,
+                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
+                opacity: hasAccess ? 1 : 0.5,
+              }}>
+              {hasAccess
+                ? <Icon size={16} style={{ flexShrink: 0 }} />
+                : <Lock size={16} style={{ flexShrink: 0 }} />
+              }
+              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
+              {open && badge && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99,
+                  background: badge.bg, color: badge.color, flexShrink: 0,
+                  letterSpacing: '0.08em',
+                }}>{badge.label}</span>
+              )}
+            </button>
+          )
+        })}
       </nav>
 
       {/* Footer */}
@@ -958,6 +1012,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
 
   // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
+  const plano = data.config?.plano || 'starter'
 
   const panels = {
     inicio: data.produtosData.length === 0
@@ -966,7 +1021,18 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
-    meta:       <Meta             {...data} theme={theme} />,
+    meta: temAcesso(plano, 'pro')
+      ? <Meta {...data} theme={theme} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+    clientes: temAcesso(plano, 'starter')
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>TELA DE CLIENTES — em breve</div>
+      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
+    catalogo: temAcesso(plano, 'business')
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>CATÁLOGO ONLINE — em breve</div>
+      : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
+    financeiro: temAcesso(plano, 'business')
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>
+      : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:        <Fechamento       {...data} theme={theme} />,
     config:       <LojaConfig       {...data} theme={theme} />,
     contas_pagar: data.features?.atacado
@@ -976,7 +1042,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
 
   return (
     <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
-      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} onSwitchToMobile={onSwitchToMobile} />
+      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} onSwitchToMobile={onSwitchToMobile} />
       <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
