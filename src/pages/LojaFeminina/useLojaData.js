@@ -18,24 +18,27 @@ export function useLojaData(lojaId = 'estrada') {
   const [produtos, setProdutos]         = useState([])
   const [produtosData, setProdutosData] = useState([])
   const [config, setConfig] = useState(null)
+  const [clientes, setClientes] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [vendasRes, caixasRes, metasRes, produtosRes, configRes] = await Promise.all([
+      const [vendasRes, caixasRes, metasRes, produtosRes, configRes, clientesRes] = await Promise.all([
         supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_caixas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
         supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
         supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
+        supabase.from('lf_clientes').select('*').eq('loja_id', lojaId).order('nome'),
       ])
 
       if (vendasRes.error) throw vendasRes.error
       if (caixasRes.error) throw caixasRes.error
       if (metasRes.error) throw metasRes.error
       if (produtosRes.error) throw produtosRes.error
+      if (clientesRes.error) throw clientesRes.error
 
       setVendas(vendasRes.data || [])
       setCaixas(caixasRes.data || [])
@@ -48,6 +51,7 @@ export function useLojaData(lojaId = 'estrada') {
       setProdutos(prods.map(p => p.nome))
       setProdutosData(prods)
       setConfig(configRes.data || null)
+      setClientes(clientesRes.data || [])
       setDbError(null)
     } catch (e) {
       setDbError(e.message)
@@ -247,6 +251,34 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  async function addCliente(dados) {
+    const novo = {
+      loja_id: lojaId,
+      nome: dados.nome?.trim(),
+      telefone: dados.telefone?.trim() || null,
+      email: dados.email?.trim() || null,
+      data_nascimento: dados.data_nascimento || null,
+      observacoes: dados.observacoes?.trim() || null,
+    }
+    const { data, error } = await supabase.from('lf_clientes').insert(novo).select().single()
+    if (error) throw error
+    setClientes(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+    return data
+  }
+
+  async function updateCliente(id, dados) {
+    const { data, error } = await supabase.from('lf_clientes').update(dados).eq('id', id).eq('loja_id', lojaId).select().single()
+    if (error) throw error
+    setClientes(prev => prev.map(c => c.id === id ? data : c))
+    return data
+  }
+
+  async function deleteCliente(id) {
+    const { error } = await supabase.from('lf_clientes').delete().eq('id', id).eq('loja_id', lojaId)
+    if (error) throw error
+    setClientes(prev => prev.filter(c => c.id !== id))
+  }
+
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   return {
@@ -274,5 +306,9 @@ export function useLojaData(lojaId = 'estrada') {
     updateVariacoes,
     importarProdutos,
     saveConfig,
+    clientes,
+    addCliente,
+    updateCliente,
+    deleteCliente,
   }
 }

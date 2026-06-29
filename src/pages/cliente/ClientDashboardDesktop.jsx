@@ -14,6 +14,7 @@ import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
 import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
+import Clientes from '../LojaFeminina/Clientes'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -1027,7 +1028,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>TELA DE CLIENTES — em breve</div>
+      ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>CATÁLOGO ONLINE — em breve</div>
