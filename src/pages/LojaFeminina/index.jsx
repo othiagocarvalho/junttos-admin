@@ -502,38 +502,42 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <span>Metas</span>
             {!(legado || temAcesso(plano, 'pro')) && <Lock size={13} color="#9ca3af" />}
           </button>
-          {/* Catálogo — Business */}
-          <button
-            onClick={() => setTab('catalogo')}
-            style={{
-              width: '100%', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: (legado || temAcesso(plano, 'business')) ? 'var(--surface)' : '#f3f4f6',
-              color: (legado || temAcesso(plano, 'business')) ? 'var(--ink)' : '#9ca3af',
-              opacity: (legado || temAcesso(plano, 'business')) ? 1 : 0.6,
-            }}
-          >
-            <span>Catálogo online</span>
-            {!(legado || temAcesso(plano, 'business')) && <Lock size={13} color="#9ca3af" />}
-          </button>
-          {/* Financeiro — Business */}
-          <button
-            onClick={() => setTab('financeiro')}
-            style={{
-              width: '100%', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: (legado || temAcesso(plano, 'business')) ? 'var(--surface)' : '#f3f4f6',
-              color: (legado || temAcesso(plano, 'business')) ? 'var(--ink)' : '#9ca3af',
-              opacity: (legado || temAcesso(plano, 'business')) ? 1 : 0.6,
-            }}
-          >
-            <span>Financeiro</span>
-            {!(legado || temAcesso(plano, 'business')) && <Lock size={13} color="#9ca3af" />}
-          </button>
+          {/* Catálogo — Business (oculto para legados) */}
+          {!legado && (
+            <button
+              onClick={() => setTab('catalogo')}
+              style={{
+                width: '100%', border: '1px solid var(--line)',
+                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
+                color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
+                opacity: temAcesso(plano, 'business') ? 1 : 0.6,
+              }}
+            >
+              <span>Catálogo online</span>
+              {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
+            </button>
+          )}
+          {/* Financeiro — Business (oculto para legados) */}
+          {!legado && (
+            <button
+              onClick={() => setTab('financeiro')}
+              style={{
+                width: '100%', border: '1px solid var(--line)',
+                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
+                color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
+                opacity: temAcesso(plano, 'business') ? 1 : 0.6,
+              }}
+            >
+              <span>Financeiro</span>
+              {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
+            </button>
+          )}
         </div>
       </div>
     ),

@@ -181,6 +181,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
         )}
         <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
+          if (legado && ['catalogo', 'financeiro'].includes(id)) return null
           const hasAccess = legado || temAcesso(plano, planoMinimo)
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
