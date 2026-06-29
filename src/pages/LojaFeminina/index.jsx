@@ -4,7 +4,7 @@ import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, Ba
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
-import { temAcesso, PLANOS } from '../../utils/planos'
+import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import NovaVenda from './NovaVenda'
@@ -218,7 +218,7 @@ const PLANO_BADGE = {
   business: { bg: 'rgba(109,40,217,0.5)',   color: '#fff' },
 }
 
-function AppHeader({ primary, accent, logoUrl, storeName, plano, onSwitchToDesktop }) {
+function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitchToDesktop }) {
   const [imgErr, setImgErr] = useState(false)
   const isDarkTheme = primary === '#D4A017'
 
@@ -255,11 +255,13 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, onSwitchToDeskt
             style={{ height: 32, width: 'auto', maxWidth: 90, objectFit: 'contain', display: 'block', flexShrink: 0 }}
             onError={() => setImgErr(true)} />
         )}
-        <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-          fontFamily: 'Manrope, sans-serif', padding: '2px 8px', borderRadius: 99,
-          background: badgeStyle.bg, color: badgeStyle.color, flexShrink: 0,
-        }}>{planoLabel}</span>
+        {!legado && (
+          <span style={{
+            fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            fontFamily: 'Manrope, sans-serif', padding: '2px 8px', borderRadius: 99,
+            background: badgeStyle.bg, color: badgeStyle.color, flexShrink: 0,
+          }}>{planoLabel}</span>
+        )}
       </div>
       <button onClick={onSwitchToDesktop} title="Versão Computador" style={{
         position: 'absolute', right: 16, bottom: 14,
@@ -428,6 +430,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
   const features = data.features
   const plano = data.config?.plano || 'starter'
+  const legado = isLegado(data.features)
 
   const panels = {
     inicio: data.produtosData.length === 0
@@ -436,16 +439,16 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <Relatorios {...data} theme={theme} />,
-    meta: temAcesso(plano, 'pro')
+    meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
-    clientes: temAcesso(plano, 'starter')
+    clientes: (legado || temAcesso(plano, 'starter'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>TELA DE CLIENTES — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
-    catalogo: temAcesso(plano, 'business')
+    catalogo: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>CATÁLOGO ONLINE — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
-    financeiro: temAcesso(plano, 'business')
+    financeiro: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:      (
@@ -491,13 +494,13 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: temAcesso(plano, 'pro') ? 'var(--surface)' : '#f3f4f6',
-              color: temAcesso(plano, 'pro') ? 'var(--ink)' : '#9ca3af',
-              opacity: temAcesso(plano, 'pro') ? 1 : 0.6,
+              background: (legado || temAcesso(plano, 'pro')) ? 'var(--surface)' : '#f3f4f6',
+              color: (legado || temAcesso(plano, 'pro')) ? 'var(--ink)' : '#9ca3af',
+              opacity: (legado || temAcesso(plano, 'pro')) ? 1 : 0.6,
             }}
           >
             <span>Metas</span>
-            {!temAcesso(plano, 'pro') && <Lock size={13} color="#9ca3af" />}
+            {!(legado || temAcesso(plano, 'pro')) && <Lock size={13} color="#9ca3af" />}
           </button>
           {/* Catálogo — Business */}
           <button
@@ -507,13 +510,13 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
-              color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
-              opacity: temAcesso(plano, 'business') ? 1 : 0.6,
+              background: (legado || temAcesso(plano, 'business')) ? 'var(--surface)' : '#f3f4f6',
+              color: (legado || temAcesso(plano, 'business')) ? 'var(--ink)' : '#9ca3af',
+              opacity: (legado || temAcesso(plano, 'business')) ? 1 : 0.6,
             }}
           >
             <span>Catálogo online</span>
-            {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
+            {!(legado || temAcesso(plano, 'business')) && <Lock size={13} color="#9ca3af" />}
           </button>
           {/* Financeiro — Business */}
           <button
@@ -523,13 +526,13 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
               fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
-              color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
-              opacity: temAcesso(plano, 'business') ? 1 : 0.6,
+              background: (legado || temAcesso(plano, 'business')) ? 'var(--surface)' : '#f3f4f6',
+              color: (legado || temAcesso(plano, 'business')) ? 'var(--ink)' : '#9ca3af',
+              opacity: (legado || temAcesso(plano, 'business')) ? 1 : 0.6,
             }}
           >
             <span>Financeiro</span>
-            {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
+            {!(legado || temAcesso(plano, 'business')) && <Lock size={13} color="#9ca3af" />}
           </button>
         </div>
       </div>
@@ -545,7 +548,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
-      <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} onSwitchToDesktop={() => setViewMode('desktop')} />
+      <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} legado={legado} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px', overflowX: 'hidden', boxSizing: 'border-box' }}>
         {panels[tab]}
       </main>
