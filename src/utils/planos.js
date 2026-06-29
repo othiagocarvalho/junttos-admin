@@ -10,6 +10,11 @@ export function temAcesso(planoAtual, planoMinimo) {
   return nivelAtual >= nivelMinimo
 }
 
+// Cliente legado — ignora controle de planos, acessa tudo
+export function isLegado(features) {
+  return features?.legado === true
+}
+
 // Mapa de cada funcionalidade e o plano mínimo para acessá-la
 export const ACESSO = {
   venda:        'starter',

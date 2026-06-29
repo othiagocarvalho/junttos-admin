@@ -4,7 +4,7 @@ import {
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target,
 } from 'lucide-react'
-import { temAcesso, PLANOS } from '../../utils/planos'
+import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
@@ -81,7 +81,7 @@ const PLANO_BADGE_DESKTOP = {
 }
 
 // ── Sidebar (mini 56px → hover 196px) ────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, onSwitchToMobile }) {
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile }) {
   const [open, setOpen] = useState(false)
   const primary = config?.cor_primaria || theme.primary
 
@@ -181,7 +181,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, onSwitchTo
         )}
         <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
-          const hasAccess = temAcesso(plano, planoMinimo)
+          const hasAccess = legado || temAcesso(plano, planoMinimo)
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
           return (
@@ -1013,6 +1013,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   // logo_url from DB, fallback to static public file /logos/{lojaId}.svg
   const effectiveLogo = data.config?.logo_url || (data.LOJA_ID ? `/logos/${data.LOJA_ID}.svg` : null)
   const plano = data.config?.plano || 'starter'
+  const legado = isLegado(data.config?.features || data.features)
 
   const panels = {
     inicio: data.produtosData.length === 0
@@ -1021,16 +1022,16 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} />,
-    meta: temAcesso(plano, 'pro')
+    meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
-    clientes: temAcesso(plano, 'starter')
+    clientes: (legado || temAcesso(plano, 'starter'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>TELA DE CLIENTES — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
-    catalogo: temAcesso(plano, 'business')
+    catalogo: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>CATÁLOGO ONLINE — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
-    financeiro: temAcesso(plano, 'business')
+    financeiro: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:        <Fechamento       {...data} theme={theme} />,
@@ -1042,7 +1043,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
 
   return (
     <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
-      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} onSwitchToMobile={onSwitchToMobile} />
+      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} />
       <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {panels[tab]}
