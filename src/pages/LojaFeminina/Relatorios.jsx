@@ -366,6 +366,16 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
     width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 12,
     padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
     color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
+    colorScheme: theme?.isDark ? 'dark' : 'light',
+  }
+
+  function openPicker(e) {
+    const input = e.currentTarget.querySelector('input')
+    if (input?.showPicker) {
+      input.showPicker()
+    } else {
+      input?.focus()
+    }
   }
 
   return (
@@ -387,11 +397,15 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>De</label>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
+          <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
+          </div>
         </div>
         <div style={{ flex: 1 }}>
           <label style={labelStyle}>Até</label>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
+          <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
+          </div>
         </div>
       </div>
 
