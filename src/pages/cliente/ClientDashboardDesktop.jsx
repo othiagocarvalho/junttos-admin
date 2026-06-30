@@ -184,7 +184,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
         )}
         <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
-          if (legado && ['catalogo', 'financeiro'].includes(id)) return null
+          if (legado && ['catalogo', 'financeiro', 'crediario'].includes(id)) return null
           const hasAccess = legado || temAcesso(plano, planoMinimo)
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
@@ -1026,10 +1026,12 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} />,
-    relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={legado || temAcesso(plano, 'pro')} />,
-    crediario: (legado || temAcesso(plano, 'pro'))
-      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
+    relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
+    crediario: legado
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Funcionalidade não disponível neste plano</div>
+      : (temAcesso(plano, 'pro')
+          ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
+          : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
     meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,

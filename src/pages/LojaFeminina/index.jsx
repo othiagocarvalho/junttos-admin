@@ -440,10 +440,12 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
-    relatorios: <Relatorios {...data} theme={theme} temAcessoPro={legado || temAcesso(plano, 'pro')} />,
-    crediario: (legado || temAcesso(plano, 'pro'))
-      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
+    relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
+    crediario: legado
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Funcionalidade não disponível neste plano</div>
+      : (temAcesso(plano, 'pro')
+          ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
+          : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
     meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -507,26 +509,28 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <span>Metas</span>
             {!(legado || temAcesso(plano, 'pro')) && <Lock size={13} color="#9ca3af" />}
           </button>
-          {/* Crediário — Pro+ */}
-          <button
-            onClick={() => setTab('crediario')}
-            style={{
-              width: '100%', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: (legado || temAcesso(plano, 'pro')) ? 'var(--surface)' : '#f3f4f6',
-              color: (legado || temAcesso(plano, 'pro')) ? 'var(--ink)' : '#9ca3af',
-              opacity: (legado || temAcesso(plano, 'pro')) ? 1 : 0.6,
-            }}
-          >
-            <span>Crediário</span>
-            {!(legado || temAcesso(plano, 'pro')) && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}>
-                <Lock size={12} color="#9ca3af" /> Pro
-              </span>
-            )}
-          </button>
+          {/* Crediário — Pro+ (oculto para legados) */}
+          {!legado && (
+            <button
+              onClick={() => setTab('crediario')}
+              style={{
+                width: '100%', border: '1px solid var(--line)',
+                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: temAcesso(plano, 'pro') ? 'var(--surface)' : '#f3f4f6',
+                color: temAcesso(plano, 'pro') ? 'var(--ink)' : '#9ca3af',
+                opacity: temAcesso(plano, 'pro') ? 1 : 0.6,
+              }}
+            >
+              <span>Crediário</span>
+              {!temAcesso(plano, 'pro') && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}>
+                  <Lock size={12} color="#9ca3af" /> Pro
+                </span>
+              )}
+            </button>
+          )}
           {/* Catálogo — Business (oculto para legados) */}
           {!legado && (
             <button
