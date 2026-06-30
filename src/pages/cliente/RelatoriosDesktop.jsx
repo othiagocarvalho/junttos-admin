@@ -318,6 +318,15 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
   const pgtoTotal = Object.values(pgtoMap).reduce((s, v) => s + v, 0)
   const pgtoEntries = Object.entries(pgtoMap).sort((a, b) => b[1] - a[1])
 
+  function openPicker(e) {
+    const input = e.currentTarget.querySelector('input')
+    if (input?.showPicker) {
+      input.showPicker()
+    } else {
+      input?.focus()
+    }
+  }
+
   if (showDetalhadas) {
     return (
       <VendasDetalhadas
@@ -347,21 +356,25 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, fontFamily: 'Manrope, sans-serif' }}>De</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-              style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
-            />
+            <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
+              />
+            </div>
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, fontFamily: 'Manrope, sans-serif' }}>Até</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-              style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
-            />
+            <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
+              />
+            </div>
           </div>
           {(dateFrom || dateTo) && (
             <button
