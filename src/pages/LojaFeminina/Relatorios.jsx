@@ -279,7 +279,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, features }) {
+export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, features, config, temAcessoPro }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -306,6 +306,43 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       pgtoMap[p.forma] = (pgtoMap[p.forma] || 0) + Number(p.valor)
     })
   })
+
+  const curvABC = useMemo(() => {
+    if (!temAcessoPro || filtered.length === 0) return []
+    const mapa = {}
+    filtered.forEach(v => {
+      const nProd = (v.produtos || []).length
+      const valorPorProd = nProd > 0 ? Number(v.valor) / nProd : 0
+      ;(v.produtos || []).forEach(p => {
+        if (!mapa[p.nome]) mapa[p.nome] = { nome: p.nome, qtd: 0, valor: 0 }
+        mapa[p.nome].qtd += 1
+        mapa[p.nome].valor += valorPorProd
+      })
+    })
+    const lista = Object.values(mapa).sort((a, b) => b.valor - a.valor)
+    const totalV = lista.reduce((s, p) => s + p.valor, 0)
+    let acum = 0
+    return lista.map(p => {
+      acum += p.valor
+      const pctAcum = totalV > 0 ? (acum / totalV) * 100 : 0
+      const classe = pctAcum <= 80 ? 'A' : pctAcum <= 95 ? 'B' : 'C'
+      return { ...p, classe }
+    })
+  }, [filtered, temAcessoPro])
+
+  const comissaoVendedoras = useMemo(() => {
+    if (!temAcessoPro || filtered.length === 0) return []
+    const mapa = {}
+    filtered.forEach(v => {
+      const nome = v.vendedora || 'Sem vendedora'
+      if (!mapa[nome]) mapa[nome] = { nome, total: 0 }
+      mapa[nome].total += Number(v.valor)
+    })
+    const pct = Number(config?.comissao_percentual || 0)
+    return Object.values(mapa)
+      .sort((a, b) => b.total - a.total)
+      .map(v => ({ ...v, comissao: v.total * (pct / 100), pct }))
+  }, [filtered, config, temAcessoPro])
 
   if (showDetalhadas) {
     return (
@@ -453,6 +490,59 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Curva ABC de produtos — Pro+ */}
+      {temAcessoPro && curvABC.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+            Curva ABC de produtos
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0 12px', padding: '0 4px 8px', borderBottom: '1px solid var(--line)', marginBottom: 6 }}>
+              {['Produto', 'Qtd', 'Total', 'Classe'].map(h => (
+                <span key={h} style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</span>
+              ))}
+            </div>
+            {curvABC.map(p => {
+              const badgeBg = p.classe === 'A' ? 'rgba(22,163,74,0.12)' : p.classe === 'B' ? 'rgba(202,138,4,0.12)' : 'rgba(107,114,128,0.12)'
+              const badgeColor = p.classe === 'A' ? '#16a34a' : p.classe === 'B' ? '#ca8a04' : '#6b7280'
+              return (
+                <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0 12px', padding: '8px 4px', borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{p.qtd}×</span>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 13, fontWeight: 700, color: theme.primary, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtR(p.valor)}</span>
+                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, background: badgeBg, color: badgeColor, fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>{p.classe}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Comissão por vendedora — Pro+ */}
+      {temAcessoPro && comissaoVendedoras.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+            Comissão por vendedora
+          </p>
+          {comissaoVendedoras[0]?.pct === 0 && (
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#ca8a04', background: 'rgba(202,138,4,0.08)', border: '1px solid rgba(202,138,4,0.2)', borderRadius: 10, padding: '8px 12px', marginBottom: 12 }}>
+              Configure o percentual de comissão em Configurações
+            </p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {comissaoVendedoras.map(v => (
+              <div key={v.nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.nome}</p>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtR(v.total)} vendido · {v.pct}% comissão</p>
+                </div>
+                <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: theme.primary, flexShrink: 0 }}>{fmtR(v.comissao)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

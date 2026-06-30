@@ -18,6 +18,7 @@ import EstoqueMobile from './EstoqueMobile'
 import ContasPagar from './ContasPagar'
 import WelcomeOnboarding from './WelcomeOnboarding'
 import Clientes from './Clientes'
+import Crediario from './Crediario'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -439,7 +440,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
-    relatorios: <Relatorios {...data} theme={theme} />,
+    relatorios: <Relatorios {...data} theme={theme} temAcessoPro={legado || temAcesso(plano, 'pro')} />,
+    crediario: (legado || temAcesso(plano, 'pro'))
+      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
     meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -503,6 +507,26 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <span>Metas</span>
             {!(legado || temAcesso(plano, 'pro')) && <Lock size={13} color="#9ca3af" />}
           </button>
+          {/* Crediário — Pro+ */}
+          <button
+            onClick={() => setTab('crediario')}
+            style={{
+              width: '100%', border: '1px solid var(--line)',
+              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: (legado || temAcesso(plano, 'pro')) ? 'var(--surface)' : '#f3f4f6',
+              color: (legado || temAcesso(plano, 'pro')) ? 'var(--ink)' : '#9ca3af',
+              opacity: (legado || temAcesso(plano, 'pro')) ? 1 : 0.6,
+            }}
+          >
+            <span>Crediário</span>
+            {!(legado || temAcesso(plano, 'pro')) && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}>
+                <Lock size={12} color="#9ca3af" /> Pro
+              </span>
+            )}
+          </button>
           {/* Catálogo — Business (oculto para legados) */}
           {!legado && (
             <button
@@ -549,7 +573,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'catalogo', 'financeiro'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'catalogo', 'financeiro', 'crediario'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
