@@ -19,6 +19,7 @@ export function useLojaData(lojaId = 'estrada') {
   const [produtosData, setProdutosData] = useState([])
   const [config, setConfig] = useState(null)
   const [clientes, setClientes] = useState([])
+  const [crediario, setCrediario] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
@@ -52,6 +53,12 @@ export function useLojaData(lojaId = 'estrada') {
       setProdutosData(prods)
       setConfig(configRes.data || null)
       setClientes(clientesRes.data || [])
+      try {
+        const { data: crediarioData } = await supabase.from('lf_crediario').select('*').eq('loja_id', lojaId).order('data_compra', { ascending: false })
+        setCrediario(crediarioData || [])
+      } catch (_e) {
+        setCrediario([])
+      }
       setDbError(null)
     } catch (e) {
       setDbError(e.message)
@@ -279,6 +286,43 @@ export function useLojaData(lojaId = 'estrada') {
     setClientes(prev => prev.filter(c => c.id !== id))
   }
 
+  async function addCrediario(dados) {
+    const valorParcela = Number(dados.valor_total) / Number(dados.parcelas)
+    const novo = {
+      loja_id: lojaId,
+      cliente_nome: dados.cliente_nome?.trim(),
+      cliente_telefone: dados.cliente_telefone?.trim() || null,
+      valor_total: Number(dados.valor_total),
+      parcelas: Number(dados.parcelas),
+      valor_parcela: valorParcela,
+      data_compra: dados.data_compra || new Date().toISOString().slice(0, 10),
+      parcelas_pagas: 0,
+      status: 'aberto',
+      observacoes: dados.observacoes?.trim() || null,
+    }
+    const { data, error } = await supabase.from('lf_crediario').insert(novo).select().single()
+    if (error) throw error
+    setCrediario(prev => [data, ...prev])
+    return data
+  }
+
+  async function pagarParcela(id) {
+    const item = crediario.find(c => c.id === id)
+    if (!item) return
+    const novasPagas = item.parcelas_pagas + 1
+    const novoStatus = novasPagas >= item.parcelas ? 'quitado' : 'aberto'
+    const { data, error } = await supabase.from('lf_crediario').update({ parcelas_pagas: novasPagas, status: novoStatus }).eq('id', id).select().single()
+    if (error) throw error
+    setCrediario(prev => prev.map(c => c.id === id ? data : c))
+    return data
+  }
+
+  async function saveComissaoPercentual(percentual) {
+    const { error } = await supabase.from('lf_config').update({ comissao_percentual: percentual }).eq('loja_id', lojaId)
+    if (error) throw error
+    setConfig(prev => ({ ...prev, comissao_percentual: percentual }))
+  }
+
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   return {
@@ -310,5 +354,9 @@ export function useLojaData(lojaId = 'estrada') {
     addCliente,
     updateCliente,
     deleteCliente,
+    crediario,
+    addCrediario,
+    pagarParcela,
+    saveComissaoPercentual,
   }
 }

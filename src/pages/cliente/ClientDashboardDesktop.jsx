@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt,
 } from 'lucide-react'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
@@ -15,6 +15,7 @@ import RelatoriosDesktop from './RelatoriosDesktop'
 import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 import Clientes from '../LojaFeminina/Clientes'
+import Crediario from '../LojaFeminina/Crediario'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -70,8 +71,9 @@ const onB = (e) => {
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
 
 const PLANO_NAV_ITEMS = [
-  { id: 'clientes',  label: 'Clientes',        Icon: Users,    planoMinimo: 'starter'  },
-  { id: 'meta',      label: 'Metas',            Icon: Target,   planoMinimo: 'pro'      },
+  { id: 'clientes',  label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'  },
+  { id: 'meta',      label: 'Metas',            Icon: Target,      planoMinimo: 'pro'      },
+  { id: 'crediario', label: 'Crediário',        Icon: Receipt,     planoMinimo: 'pro'      },
   { id: 'catalogo',  label: 'Catálogo online',  Icon: ShoppingBag, planoMinimo: 'business' },
   { id: 'financeiro',label: 'Financeiro',       Icon: CreditCard,  planoMinimo: 'business' },
 ]
@@ -983,13 +985,14 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
 
 // ── Desktop Relatórios ────────────────────────────────────────
-function DesktopRelatorios({ data, theme }) {
+function DesktopRelatorios({ data, theme, temAcessoPro }) {
   return (
     <RelatoriosDesktop
       vendas={data.vendas}
       deleteVenda={data.deleteVenda}
       updateVenda={data.updateVenda}
       theme={theme}
+      temAcessoPro={temAcessoPro}
     />
   )
 }
@@ -1023,7 +1026,10 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} />,
-    relatorios: <DesktopRelatorios data={data} theme={theme} />,
+    relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={legado || temAcesso(plano, 'pro')} />,
+    crediario: (legado || temAcesso(plano, 'pro'))
+      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
     meta: (legado || temAcesso(plano, 'pro'))
       ? <Meta {...data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,

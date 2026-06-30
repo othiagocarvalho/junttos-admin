@@ -7,6 +7,7 @@ const DESCRICOES = {
   catalogo:     'Venda pelo link com Pix integrado. Compartilhe o catálogo e receba pedidos online.',
   financeiro:   'Controle contas a pagar e a receber, fluxo de caixa e resultado mensal completo.',
   notificacoes: 'Receba alertas automáticos de estoque baixo, metas atingidas e vendas grandes.',
+  crediario:    'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
 }
 
 const BADGE_COLORS = {
