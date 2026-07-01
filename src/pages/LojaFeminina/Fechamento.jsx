@@ -46,6 +46,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [modalDivergencia, setModalDivergencia] = useState(false)
 
   const n = k => parseFloat(form[k] || 0) || 0
   const totalVendas = features?.atacado
@@ -54,20 +55,20 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
   const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria')
   const liquido = totalVendas - n('despesas')
 
-  // Vendas do sistema para a data escolhida (referência informativa)
+  // Total real de vendas do sistema para a data escolhida (usado na validação de divergência)
   const vendasDoDia = vendas.filter(v => {
     try { return new Date(v.data).toISOString().slice(0, 10) === dataSelecionada }
     catch (_) { return false }
   })
   const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
+  const divergencia = Math.abs(totalVendas - totalVendasSistema)
 
-  // Bloqueio de data duplicada
+  // Bloqueio de data duplicada (mantido da tarefa anterior)
   const jaDuplicado = caixas.some(c => c.data === dataSelecionada)
 
   const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
 
-  async function handleSave() {
-    if (!canSave) return
+  async function salvarFechamento() {
     setSaving(true)
     const err = await fecharCaixa({
       data: dataSelecionada,
@@ -81,9 +82,20 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
     })
     setSaving(false)
     if (!err) {
+      setModalDivergencia(false)
       setDone(true)
       setTimeout(() => { setDone(false); setForm(EMPTY) }, 2200)
     }
+  }
+
+  async function handleSave() {
+    if (!canSave) return
+    // Se há vendas registradas no sistema para essa data e o total diverge, exibe aviso
+    if (vendasDoDia.length > 0 && divergencia >= 0.01) {
+      setModalDivergencia(true)
+      return
+    }
+    await salvarFechamento()
   }
 
   return (
@@ -114,23 +126,11 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
           )}
         </div>
 
-        {/* Aviso de duplicidade */}
+        {/* Aviso de duplicidade (bloqueio real) */}
         {jaDuplicado && (
           <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#dc2626', lineHeight: 1.5 }}>
               Já existe um fechamento registrado para {fmtDate(dataSelecionada)}. Não é possível fechar a mesma data duas vezes.
-            </p>
-          </div>
-        )}
-
-        {/* Resumo de vendas registradas no sistema para essa data */}
-        {vendasDoDia.length > 0 && (
-          <div style={{ background: `${theme.primary}12`, border: `1px solid ${theme.primary}30`, borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 3 }}>
-              Vendas registradas no sistema
-            </p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
-              {vendasDoDia.length} venda{vendasDoDia.length !== 1 ? 's' : ''} · {fmtR(totalVendasSistema)} total
             </p>
           </div>
         )}
@@ -214,7 +214,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
         </button>
       </div>
 
-      {/* Histórico — ordenado por data de referência (c.data), já garantido pelo useLojaData */}
+      {/* Histórico — ordenado por data de referência (c.data), garantido pelo useLojaData */}
       {caixas.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
@@ -236,6 +236,52 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de divergência de valores (aviso, não bloqueio) */}
+      {modalDivergencia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
+              Atenção — Valores divergentes
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 8 }}>
+              O valor informado no fechamento é <strong style={{ color: 'var(--ink)' }}>{fmtR(totalVendas)}</strong>, mas o total de vendas registradas no sistema para {fmtDate(dataSelecionada)} é <strong style={{ color: 'var(--ink)' }}>{fmtR(totalVendasSistema)}</strong>.
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 22 }}>
+              Diferença: <strong style={{ color: '#dc2626' }}>{fmtR(divergencia)}</strong>. Deseja continuar mesmo assim?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setModalDivergencia(false)}
+                disabled={saving}
+                style={{
+                  flex: 1, height: 46, borderRadius: 12,
+                  border: '1.5px solid var(--line)', background: 'var(--bg)',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                  color: 'var(--ink)', fontSize: 13,
+                }}
+              >
+                Revisar valores
+              </button>
+              <button
+                onClick={salvarFechamento}
+                disabled={saving}
+                style={{
+                  flex: 1, height: 46, borderRadius: 12,
+                  border: 'none',
+                  background: saving ? 'var(--line)' : theme.primary,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  color: '#fff', fontSize: 13,
+                }}
+              >
+                {saving ? 'Salvando...' : 'Continuar mesmo assim'}
+              </button>
+            </div>
           </div>
         </div>
       )}
