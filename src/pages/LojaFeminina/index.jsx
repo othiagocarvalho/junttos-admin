@@ -433,7 +433,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
   const features = data.features
   const plano = data.config?.plano || 'starter'
-  const legado = isLegado(data.features)
+  const legado = isLegado(data.config?.features)
 
   const panels = {
     inicio: data.produtosData.length === 0
