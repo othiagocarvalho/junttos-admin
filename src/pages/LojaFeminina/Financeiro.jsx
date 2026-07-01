@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle } from 'lucide-react'
-import { calcularStatusReal, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
 
 const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 const fmtDate = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
@@ -191,25 +191,31 @@ function ContasPagarTab({ lojaId, theme }) {
 }
 
 // ── Contas a Receber ─────────────────────────────────────────────
-function ContasReceberTab({ lojaId, theme }) {
-  const [contas, setContas] = useState([])
+function ContasReceberTab({ lojaId, crediarios, theme }) {
+  const [contasRaw, setContasRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todas')
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [recebendoId, setRecebendoId] = useState(null)
+  const [toast, setToast] = useState('')
   const [form, setForm] = useState({
     descricao: '', cliente_nome: '', valor: '', data_vencimento: '', origem: 'outro', observacoes: '',
   })
 
-  const fetch = useCallback(async () => {
+  const fetchContas = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase.from('lf_contas_receber').select('*').eq('loja_id', lojaId).order('data_vencimento')
-    setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_recebimento') })))
+    setContasRaw(data || [])
     setLoading(false)
   }, [lojaId])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetchContas() }, [fetchContas])
+
+  function showToast(msg) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }
 
   async function handleSalvar() {
     if (!form.descricao.trim() || !form.valor || !form.data_vencimento) return
@@ -222,14 +228,13 @@ function ContasReceberTab({ lojaId, theme }) {
       status: 'pendente',
       observacoes: form.observacoes || null,
     }
-    // Add optional columns if they exist (after SQL migration)
     if (form.cliente_nome) row.cliente_nome = form.cliente_nome.trim()
     if (form.origem) row.origem = form.origem
     await supabase.from('lf_contas_receber').insert(row)
     setForm({ descricao: '', cliente_nome: '', valor: '', data_vencimento: '', origem: 'outro', observacoes: '' })
     setShowModal(false)
     setSaving(false)
-    fetch()
+    fetchContas()
   }
 
   async function handleReceber(id) {
@@ -239,9 +244,10 @@ function ContasReceberTab({ lojaId, theme }) {
       data_recebimento: new Date().toISOString().slice(0, 10),
     }).eq('id', id)
     setRecebendoId(null)
-    fetch()
+    fetchContas()
   }
 
+  const contas = mesclarContasReceber(contasRaw, crediarios)
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -249,6 +255,12 @@ function ContasReceberTab({ lojaId, theme }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1e1b4b', color: '#fff', padding: '10px 20px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, whiteSpace: 'nowrap', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          {toast}
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>Contas a Receber</span>
         <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
@@ -288,13 +300,19 @@ function ContasReceberTab({ lojaId, theme }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtradas.map(c => {
             const sc = STATUS_COLOR[c._status] || STATUS_COLOR.pendente
+            const isCrediario = c._origem === 'crediario'
             return (
-              <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '14px 14px' }}>
+              <div key={c.id} style={{ background: 'var(--surface)', border: `1px solid ${isCrediario ? 'rgba(107,79,187,0.25)' : 'var(--line)'}`, borderRadius: 14, padding: '14px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                      {isCrediario && (
+                        <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 99, background: 'rgba(107,79,187,0.12)', color: '#6B4FBB', fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>Crediário</span>
+                      )}
+                    </div>
                     <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
-                      {c.cliente_nome ? `${c.cliente_nome} · ` : ''}{c.origem || 'outro'} · Vence {fmtDate(c.data_vencimento)}
+                      {c.cliente_nome ? `${c.cliente_nome} · ` : ''}{isCrediario ? 'crediário' : (c.origem || 'outro')} · Vence {fmtDate(c.data_vencimento)}
                     </p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
@@ -302,13 +320,22 @@ function ContasReceberTab({ lojaId, theme }) {
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Manrope, sans-serif', fontWeight: 700 }}>{sc.label}</span>
                   </div>
                 </div>
-                {c._status !== 'recebido' && (
-                  <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ width: '100%', height: 36, borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Check size={13} /> {recebendoId === c.id ? 'Registrando...' : 'Marcar como recebido'}
-                  </button>
-                )}
-                {c._status === 'recebido' && c.data_recebimento && (
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 4 }}>Recebido em {fmtDate(c.data_recebimento)}</p>
+                {isCrediario ? (
+                  c._status === 'recebido' ? (
+                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 4 }}>Recebido ✓</p>
+                  ) : (
+                    <button onClick={() => showToast('Gerencie esta parcela na tela de Crediário')} style={{ width: '100%', height: 36, borderRadius: 10, border: '1px solid rgba(107,79,187,0.3)', background: 'rgba(107,79,187,0.06)', color: '#6B4FBB', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700 }}>
+                      Ver na tela de Crediário →
+                    </button>
+                  )
+                ) : (
+                  c._status !== 'recebido' ? (
+                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ width: '100%', height: 36, borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Check size={13} /> {recebendoId === c.id ? 'Registrando...' : 'Marcar como recebido'}
+                    </button>
+                  ) : (
+                    c.data_recebimento && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 4 }}>Recebido em {fmtDate(c.data_recebimento)}</p>
+                  )
                 )}
               </div>
             )
@@ -365,23 +392,24 @@ function ContasReceberTab({ lojaId, theme }) {
 }
 
 // ── Fluxo de Caixa ───────────────────────────────────────────────
-function FluxoCaixaTab({ lojaId, vendas, theme }) {
+function FluxoCaixaTab({ lojaId, vendas, crediarios, theme }) {
   const [periodo, setPeriodo] = useState(mesAtualRange())
   const [contasPagar, setContasPagar] = useState([])
-  const [contasReceber, setContasReceber] = useState([])
+  const [contasReceberRaw, setContasReceberRaw] = useState([])
 
   useEffect(() => {
     async function load() {
       const [{ data: cp }, { data: cr }] = await Promise.all([
         supabase.from('lf_contas_pagar').select('data_pagamento, valor, status').eq('loja_id', lojaId),
-        supabase.from('lf_contas_receber').select('data_recebimento, valor, status').eq('loja_id', lojaId),
+        supabase.from('lf_contas_receber').select('*').eq('loja_id', lojaId),
       ])
       setContasPagar(cp || [])
-      setContasReceber(cr || [])
+      setContasReceberRaw(cr || [])
     }
     load()
   }, [lojaId])
 
+  const contasReceber = mesclarContasReceber(contasReceberRaw, crediarios)
   const fluxo = calcularFluxoCaixa(vendas, contasPagar, contasReceber, periodo.inicio, periodo.fim)
   const saldoFinal = fluxo.length > 0 ? fluxo[fluxo.length - 1].saldoAcumulado : 0
   const totalEntradas = fluxo.reduce((s, d) => s + d.entradas, 0)
@@ -559,6 +587,12 @@ const TABS = [
 
 export default function Financeiro({ lojaId, vendas = [], theme }) {
   const [tab, setTab] = useState('pagar')
+  const [crediarios, setCrediarios] = useState([])
+
+  useEffect(() => {
+    supabase.from('lf_crediario').select('*').eq('loja_id', lojaId)
+      .then(({ data }) => setCrediarios(data || []))
+  }, [lojaId])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -580,8 +614,8 @@ export default function Financeiro({ lojaId, vendas = [], theme }) {
       </div>
 
       {tab === 'pagar'   && <ContasPagarTab   lojaId={lojaId} theme={theme} />}
-      {tab === 'receber' && <ContasReceberTab  lojaId={lojaId} theme={theme} />}
-      {tab === 'fluxo'   && <FluxoCaixaTab    lojaId={lojaId} vendas={vendas} theme={theme} />}
+      {tab === 'receber' && <ContasReceberTab  lojaId={lojaId} crediarios={crediarios} theme={theme} />}
+      {tab === 'fluxo'   && <FluxoCaixaTab    lojaId={lojaId} vendas={vendas} crediarios={crediarios} theme={theme} />}
       {tab === 'dre'     && <DRETab           lojaId={lojaId} vendas={vendas} theme={theme} />}
     </div>
   )

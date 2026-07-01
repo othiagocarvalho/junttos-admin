@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { calcularStatusReal, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
 
 const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 const fmtDate = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
@@ -167,23 +167,29 @@ function ContasPagarPane({ lojaId, theme }) {
 }
 
 // ── Aba Contas a Receber ──────────────────────────────────────────
-function ContasReceberPane({ lojaId, theme }) {
-  const [contas, setContas] = useState([])
+function ContasReceberPane({ lojaId, crediarios, theme }) {
+  const [contasRaw, setContasRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todas')
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [recebendoId, setRecebendoId] = useState(null)
+  const [toast, setToast] = useState('')
   const [form, setForm] = useState({ descricao: '', cliente_nome: '', origem: 'outro', valor: '', data_vencimento: '', observacoes: '' })
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase.from('lf_contas_receber').select('*').eq('loja_id', lojaId).order('data_vencimento')
-    setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_recebimento') })))
+    setContasRaw(data || [])
     setLoading(false)
   }, [lojaId])
 
   useEffect(() => { load() }, [load])
+
+  function showToast(msg) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2500)
+  }
 
   async function handleSalvar() {
     if (!form.descricao.trim() || !form.valor || !form.data_vencimento) return
@@ -205,6 +211,7 @@ function ContasReceberPane({ lojaId, theme }) {
     load()
   }
 
+  const contas = mesclarContasReceber(contasRaw, crediarios)
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -212,10 +219,16 @@ function ContasReceberPane({ lojaId, theme }) {
 
   return (
     <div>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, right: 20, background: '#1e1b4b', color: '#fff', padding: '12px 20px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          {toast}
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Contas a Receber</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} conta{contas.length !== 1 ? 's' : ''} cadastrada{contas.length !== 1 ? 's' : ''}</p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} lançamento{contas.length !== 1 ? 's' : ''} (manuais + crediário)</p>
         </div>
         <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}>
           <Plus size={15} /> Nova Conta
@@ -247,22 +260,36 @@ function ContasReceberPane({ lojaId, theme }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtradas.map(c => {
             const sc = STATUS_COLOR[c._status] || STATUS_COLOR.pendente
+            const isCrediario = c._origem === 'crediario'
             return (
-              <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div key={c.id} style={{ background: 'var(--surface)', border: `1px solid ${isCrediario ? 'rgba(107,79,187,0.25)' : 'var(--line)'}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                     <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
+                    {isCrediario && (
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 99, background: 'rgba(107,79,187,0.12)', color: '#6B4FBB', fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>Crediário</span>
+                    )}
                   </div>
                   <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
-                    {c.cliente_nome ? `${c.cliente_nome} · ` : ''}{c.origem || 'outro'} · Vence {fmtDate(c.data_vencimento)}
+                    {c.cliente_nome ? `${c.cliente_nome} · ` : ''}{isCrediario ? 'crediário' : (c.origem || 'outro')} · Vence {fmtDate(c.data_vencimento)}
                   </p>
                 </div>
                 <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
-                {c._status !== 'recebido' && (
-                  <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                    <Check size={12} /> {recebendoId === c.id ? '...' : 'Recebido'}
-                  </button>
+                {isCrediario ? (
+                  c._status === 'recebido' ? (
+                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓ Recebido</span>
+                  ) : (
+                    <button onClick={() => showToast('Gerencie esta parcela na tela de Crediário')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(107,79,187,0.3)', background: 'rgba(107,79,187,0.06)', color: '#6B4FBB', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                      Ver Crediário
+                    </button>
+                  )
+                ) : (
+                  c._status !== 'recebido' && (
+                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                      <Check size={12} /> {recebendoId === c.id ? '...' : 'Recebido'}
+                    </button>
+                  )
                 )}
               </div>
             )
@@ -293,23 +320,24 @@ function ContasReceberPane({ lojaId, theme }) {
 }
 
 // ── Aba Fluxo de Caixa ───────────────────────────────────────────
-function FluxoCaixaPane({ lojaId, vendas, theme }) {
+function FluxoCaixaPane({ lojaId, vendas, crediarios, theme }) {
   const [periodo, setPeriodo] = useState(mesAtualRange())
   const [contasPagar, setContasPagar] = useState([])
-  const [contasReceber, setContasReceber] = useState([])
+  const [contasReceberRaw, setContasReceberRaw] = useState([])
 
   useEffect(() => {
     async function load() {
       const [{ data: cp }, { data: cr }] = await Promise.all([
         supabase.from('lf_contas_pagar').select('data_pagamento, valor, status').eq('loja_id', lojaId),
-        supabase.from('lf_contas_receber').select('data_recebimento, valor, status').eq('loja_id', lojaId),
+        supabase.from('lf_contas_receber').select('*').eq('loja_id', lojaId),
       ])
       setContasPagar(cp || [])
-      setContasReceber(cr || [])
+      setContasReceberRaw(cr || [])
     }
     load()
   }, [lojaId])
 
+  const contasReceber = mesclarContasReceber(contasReceberRaw, crediarios)
   const fluxo = calcularFluxoCaixa(vendas, contasPagar, contasReceber, periodo.inicio, periodo.fim)
   const totalEntradas = fluxo.reduce((s, d) => s + d.entradas, 0)
   const totalSaidas = fluxo.reduce((s, d) => s + d.saidas, 0)
@@ -488,9 +516,15 @@ const TABS = [
 
 export default function FinanceiroDesktop({ data, theme }) {
   const [tab, setTab] = useState('pagar')
+  const [crediarios, setCrediarios] = useState([])
   const lojaId = data.LOJA_ID
   const vendas = data.vendas || []
   const primary = theme.primary
+
+  useEffect(() => {
+    supabase.from('lf_crediario').select('*').eq('loja_id', lojaId)
+      .then(({ data: d }) => setCrediarios(d || []))
+  }, [lojaId])
 
   return (
     <div>
@@ -514,8 +548,8 @@ export default function FinanceiroDesktop({ data, theme }) {
       </div>
 
       {tab === 'pagar'   && <ContasPagarPane   lojaId={lojaId} theme={theme} />}
-      {tab === 'receber' && <ContasReceberPane  lojaId={lojaId} theme={theme} />}
-      {tab === 'fluxo'   && <FluxoCaixaPane    lojaId={lojaId} vendas={vendas} theme={theme} />}
+      {tab === 'receber' && <ContasReceberPane  lojaId={lojaId} crediarios={crediarios} theme={theme} />}
+      {tab === 'fluxo'   && <FluxoCaixaPane    lojaId={lojaId} vendas={vendas} crediarios={crediarios} theme={theme} />}
       {tab === 'dre'     && <DREPane           lojaId={lojaId} vendas={vendas} theme={theme} />}
     </div>
   )
