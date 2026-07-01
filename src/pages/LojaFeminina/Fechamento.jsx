@@ -40,7 +40,9 @@ function CurrField({ k, label, form, setForm, theme }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
+export default function Fechamento({ caixas, fecharCaixa, theme, features, vendas = [] }) {
+  const hoje = new Date().toISOString().slice(0, 10)
+  const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -52,12 +54,23 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
   const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria')
   const liquido = totalVendas - n('despesas')
 
+  // Vendas do sistema para a data escolhida (referência informativa)
+  const vendasDoDia = vendas.filter(v => {
+    try { return new Date(v.data).toISOString().slice(0, 10) === dataSelecionada }
+    catch (_) { return false }
+  })
+  const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
+
+  // Bloqueio de data duplicada
+  const jaDuplicado = caixas.some(c => c.data === dataSelecionada)
+
+  const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
+
   async function handleSave() {
+    if (!canSave) return
     setSaving(true)
-    const now = new Date()
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const err = await fecharCaixa({
-      data: today,
+      data: dataSelecionada,
       dinheiro: n('dinheiro'),
       pix: features?.atacado ? n('pix_santander') + n('pix_bb') : n('pix'),
       ...(features?.atacado ? { pix_santander: n('pix_santander'), pix_bb: n('pix_bb') } : {}),
@@ -77,8 +90,53 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Form card */}
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 18 }}>
-          Fechamento de Caixa — {new Date().toLocaleDateString('pt-BR')}
+
+        {/* Seletor de data */}
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>Data do Fechamento</label>
+          <input
+            type="date"
+            value={dataSelecionada}
+            onChange={e => setDataSelecionada(e.target.value)}
+            style={{
+              width: '100%', height: 46,
+              border: `1.5px solid ${theme.primary}`,
+              borderRadius: 14, padding: '0 14px',
+              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600,
+              color: 'var(--ink)', background: 'var(--bg)',
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+          {dataSelecionada !== hoje && (
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: theme.primary, marginTop: 5, fontWeight: 600 }}>
+              Fechamento retroativo — {fmtDate(dataSelecionada)}
+            </p>
+          )}
+        </div>
+
+        {/* Aviso de duplicidade */}
+        {jaDuplicado && (
+          <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#dc2626', lineHeight: 1.5 }}>
+              Já existe um fechamento registrado para {fmtDate(dataSelecionada)}. Não é possível fechar a mesma data duas vezes.
+            </p>
+          </div>
+        )}
+
+        {/* Resumo de vendas registradas no sistema para essa data */}
+        {vendasDoDia.length > 0 && (
+          <div style={{ background: `${theme.primary}12`, border: `1px solid ${theme.primary}30`, borderRadius: 12, padding: '10px 14px', marginBottom: 16 }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 3 }}>
+              Vendas registradas no sistema
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)', fontWeight: 600 }}>
+              {vendasDoDia.length} venda{vendasDoDia.length !== 1 ? 's' : ''} · {fmtR(totalVendasSistema)} total
+            </p>
+          </div>
+        )}
+
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 14 }}>
+          Valores do Caixa — {fmtDate(dataSelecionada)}
         </p>
 
         {/* Recebimentos */}
@@ -122,7 +180,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
         {/* Hero total */}
         <div style={{ marginTop: 18, background: theme.primary, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
-            Total de Vendas do Dia
+            Total de Vendas
           </p>
           <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
             {fmtR(totalVendas)}
@@ -141,21 +199,22 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features }) {
         </div>
 
         <button
-          onClick={handleSave} disabled={saving || done || totalVendas === 0}
+          onClick={handleSave} disabled={!canSave}
           style={{
-            width: '100%', height: 50, marginTop: 14, border: 'none', borderRadius: 99, cursor: saving || done || totalVendas === 0 ? 'not-allowed' : 'pointer',
-            background: done ? '#16a34a' : (saving || totalVendas === 0) ? 'var(--line)' : theme.primary,
-            color: done || (!saving && totalVendas > 0) ? '#fff' : 'var(--muted)',
+            width: '100%', height: 50, marginTop: 14, border: 'none', borderRadius: 99,
+            cursor: canSave ? 'pointer' : 'not-allowed',
+            background: done ? '#16a34a' : !canSave ? 'var(--line)' : theme.primary,
+            color: done || canSave ? '#fff' : 'var(--muted)',
             fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
-            boxShadow: done || saving || totalVendas === 0 ? 'none' : '0 4px 16px rgba(0,0,0,0.18)',
+            boxShadow: canSave ? '0 4px 16px rgba(0,0,0,0.18)' : 'none',
             transition: 'opacity .18s',
           }}
         >
-          {done ? '✓ Caixa fechado!' : saving ? 'Salvando...' : 'Fechar Caixa'}
+          {done ? '✓ Caixa fechado!' : saving ? 'Salvando...' : jaDuplicado ? 'Data já fechada' : 'Fechar Caixa'}
         </button>
       </div>
 
-      {/* Histórico */}
+      {/* Histórico — ordenado por data de referência (c.data), já garantido pelo useLojaData */}
       {caixas.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
