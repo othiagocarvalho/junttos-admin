@@ -17,6 +17,12 @@ const DEFAULT_FEATURES = {
   clientes: false, estoque: false,
 }
 
+const PLANOS_VALORES = {
+  starter:  { label: 'Starter',  valor: 99.90  },
+  pro:      { label: 'Pro',      valor: 149.90 },
+  business: { label: 'Business', valor: 259.90 },
+}
+
 function toSlug(s) {
   return s.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -53,7 +59,8 @@ const EMPTY_FORM = {
   email_acesso: '',
   senha_acesso: '',
   status: 'Trial',
-  valor_mensal: '',
+  plano: 'starter',
+  valor_mensal: String(PLANOS_VALORES.starter.valor),
   features: { atacado: false, crm: false },
   enviarBV: true,
 }
@@ -110,6 +117,9 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   }
   function handleClose() { reset(); onClose() }
   function handleNome(nome) { setForm(prev => ({ ...prev, nome, slug: toSlug(nome) })) }
+  function handlePlanoChange(novoPlano) {
+    setForm(p => ({ ...p, plano: novoPlano, valor_mensal: String(PLANOS_VALORES[novoPlano].valor) }))
+  }
 
   async function handleFile(e) {
     const file = e.target.files?.[0]
@@ -143,7 +153,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         slug:           form.slug,
         nome:           form.nome,
         status:         form.status,
-        plano:          'basico',
+        plano:          form.plano,
         valor_mensal:   parseFloat(form.valor_mensal) || 0,
         cor_primaria:   form.cor_primaria,
         cor_secundaria: form.cor_secundaria,
@@ -273,9 +283,28 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           {/* ── Plano e cobrança ── */}
           <Section title="Plano e cobrança" />
 
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Plano contratado</label>
+            <select
+              value={form.plano}
+              onChange={e => handlePlanoChange(e.target.value)}
+              style={{ ...inp, cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%237B7390' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center' }}
+            >
+              <option value="starter">Starter — R$ 99,90/mês</option>
+              <option value="pro">Pro — R$ 149,90/mês</option>
+              <option value="business">Business — R$ 259,90/mês</option>
+            </select>
+          </div>
+
+          <div style={{ background: T.mist, borderRadius: T.rInput, padding: '10px 14px', marginBottom: 16, fontSize: 11, color: T.muted }}>
+            {form.plano === 'starter' && 'Inclui: vendas, estoque, clientes, relatórios básicos, cartão fidelidade.'}
+            {form.plano === 'pro' && 'Inclui tudo do Starter + metas, comissão automática, curva ABC, crediário.'}
+            {form.plano === 'business' && 'Inclui tudo do Pro + catálogo online, financeiro completo, notificações.'}
+          </div>
+
           <div style={{ display: 'flex', gap: 12, marginBottom: 0 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Plano</label>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Status do cliente</label>
               <select
                 value={form.status}
                 onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
