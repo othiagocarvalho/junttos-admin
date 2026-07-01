@@ -123,7 +123,7 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
   const [confirmDel, setConfirmDel] = useState(false)
 
   const vendasCliente = vendas.filter(v =>
-    v.cliente_nome && v.cliente_nome.toLowerCase() === cliente.nome.toLowerCase()
+    v.cliente_nome && v.cliente_nome.trim().toLowerCase() === cliente.nome.trim().toLowerCase()
   )
   const totalGasto = vendasCliente.reduce((s, v) => s + Number(v.valor || 0), 0)
   const ultimas5 = [...vendasCliente].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 5)
