@@ -19,6 +19,7 @@ import LojaFeminina from './pages/LojaFeminina'
 import CadastroCliente from './pages/admin/CadastroCliente'
 import Cobrancas from './pages/admin/Cobrancas'
 import { supabase } from './lib/supabase'
+import CatalogoPublico from './pages/catalogo/CatalogoPublico'
 
 function ProtectedLayout({ children }) {
   return (
@@ -43,6 +44,7 @@ function LojaClientApp({ segment, lojaId }) {
               <ClientDashboard lojaId={lojaId} />
             </ClientPrivateRoute>
           } />
+          <Route path="/catalogo" element={<CatalogoPublico lojaId={lojaId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
