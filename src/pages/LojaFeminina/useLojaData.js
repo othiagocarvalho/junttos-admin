@@ -52,7 +52,11 @@ export function useLojaData(lojaId = 'estrada') {
       const prods = produtosRes.data || []
       setProdutos(prods.map(p => p.nome))
       setProdutosData(prods)
-      setConfig(configRes.data || null)
+      const cfg = configRes.data || null
+      if (cfg && typeof cfg.features === 'string') {
+        try { cfg.features = JSON.parse(cfg.features) } catch (e) { cfg.features = {} }
+      }
+      setConfig(cfg)
       setClientes(clientesRes.data || [])
       try {
         const { data: crediarioData } = await supabase.from('lf_crediario').select('*').eq('loja_id', lojaId).order('data_compra', { ascending: false })

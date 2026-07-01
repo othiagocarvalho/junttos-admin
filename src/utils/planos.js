@@ -12,7 +12,9 @@ export function temAcesso(planoAtual, planoMinimo) {
 
 // Cliente legado — ignora controle de planos, acessa tudo
 export function isLegado(features) {
-  return features?.legado === true
+  if (!features) return false
+  const f = typeof features === 'string' ? JSON.parse(features) : features
+  return f?.legado === true
 }
 
 // Mapa de cada funcionalidade e o plano mínimo para acessá-la
