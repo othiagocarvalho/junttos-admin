@@ -144,6 +144,43 @@ export function useLojaData(lojaId = 'estrada') {
           }
         }
       }
+      // Auto-sincronização silenciosa de cliente em lf_clientes (sem gate de plano)
+      const nomeVenda = (venda.cliente_nome || '').trim()
+      if (nomeVenda) {
+        try {
+          const telVenda = (venda.cliente_tel || '').trim()
+          const normTel = t => (t || '').replace(/[\s\-().]/g, '')
+          const telVendaNorm = normTel(telVenda)
+
+          const { data: existentes } = await supabase
+            .from('lf_clientes')
+            .select('id, nome, telefone')
+            .eq('loja_id', lojaId)
+            .ilike('nome', nomeVenda)
+
+          const match = (existentes || []).find(c => {
+            const ct = normTel(c.telefone || '')
+            if (telVendaNorm && ct) return ct === telVendaNorm
+            return true
+          })
+
+          if (!match) {
+            await supabase.from('lf_clientes').insert({
+              loja_id: lojaId,
+              nome: nomeVenda,
+              telefone: telVenda || null,
+              email: null,
+              data_nascimento: null,
+              observacoes: null,
+            })
+          } else if (!match.telefone && telVenda) {
+            await supabase.from('lf_clientes').update({ telefone: telVenda }).eq('id', match.id)
+          }
+        } catch (e) {
+          console.error('[auto-cliente]', e)
+        }
+      }
+
       await fetchAll()
     }
     return error
