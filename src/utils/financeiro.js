@@ -6,6 +6,49 @@ export function calcularStatusReal(item, campoPagamento = 'data_pagamento') {
   return 'pendente'
 }
 
+export function mesclarContasReceber(contasManual, crediarios) {
+  const hoje = new Date().toISOString().slice(0, 10)
+
+  const manuais = (contasManual || []).map(c => ({
+    ...c,
+    _status: c._status || calcularStatusReal(c, 'data_recebimento'),
+    _origem: 'manual',
+  }))
+
+  const derivadas = []
+  ;(crediarios || []).forEach(cr => {
+    const totalParcelas = Number(cr.parcelas) || 1
+    const pagas = Number(cr.parcelas_pagas) || 0
+    const valorParcela = Number(cr.valor_parcela) || 0
+
+    for (let i = 1; i <= totalParcelas; i++) {
+      const dataBase = new Date(cr.data_compra + 'T12:00:00')
+      dataBase.setMonth(dataBase.getMonth() + i)
+      const vencimento = dataBase.toISOString().slice(0, 10)
+      const pago = i <= pagas
+      const st = pago ? 'recebido' : (vencimento < hoje ? 'atrasado' : 'pendente')
+
+      derivadas.push({
+        id: `cr_${cr.id}_p${i}`,
+        _origem: 'crediario',
+        crediario_id: cr.id,
+        parcela_index: i,
+        descricao: `${cr.cliente_nome} (${i}/${totalParcelas})`,
+        cliente_nome: cr.cliente_nome,
+        valor: valorParcela,
+        data_vencimento: vencimento,
+        data_recebimento: pago ? vencimento : null,
+        status: st,
+        _status: st,
+      })
+    }
+  })
+
+  return [...manuais, ...derivadas].sort((a, b) =>
+    (a.data_vencimento || '').localeCompare(b.data_vencimento || '')
+  )
+}
+
 export function agruparPorCategoria(contas) {
   const map = {}
   contas.forEach(c => {
