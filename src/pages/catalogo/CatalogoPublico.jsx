@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search } from 'lucide-react'
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
-
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 function getVariacaoLabel(v) {
@@ -16,13 +14,13 @@ function produtoDisponivel(p) {
   return p.variacoes.some(v => (v.quantidade || 0) > 0)
 }
 
-// ── Header ───────────────────────────────────────────────────
+// ── Header (fundo cor da loja full-width, conteúdo centralizado em 480px) ────
 function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
   const primary = config?.cor_primaria || '#5E2BD0'
   const nome = config?.nome || 'Catálogo'
   return (
-    <div style={{ background: primary, color: '#fff', padding: '0 0 0', flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 12px' }}>
+    <div style={{ background: primary, color: '#fff', width: '100%', flexShrink: 0 }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 12px' }}>
         {etapa !== 'catalogo' && (
           <button onClick={onVoltar} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <ChevronLeft size={18} color="#fff" />
@@ -43,7 +41,7 @@ function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
         </div>
       </div>
       {etapa === 'catalogo' && (
-        <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 14px' }}>
           <div style={{ position: 'relative' }}>
             <Search size={14} color="rgba(255,255,255,0.6)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
             <input
@@ -87,7 +85,6 @@ function ProdutoCard({ produto, onAdd, primary }) {
       overflow: 'hidden', opacity: disponivel ? 1 : 0.55,
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Imagem / ícone */}
       <div style={{ background: primary + '12', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <ShoppingBag size={36} color={primary + '80'} />
       </div>
@@ -176,7 +173,12 @@ function EtapaCatalogo({ produtos, onAdd, primary, busca }) {
 }
 
 // ── Etapa checkout ───────────────────────────────────────────
-function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando }) {
+function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando, erroConfirmar, hasMercadoPago }) {
+  const opcoesPagamento = [
+    { id: 'pix_manual', label: 'QR Code Pix', sub: 'Pague escaneando o QR Code' },
+    ...(hasMercadoPago ? [{ id: 'mercadopago', label: 'Mercado Pago', sub: 'Cartão, Pix ou boleto' }] : []),
+  ]
+
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Resumo */}
@@ -226,36 +228,44 @@ function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalC
         </div>
       </div>
 
-      {/* Forma de pagamento */}
+      {/* Forma de pagamento — MP só aparece se config.mercadopago_token existir */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px' }}>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Forma de pagamento</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[
-            { id: 'pix_manual', label: 'QR Code Pix', sub: 'Pague escaneando o QR Code' },
-            { id: 'mercado_pago', label: 'Mercado Pago', sub: 'Cartão, Pix ou boleto' },
-          ].map(op => (
-            <button
-              key={op.id}
-              onClick={() => setForm(f => ({ ...f, formaPagamento: op.id }))}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                border: form.formaPagamento === op.id ? `2px solid ${op.id === 'mercado_pago' ? '#009EE3' : primary}` : '1.5px solid #e5e7eb',
-                background: form.formaPagamento === op.id ? (op.id === 'mercado_pago' ? '#009EE308' : primary + '08') : '#fff',
-              }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: op.id === 'mercado_pago' ? '#009EE320' : primary + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 18 }}>{op.id === 'mercado_pago' ? '💳' : '⬛'}</span>
-              </div>
-              <div>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>{op.label}</p>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>{op.sub}</p>
-              </div>
-              {form.formaPagamento === op.id && <Check size={16} color={op.id === 'mercado_pago' ? '#009EE3' : primary} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-            </button>
-          ))}
+          {opcoesPagamento.map(op => {
+            const isMp = op.id === 'mercadopago'
+            const activeColor = isMp ? '#009EE3' : primary
+            return (
+              <button
+                key={op.id}
+                onClick={() => setForm(f => ({ ...f, formaPagamento: op.id }))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                  borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  border: form.formaPagamento === op.id ? `2px solid ${activeColor}` : '1.5px solid #e5e7eb',
+                  background: form.formaPagamento === op.id ? activeColor + '08' : '#fff',
+                }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: activeColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 18 }}>{isMp ? '💳' : '⬛'}</span>
+                </div>
+                <div>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>{op.label}</p>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>{op.sub}</p>
+                </div>
+                {form.formaPagamento === op.id && <Check size={16} color={activeColor} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+              </button>
+            )
+          })}
         </div>
       </div>
+
+      {/* Erro de confirmação */}
+      {erroConfirmar && (
+        <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991B1B', fontFamily: 'Manrope, sans-serif' }}>
+          {erroConfirmar}
+        </div>
+      )}
 
       <button
         onClick={onConfirmar}
@@ -304,7 +314,6 @@ function EtapaConfirmado({ config, totalCarrinho, form }) {
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>Total a pagar</p>
         <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 700, color: '#1a1a1a', marginBottom: 20 }}>{fmtR(totalCarrinho)}</p>
 
-        {/* QR Code placeholder */}
         <div style={{ width: 160, height: 160, borderRadius: 12, border: '2px dashed #ddd', background: '#f9f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 32 }}>⬛</span>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: '#bbb' }}>QR Code Pix</p>
@@ -336,16 +345,6 @@ function EtapaConfirmado({ config, totalCarrinho, form }) {
             Enviar comprovante
           </button>
         )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#ccc', fontSize: 11, fontFamily: 'Manrope, sans-serif', marginBottom: 10 }}>
-          <div style={{ flex: 1, height: 1, background: '#ede8e3' }} />
-          <span>ou pague direto</span>
-          <div style={{ flex: 1, height: 1, background: '#ede8e3' }} />
-        </div>
-
-        <button disabled style={{ width: '100%', height: 44, borderRadius: 10, background: '#009EE3', color: '#fff', border: 'none', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'not-allowed', opacity: 0.6 }}>
-          Pagar com Mercado Pago (em breve)
-        </button>
       </div>
     </div>
   )
@@ -360,7 +359,9 @@ export default function CatalogoPublico({ lojaId }) {
   const [form, setForm] = useState({ nome: '', whatsapp: '', formaPagamento: 'pix_manual' })
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
+  const [erroConfirmar, setErroConfirmar] = useState('')
   const [busca, setBusca] = useState('')
+  const [pedidoId, setPedidoId] = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -374,6 +375,7 @@ export default function CatalogoPublico({ lojaId }) {
   }, [lojaId])
 
   const primary = config?.cor_primaria || '#5E2BD0'
+  const hasMercadoPago = !!config?.mercadopago_token
 
   function addItem(produto, variacaoRaw) {
     const varLabel = getVariacaoLabel(variacaoRaw) || ''
@@ -393,6 +395,7 @@ export default function CatalogoPublico({ lojaId }) {
 
   async function confirmarPedido() {
     if (!form.nome.trim() || !form.whatsapp.trim()) return
+    setErroConfirmar('')
     setSalvando(true)
     try {
       const novoPedido = {
@@ -404,22 +407,37 @@ export default function CatalogoPublico({ lojaId }) {
         status: 'aguardando_pagamento',
         forma_pagamento: form.formaPagamento,
       }
-      const { error } = await supabase.from('lf_pedidos').insert(novoPedido)
-      if (!error) {
-        for (const item of carrinho) {
-          const prod = produtos.find(p => p.id === item.produtoId)
-          if (prod && item.variacao) {
-            const novasVars = prod.variacoes.map(v => {
-              const label = getVariacaoLabel(v)
-              return label === item.variacao
-                ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
-                : v
-            })
-            await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
-          }
-        }
-        setEtapa('confirmado')
+      const { data: pedidoInserido, error: insertError } = await supabase
+        .from('lf_pedidos')
+        .insert(novoPedido)
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Erro ao inserir pedido:', insertError)
+        setErroConfirmar('Erro ao registrar pedido: ' + insertError.message)
+        return
       }
+
+      // Dar baixa no estoque
+      for (const item of carrinho) {
+        const prod = produtos.find(p => p.id === item.produtoId)
+        if (prod && item.variacao) {
+          const novasVars = prod.variacoes.map(v => {
+            const label = getVariacaoLabel(v)
+            return label === item.variacao
+              ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
+              : v
+          })
+          await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
+        }
+      }
+
+      setPedidoId(pedidoInserido?.id || null)
+      setEtapa('confirmado')
+    } catch (e) {
+      console.error('Erro inesperado:', e)
+      setErroConfirmar('Erro inesperado. Tente novamente.')
     } finally {
       setSalvando(false)
     }
@@ -435,16 +453,18 @@ export default function CatalogoPublico({ lojaId }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#F8F7F5', fontFamily: 'Manrope, sans-serif', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ minHeight: '100dvh', background: '#F8F7F5', fontFamily: 'Manrope, sans-serif', display: 'flex', flexDirection: 'column' }}>
+      {/* Header full-width */}
       <CatalogoHeader
         config={config}
         etapa={etapa}
-        onVoltar={() => setEtapa(etapa === 'checkout' ? 'catalogo' : 'catalogo')}
+        onVoltar={() => setEtapa('catalogo')}
         busca={busca}
         setBusca={setBusca}
       />
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: carrinho.length > 0 && etapa === 'catalogo' ? 80 : 0 }}>
+      {/* Conteúdo centralizado em 480px */}
+      <div style={{ flex: 1, maxWidth: 480, width: '100%', margin: '0 auto', paddingBottom: carrinho.length > 0 && etapa === 'catalogo' ? 80 : 0, boxSizing: 'border-box' }}>
         {etapa === 'catalogo' && (
           <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} />
         )}
@@ -458,6 +478,8 @@ export default function CatalogoPublico({ lojaId }) {
             totalCarrinho={totalCarrinho}
             primary={primary}
             salvando={salvando}
+            erroConfirmar={erroConfirmar}
+            hasMercadoPago={hasMercadoPago}
           />
         )}
         {etapa === 'confirmado' && (
@@ -465,21 +487,23 @@ export default function CatalogoPublico({ lojaId }) {
         )}
       </div>
 
-      {/* Barra de carrinho */}
+      {/* Barra de carrinho — full-width, conteúdo centralizado */}
       {carrinho.length > 0 && etapa === 'catalogo' && (
-        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#fff', borderTop: '1px solid #ede8e3', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, boxSizing: 'border-box' }}>
-          <div>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>
-              {carrinho.reduce((s, i) => s + i.qtd, 0)} {carrinho.reduce((s, i) => s + i.qtd, 0) === 1 ? 'item' : 'itens'}
-            </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: primary }}>{fmtR(totalCarrinho)}</p>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '0.5px solid #ECE7F4', zIndex: 100 }}>
+          <div style={{ maxWidth: 480, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>
+                {carrinho.reduce((s, i) => s + i.qtd, 0)} {carrinho.reduce((s, i) => s + i.qtd, 0) === 1 ? 'item' : 'itens'}
+              </p>
+              <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: primary }}>{fmtR(totalCarrinho)}</p>
+            </div>
+            <button
+              onClick={() => setEtapa('checkout')}
+              style={{ height: 42, padding: '0 20px', borderRadius: 10, border: 'none', background: '#F4613A', color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Ver carrinho
+            </button>
           </div>
-          <button
-            onClick={() => setEtapa('checkout')}
-            style={{ height: 42, padding: '0 20px', borderRadius: 10, border: 'none', background: '#F4613A', color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-          >
-            Ver carrinho
-          </button>
         </div>
       )}
 
