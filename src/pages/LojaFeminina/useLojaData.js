@@ -20,6 +20,7 @@ export function useLojaData(lojaId = 'estrada') {
   const [config, setConfig] = useState(null)
   const [clientes, setClientes] = useState([])
   const [crediario, setCrediario] = useState([])
+  const [pedidos, setPedidos] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
@@ -58,6 +59,12 @@ export function useLojaData(lojaId = 'estrada') {
         setCrediario(crediarioData || [])
       } catch (_e) {
         setCrediario([])
+      }
+      try {
+        const { data: pedidosData } = await supabase.from('lf_pedidos').select('*').eq('loja_id', lojaId).order('created_at', { ascending: false })
+        setPedidos(pedidosData || [])
+      } catch (_e) {
+        setPedidos([])
       }
       setDbError(null)
     } catch (e) {
@@ -323,6 +330,13 @@ export function useLojaData(lojaId = 'estrada') {
     setConfig(prev => ({ ...prev, comissao_percentual: percentual }))
   }
 
+  async function updatePedido(id, updates) {
+    const { data, error } = await supabase.from('lf_pedidos').update(updates).eq('id', id).select().single()
+    if (error) throw error
+    setPedidos(prev => prev.map(p => p.id === id ? data : p))
+    return data
+  }
+
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   return {
@@ -358,5 +372,7 @@ export function useLojaData(lojaId = 'estrada') {
     addCrediario,
     pagarParcela,
     saveComissaoPercentual,
+    pedidos,
+    updatePedido,
   }
 }

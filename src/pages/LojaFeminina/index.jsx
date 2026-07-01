@@ -19,6 +19,7 @@ import ContasPagar from './ContasPagar'
 import WelcomeOnboarding from './WelcomeOnboarding'
 import Clientes from './Clientes'
 import Crediario from './Crediario'
+import PedidosCatalogo from './PedidosCatalogo'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -452,8 +453,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
-    catalogo: (legado || temAcesso(plano, 'business'))
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>CATÁLOGO ONLINE — em breve</div>
+    catalogo: temAcesso(plano, 'business')
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     financeiro: (legado || temAcesso(plano, 'business'))
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>

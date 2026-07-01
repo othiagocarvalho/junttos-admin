@@ -1,0 +1,489 @@
+import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../../lib/supabase'
+import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search } from 'lucide-react'
+
+const PROD_BASE = 'https://junttos-admin.vercel.app'
+
+function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+
+function getVariacaoLabel(v) {
+  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  return key ? String(v[key]) : null
+}
+
+function produtoDisponivel(p) {
+  if (!p.variacoes || p.variacoes.length === 0) return false
+  return p.variacoes.some(v => (v.quantidade || 0) > 0)
+}
+
+// ── Header ───────────────────────────────────────────────────
+function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
+  const primary = config?.cor_primaria || '#5E2BD0'
+  const nome = config?.nome || 'Catálogo'
+  return (
+    <div style={{ background: primary, color: '#fff', padding: '0 0 0', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 16px 12px' }}>
+        {etapa !== 'catalogo' && (
+          <button onClick={onVoltar} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <ChevronLeft size={18} color="#fff" />
+          </button>
+        )}
+        {config?.logo_url ? (
+          <img src={config.logo_url} alt={nome} style={{ height: 36, width: 'auto', maxWidth: 80, objectFit: 'contain', borderRadius: 6 }} />
+        ) : (
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16, flexShrink: 0 }}>
+            {nome.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15, color: '#fff', lineHeight: 1.2 }}>{nome}</p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+            {etapa === 'catalogo' ? 'Catálogo online' : etapa === 'checkout' ? 'Finalizar pedido' : 'Pedido confirmado!'}
+          </p>
+        </div>
+      </div>
+      {etapa === 'catalogo' && (
+        <div style={{ padding: '0 16px 14px' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} color="rgba(255,255,255,0.6)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar produto..."
+              style={{
+                width: '100%', height: 38, borderRadius: 10, border: 'none',
+                background: 'rgba(255,255,255,0.2)', color: '#fff',
+                paddingLeft: 34, paddingRight: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13,
+                outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Card de produto ──────────────────────────────────────────
+function ProdutoCard({ produto, onAdd, primary }) {
+  const [varSel, setVarSel] = useState(null)
+  const disponivel = produtoDisponivel(produto)
+
+  const vars = (produto.variacoes || []).map(v => ({
+    label: getVariacaoLabel(v),
+    quantidade: v.quantidade || 0,
+    raw: v,
+  })).filter(v => v.label)
+
+  function handleAdd() {
+    if (!varSel || varSel.quantidade === 0) return
+    onAdd(produto, varSel.raw)
+    setVarSel(null)
+  }
+
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 14, border: '1px solid #ede8e3',
+      overflow: 'hidden', opacity: disponivel ? 1 : 0.55,
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Imagem / ícone */}
+      <div style={{ background: primary + '12', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <ShoppingBag size={36} color={primary + '80'} />
+      </div>
+
+      <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.3 }}>{produto.nome}</p>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: primary }}>{fmtR(produto.preco_venda)}</p>
+
+        {!disponivel ? (
+          <button disabled style={{ marginTop: 'auto', height: 34, borderRadius: 8, border: 'none', background: '#e5e7eb', color: '#9ca3af', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, cursor: 'not-allowed' }}>
+            Esgotado
+          </button>
+        ) : vars.length > 0 ? (
+          <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+              {vars.map(v => (
+                <button
+                  key={v.label}
+                  disabled={v.quantidade === 0}
+                  onClick={() => setVarSel(prev => prev?.label === v.label ? null : v)}
+                  style={{
+                    padding: '3px 8px', borderRadius: 6, cursor: v.quantidade === 0 ? 'not-allowed' : 'pointer',
+                    fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600,
+                    border: varSel?.label === v.label ? `2px solid ${primary}` : '1.5px solid #ede8e3',
+                    background: varSel?.label === v.label ? primary + '15' : '#fff',
+                    color: v.quantidade === 0 ? '#bbb' : (varSel?.label === v.label ? primary : '#555'),
+                    opacity: v.quantidade === 0 ? 0.5 : 1,
+                  }}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleAdd}
+              disabled={!varSel || varSel.quantidade === 0}
+              style={{
+                marginTop: 'auto', height: 34, borderRadius: 8, border: 'none',
+                background: varSel && varSel.quantidade > 0 ? primary : '#e5e7eb',
+                color: varSel && varSel.quantidade > 0 ? '#fff' : '#9ca3af',
+                fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
+                cursor: varSel && varSel.quantidade > 0 ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+              }}
+            >
+              <Plus size={13} /> Adicionar
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => onAdd(produto, {})}
+            style={{ marginTop: 'auto', height: 34, borderRadius: 8, border: 'none', background: primary, color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+          >
+            <Plus size={13} /> Adicionar
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Etapa catálogo ───────────────────────────────────────────
+function EtapaCatalogo({ produtos, onAdd, primary, busca }) {
+  const filtered = useMemo(() => {
+    if (!busca.trim()) return produtos
+    const q = busca.toLowerCase()
+    return produtos.filter(p => p.nome.toLowerCase().includes(q))
+  }, [produtos, busca])
+
+  if (filtered.length === 0) {
+    return (
+      <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+        <ShoppingBag size={32} color="#ddd" style={{ margin: '0 auto 12px' }} />
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#999' }}>Nenhum produto encontrado.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '16px' }}>
+      {filtered.map(p => (
+        <ProdutoCard key={p.id} produto={p} onAdd={onAdd} primary={primary} />
+      ))}
+    </div>
+  )
+}
+
+// ── Etapa checkout ───────────────────────────────────────────
+function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando }) {
+  return (
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Resumo */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Seu pedido</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {carrinho.map(item => (
+            <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{item.nome}</p>
+                {item.variacao && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>{item.variacao}</p>}
+              </div>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: primary, whiteSpace: 'nowrap' }}>{fmtR(item.preco * item.qtd)}</p>
+              <button onClick={() => onRemover(item.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 2, display: 'flex', alignItems: 'center' }}>
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop: '1px solid #ede8e3', marginTop: 12, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#555' }}>Total</span>
+          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: primary }}>{fmtR(totalCarrinho)}</span>
+        </div>
+      </div>
+
+      {/* Dados do cliente */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Seus dados</p>
+        <div>
+          <label style={{ display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 5 }}>Nome completo *</label>
+          <input
+            value={form.nome}
+            onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+            placeholder="Maria da Silva"
+            style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #e5e7eb', padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 5 }}>WhatsApp *</label>
+          <input
+            value={form.whatsapp}
+            onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+            placeholder="(85) 99999-0000"
+            type="tel"
+            style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #e5e7eb', padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+      </div>
+
+      {/* Forma de pagamento */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Forma de pagamento</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[
+            { id: 'pix_manual', label: 'QR Code Pix', sub: 'Pague escaneando o QR Code' },
+            { id: 'mercado_pago', label: 'Mercado Pago', sub: 'Cartão, Pix ou boleto' },
+          ].map(op => (
+            <button
+              key={op.id}
+              onClick={() => setForm(f => ({ ...f, formaPagamento: op.id }))}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                border: form.formaPagamento === op.id ? `2px solid ${op.id === 'mercado_pago' ? '#009EE3' : primary}` : '1.5px solid #e5e7eb',
+                background: form.formaPagamento === op.id ? (op.id === 'mercado_pago' ? '#009EE308' : primary + '08') : '#fff',
+              }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: op.id === 'mercado_pago' ? '#009EE320' : primary + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 18 }}>{op.id === 'mercado_pago' ? '💳' : '⬛'}</span>
+              </div>
+              <div>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>{op.label}</p>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>{op.sub}</p>
+              </div>
+              {form.formaPagamento === op.id && <Check size={16} color={op.id === 'mercado_pago' ? '#009EE3' : primary} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={onConfirmar}
+        disabled={salvando || !form.nome.trim() || !form.whatsapp.trim()}
+        style={{
+          width: '100%', height: 50, borderRadius: 12, border: 'none',
+          background: !salvando && form.nome.trim() && form.whatsapp.trim() ? primary : '#e5e7eb',
+          color: !salvando && form.nome.trim() && form.whatsapp.trim() ? '#fff' : '#9ca3af',
+          fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
+          cursor: !salvando && form.nome.trim() && form.whatsapp.trim() ? 'pointer' : 'not-allowed',
+        }}
+      >
+        {salvando ? 'Confirmando...' : 'Confirmar pedido'}
+      </button>
+    </div>
+  )
+}
+
+// ── Etapa confirmado ─────────────────────────────────────────
+function EtapaConfirmado({ config, totalCarrinho, form }) {
+  const [copiado, setCopiado] = useState(false)
+  const chavePix = config?.chave_pix || config?.email_acesso || 'Configure em Configurações'
+
+  function copiar() {
+    navigator.clipboard.writeText(chavePix)
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  const waNum = (config?.whatsapp_loja || '').replace(/\D/g, '')
+  const waLink = waNum ? `https://wa.me/55${waNum}?text=${encodeURIComponent('Olá! Seguem os detalhes do meu pedido e o comprovante de pagamento.')}` : null
+
+  return (
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Banner verde */}
+      <div style={{ background: '#1F8A5B', borderRadius: 14, padding: '20px 18px', textAlign: 'center' }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+          <Check size={24} color="#fff" strokeWidth={2.5} />
+        </div>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 6 }}>Pedido confirmado!</p>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>Em breve entraremos em contato pelo WhatsApp</p>
+      </div>
+
+      {/* Card Pix */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '20px 18px', textAlign: 'center' }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>Total a pagar</p>
+        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 700, color: '#1a1a1a', marginBottom: 20 }}>{fmtR(totalCarrinho)}</p>
+
+        {/* QR Code placeholder */}
+        <div style={{ width: 160, height: 160, borderRadius: 12, border: '2px dashed #ddd', background: '#f9f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: 32 }}>⬛</span>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: '#bbb' }}>QR Code Pix</p>
+        </div>
+
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999', marginBottom: 8 }}>Chave Pix</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f5f5f5', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
+          <code style={{ flex: 1, fontSize: 12, color: '#333', wordBreak: 'break-all', fontFamily: 'monospace', textAlign: 'left' }}>{chavePix}</code>
+          <button onClick={copiar} style={{ background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+            {copiado ? <Check size={14} color="#1F8A5B" /> : <Copy size={14} color="#999" />}
+          </button>
+        </div>
+
+        <div style={{ textAlign: 'left', background: '#f9fafb', borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {['Abra o app do seu banco', 'Escaneie o QR Code ou cole a chave Pix', `Confirme o valor de ${fmtR(totalCarrinho)}`, 'Envie o comprovante pelo WhatsApp'].map((s, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#1F8A5B20', color: '#1F8A5B', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#555', lineHeight: 1.4 }}>{s}</p>
+            </div>
+          ))}
+        </div>
+
+        {waLink ? (
+          <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', height: 44, borderRadius: 10, background: '#25D366', color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, lineHeight: '44px', textDecoration: 'none', marginBottom: 10 }}>
+            Enviar comprovante
+          </a>
+        ) : (
+          <button disabled style={{ width: '100%', height: 44, borderRadius: 10, background: '#e5e7eb', color: '#9ca3af', border: 'none', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, marginBottom: 10, cursor: 'not-allowed' }}>
+            Enviar comprovante
+          </button>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#ccc', fontSize: 11, fontFamily: 'Manrope, sans-serif', marginBottom: 10 }}>
+          <div style={{ flex: 1, height: 1, background: '#ede8e3' }} />
+          <span>ou pague direto</span>
+          <div style={{ flex: 1, height: 1, background: '#ede8e3' }} />
+        </div>
+
+        <button disabled style={{ width: '100%', height: 44, borderRadius: 10, background: '#009EE3', color: '#fff', border: 'none', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'not-allowed', opacity: 0.6 }}>
+          Pagar com Mercado Pago (em breve)
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main ─────────────────────────────────────────────────────
+export default function CatalogoPublico({ lojaId }) {
+  const [config, setConfig] = useState(null)
+  const [produtos, setProdutos] = useState([])
+  const [carrinho, setCarrinho] = useState([])
+  const [etapa, setEtapa] = useState('catalogo')
+  const [form, setForm] = useState({ nome: '', whatsapp: '', formaPagamento: 'pix_manual' })
+  const [loading, setLoading] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [busca, setBusca] = useState('')
+
+  useEffect(() => {
+    async function load() {
+      const { data: cfg } = await supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle()
+      const { data: prods } = await supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome')
+      setConfig(cfg)
+      setProdutos(prods || [])
+      setLoading(false)
+    }
+    load()
+  }, [lojaId])
+
+  const primary = config?.cor_primaria || '#5E2BD0'
+
+  function addItem(produto, variacaoRaw) {
+    const varLabel = getVariacaoLabel(variacaoRaw) || ''
+    const key = produto.id + '_' + varLabel
+    setCarrinho(prev => {
+      const exists = prev.find(i => i.key === key)
+      if (exists) return prev.map(i => i.key === key ? { ...i, qtd: i.qtd + 1 } : i)
+      return [...prev, { key, produtoId: produto.id, nome: produto.nome, variacao: varLabel, preco: produto.preco_venda, qtd: 1 }]
+    })
+  }
+
+  function removeItem(key) {
+    setCarrinho(prev => prev.filter(i => i.key !== key))
+  }
+
+  const totalCarrinho = carrinho.reduce((acc, i) => acc + Number(i.preco) * i.qtd, 0)
+
+  async function confirmarPedido() {
+    if (!form.nome.trim() || !form.whatsapp.trim()) return
+    setSalvando(true)
+    try {
+      const novoPedido = {
+        loja_id: lojaId,
+        cliente_nome: form.nome.trim(),
+        cliente_whatsapp: form.whatsapp.trim(),
+        produtos: carrinho.map(i => ({ nome: i.nome, variacao: i.variacao, qtd: i.qtd, preco: i.preco })),
+        valor_total: totalCarrinho,
+        status: 'aguardando_pagamento',
+        forma_pagamento: form.formaPagamento,
+      }
+      const { error } = await supabase.from('lf_pedidos').insert(novoPedido)
+      if (!error) {
+        for (const item of carrinho) {
+          const prod = produtos.find(p => p.id === item.produtoId)
+          if (prod && item.variacao) {
+            const novasVars = prod.variacoes.map(v => {
+              const label = getVariacaoLabel(v)
+              return label === item.variacao
+                ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
+                : v
+            })
+            await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
+          }
+        }
+        setEtapa('confirmado')
+      }
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8F7F5' }}>
+        <div style={{ width: 26, height: 26, borderRadius: '50%', border: `2.5px solid ${primary}`, borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', background: '#F8F7F5', fontFamily: 'Manrope, sans-serif', maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <CatalogoHeader
+        config={config}
+        etapa={etapa}
+        onVoltar={() => setEtapa(etapa === 'checkout' ? 'catalogo' : 'catalogo')}
+        busca={busca}
+        setBusca={setBusca}
+      />
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: carrinho.length > 0 && etapa === 'catalogo' ? 80 : 0 }}>
+        {etapa === 'catalogo' && (
+          <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} />
+        )}
+        {etapa === 'checkout' && (
+          <EtapaCheckout
+            carrinho={carrinho}
+            form={form}
+            setForm={setForm}
+            onConfirmar={confirmarPedido}
+            onRemover={removeItem}
+            totalCarrinho={totalCarrinho}
+            primary={primary}
+            salvando={salvando}
+          />
+        )}
+        {etapa === 'confirmado' && (
+          <EtapaConfirmado config={config} totalCarrinho={totalCarrinho} form={form} />
+        )}
+      </div>
+
+      {/* Barra de carrinho */}
+      {carrinho.length > 0 && etapa === 'catalogo' && (
+        <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#fff', borderTop: '1px solid #ede8e3', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 50, boxSizing: 'border-box' }}>
+          <div>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>
+              {carrinho.reduce((s, i) => s + i.qtd, 0)} {carrinho.reduce((s, i) => s + i.qtd, 0) === 1 ? 'item' : 'itens'}
+            </p>
+            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: primary }}>{fmtR(totalCarrinho)}</p>
+          </div>
+          <button
+            onClick={() => setEtapa('checkout')}
+            style={{ height: 42, padding: '0 20px', borderRadius: 10, border: 'none', background: '#F4613A', color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Ver carrinho
+          </button>
+        </div>
+      )}
+
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap'); @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
