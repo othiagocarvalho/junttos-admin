@@ -17,6 +17,7 @@ import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 import Clientes from '../LojaFeminina/Clientes'
 import Crediario from '../LojaFeminina/Crediario'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
+import FinanceiroDesktop from './FinanceiroDesktop'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -1042,8 +1043,8 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
-    financeiro: (legado || temAcesso(plano, 'business'))
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>
+    financeiro: temAcesso(plano, 'business')
+      ? <FinanceiroDesktop data={data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:        <Fechamento       {...data} theme={theme} />,
     config:       <LojaConfig       {...data} theme={theme} />,

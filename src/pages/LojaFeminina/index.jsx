@@ -20,6 +20,7 @@ import WelcomeOnboarding from './WelcomeOnboarding'
 import Clientes from './Clientes'
 import Crediario from './Crediario'
 import PedidosCatalogo from './PedidosCatalogo'
+import Financeiro from './Financeiro'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -456,8 +457,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
-    financeiro: (legado || temAcesso(plano, 'business'))
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>FINANCEIRO — em breve</div>
+    financeiro: temAcesso(plano, 'business')
+      ? <Financeiro lojaId={lojaId} vendas={data.vendas} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:      (
       <div>
