@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Search, Plus, X, ChevronDown, ChevronRight, Package } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -35,7 +36,7 @@ function productStatus(variacoes) {
 
 const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
@@ -44,6 +45,10 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [newProdOpen, setNewProdOpen] = useState(false)
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
   const [newProdSaving, setNewProdSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(null) // { produto }
+  const [deleting, setDeleting]     = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleteToast, setDeleteToast] = useState('')
 
   const filtered = produtosData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
@@ -111,6 +116,29 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     setModal(null)
   }
 
+  async function handleDeleteProduto() {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    setDeleteError(null)
+    const lojaIdUsado = LOJA_ID || deleteConfirm.produto.loja_id
+    const { error } = await supabase
+      .from('lf_produtos')
+      .delete()
+      .eq('id', deleteConfirm.produto.id)
+      .eq('loja_id', lojaIdUsado)
+    if (error) {
+      setDeleteError('Erro ao excluir. Tente novamente.')
+      setDeleting(false)
+      return
+    }
+    setDeleteConfirm(null)
+    setModal(null)
+    setDeleting(false)
+    setDeleteToast('Produto excluído.')
+    setTimeout(() => setDeleteToast(''), 2500)
+    if (fetchAll) fetchAll()
+  }
+
   const canSave = form.cor.trim() && !saving
 
   function addNewVar() {
@@ -156,6 +184,12 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
+
+      {deleteToast && (
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1e1b4b', color: '#fff', padding: '10px 22px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+          {deleteToast}
+        </div>
+      )}
 
       {/* Totais */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -395,6 +429,20 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   >
                     <Plus size={13} /> Adicionar variação
                   </button>
+
+                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+                    <button
+                      onClick={() => setDeleteConfirm({ produto })}
+                      style={{
+                        width: '100%', height: 36, borderRadius: 10,
+                        border: '1px solid #fca5a5', background: '#fee2e2',
+                        cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+                        fontSize: 12, fontWeight: 700, color: '#dc2626',
+                      }}
+                    >
+                      Excluir produto
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -730,6 +778,56 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 }}
               >
                 {saving ? 'Salvando...' : modal.mode === 'add' ? 'Adicionar' : 'Salvar'}
+              </button>
+            </div>
+
+            {modal.mode === 'edit' && (
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+                <button
+                  onClick={() => setDeleteConfirm({ produto: modal.produto })}
+                  style={{
+                    width: '100%', height: 40, borderRadius: 10,
+                    border: '1px solid #fca5a5', background: '#fee2e2',
+                    cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+                    fontSize: 12, fontWeight: 700, color: '#dc2626',
+                  }}
+                >
+                  Excluir produto "{modal.produto.nome}"
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Modal de confirmação — excluir produto */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
+              Excluir produto?
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20 }}>
+              Tem certeza que quer excluir <strong style={{ color: 'var(--ink)' }}>{deleteConfirm.produto.nome}</strong>? Essa ação não pode ser desfeita.
+            </p>
+            {deleteError && (
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: '#dc2626', marginBottom: 14, padding: '8px 12px', background: '#fee2e2', borderRadius: 8 }}>
+                {deleteError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setDeleteConfirm(null); setDeleteError(null) }}
+                disabled={deleting}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteProduto}
+                disabled={deleting}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: deleting ? 'var(--line)' : '#DC2626', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
