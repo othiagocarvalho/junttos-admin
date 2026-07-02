@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Package, ShoppingBag, Settings, Monitor, Save } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
+import ProdutosB2BPro from './ProdutosB2BPro'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -203,16 +204,28 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 88px', boxSizing: 'border-box' }}>
         {tab === 'produtos' && (
           <div style={{ paddingTop: 8 }}>
-            <EstoqueMobile
-              produtosData={data.produtosData}
-              updateVariacoes={data.updateVariacoes}
-              addProduto={data.addProduto}
-              updateProduto={data.updateProduto}
-              features={data.features}
-              theme={theme}
-              LOJA_ID={lojaId}
-              fetchAll={data.fetchAll}
-            />
+            {nivel === 'pro' ? (
+              <ProdutosB2BPro
+                produtosData={data.produtosData}
+                updateVariacoes={data.updateVariacoes}
+                addProduto={data.addProduto}
+                updateProduto={data.updateProduto}
+                theme={theme}
+                LOJA_ID={lojaId}
+                fetchAll={data.fetchAll}
+              />
+            ) : (
+              <EstoqueMobile
+                produtosData={data.produtosData}
+                updateVariacoes={data.updateVariacoes}
+                addProduto={data.addProduto}
+                updateProduto={data.updateProduto}
+                features={data.features}
+                theme={theme}
+                LOJA_ID={lojaId}
+                fetchAll={data.fetchAll}
+              />
+            )}
           </div>
         )}
         {tab === 'pedidos' && (

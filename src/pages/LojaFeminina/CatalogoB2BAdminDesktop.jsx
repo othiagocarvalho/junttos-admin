@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Package, ShoppingBag, Settings, Save } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
+import ProdutosB2BPro from './ProdutosB2BPro'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -281,7 +282,17 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
   const effectiveLogo = data.config?.logo_url || (lojaId ? `/logos/${lojaId}.svg` : null)
 
   const content = {
-    produtos: (
+    produtos: nivel === 'pro' ? (
+      <ProdutosB2BPro
+        produtosData={data.produtosData}
+        updateVariacoes={data.updateVariacoes}
+        addProduto={data.addProduto}
+        updateProduto={data.updateProduto}
+        theme={theme}
+        LOJA_ID={lojaId}
+        fetchAll={data.fetchAll}
+      />
+    ) : (
       <EstoqueMobile
         produtosData={data.produtosData}
         updateVariacoes={data.updateVariacoes}

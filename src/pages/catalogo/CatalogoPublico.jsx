@@ -63,9 +63,8 @@ function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
 }
 
 // ── Card de produto ──────────────────────────────────────────
-function ProdutoCard({ produto, onAdd, primary }) {
+function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
   const [varSel, setVarSel] = useState(null)
-  const disponivel = produtoDisponivel(produto)
 
   const vars = (produto.variacoes || []).map(v => ({
     label: getVariacaoLabel(v),
@@ -73,12 +72,118 @@ function ProdutoCard({ produto, onAdd, primary }) {
     raw: v,
   })).filter(v => v.label)
 
+  // Estado de grade sempre inicializado (regra dos hooks — nunca condicional)
+  const [gradeQtds, setGradeQtds] = useState(() => {
+    const init = {}
+    vars.forEach(v => { if (v.label) init[v.label] = 0 })
+    return init
+  })
+
+  const disponivel = produtoDisponivel(produto)
+
   function handleAdd() {
     if (!varSel || varSel.quantidade === 0) return
     onAdd(produto, varSel.raw)
     setVarSel(null)
   }
 
+  // Grade de tamanho — ativo apenas quando Pro E variacao usa chave 'tamanho'
+  const isGrade = isB2BPro && (produto.variacoes || []).length > 0 && (() => {
+    const v0 = produto.variacoes[0]
+    const firstKey = Object.keys(v0).find(k => k !== 'quantidade' && k !== 'custo')
+    return firstKey === 'tamanho'
+  })()
+
+  const gradeHasAny = Object.values(gradeQtds).some(q => q > 0)
+
+  function setGradeQtd(label, rawVal) {
+    const max = vars.find(v => v.label === label)?.quantidade || 0
+    const n = Math.min(Math.max(0, parseInt(rawVal) || 0), max)
+    setGradeQtds(prev => ({ ...prev, [label]: n }))
+  }
+
+  function handleAddGrade() {
+    vars.forEach(v => {
+      const q = gradeQtds[v.label] || 0
+      if (q > 0) onAdd(produto, v.raw, q)
+    })
+    setGradeQtds(prev => Object.fromEntries(Object.keys(prev).map(k => [k, 0])))
+  }
+
+  // ── UI Grade de Tamanho ─────────────────────────────────────
+  if (isGrade) {
+    return (
+      <div style={{
+        background: '#fff', borderRadius: 14, border: '1px solid #ede8e3',
+        overflow: 'hidden', opacity: disponivel ? 1 : 0.55,
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ background: primary + '12', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ShoppingBag size={28} color={primary + '80'} />
+        </div>
+        <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.3 }}>
+            {produto.nome}
+          </p>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 700, color: primary }}>
+            {fmtR(produto.preco_venda)}
+          </p>
+          {!disponivel ? (
+            <button disabled style={{ marginTop: 4, height: 32, borderRadius: 8, border: 'none', background: '#e5e7eb', color: '#9ca3af', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, cursor: 'not-allowed' }}>
+              Esgotado
+            </button>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginTop: 2 }}>
+                {vars.map(v => (
+                  <div key={v.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{
+                      fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+                      color: v.quantidade === 0 ? '#bbb' : '#555',
+                      minWidth: 22, flexShrink: 0,
+                    }}>
+                      {v.label}
+                    </span>
+                    <input
+                      type="number" min="0" max={v.quantidade}
+                      value={gradeQtds[v.label] || 0}
+                      disabled={v.quantidade === 0}
+                      onChange={e => setGradeQtd(v.label, e.target.value)}
+                      style={{
+                        width: '100%', height: 26, borderRadius: 6, textAlign: 'center',
+                        border: `1.5px solid ${(gradeQtds[v.label] || 0) > 0 ? primary : '#e5e7eb'}`,
+                        background: (gradeQtds[v.label] || 0) > 0 ? primary + '10' : '#fafafa',
+                        fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                        color: v.quantidade === 0 ? '#ccc' : '#1a1a1a',
+                        outline: 'none', boxSizing: 'border-box',
+                        opacity: v.quantidade === 0 ? 0.45 : 1,
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleAddGrade}
+                disabled={!gradeHasAny}
+                style={{
+                  marginTop: 4, height: 34, borderRadius: 8, border: 'none',
+                  background: gradeHasAny ? primary : '#e5e7eb',
+                  color: gradeHasAny ? '#fff' : '#9ca3af',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
+                  cursor: gradeHasAny ? 'pointer' : 'not-allowed',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                }}
+              >
+                <Plus size={13} /> Adicionar ao carrinho
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── UI padrão (cor, tamanho sem grade Pro, ou sem variação) ──
   return (
     <div style={{
       background: '#fff', borderRadius: 14, border: '1px solid #ede8e3',
@@ -147,7 +252,7 @@ function ProdutoCard({ produto, onAdd, primary }) {
 }
 
 // ── Etapa catálogo ───────────────────────────────────────────
-function EtapaCatalogo({ produtos, onAdd, primary, busca }) {
+function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro }) {
   const filtered = useMemo(() => {
     if (!busca.trim()) return produtos
     const q = busca.toLowerCase()
@@ -166,7 +271,7 @@ function EtapaCatalogo({ produtos, onAdd, primary, busca }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '16px' }}>
       {filtered.map(p => (
-        <ProdutoCard key={p.id} produto={p} onAdd={onAdd} primary={primary} />
+        <ProdutoCard key={p.id} produto={p} onAdd={onAdd} primary={primary} isB2BPro={isB2BPro} />
       ))}
     </div>
   )
@@ -376,14 +481,15 @@ export default function CatalogoPublico({ lojaId }) {
 
   const primary = config?.cor_primaria || '#5E2BD0'
   const hasMercadoPago = !!config?.mercadopago_token
+  const isB2BPro = config?.features?.catalogo_b2b === 'pro'
 
-  function addItem(produto, variacaoRaw) {
+  function addItem(produto, variacaoRaw, qtd = 1) {
     const varLabel = getVariacaoLabel(variacaoRaw) || ''
     const key = produto.id + '_' + varLabel
     setCarrinho(prev => {
       const exists = prev.find(i => i.key === key)
-      if (exists) return prev.map(i => i.key === key ? { ...i, qtd: i.qtd + 1 } : i)
-      return [...prev, { key, produtoId: produto.id, nome: produto.nome, variacao: varLabel, preco: produto.preco_venda, qtd: 1 }]
+      if (exists) return prev.map(i => i.key === key ? { ...i, qtd: i.qtd + qtd } : i)
+      return [...prev, { key, produtoId: produto.id, nome: produto.nome, variacao: varLabel, preco: produto.preco_venda, qtd }]
     })
   }
 
@@ -419,18 +525,26 @@ export default function CatalogoPublico({ lojaId }) {
         return
       }
 
-      // Dar baixa no estoque
+      // Dar baixa no estoque — agrupa por produto para aplicar todos os tamanhos de uma vez
+      const byProduct = {}
       for (const item of carrinho) {
+        if (!item.variacao) continue
         const prod = produtos.find(p => p.id === item.produtoId)
-        if (prod && item.variacao) {
-          const novasVars = prod.variacoes.map(v => {
+        if (!prod) continue
+        if (!byProduct[item.produtoId]) byProduct[item.produtoId] = { prod, items: [] }
+        byProduct[item.produtoId].items.push(item)
+      }
+      for (const { prod, items } of Object.values(byProduct)) {
+        let novasVars = [...(prod.variacoes || [])]
+        for (const item of items) {
+          novasVars = novasVars.map(v => {
             const label = getVariacaoLabel(v)
             return label === item.variacao
               ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
               : v
           })
-          await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
         }
+        await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
       }
 
       setPedidoId(pedidoInserido?.id || null)
@@ -466,7 +580,7 @@ export default function CatalogoPublico({ lojaId }) {
       {/* Conteúdo centralizado em 480px */}
       <div style={{ flex: 1, maxWidth: 480, width: '100%', margin: '0 auto', paddingBottom: carrinho.length > 0 && etapa === 'catalogo' ? 80 : 0, boxSizing: 'border-box' }}>
         {etapa === 'catalogo' && (
-          <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} />
+          <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} isB2BPro={isB2BPro} />
         )}
         {etapa === 'checkout' && (
           <EtapaCheckout
