@@ -61,7 +61,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       ...form,
       produtos: exists
         ? form.produtos.filter(p => p.nome !== nome)
-        : [...form.produtos, { nome, obs: '' }],
+        : [...form.produtos, { nome, obs: '', quantidade: 1 }],
     })
   }
 
@@ -353,6 +353,33 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                 }
                               }}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: selCount >= vars[0].qty ? 'not-allowed' : 'pointer', color: selCount >= vars[0].qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                            >+</button>
+                          </div>
+                        ) : !isSimples && !hasVars && selCount > 0 ? (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            borderRadius: 8, overflow: 'hidden', userSelect: 'none',
+                            border: `1.5px solid ${theme.primary}`,
+                            background: theme.primary,
+                          }}>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (selCount <= 1) {
+                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => p.nome !== nome) }))
+                                } else {
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
+                                }
+                              }}
+                              style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                            >−</button>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
+                              }}
+                              style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
                             >+</button>
                           </div>
                         ) : selCount > 0 ? (
