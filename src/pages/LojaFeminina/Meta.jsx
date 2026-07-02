@@ -103,9 +103,12 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
     const v = parseFloat(valor.replace(',', '.'))
     if (!v || v <= 0) return
     setSaving(true)
-    await salvarMeta(mes, v)
-    setSaving(false)
-    setValor('')
+    try {
+      const err = await salvarMeta(mes, v)
+      if (!err) setValor('')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -131,6 +134,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
                 <input value={valor} onChange={e => setValor(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
                   placeholder="0,00"
+                  inputMode="decimal"
                   style={{ ...inputBase, paddingLeft: 36 }} onFocus={focusIn} onBlur={focusOut} />
               </div>
               <button onClick={handleSave} disabled={saving || !valor}
