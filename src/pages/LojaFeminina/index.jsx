@@ -7,6 +7,8 @@ import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
+import CatalogoB2BAdmin from './CatalogoB2BAdmin'
+import CatalogoB2BAdminDesktop from './CatalogoB2BAdminDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
 import Meta from './Meta'
@@ -389,6 +391,20 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
 
   // Desktop mode — render before loading check so it handles its own loading
   if (!data.loading && !data.dbError && viewMode === 'desktop') {
+    const catalogoB2BNivelDesktop = data?.config?.features?.catalogo_b2b
+    if (catalogoB2BNivelDesktop === 'simples' || catalogoB2BNivelDesktop === 'pro') {
+      return (
+        <div style={{ fontFamily: 'Manrope, sans-serif', ...themeVars }}>
+          <CatalogoB2BAdminDesktop
+            data={data}
+            theme={theme}
+            lojaId={lojaId}
+            nivel={catalogoB2BNivelDesktop}
+            onSwitchToMobile={() => setViewMode('mobile')}
+          />
+        </div>
+      )
+    }
     return (
       <ClientDashboardDesktop
         data={data}
@@ -427,6 +443,22 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             </div>
           </div>
         </div>
+      </div>
+    )
+  }
+
+  // Catálogo B2B — admin reduzido mobile (viewMode já é 'mobile' aqui)
+  const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
+  if (catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') {
+    return (
+      <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
+        <CatalogoB2BAdmin
+          data={data}
+          theme={theme}
+          lojaId={lojaId}
+          nivel={catalogoB2BNivel}
+          onSwitchToDesktop={() => setViewMode('desktop')}
+        />
       </div>
     )
   }

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
+import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import ContasPagar from '../LojaFeminina/ContasPagar'
@@ -1002,6 +1003,20 @@ function DesktopRelatorios({ data, theme, temAcessoPro }) {
 // ── Main export ───────────────────────────────────────────────
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
+
+  const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
+  if (catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') {
+    return (
+      <CatalogoB2BAdminDesktop
+        data={data}
+        theme={theme}
+        lojaId={data.LOJA_ID}
+        nivel={catalogoB2BNivel}
+        onSwitchToMobile={onSwitchToMobile}
+      />
+    )
+  }
+
   const isDark = theme.isDark || theme.primary === '#D4A017'
   const contentVars = {
     '--primary': theme.primary,
