@@ -40,7 +40,7 @@ function LojaClientApp({ segment, lojaId }) {
         <Routes>
           <Route path="/" element={<ClientLogin />} />
           <Route path="/dashboard" element={
-            <ClientPrivateRoute>
+            <ClientPrivateRoute lojaId={lojaId}>
               <ClientDashboard lojaId={lojaId} />
             </ClientPrivateRoute>
           } />

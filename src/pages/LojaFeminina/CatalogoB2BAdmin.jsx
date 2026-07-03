@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Package, ShoppingBag, Settings, Monitor, Save } from 'lucide-react'
+import { Package, ShoppingBag, Settings, Monitor, Save, Users, UserPlus } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import PedidosConsolidados from './PedidosConsolidados'
+import { supabase } from '../../lib/supabase'
+import { useClientAuth } from '../../context/ClientAuthContext'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -13,11 +15,12 @@ const PRESETS = [
   { label: 'Borgonha', primary: '#9D174D' },
 ]
 
-const TABS = [
+const TABS_BASE = [
   { id: 'produtos', label: 'Produtos', Icon: Package },
   { id: 'pedidos',  label: 'Pedidos',  Icon: ShoppingBag },
-  { id: 'config',   label: 'Config',   Icon: Settings },
 ]
+const TAB_USUARIOS = { id: 'usuarios', label: 'Usuários', Icon: Users }
+const TAB_CONFIG   = { id: 'config',   label: 'Config',   Icon: Settings }
 
 const lbl = {
   display: 'block', fontSize: 10, fontWeight: 700,
@@ -32,6 +35,199 @@ const inp = {
 const card = {
   background: 'var(--surface)', border: '1px solid var(--line)',
   borderRadius: 14, padding: '16px 16px 20px', marginBottom: 12,
+}
+
+function UsuariosB2B({ lojaId, theme }) {
+  const { user } = useClientAuth()
+  const primary = theme.primary
+
+  const [usuarios,   setUsuarios]   = useState([])
+  const [loadingU,   setLoadingU]   = useState(true)
+  const [showForm,   setShowForm]   = useState(false)
+  const [form,       setForm]       = useState({ email: '', nome: '', senha: '' })
+  const [saving,     setSaving]     = useState(false)
+  const [msg,        setMsg]        = useState(null)
+
+  async function fetchUsuarios() {
+    setLoadingU(true)
+    const { data } = await supabase
+      .from('lf_usuarios')
+      .select('*')
+      .eq('loja_id', lojaId)
+      .eq('ativo', true)
+      .order('criado_em')
+    setUsuarios(data || [])
+    setLoadingU(false)
+  }
+
+  useEffect(() => { fetchUsuarios() }, [lojaId])
+
+  async function handleConvidar(e) {
+    e.preventDefault()
+    const { email, nome, senha } = form
+    if (!email || !nome || !senha) {
+      setMsg({ type: 'error', text: 'Preencha todos os campos.' })
+      return
+    }
+    setSaving(true); setMsg(null)
+    try {
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('create-user', {
+        body: { email, password: senha, loja_id: lojaId, nome },
+      })
+      if (fnErr || fnData?.error) throw new Error(fnData?.error || fnErr?.message || 'Erro ao criar usuário.')
+      if (!fnData?.user?.id) throw new Error('Usuário criado mas ID não retornado.')
+      const { error: insErr } = await supabase.from('lf_usuarios').insert({
+        loja_id:      lojaId,
+        auth_user_id: fnData.user.id,
+        email,
+        nome,
+        ativo:        true,
+      })
+      if (insErr) throw new Error(insErr.message)
+      setMsg({ type: 'success', text: 'Colaboradora convidada com sucesso!' })
+      setForm({ email: '', nome: '', senha: '' })
+      setShowForm(false)
+      setTimeout(() => setMsg(null), 4000)
+      await fetchUsuarios()
+    } catch (err) {
+      setMsg({ type: 'error', text: err.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDesativar(id) {
+    await supabase.from('lf_usuarios').update({ ativo: false }).eq('id', id)
+    await fetchUsuarios()
+  }
+
+  const inp = {
+    width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12,
+    padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+    color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
+  }
+  const msgStyle = (type) => ({
+    padding: '9px 12px', borderRadius: 10, fontSize: 13,
+    fontFamily: 'Manrope, sans-serif',
+    ...(type === 'success'
+      ? { background: 'rgba(22,163,74,0.08)', color: '#16a34a' }
+      : { background: 'rgba(220,38,38,0.08)', color: '#dc2626' }),
+  })
+
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+          Colaboradoras ativas
+        </p>
+        <button
+          onClick={() => { setShowForm(v => !v); setMsg(null) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 10, border: 'none',
+            background: primary, color: '#fff',
+            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          <UserPlus size={14} />
+          Convidar
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleConvidar} style={{ ...card, marginBottom: 16 }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
+            Nova colaboradora
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input
+              value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
+              placeholder="Nome" style={inp}
+            />
+            <input
+              type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              placeholder="E-mail de acesso" style={inp}
+            />
+            <input
+              type="text" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))}
+              placeholder="Senha temporária" style={inp}
+            />
+          </div>
+          {msg && <div style={{ ...msgStyle(msg.type), marginTop: 10 }}>{msg.text}</div>}
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <button type="button" onClick={() => { setShowForm(false); setMsg(null) }} style={{
+              flex: 1, height: 42, borderRadius: 10, border: '1.5px solid var(--line)',
+              background: 'transparent', color: 'var(--muted)', cursor: 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            }}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} style={{
+              flex: 1, height: 42, borderRadius: 10, border: 'none',
+              background: saving ? 'var(--line)' : primary, color: '#fff',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+            }}>
+              {saving ? 'Convidando...' : 'Convidar'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!showForm && msg && <div style={{ ...msgStyle(msg.type), marginBottom: 12 }}>{msg.text}</div>}
+
+      {loadingU ? (
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
+          Carregando...
+        </p>
+      ) : usuarios.length === 0 ? (
+        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
+          Nenhuma colaboradora cadastrada.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {usuarios.map(u => (
+            <div key={u.id} style={{
+              ...card,
+              marginBottom: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+                  {u.nome || u.email}
+                </p>
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                  {u.email}
+                </p>
+              </div>
+              {u.auth_user_id === user?.id ? (
+                <span style={{
+                  padding: '4px 10px', borderRadius: 8,
+                  background: `${primary}15`, color: primary,
+                  fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700,
+                }}>
+                  Você
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleDesativar(u.id)}
+                  style={{
+                    padding: '6px 12px', borderRadius: 8, border: '1.5px solid #dc2626',
+                    background: 'transparent', color: '#dc2626',
+                    fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Desativar
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ConfigB2B({ config, saveConfig, theme, nivel }) {
@@ -225,6 +421,10 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
   const [pedidosView, setPedidosView] = useState('lista')
   const primary = theme.primary
 
+  const TABS = nivel === 'pro'
+    ? [...TABS_BASE, TAB_USUARIOS, TAB_CONFIG]
+    : [...TABS_BASE, TAB_CONFIG]
+
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif' }}>
 
@@ -327,6 +527,9 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
             )}
           </div>
         )}
+        {tab === 'usuarios' && nivel === 'pro' && (
+          <UsuariosB2B lojaId={lojaId} theme={theme} />
+        )}
         {tab === 'config' && (
           <ConfigB2B
             config={data.config}
@@ -346,7 +549,7 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
       }}>
         <div style={{
           height: 62, width: '100%',
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+          display: 'grid', gridTemplateColumns: `repeat(${TABS.length}, 1fr)`,
           alignItems: 'center',
         }}>
           {TABS.map(({ id, label, Icon }) => {

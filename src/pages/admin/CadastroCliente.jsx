@@ -168,7 +168,18 @@ function NovoClienteModal({ open, onClose, onCreated }) {
       if (cfgErr) throw new Error(cfgErr.message)
 
       if (form.email_acesso && form.senha_acesso) {
-        await supabase.functions.invoke('create-user', { body: { email: form.email_acesso, password: form.senha_acesso } })
+        const { data: fnData } = await supabase.functions.invoke('create-user', {
+          body: { email: form.email_acesso, password: form.senha_acesso, loja_id: form.slug, nome: form.nome },
+        })
+        if (fnData?.user?.id) {
+          await supabase.from('lf_usuarios').insert({
+            loja_id:       form.slug,
+            auth_user_id:  fnData.user.id,
+            email:         form.email_acesso,
+            nome:          form.nome,
+            ativo:         true,
+          })
+        }
       }
 
       // Criar primeira cobrança
