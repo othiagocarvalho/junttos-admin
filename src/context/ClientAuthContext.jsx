@@ -49,36 +49,15 @@ export function useClientAuth() {
 
 export function ClientPrivateRoute({ children, lojaId }) {
   const { session, loading } = useClientAuth()
-  const [lojaAllowed, setLojaAllowed] = useState(null)
 
-  // Valida que o usuário autenticado tem vínculo ativo com esta loja específica
-  useEffect(() => {
-    if (loading) return
-    if (!session) { setLojaAllowed(false); return }
+  if (loading) return <Spinner />
+  if (!session) return <Navigate to="/" replace />
 
-    let cancelled = false
-    supabase
-      .from('lf_usuarios')
-      .select('id')
-      .eq('auth_user_id', session.user.id)
-      .eq('loja_id', lojaId)
-      .eq('ativo', true)
-      .maybeSingle()
-      .then(({ data }) => { if (!cancelled) setLojaAllowed(!!data) })
-
-    return () => { cancelled = true }
-  }, [session, loading, lojaId])
-
-  // Encerra sessão se usuário não tem vínculo com esta loja
-  useEffect(() => {
-    if (!loading && lojaAllowed === false && session) {
-      supabase.auth.signOut()
-    }
-  }, [loading, lojaAllowed, session])
-
-  if (loading || lojaAllowed === null) return <Spinner />
-
-  if (!session || !lojaAllowed) return <Navigate to="/" replace />
+  const userLojaId = session.user?.app_metadata?.loja_id
+  if (!userLojaId || userLojaId !== lojaId) {
+    supabase.auth.signOut()
+    return <Navigate to="/" replace />
+  }
 
   return children
 }
