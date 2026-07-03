@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search } from 'lucide-react'
+import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -65,6 +65,7 @@ function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
 // ── Card de produto ──────────────────────────────────────────
 function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
   const [varSel, setVarSel] = useState(null)
+  const [showVideo, setShowVideo] = useState(false)
 
   const vars = (produto.variacoes || []).map(v => ({
     label: getVariacaoLabel(v),
@@ -118,8 +119,21 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
         overflow: 'hidden', opacity: disponivel ? 1 : 0.55,
         display: 'flex', flexDirection: 'column',
       }}>
-        <div style={{ background: primary + '12', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {showVideo && produto.video_url && (
+          <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480 }}>
+              <video src={produto.video_url} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: '70vh' }} />
+              <button onClick={() => setShowVideo(false)} style={{ display: 'block', margin: '12px auto 0', color: '#fff', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 14 }}>Fechar</button>
+            </div>
+          </div>
+        )}
+        <div style={{ background: primary + '12', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           <ShoppingBag size={28} color={primary + '80'} />
+          {produto.video_url && (
+            <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 5, right: 5, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
+              <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
+            </button>
+          )}
         </div>
         <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.3 }}>
@@ -190,8 +204,21 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
       overflow: 'hidden', opacity: disponivel ? 1 : 0.55,
       display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ background: primary + '12', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {showVideo && produto.video_url && (
+        <div onClick={() => setShowVideo(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480 }}>
+            <video src={produto.video_url} controls autoPlay style={{ width: '100%', borderRadius: 12, maxHeight: '70vh' }} />
+            <button onClick={() => setShowVideo(false)} style={{ display: 'block', margin: '12px auto 0', color: '#fff', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 14 }}>Fechar</button>
+          </div>
+        </div>
+      )}
+      <div style={{ background: primary + '12', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         <ShoppingBag size={36} color={primary + '80'} />
+        {produto.video_url && (
+          <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
+            <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
+          </button>
+        )}
       </div>
 
       <div style={{ padding: '10px 12px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
