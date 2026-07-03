@@ -262,6 +262,7 @@ export function useLojaData(lojaId = 'estrada') {
       valor_lote:      extras.valor_lote     || null,
       data_vencimento: extras.data_vencimento || null,
       status_pgto:     extras.status_pgto    || null,
+      video_url:       extras.video_url      || null,
     })
     if (!error) await fetchAll()
     return error

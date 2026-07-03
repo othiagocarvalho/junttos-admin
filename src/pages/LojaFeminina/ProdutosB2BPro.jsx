@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus, X, Search, ChevronDown, ChevronRight, Package } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -117,6 +118,69 @@ function variacaoesToGrade(variacoes) {
   })
 }
 
+// ── Seção de upload de vídeo (reutilizada nos dois modais) ───
+function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRemoveExisting, error, theme }) {
+  const MAX = 50 * 1024 * 1024
+  function pick(file) {
+    if (!file) return
+    if (file.size > MAX) { onSelect(null, 'Vídeo muito grande. Limite: 50MB.'); return }
+    const url = URL.createObjectURL(file)
+    onSelect(file, url)
+  }
+
+  if (previewUrl) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <video src={previewUrl} controls muted style={{ width: '100%', borderRadius: 10, maxHeight: 200, background: '#000' }} />
+        <button
+          onClick={onRemovePreview}
+          style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600 }}
+        >
+          <X size={12} /> Remover seleção
+        </button>
+        {error && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>}
+      </div>
+    )
+  }
+
+  if (existingUrl) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <video src={existingUrl} controls muted style={{ width: '100%', borderRadius: 10, maxHeight: 200, background: '#000' }} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <label style={{ flex: 1, cursor: 'pointer' }}>
+            <input type="file" accept="video/mp4,video/quicktime,video/webm,video/mov" style={{ display: 'none' }} onChange={e => pick(e.target.files[0])} />
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 8, border: `1px solid ${theme.primary}`, color: theme.primary, fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <Video size={12} /> Substituir
+            </span>
+          </label>
+          <button
+            onClick={onRemoveExisting}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600 }}
+          >
+            <X size={12} /> Remover
+          </button>
+        </div>
+        {error && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <label style={{ display: 'block', cursor: 'pointer' }}>
+        <input type="file" accept="video/mp4,video/quicktime,video/webm,video/mov" style={{ display: 'none' }} onChange={e => pick(e.target.files[0])} />
+        <div style={{ border: '1.5px dashed var(--line)', borderRadius: 12, padding: '20px 16px', textAlign: 'center', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <Video size={22} color="var(--muted)" />
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Selecionar vídeo</p>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>MP4, MOV ou WebM · Máx. 50MB</p>
+        </div>
+      </label>
+      {error && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626', marginTop: 6 }}>{error}</p>}
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────
 export default function ProdutosB2BPro({
   produtosData = [],
@@ -139,6 +203,19 @@ export default function ProdutosB2BPro({
   const [deleting, setDeleting]           = useState(false)
   const [toast, setToast]                 = useState('')
 
+  // Video — novo produto
+  const [newVideoFile, setNewVideoFile]       = useState(null)
+  const [newVideoPreview, setNewVideoPreview] = useState(null)
+  const [newVideoError, setNewVideoError]     = useState('')
+
+  // Video — editar produto
+  const [editVideoFile, setEditVideoFile]       = useState(null)
+  const [editVideoPreview, setEditVideoPreview] = useState(null)
+  const [editVideoUrl, setEditVideoUrl]         = useState('')
+  const [editVideoError, setEditVideoError]     = useState('')
+
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+
   const filtered = produtosData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
@@ -155,8 +232,23 @@ export default function ProdutosB2BPro({
     setTimeout(() => setToast(''), 2500)
   }
 
+  async function uploadVideo(file, prefix) {
+    const ext = file.name.split('.').pop().toLowerCase()
+    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
+    const { error } = await supabase.storage
+      .from('produtos-videos')
+      .upload(path, file, { upsert: true, contentType: file.type })
+    if (error) throw new Error(error.message)
+    const { data: { publicUrl } } = supabase.storage.from('produtos-videos').getPublicUrl(path)
+    return publicUrl
+  }
+
   function openEdit(produto) {
     setEditGrade(variacaoesToGrade(produto.variacoes))
+    setEditVideoUrl(produto.video_url || '')
+    setEditVideoFile(null)
+    setEditVideoPreview(null)
+    setEditVideoError('')
     setEditModal({ produto })
   }
 
@@ -165,15 +257,34 @@ export default function ProdutosB2BPro({
     const variacoes = buildVariacoes(newProd.grade)
     if (variacoes.length === 0) return
     setNewSaving(true)
+
+    let videoUrl = null
+    if (newVideoFile) {
+      setUploadingVideo(true)
+      try {
+        videoUrl = await uploadVideo(newVideoFile, `prod_${Date.now()}`)
+      } catch (e) {
+        setNewVideoError('Erro no upload: ' + e.message)
+        setNewSaving(false)
+        setUploadingVideo(false)
+        return
+      }
+      setUploadingVideo(false)
+    }
+
     const err = await addProduto(newProd.nome.trim(), {
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
+      video_url: videoUrl,
     })
     setNewSaving(false)
     if (!err) {
       setNewProdOpen(false)
       setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() })
+      setNewVideoFile(null)
+      setNewVideoPreview(null)
+      setNewVideoError('')
     }
   }
 
@@ -181,7 +292,25 @@ export default function ProdutosB2BPro({
     if (!editModal || editSaving) return
     const variacoes = buildVariacoes(editGrade)
     setEditSaving(true)
-    await updateVariacoes(editModal.produto.id, variacoes)
+
+    let finalVideoUrl = editVideoUrl
+    if (editVideoFile) {
+      setUploadingVideo(true)
+      try {
+        finalVideoUrl = await uploadVideo(editVideoFile, editModal.produto.id)
+      } catch (e) {
+        setEditVideoError('Erro no upload: ' + e.message)
+        setEditSaving(false)
+        setUploadingVideo(false)
+        return
+      }
+      setUploadingVideo(false)
+    }
+
+    await updateProduto(editModal.produto.id, {
+      variacoes,
+      video_url: finalVideoUrl || null,
+    })
     setEditSaving(false)
     setEditModal(null)
   }
@@ -253,7 +382,7 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewProdOpen(true) }}
+          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewProdOpen(true) }}
           onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewProdOpen(true))}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 14, flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
@@ -288,6 +417,11 @@ export default function ProdutosB2BPro({
                   {ps && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: BADGE[ps].bg, color: BADGE[ps].color, border: `1px solid ${BADGE[ps].border}`, fontFamily: 'Manrope, sans-serif' }}>
                       {BADGE[ps].label}
+                    </span>
+                  )}
+                  {produto.video_url && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', border: '1px solid #c4b5fd', fontFamily: 'Manrope, sans-serif', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Video size={9} /> vídeo
                     </span>
                   )}
                 </div>
@@ -403,6 +537,23 @@ export default function ProdutosB2BPro({
                   theme={theme}
                 />
               </div>
+
+              {/* Upload de vídeo */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+                <label style={lbl}>Vídeo do produto (opcional)</label>
+                <VideoSection
+                  previewUrl={newVideoPreview}
+                  existingUrl={null}
+                  onSelect={(file, previewOrError) => {
+                    if (!file) { setNewVideoError(previewOrError); return }
+                    setNewVideoFile(file); setNewVideoPreview(previewOrError); setNewVideoError('')
+                  }}
+                  onRemovePreview={() => { setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError('') }}
+                  onRemoveExisting={null}
+                  error={uploadingVideo ? 'Fazendo upload...' : newVideoError}
+                  theme={theme}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
@@ -421,14 +572,14 @@ export default function ProdutosB2BPro({
                   color: newCanSave ? '#fff' : 'var(--muted)', fontSize: 14,
                 }}
               >
-                {newSaving ? 'Salvando...' : 'Salvar Produto'}
+                {newSaving ? (uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar Produto'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal — Editar Grade */}
+      {/* Modal — Editar Grade + Vídeo */}
       {editModal && (
         <div
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
@@ -447,6 +598,23 @@ export default function ProdutosB2BPro({
 
             <GradeForm grade={editGrade} setGrade={setEditGrade} theme={theme} />
 
+            {/* Upload de vídeo */}
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
+              <label style={lbl}>Vídeo do produto</label>
+              <VideoSection
+                previewUrl={editVideoPreview}
+                existingUrl={editVideoFile ? null : editVideoUrl}
+                onSelect={(file, previewOrError) => {
+                  if (!file) { setEditVideoError(previewOrError); return }
+                  setEditVideoFile(file); setEditVideoPreview(previewOrError); setEditVideoError('')
+                }}
+                onRemovePreview={() => { setEditVideoFile(null); setEditVideoPreview(null); setEditVideoError('') }}
+                onRemoveExisting={() => { setEditVideoUrl(''); setEditVideoError('') }}
+                error={uploadingVideo ? 'Fazendo upload...' : editVideoError}
+                theme={theme}
+              />
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button onClick={() => setEditModal(null)}
                 style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
@@ -463,7 +631,7 @@ export default function ProdutosB2BPro({
                   color: editSaving ? 'var(--muted)' : '#fff', fontSize: 14,
                 }}
               >
-                {editSaving ? 'Salvando...' : 'Salvar Grade'}
+                {editSaving ? (uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar'}
               </button>
             </div>
           </div>
