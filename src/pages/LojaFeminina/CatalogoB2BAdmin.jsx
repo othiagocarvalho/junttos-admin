@@ -3,6 +3,7 @@ import { Package, ShoppingBag, Settings, Monitor, Save } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
+import PedidosConsolidados from './PedidosConsolidados'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -221,6 +222,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
 
 export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchToDesktop }) {
   const [tab, setTab] = useState('produtos')
+  const [pedidosView, setPedidosView] = useState('lista')
   const primary = theme.primary
 
   return (
@@ -287,12 +289,42 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
         )}
         {tab === 'pedidos' && (
           <div style={{ paddingTop: 8 }}>
-            <PedidosCatalogo
-              pedidos={data.pedidos || []}
-              updatePedido={data.updatePedido}
-              theme={theme}
-              lojaId={lojaId}
-            />
+            {nivel === 'pro' && (
+              <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 4, marginBottom: 16 }}>
+                {[
+                  { id: 'lista',      label: 'Lista' },
+                  { id: 'consolidado', label: 'Consolidado' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setPedidosView(opt.id)}
+                    style={{
+                      flex: 1, height: 36, borderRadius: 9, border: 'none',
+                      background: pedidosView === opt.id ? primary : 'transparent',
+                      color: pedidosView === opt.id ? '#fff' : 'var(--muted)',
+                      fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', transition: 'all .15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {(nivel !== 'pro' || pedidosView === 'lista') && (
+              <PedidosCatalogo
+                pedidos={data.pedidos || []}
+                updatePedido={data.updatePedido}
+                theme={theme}
+                lojaId={lojaId}
+              />
+            )}
+            {nivel === 'pro' && pedidosView === 'consolidado' && (
+              <PedidosConsolidados
+                pedidos={data.pedidos || []}
+                theme={theme}
+              />
+            )}
           </div>
         )}
         {tab === 'config' && (

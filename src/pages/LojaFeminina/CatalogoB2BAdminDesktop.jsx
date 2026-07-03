@@ -3,6 +3,7 @@ import { Package, ShoppingBag, Settings, Save } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
+import PedidosConsolidados from './PedidosConsolidados'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -320,6 +321,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
 // ── Main export ───────────────────────────────────────────────
 export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, onSwitchToMobile }) {
   const [tab, setTab] = useState('produtos')
+  const [pedidosView, setPedidosView] = useState('lista')
 
   const isDark = theme.isDark || theme.primary === '#D4A017'
   const contentVars = {
@@ -360,12 +362,44 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
       />
     ),
     pedidos: (
-      <PedidosCatalogo
-        pedidos={data.pedidos || []}
-        updatePedido={data.updatePedido}
-        theme={theme}
-        lojaId={lojaId}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {nivel === 'pro' && (
+          <div style={{ display: 'inline-flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 4, alignSelf: 'flex-start' }}>
+            {[
+              { id: 'lista',       label: 'Lista' },
+              { id: 'consolidado', label: 'Consolidado' },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setPedidosView(opt.id)}
+                style={{
+                  height: 36, padding: '0 20px', borderRadius: 9, border: 'none',
+                  background: pedidosView === opt.id ? theme.primary : 'transparent',
+                  color: pedidosView === opt.id ? '#fff' : 'var(--muted)',
+                  fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {(nivel !== 'pro' || pedidosView === 'lista') && (
+          <PedidosCatalogo
+            pedidos={data.pedidos || []}
+            updatePedido={data.updatePedido}
+            theme={theme}
+            lojaId={lojaId}
+          />
+        )}
+        {nivel === 'pro' && pedidosView === 'consolidado' && (
+          <PedidosConsolidados
+            pedidos={data.pedidos || []}
+            theme={theme}
+          />
+        )}
+      </div>
     ),
     config: (
       <ConfigB2BDesktop
