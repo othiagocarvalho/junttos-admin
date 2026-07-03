@@ -131,32 +131,41 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, onSwitchToMobile }) {
 }
 
 // ── Config Desktop (2 colunas) ─────────────────────────────────
-function ConfigB2BDesktop({ config, saveConfig, theme }) {
+function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   const [nome,     setNome]     = useState(config?.nome           || '')
   const [chavePix, setChavePix] = useState(config?.chave_pix      || '')
   const [whatsapp, setWhatsapp] = useState(config?.whatsapp_loja  || '')
   const [primary,  setPrimary]  = useState(config?.cor_primaria    || '#5E2BD0')
   const [logoUrl,  setLogoUrl]  = useState(config?.logo_url        || '')
+  const [pmTipo,   setPmTipo]   = useState(config?.pedido_minimo_tipo  || 'nenhum')
+  const [pmValor,  setPmValor]  = useState(config?.pedido_minimo_valor || '')
+  const [pmQtd,    setPmQtd]    = useState(config?.pedido_minimo_qtd   || '')
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
 
   useEffect(() => {
     if (!config) return
-    setNome(config.nome           || '')
-    setChavePix(config.chave_pix  || '')
+    setNome(config.nome              || '')
+    setChavePix(config.chave_pix     || '')
     setWhatsapp(config.whatsapp_loja || '')
-    setPrimary(config.cor_primaria  || '#5E2BD0')
-    setLogoUrl(config.logo_url      || '')
+    setPrimary(config.cor_primaria   || '#5E2BD0')
+    setLogoUrl(config.logo_url       || '')
+    setPmTipo(config.pedido_minimo_tipo   || 'nenhum')
+    setPmValor(config.pedido_minimo_valor || '')
+    setPmQtd(config.pedido_minimo_qtd     || '')
   }, [config])
 
   async function handleSave() {
     setSaving(true)
     await saveConfig({
-      nome:          nome         || 'Catálogo',
-      chave_pix:     chavePix     || null,
-      whatsapp_loja: whatsapp     || null,
-      cor_primaria:  primary,
-      logo_url:      logoUrl      || null,
+      nome:                nome     || 'Catálogo',
+      chave_pix:           chavePix || null,
+      whatsapp_loja:       whatsapp || null,
+      cor_primaria:        primary,
+      logo_url:            logoUrl  || null,
+      pedido_minimo_tipo:  pmTipo   || 'nenhum',
+      pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
+      pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
     })
     setSaving(false)
     setSaved(true)
@@ -237,11 +246,57 @@ function ConfigB2BDesktop({ config, saveConfig, theme }) {
           </div>
         </div>
 
-        {/* Placeholder para pedido mínimo — implementar na etapa 5c */}
-        <div style={{ ...section, opacity: 0.4, pointerEvents: 'none' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Pedido Mínimo</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Disponível na próxima etapa.</p>
-        </div>
+        {nivel === 'pro' ? (
+          <div style={section}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={lbl}>Tipo de mínimo</label>
+                <select
+                  value={pmTipo}
+                  onChange={e => setPmTipo(e.target.value)}
+                  style={{ ...inp, cursor: 'pointer' }}
+                >
+                  <option value="nenhum">Nenhum</option>
+                  <option value="valor">Por valor (R$)</option>
+                  <option value="quantidade">Por quantidade de peças</option>
+                </select>
+              </div>
+              {pmTipo === 'valor' && (
+                <div>
+                  <label style={lbl}>Valor mínimo do pedido</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={pmValor}
+                      onChange={e => setPmValor(e.target.value)}
+                      placeholder="Ex: 300"
+                      style={{ ...inp, paddingLeft: 36 }}
+                    />
+                  </div>
+                </div>
+              )}
+              {pmTipo === 'quantidade' && (
+                <div>
+                  <label style={lbl}>Quantidade mínima de peças</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={pmQtd}
+                    onChange={e => setPmQtd(e.target.value)}
+                    placeholder="Ex: 10"
+                    style={inp}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ ...section, opacity: 0.4, pointerEvents: 'none' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Pedido Mínimo</p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Exclusivo do nível Pro.</p>
+          </div>
+        )}
 
         <button
           onClick={handleSave}
@@ -317,6 +372,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
         config={data.config}
         saveConfig={data.saveConfig}
         theme={theme}
+        nivel={nivel}
       />
     ),
   }
