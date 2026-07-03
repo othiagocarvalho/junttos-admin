@@ -278,7 +278,33 @@ function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro }) {
 }
 
 // ── Etapa checkout ───────────────────────────────────────────
-function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando, erroConfirmar, hasMercadoPago }) {
+function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando, erroConfirmar, hasMercadoPago, pedidoMinimo }) {
+  // Progresso do pedido mínimo
+  const totalQtd = carrinho.reduce((s, i) => s + i.qtd, 0)
+  let minimoAtingido = true
+  let progresso = null
+  if (pedidoMinimo) {
+    if (pedidoMinimo.tipo === 'valor') {
+      minimoAtingido = totalCarrinho >= pedidoMinimo.valor
+      progresso = {
+        tipo: 'valor',
+        atual: totalCarrinho,
+        minimo: pedidoMinimo.valor,
+        falta: Math.max(0, pedidoMinimo.valor - totalCarrinho),
+        pct: Math.min((pedidoMinimo.valor > 0 ? totalCarrinho / pedidoMinimo.valor : 0) * 100, 100),
+      }
+    } else if (pedidoMinimo.tipo === 'quantidade') {
+      minimoAtingido = totalQtd >= pedidoMinimo.qtd
+      progresso = {
+        tipo: 'quantidade',
+        atual: totalQtd,
+        minimo: pedidoMinimo.qtd,
+        falta: Math.max(0, pedidoMinimo.qtd - totalQtd),
+        pct: Math.min((pedidoMinimo.qtd > 0 ? totalQtd / pedidoMinimo.qtd : 0) * 100, 100),
+      }
+    }
+  }
+
   const opcoesPagamento = [
     { id: 'pix_manual', label: 'QR Code Pix', sub: 'Pague escaneando o QR Code' },
     ...(hasMercadoPago ? [{ id: 'mercadopago', label: 'Mercado Pago', sub: 'Cartão, Pix ou boleto' }] : []),
@@ -286,6 +312,47 @@ function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalC
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Barra de progresso de pedido mínimo */}
+      {progresso && (
+        <div style={{
+          background: '#fff', borderRadius: 14,
+          border: `1px solid ${minimoAtingido ? '#bbf7d0' : '#ede8e3'}`,
+          padding: '14px 16px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Pedido mínimo
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, color: minimoAtingido ? '#16a34a' : primary }}>
+              {progresso.tipo === 'valor'
+                ? `${fmtR(progresso.atual)} / ${fmtR(progresso.minimo)}`
+                : `${progresso.atual} / ${progresso.minimo} peças`}
+            </p>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: '#f0ece8', overflow: 'hidden', marginBottom: 8 }}>
+            <div style={{
+              height: '100%', borderRadius: 3,
+              background: minimoAtingido ? '#16a34a' : primary,
+              width: `${progresso.pct}%`,
+              transition: 'width 0.4s ease',
+            }} />
+          </div>
+          {minimoAtingido ? (
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+              ✓ Pedido mínimo atingido!
+            </p>
+          ) : (
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>
+              Falta{' '}
+              {progresso.tipo === 'valor'
+                ? fmtR(progresso.falta)
+                : `${progresso.falta} peça${progresso.falta !== 1 ? 's' : ''}`}
+              {' '}para atingir o mínimo.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Resumo */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px' }}>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Seu pedido</p>
@@ -374,16 +441,16 @@ function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalC
 
       <button
         onClick={onConfirmar}
-        disabled={salvando || !form.nome.trim() || !form.whatsapp.trim()}
+        disabled={salvando || !form.nome.trim() || !form.whatsapp.trim() || !minimoAtingido}
         style={{
           width: '100%', height: 50, borderRadius: 12, border: 'none',
-          background: !salvando && form.nome.trim() && form.whatsapp.trim() ? primary : '#e5e7eb',
-          color: !salvando && form.nome.trim() && form.whatsapp.trim() ? '#fff' : '#9ca3af',
+          background: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? primary : '#e5e7eb',
+          color: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? '#fff' : '#9ca3af',
           fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-          cursor: !salvando && form.nome.trim() && form.whatsapp.trim() ? 'pointer' : 'not-allowed',
+          cursor: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? 'pointer' : 'not-allowed',
         }}
       >
-        {salvando ? 'Confirmando...' : 'Confirmar pedido'}
+        {salvando ? 'Confirmando...' : !minimoAtingido && progresso ? 'Adicione mais itens' : 'Confirmar pedido'}
       </button>
     </div>
   )
@@ -482,6 +549,13 @@ export default function CatalogoPublico({ lojaId }) {
   const primary = config?.cor_primaria || '#5E2BD0'
   const hasMercadoPago = !!config?.mercadopago_token
   const isB2BPro = config?.features?.catalogo_b2b === 'pro'
+  const pedidoMinimo = (isB2BPro && config?.pedido_minimo_tipo && config.pedido_minimo_tipo !== 'nenhum')
+    ? {
+        tipo:  config.pedido_minimo_tipo,
+        valor: Number(config.pedido_minimo_valor) || 0,
+        qtd:   Number(config.pedido_minimo_qtd)   || 0,
+      }
+    : null
 
   function addItem(produto, variacaoRaw, qtd = 1) {
     const varLabel = getVariacaoLabel(variacaoRaw) || ''
@@ -594,6 +668,7 @@ export default function CatalogoPublico({ lojaId }) {
             salvando={salvando}
             erroConfirmar={erroConfirmar}
             hasMercadoPago={hasMercadoPago}
+            pedidoMinimo={pedidoMinimo}
           />
         )}
         {etapa === 'confirmado' && (
