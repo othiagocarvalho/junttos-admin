@@ -35,12 +35,12 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
     width: '100%', height: 44, boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
     borderRadius: 10, padding: '0 14px',
-    fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
   }
   const lbl = {
     display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
     marginBottom: 6, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'Manrope, sans-serif',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
   }
 
   return (
@@ -52,7 +52,7 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
         maxHeight: '90dvh', overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
             {initial ? 'Editar cliente' : 'Novo cliente'}
           </p>
           <button onClick={onCancelar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}>
@@ -100,16 +100,16 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
         </div>
 
         {erro && (
-          <p style={{ marginTop: 10, fontSize: 13, color: '#ef4444', fontFamily: 'Manrope, sans-serif' }}>{erro}</p>
+          <p style={{ marginTop: 10, fontSize: 13, color: '#ef4444', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{erro}</p>
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button onClick={onCancelar}
-            style={{ flex: 1, height: 48, borderRadius: 12, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+            style={{ flex: 1, height: 48, borderRadius: 12, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
             Cancelar
           </button>
           <button onClick={handleSalvar} disabled={salvando}
-            style={{ flex: 2, height: 48, borderRadius: 12, border: 'none', background: salvando ? 'var(--line)' : theme.primary, cursor: salvando ? 'not-allowed' : 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            style={{ flex: 2, height: 48, borderRadius: 12, border: 'none', background: salvando ? 'var(--line)' : theme.primary, cursor: salvando ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {salvando ? 'Salvando...' : <><Check size={15} /> Salvar</>}
           </button>
         </div>
@@ -141,19 +141,19 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           background: `${theme.primary}20`, border: `1.5px solid ${theme.primary}40`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: theme.primary, fontFamily: 'Manrope, sans-serif' }}>{inicial}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{inicial}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>{cliente.nome}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>{cliente.nome}</p>
           {cliente.telefone && (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{cliente.telefone}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{cliente.telefone}</p>
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <span style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', color: 'var(--muted)' }}>
+            <span style={{ fontSize: 11, fontFamily: 'Plus Jakarta Sans, sans-serif', color: 'var(--muted)' }}>
               {vendasCliente.length} compra{vendasCliente.length !== 1 ? 's' : ''}
             </span>
             {totalGasto > 0 && (
-              <span style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: theme.primary }}>
+              <span style={{ fontSize: 11, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: theme.primary }}>
                 {fmtR(totalGasto)}
               </span>
             )}
@@ -168,17 +168,17 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {/* Dados extras */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
             {cliente.email && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>E-mail: </span>{cliente.email}
               </p>
             )}
             {cliente.data_nascimento && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Nascimento: </span>{fmtData(cliente.data_nascimento)}
               </p>
             )}
             {cliente.observacoes && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Obs: </span>{cliente.observacoes}
               </p>
             )}
@@ -187,21 +187,21 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {/* Histórico de compras */}
           {ultimas5.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
                 Últimas compras
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ultimas5.map(v => (
                   <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--line)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtDataHora(v.data)}</p>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtDataHora(v.data)}</p>
                       {(v.produtos || []).length > 0 && (
-                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--ink-soft)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--ink-soft)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.produtos.map(p => p.nome).join(', ')}
                         </p>
                       )}
                     </div>
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary, marginLeft: 10, flexShrink: 0 }}>
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary, marginLeft: 10, flexShrink: 0 }}>
                       {fmtR(v.valor)}
                     </span>
                   </div>
@@ -214,26 +214,26 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {!confirmDel ? (
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => onEditar(cliente)}
-                style={{ flex: 1, height: 38, borderRadius: 10, border: `1.5px solid ${theme.primary}`, background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                style={{ flex: 1, height: 38, borderRadius: 10, border: `1.5px solid ${theme.primary}`, background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <Pencil size={13} /> Editar
               </button>
               <button onClick={() => setConfirmDel(true)}
-                style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid #fca5a5', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid #fca5a5', background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <Trash2 size={13} /> Excluir
               </button>
             </div>
           ) : (
             <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
                 Confirmar exclusão de <strong style={{ color: 'var(--ink)' }}>{cliente.nome}</strong>?
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setConfirmDel(false)}
-                  style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                  style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
                   Cancelar
                 </button>
                 <button onClick={() => onExcluir(cliente.id)}
-                  style={{ flex: 1, height: 38, borderRadius: 10, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                  style={{ flex: 1, height: 38, borderRadius: 10, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
                   Excluir
                 </button>
               </div>
@@ -277,7 +277,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>
           Clientes
         </p>
         <button
@@ -286,7 +286,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 10, border: 'none',
             background: theme.primary, color: '#fff', cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
           }}
         >
           <Plus size={14} /> Novo cliente
@@ -305,7 +305,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
               width: '100%', height: 44, boxSizing: 'border-box',
               background: 'var(--surface)', border: '1.5px solid var(--line)',
               borderRadius: 12, paddingLeft: 38, paddingRight: 14,
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
             }}
             onFocus={e => { e.target.style.borderColor = theme.primary }}
             onBlur={e => { e.target.style.borderColor = 'var(--line)' }}
@@ -319,15 +319,15 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${theme.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <User size={26} color={theme.primary} />
           </div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
             Nenhum cliente cadastrado
           </p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
             Cadastre seus clientes para acompanhar o histórico de compras
           </p>
           <button
             onClick={() => setModal('novo')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700 }}
           >
             <Plus size={15} /> Cadastrar primeiro cliente
           </button>
@@ -349,7 +349,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
       {/* Sem resultados de busca */}
       {clientes.length > 0 && filtrados.length === 0 && (
         <div style={{ textAlign: 'center', padding: '32px 24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhum cliente encontrado para "{busca}"</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhum cliente encontrado para "{busca}"</p>
         </div>
       )}
 

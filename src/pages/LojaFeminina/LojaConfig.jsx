@@ -106,19 +106,19 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
   const sectionTitle = {
     fontSize: 14, fontWeight: 600, color: 'var(--ink)',
     marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
-    fontFamily: 'Manrope, sans-serif',
+    fontFamily: 'Plus Jakarta Sans, sans-serif',
   }
 
   const lbl = {
     fontSize: 11, fontWeight: 700, color: theme.primary,
     textTransform: 'uppercase', letterSpacing: '0.1em',
-    display: 'block', marginBottom: 6, fontFamily: 'Manrope, sans-serif',
+    display: 'block', marginBottom: 6, fontFamily: 'Plus Jakarta Sans, sans-serif',
   }
 
   const inputStyle = {
     width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
     borderRadius: 10, padding: '10px 14px', fontSize: 14,
-    color: 'var(--ink)', fontFamily: 'Manrope, sans-serif', outline: 'none',
+    color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif', outline: 'none',
     boxSizing: 'border-box',
   }
 
@@ -146,7 +146,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
           <ToggleRight size={16} style={{ color: theme.primary }} />
           Funcionalidades Habilitadas
         </p>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, fontFamily: 'Manrope, sans-serif' }}>
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
           Controle quais abas e módulos ficam visíveis para esta loja.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -167,7 +167,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
                   background: on ? `${theme.primary}0A` : 'var(--bg)',
                 }}
               >
-                <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                   {label}
                 </span>
                 {on
@@ -198,7 +198,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
-                fontSize: 12, fontWeight: 500, fontFamily: 'Manrope, sans-serif',
+                fontSize: 12, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
                 userSelect: 'none',
                 ...(primary === p.primary
                   ? { border: `1px solid ${p.primary}`, background: `${p.primary}15`, color: p.primary }
@@ -238,12 +238,12 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
 
         {/* Preview */}
         <div style={{ borderRadius: 12, padding: 12, border: '1px solid var(--line)' }}>
-          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Preview</p>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Preview</p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Manrope, sans-serif' }}>
+            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Primária
             </div>
-            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: accent, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Manrope, sans-serif' }}>
+            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: accent, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Destaque
             </div>
           </div>
@@ -263,7 +263,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
           cursor: saving ? 'not-allowed' : 'pointer',
           background: saved ? '#16a34a' : theme.primary,
           opacity: saving ? 0.5 : 1,
-          userSelect: 'none', fontFamily: 'Manrope, sans-serif',
+          userSelect: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif',
         }}
       >
         <Save size={16} color="#fff" />
@@ -308,7 +308,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
           {pwdMsg && (
             <div style={{
               padding: '10px 14px', borderRadius: 10,
-              fontSize: 13, fontWeight: 500, fontFamily: 'Manrope, sans-serif',
+              fontSize: 13, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
               ...(pwdMsg.type === 'success'
                 ? { background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', color: '#16a34a' }
                 : { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626' }),
@@ -329,7 +329,7 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
               cursor: pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm ? 'not-allowed' : 'pointer',
               background: theme.primary,
               opacity: pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm ? 0.4 : 1,
-              userSelect: 'none', fontFamily: 'Manrope, sans-serif',
+              userSelect: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif',
             }}
           >
             {pwdSaving ? 'Salvando...' : 'Salvar nova senha'}

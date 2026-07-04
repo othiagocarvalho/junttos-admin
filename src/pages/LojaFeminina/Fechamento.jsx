@@ -10,7 +10,7 @@ const labelStyle = {
   display: 'block', fontSize: 11, fontWeight: 700,
   color: 'var(--muted)', marginBottom: 7,
   letterSpacing: '0.14em', textTransform: 'uppercase',
-  fontFamily: 'Manrope, sans-serif',
+  fontFamily: 'Plus Jakarta Sans, sans-serif',
 }
 
 function CurrField({ k, label, form, setForm, theme }) {
@@ -18,7 +18,7 @@ function CurrField({ k, label, form, setForm, theme }) {
     <div>
       <label style={labelStyle}>{label}</label>
       <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
+        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
         <input
           type="number" value={form[k]} step="0.01" min="0"
           onChange={e => setForm({ ...form, [k]: e.target.value })}
@@ -27,7 +27,7 @@ function CurrField({ k, label, form, setForm, theme }) {
             width: '100%', height: 46,
             border: '1.5px solid var(--line)', borderRadius: 14,
             paddingLeft: 32, paddingRight: 14,
-            fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 600,
             color: 'var(--ink)', background: 'var(--bg)',
             outline: 'none', boxSizing: 'border-box',
             transition: 'border-color .18s',
@@ -114,13 +114,13 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
               width: '100%', height: 46,
               border: `1.5px solid ${theme.primary}`,
               borderRadius: 14, padding: '0 14px',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
               color: 'var(--ink)', background: 'var(--bg)',
               outline: 'none', boxSizing: 'border-box',
             }}
           />
           {dataSelecionada !== hoje && (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: theme.primary, marginTop: 5, fontWeight: 600 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: theme.primary, marginTop: 5, fontWeight: 600 }}>
               Fechamento retroativo — {fmtDate(dataSelecionada)}
             </p>
           )}
@@ -129,18 +129,18 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
         {/* Aviso de duplicidade (bloqueio real) */}
         {jaDuplicado && (
           <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#dc2626', lineHeight: 1.5 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: '#dc2626', lineHeight: 1.5 }}>
               Já existe um fechamento registrado para {fmtDate(dataSelecionada)}. Não é possível fechar a mesma data duas vezes.
             </p>
           </div>
         )}
 
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 14 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 14 }}>
           Valores do Caixa — {fmtDate(dataSelecionada)}
         </p>
 
         {/* Recebimentos */}
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recebimentos</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} theme={theme} />
           {features?.atacado ? (
@@ -156,7 +156,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
         </div>
 
         {/* Caixa */}
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Caixa</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Caixa</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} theme={theme} />
           <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} theme={theme} />
@@ -169,7 +169,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
             placeholder="Ocorrências, trocas, anotações..."
             style={{
               width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
-              padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+              padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
               color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
             }}
             onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.background = '#fff' }}
@@ -179,22 +179,22 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
 
         {/* Hero total */}
         <div style={{ marginTop: 18, background: theme.primary, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
             Total de Vendas
           </p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 38, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
             {fmtR(totalVendas)}
           </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
           <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Saldo Final em Caixa</p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(saldoFinal)}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Saldo Final em Caixa</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(saldoFinal)}</p>
           </div>
           <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px', textAlign: 'center' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Resultado Líquido</p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: liquido >= 0 ? '#16a34a' : '#dc2626' }}>{fmtR(liquido)}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Resultado Líquido</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: liquido >= 0 ? '#16a34a' : '#dc2626' }}>{fmtR(liquido)}</p>
           </div>
         </div>
 
@@ -205,7 +205,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
             cursor: canSave ? 'pointer' : 'not-allowed',
             background: done ? '#16a34a' : !canSave ? 'var(--line)' : theme.primary,
             color: done || canSave ? '#fff' : 'var(--muted)',
-            fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
             boxShadow: canSave ? '0 4px 16px rgba(0,0,0,0.18)' : 'none',
             transition: 'opacity .18s',
           }}
@@ -217,22 +217,22 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
       {/* Histórico — ordenado por data de referência (c.data), garantido pelo useLojaData */}
       {caixas.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
             Histórico de Fechamentos
           </p>
           <div>
             {caixas.slice(0, 10).map(c => (
               <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{fmtDate(c.data)}</p>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{fmtDate(c.data)}</p>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                     Din. {fmtR(c.dinheiro)} · Pix {fmtR(c.pix)} · Déb. {fmtR(c.debito)} · Créd. {fmtR(c.credito)}
                   </p>
-                  {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Manrope, sans-serif' }}>{c.obs}</p>}
+                  {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{c.obs}</p>}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(c.total)}</p>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
+                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(c.total)}</p>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
                 </div>
               </div>
             ))}
@@ -244,13 +244,13 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
       {modalDivergencia && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
               Atenção — Valores divergentes
             </p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 8 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 8 }}>
               O valor informado no fechamento é <strong style={{ color: 'var(--ink)' }}>{fmtR(totalVendas)}</strong>, mas o total de vendas registradas no sistema para {fmtDate(dataSelecionada)} é <strong style={{ color: 'var(--ink)' }}>{fmtR(totalVendasSistema)}</strong>.
             </p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 22 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 22 }}>
               Diferença: <strong style={{ color: '#dc2626' }}>{fmtR(divergencia)}</strong>. Deseja continuar mesmo assim?
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -261,7 +261,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
                   flex: 1, height: 46, borderRadius: 12,
                   border: '1.5px solid var(--line)', background: 'var(--bg)',
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
                   color: 'var(--ink)', fontSize: 13,
                 }}
               >
@@ -275,7 +275,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
                   border: 'none',
                   background: saving ? 'var(--line)' : theme.primary,
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
                   color: '#fff', fontSize: 13,
                 }}
               >

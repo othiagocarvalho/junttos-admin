@@ -47,7 +47,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
 
       {/* Cabeçalho + filtro */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
           Consolidado por produto
         </p>
         <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 10, padding: 3 }}>
@@ -62,7 +62,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                 height: 30, padding: '0 12px', borderRadius: 8, border: 'none',
                 background: filtroStatus === opt.id ? theme.primary : 'transparent',
                 color: filtroStatus === opt.id ? '#fff' : 'var(--muted)',
-                fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                 cursor: 'pointer', transition: 'all .15s',
               }}
             >
@@ -76,18 +76,18 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
       {consolidado.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div style={{ background: theme.primary, borderRadius: 14, padding: '14px 16px' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
               Total de peças
             </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
               {totalGeralQtd}
             </p>
           </div>
           <div style={{ background: `${theme.primary}10`, border: `1px solid ${theme.primary}25`, borderRadius: 14, padding: '14px 16px' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
               Valor total
             </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: theme.primary, lineHeight: 1 }}>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: theme.primary, lineHeight: 1 }}>
               {fmtR(totalGeralVal)}
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
       {consolidado.length === 0 ? (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
           <Package size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
             Nenhum pedido para consolidar.
           </p>
         </div>
@@ -117,11 +117,11 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                   <span style={{
                     fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 6,
                     background: `${theme.primary}15`, color: theme.primary,
-                    fontFamily: 'Manrope, sans-serif', flexShrink: 0,
+                    fontFamily: 'Plus Jakarta Sans, sans-serif', flexShrink: 0,
                   }}>
                     #{idx + 1}
                   </span>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2 }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2 }}>
                     {prod.nome}
                   </p>
                 </div>
@@ -136,28 +136,28 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                           fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 7,
                           background: `${theme.primary}10`, color: theme.primary,
                           border: `1px solid ${theme.primary}28`,
-                          fontFamily: 'Manrope, sans-serif',
+                          fontFamily: 'Plus Jakarta Sans, sans-serif',
                         }}>
                           {label}: {data.qtd}
                         </span>
                       ))}
                   </div>
                 ) : (
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
                     {fmtR(prod.totalValor)}
                   </p>
                 )}
               </div>
 
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: theme.primary, lineHeight: 1, marginBottom: 3 }}>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: theme.primary, lineHeight: 1, marginBottom: 3 }}>
                   {prod.totalQtd}
                 </p>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
                   peças
                 </p>
                 {temVariacao && (
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                     {fmtR(prod.totalValor)}
                   </p>
                 )}

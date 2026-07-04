@@ -59,13 +59,13 @@ export default function ContasPagar({ produtosData = [], updateProduto, theme, l
 
       {/* Header */}
       <div style={{ background: TERRACOTA, borderRadius: 16, padding: '20px 18px' }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>
           Contas a pagar
         </p>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1, marginBottom: 4 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1, marginBottom: 4 }}>
           Du Charme Lingerie
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>
           {mesAtual}
         </p>
       </div>
@@ -73,18 +73,18 @@ export default function ContasPagar({ produtosData = [], updateProduto, theme, l
       {/* Cards de resumo */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 14px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
             Total a pagar
           </p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#E53E3E', lineHeight: 1 }}>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: '#E53E3E', lineHeight: 1 }}>
             {fmtR(totalPagar)}
           </p>
         </div>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 14px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
             Vence esta semana
           </p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: '#B7791F', lineHeight: 1 }}>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: '#B7791F', lineHeight: 1 }}>
             {fmtR(totalSemana)}
           </p>
         </div>
@@ -94,10 +94,10 @@ export default function ContasPagar({ produtosData = [], updateProduto, theme, l
       {pendentes.length === 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
           <p style={{ fontSize: 28, marginBottom: 10 }}>✓</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: '#1F8A5B', marginBottom: 6 }}>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: '#1F8A5B', marginBottom: 6 }}>
             Nenhuma conta pendente
           </p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
             Todos os pagamentos estão em dia.
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function ContasPagar({ produtosData = [], updateProduto, theme, l
       {/* Seção: Vencido */}
       {vencidos.length > 0 && (
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: '#E53E3E', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: '#E53E3E', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
             Vencido — {vencidos.length} conta{vencidos.length !== 1 ? 's' : ''}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -120,7 +120,7 @@ export default function ContasPagar({ produtosData = [], updateProduto, theme, l
       {/* Seção: A vencer */}
       {aVencer.length > 0 && (
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: '#B7791F', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: '#B7791F', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
             A pagar — {aVencer.length} conta{aVencer.length !== 1 ? 's' : ''}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -143,7 +143,7 @@ function ContaItem({ produto, isVencido, marking, onMarcar }) {
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+          <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
             {produto.nome}
           </span>
           <span style={{
@@ -151,22 +151,22 @@ function ContaItem({ produto, isVencido, marking, onMarcar }) {
             background: isVencido ? '#FEE2E2' : '#FFF4E0',
             color: isVencido ? '#DC2626' : '#B7791F',
             border: `1px solid ${isVencido ? '#FCA5A5' : '#F0C870'}`,
-            fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em',
+            fontFamily: 'Plus Jakarta Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em',
           }}>
             {isVencido ? 'Vencido' : 'A pagar'}
           </span>
         </div>
         {produto.fornecedor && (
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>
             {produto.fornecedor}
           </p>
         )}
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: isVencido ? '#DC2626' : 'var(--muted)' }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: isVencido ? '#DC2626' : 'var(--muted)' }}>
           Vence: {produto.data_vencimento ? new Date(produto.data_vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
         </p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: isVencido ? '#DC2626' : 'var(--ink)' }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: isVencido ? '#DC2626' : 'var(--ink)' }}>
           {fmtR(produto.valor_lote)}
         </p>
         <button
@@ -175,7 +175,7 @@ function ContaItem({ produto, isVencido, marking, onMarcar }) {
           style={{
             padding: '6px 12px', borderRadius: 8, border: 'none', cursor: marking === produto.id ? 'not-allowed' : 'pointer',
             background: '#E6F6EE', color: '#1F8A5B',
-            fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
             opacity: marking === produto.id ? 0.6 : 1,
           }}
         >

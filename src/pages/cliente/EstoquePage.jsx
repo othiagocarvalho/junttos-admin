@@ -34,7 +34,7 @@ function QtyBadge({ qty }) {
     <span style={{
       fontSize: 11, padding: '2px 9px', borderRadius: 99,
       background: s.bg, border: `1px solid ${s.br}`, color: s.c,
-      fontWeight: 700, fontFamily: 'Manrope, sans-serif', whiteSpace: 'nowrap',
+      fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', whiteSpace: 'nowrap',
     }}>{n} un</span>
   )
 }
@@ -57,12 +57,12 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
 
   const inp = {
     width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10,
-    padding: '0 12px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+    padding: '0 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
     color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
   }
   const lbl = {
     display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    textTransform: 'uppercase', letterSpacing: '0.10em', fontFamily: 'Manrope, sans-serif', marginBottom: 5,
+    textTransform: 'uppercase', letterSpacing: '0.10em', fontFamily: 'Plus Jakarta Sans, sans-serif', marginBottom: 5,
   }
 
   function toggleExpand(id) {
@@ -162,8 +162,8 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Estoque</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          <h2 style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Estoque</h2>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
             {estoque.length} produto{estoque.length !== 1 ? 's' : ''} cadastrado{estoque.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -171,7 +171,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
           display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
           borderRadius: 12, border: 'none', cursor: 'pointer',
           background: primary, color: btnColor,
-          fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
           boxShadow: `0 4px 14px ${primary}40`,
         }}>
           <Plus size={16} /> Novo Produto
@@ -187,8 +187,8 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
           { label: 'Estoque crítico',  value: `${criticalCnt} ${criticalCnt !== 1 ? 'itens' : 'item'}`, alert: criticalCnt > 0 },
         ].map(({ label, value, alert }) => (
           <div key={label} style={{ background: 'var(--surface)', border: `1px solid ${alert ? '#fca5a5' : 'var(--line)'}`, borderRadius: 14, padding: '14px 16px' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: alert ? '#dc2626' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{label}</p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: alert ? '#dc2626' : 'var(--ink)' }}>{value}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: alert ? '#dc2626' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{label}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: alert ? '#dc2626' : 'var(--ink)' }}>{value}</p>
           </div>
         ))}
       </div>
@@ -202,7 +202,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
       {filtered.length === 0 ? (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
           <Package size={36} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
             {search ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}
           </p>
         </div>
@@ -227,18 +227,18 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
                         {item.nome}
                       </span>
                       {low && (
-                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', fontWeight: 700, fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', flexShrink: 0 }}>
                           crítico
                         </span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{item.categoria || '—'}</span>
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: primary }}>{fmtR(item.preco_venda)}</span>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{item.categoria || '—'}</span>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: primary }}>{fmtR(item.preco_venda)}</span>
                     </div>
                   </div>
                   <QtyBadge qty={qty} />
@@ -263,7 +263,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                 {isOpen && (
                   <div style={{ borderTop: '1px solid var(--line)' }}>
                     {vars.length === 0 ? (
-                      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '10px 16px' }}>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '10px 16px' }}>
                         Nenhuma variação cadastrada.
                       </p>
                     ) : (
@@ -273,7 +273,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                           borderBottom: vi < vars.length - 1 ? '1px solid var(--line)' : 'none',
                           background: vi % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.02)',
                         }}>
-                          <span style={{ flex: 1, fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{v.cor}</span>
+                          <span style={{ flex: 1, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{v.cor}</span>
                           <QtyBadge qty={v.quantidade} />
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <button onClick={() => changeVarQty(item, vi, -1)}
@@ -307,7 +307,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                             placeholder="Qtd" type="number" min="0"
                             style={{ ...inp, width: 70, flex: 'none', height: 36, fontSize: 13 }} />
                           <button onClick={() => handleAddVar(item)}
-                            style={{ height: 36, padding: '0 14px', borderRadius: 8, background: primary, border: 'none', color: btnColor, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>
+                            style={{ height: 36, padding: '0 14px', borderRadius: 8, background: primary, border: 'none', color: btnColor, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap' }}>
                             OK
                           </button>
                           <button onClick={() => { setAddingVar(null); setNewVar(EMPTY_VAR) }}
@@ -317,7 +317,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                         </div>
                       ) : (
                         <button onClick={() => { setAddingVar(item.id); setNewVar(EMPTY_VAR) }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: `1.5px dashed ${primary}60`, background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, color: primary, fontWeight: 600 }}>
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: `1.5px dashed ${primary}60`, background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: primary, fontWeight: 600 }}>
                           <Plus size={12} /> Adicionar variação
                         </button>
                       )}
@@ -362,12 +362,12 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <label style={{ ...lbl, marginBottom: 0 }}>Variações (cor / modelo)</label>
-              <button onClick={addFormVar} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, border: `1px solid ${primary}60`, background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 11, color: primary, fontWeight: 700 }}>
+              <button onClick={addFormVar} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 8, border: `1px solid ${primary}60`, background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: primary, fontWeight: 700 }}>
                 <Plus size={11} /> Adicionar
               </button>
             </div>
             {formVars.length === 0 ? (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Clique em "Adicionar" para incluir cores ou modelos.</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Clique em "Adicionar" para incluir cores ou modelos.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {formVars.map((v, i) => (
@@ -390,7 +390,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
             background: saving || !form.nome.trim() ? 'var(--line)' : primary,
             color: saving || !form.nome.trim() ? 'var(--muted)' : btnColor,
             cursor: saving || !form.nome.trim() ? 'not-allowed' : 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700,
           }}>
             {saving ? 'Salvando...' : editItem ? 'Salvar alterações' : 'Cadastrar produto'}
           </button>
@@ -404,7 +404,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
         title={confirmDel?.type === 'variation' ? 'Excluir variação' : 'Excluir produto'}
         size="sm"
       >
-        <p style={{ fontSize: 14, color: 'var(--ink)', marginBottom: 20, fontFamily: 'Manrope, sans-serif', lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: 'var(--ink)', marginBottom: 20, fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.6 }}>
           {confirmDel?.type === 'variation' ? (
             <>Excluir a variação <strong>{confirmDel.varCor}</strong> de <strong>{confirmDel.item.nome}</strong>? Esta ação não pode ser desfeita.</>
           ) : (
@@ -413,12 +413,12 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => setConfirmDel(null)}
-            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
             Cancelar
           </button>
           <button
             onClick={() => confirmDel?.type === 'variation' ? handleDeleteVar() : handleDeleteProduct()}
-            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+            style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
             Excluir
           </button>
         </div>

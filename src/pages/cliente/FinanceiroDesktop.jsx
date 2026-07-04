@@ -17,15 +17,15 @@ const STATUS_COLOR = {
   atrasado: { bg: 'rgba(239,68,68,0.10)',  color: '#ef4444', label: 'Atrasado' },
 }
 
-const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
-const inp = { width: '100%', height: 44, boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none' }
+const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
+const inp = { width: '100%', height: 44, boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none' }
 
 function KpiCard({ label, value, color, sub }) {
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 22px' }}>
-      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: color || 'var(--ink)', lineHeight: 1 }}>{value}</p>
-      {sub && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{sub}</p>}
+      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
+      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: color || 'var(--ink)', lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{sub}</p>}
     </div>
   )
 }
@@ -35,7 +35,7 @@ function Modal({ title, onClose, children }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{title}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{title}</p>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}><X size={18} /></button>
         </div>
         {children}
@@ -89,10 +89,10 @@ function ContasPagarPane({ lojaId, theme }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Contas a Pagar</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} conta{contas.length !== 1 ? 's' : ''} cadastrada{contas.length !== 1 ? 's' : ''}</p>
+          <h2 style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Contas a Pagar</h2>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} conta{contas.length !== 1 ? 's' : ''} cadastrada{contas.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}>
+        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}>
           <Plus size={15} /> Nova Conta
         </button>
       </div>
@@ -105,18 +105,18 @@ function ContasPagarPane({ lojaId, theme }) {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['todas', 'pendente', 'atrasado', 'pago'].map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '7px 16px', borderRadius: 10, border: filtro === f ? 'none' : '1px solid var(--line)', background: filtro === f ? theme.primary : 'var(--surface)', color: filtro === f ? '#fff' : 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '7px 16px', borderRadius: 10, border: filtro === f ? 'none' : '1px solid var(--line)', background: filtro === f ? theme.primary : 'var(--surface)', color: filtro === f ? '#fff' : 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             {f === 'todas' ? 'Todas' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '24px 0' }}>Carregando...</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '24px 0' }}>Carregando...</p>
       ) : filtradas.length === 0 ? (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 32px', textAlign: 'center' }}>
           <FileText size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma conta encontrada</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma conta encontrada</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -126,16 +126,16 @@ function ContasPagarPane({ lojaId, theme }) {
               <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
                   </div>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
                     {c.categoria} · Vence {fmtDate(c.data_vencimento)}{c.data_pagamento ? ` · Pago ${fmtDate(c.data_pagamento)}` : ''}
                   </p>
                 </div>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
                 {c._status !== 'pago' && (
-                  <button onClick={() => handlePagar(c.id)} disabled={pagandoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: pagandoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                  <button onClick={() => handlePagar(c.id)} disabled={pagandoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: pagandoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                     <Check size={12} /> {pagandoId === c.id ? '...' : 'Pago'}
                   </button>
                 )}
@@ -155,8 +155,8 @@ function ContasPagarPane({ lojaId, theme }) {
             <div><label style={lbl}>Observações</label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-            <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
-            <button onClick={handleSalvar} disabled={saving || !form.descricao || !form.valor || !form.data_vencimento} style={{ flex: 2, height: 46, borderRadius: 12, border: 'none', background: (!saving && form.descricao && form.valor && form.data_vencimento) ? theme.primary : 'var(--line)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+            <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
+            <button onClick={handleSalvar} disabled={saving || !form.descricao || !form.valor || !form.data_vencimento} style={{ flex: 2, height: 46, borderRadius: 12, border: 'none', background: (!saving && form.descricao && form.valor && form.data_vencimento) ? theme.primary : 'var(--line)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
@@ -220,17 +220,17 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
   return (
     <div>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, background: '#1e1b4b', color: '#fff', padding: '12px 20px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+        <div style={{ position: 'fixed', top: 20, right: 20, background: '#1e1b4b', color: '#fff', padding: '12px 20px', borderRadius: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
           {toast}
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Contas a Receber</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} lançamento{contas.length !== 1 ? 's' : ''} (manuais + crediário)</p>
+          <h2 style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Contas a Receber</h2>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{contas.length} lançamento{contas.length !== 1 ? 's' : ''} (manuais + crediário)</p>
         </div>
-        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}>
+        <button onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}>
           <Plus size={15} /> Nova Conta
         </button>
       </div>
@@ -243,18 +243,18 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['todas', 'pendente', 'atrasado', 'recebido'].map(f => (
-          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '7px 16px', borderRadius: 10, border: filtro === f ? 'none' : '1px solid var(--line)', background: filtro === f ? theme.primary : 'var(--surface)', color: filtro === f ? '#fff' : 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <button key={f} onClick={() => setFiltro(f)} style={{ padding: '7px 16px', borderRadius: 10, border: filtro === f ? 'none' : '1px solid var(--line)', background: filtro === f ? theme.primary : 'var(--surface)', color: filtro === f ? '#fff' : 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
             {f === 'todas' ? 'Todas' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '24px 0' }}>Carregando...</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '24px 0' }}>Carregando...</p>
       ) : filtradas.length === 0 ? (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 32px', textAlign: 'center' }}>
           <Receipt size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma conta encontrada</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma conta encontrada</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -265,28 +265,28 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
               <div key={c.id} style={{ background: 'var(--surface)', border: `1px solid ${isCrediario ? 'rgba(107,79,187,0.25)' : 'var(--line)'}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: sc.bg, color: sc.color, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, flexShrink: 0 }}>{sc.label}</span>
                     {isCrediario && (
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 99, background: 'rgba(107,79,187,0.12)', color: '#6B4FBB', fontFamily: 'Manrope, sans-serif', fontWeight: 700, flexShrink: 0 }}>Crediário</span>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 99, background: 'rgba(107,79,187,0.12)', color: '#6B4FBB', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, flexShrink: 0 }}>Crediário</span>
                     )}
                   </div>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
                     {c.cliente_nome ? `${c.cliente_nome} · ` : ''}{isCrediario ? 'crediário' : (c.origem || 'outro')} · Vence {fmtDate(c.data_vencimento)}
                   </p>
                 </div>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
                 {isCrediario ? (
                   c._status === 'recebido' ? (
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓ Recebido</span>
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#16a34a', fontWeight: 700, flexShrink: 0 }}>✓ Recebido</span>
                   ) : (
-                    <button onClick={() => showToast('Gerencie esta parcela na tela de Crediário')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(107,79,187,0.3)', background: 'rgba(107,79,187,0.06)', color: '#6B4FBB', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    <button onClick={() => showToast('Gerencie esta parcela na tela de Crediário')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: '1px solid rgba(107,79,187,0.3)', background: 'rgba(107,79,187,0.06)', color: '#6B4FBB', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       Ver Crediário
                     </button>
                   )
                 ) : (
                   c._status !== 'recebido' && (
-                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', background: recebendoId === c.id ? 'var(--line)' : '#16a34a', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                       <Check size={12} /> {recebendoId === c.id ? '...' : 'Recebido'}
                     </button>
                   )
@@ -308,8 +308,8 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
             <div><label style={lbl}>Observações</label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-            <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
-            <button onClick={handleSalvar} disabled={saving || !form.descricao || !form.valor || !form.data_vencimento} style={{ flex: 2, height: 46, borderRadius: 12, border: 'none', background: (!saving && form.descricao && form.valor && form.data_vencimento) ? theme.primary : 'var(--line)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+            <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
+            <button onClick={handleSalvar} disabled={saving || !form.descricao || !form.valor || !form.data_vencimento} style={{ flex: 2, height: 46, borderRadius: 12, border: 'none', background: (!saving && form.descricao && form.valor && form.data_vencimento) ? theme.primary : 'var(--line)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
@@ -353,12 +353,12 @@ function FluxoCaixaPane({ lojaId, vendas, crediarios, theme }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Fluxo de Caixa</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2, textTransform: 'capitalize' }}>{periodo.label}</p>
+          <h2 style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>Fluxo de Caixa</h2>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2, textTransform: 'capitalize' }}>{periodo.label}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '8px 14px' }}>
           <button onClick={() => setPeriodo(p => navegarMes(p.inicio, -1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', padding: 2 }}><ChevronLeft size={16} /></button>
-          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'capitalize', minWidth: 120, textAlign: 'center' }}>{periodo.label}</span>
+          <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'capitalize', minWidth: 120, textAlign: 'center' }}>{periodo.label}</span>
           <button onClick={() => setPeriodo(p => navegarMes(p.inicio, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', padding: 2 }}><ChevronRight size={16} /></button>
         </div>
       </div>
@@ -372,16 +372,16 @@ function FluxoCaixaPane({ lojaId, vendas, crediarios, theme }) {
       {chartData.length === 0 ? (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '64px 32px', textAlign: 'center' }}>
           <BarChart2 size={36} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Sem movimentações no período</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Sem movimentações no período</p>
         </div>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Entradas × Saídas por dia</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Entradas × Saídas por dia</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData} barGap={2}>
-              <XAxis dataKey="dia" tick={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `R$${v}`} tick={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={64} />
-              <Tooltip formatter={(v, name) => [fmtR(v), name]} contentStyle={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, borderRadius: 10, border: '1px solid var(--line)' }} />
+              <XAxis dataKey="dia" tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `R$${v}`} tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={64} />
+              <Tooltip formatter={(v, name) => [fmtR(v), name]} contentStyle={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, borderRadius: 10, border: '1px solid var(--line)' }} />
               <Bar dataKey="Entradas" fill="#16a34a" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Saidas"   fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -390,11 +390,11 @@ function FluxoCaixaPane({ lojaId, vendas, crediarios, theme }) {
           <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {fluxo.map(d => (
               <div key={d.data} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{fmtDate(d.data)}</span>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{fmtDate(d.data)}</span>
                 <div style={{ display: 'flex', gap: 20 }}>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#16a34a' }}>+{fmtR(d.entradas)}</span>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#ef4444' }}>-{fmtR(d.saidas)}</span>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700, color: d.saldo >= 0 ? '#16a34a' : '#ef4444', minWidth: 80, textAlign: 'right' }}>{d.saldo >= 0 ? '+' : ''}{fmtR(d.saldo)}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#16a34a' }}>+{fmtR(d.entradas)}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#ef4444' }}>-{fmtR(d.saidas)}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: d.saldo >= 0 ? '#16a34a' : '#ef4444', minWidth: 80, textAlign: 'right' }}>{d.saldo >= 0 ? '+' : ''}{fmtR(d.saldo)}</span>
                 </div>
               </div>
             ))}
@@ -425,38 +425,38 @@ function DREPane({ lojaId, vendas, theme }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>DRE — Resultado</h2>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2, textTransform: 'capitalize' }}>{periodo.label}</p>
+          <h2 style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>DRE — Resultado</h2>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2, textTransform: 'capitalize' }}>{periodo.label}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '8px 14px' }}>
           <button onClick={() => setPeriodo(p => navegarMes(p.inicio, -1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', padding: 2 }}><ChevronLeft size={16} /></button>
-          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'capitalize', minWidth: 120, textAlign: 'center' }}>{periodo.label}</span>
+          <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'capitalize', minWidth: 120, textAlign: 'center' }}>{periodo.label}</span>
           <button onClick={() => setPeriodo(p => navegarMes(p.inicio, 1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink)', display: 'flex', alignItems: 'center', padding: 2 }}><ChevronRight size={16} /></button>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         <div style={{ background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 16, padding: '22px 24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Receita Bruta</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 700, color: '#16a34a', lineHeight: 1 }}>{fmtR(dre.receitaBruta)}</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#16a34a', marginTop: 6, opacity: 0.7 }}>Soma das vendas no período</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Receita Bruta</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700, color: '#16a34a', lineHeight: 1 }}>{fmtR(dre.receitaBruta)}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', marginTop: 6, opacity: 0.7 }}>Soma das vendas no período</p>
         </div>
         <div style={{ background: positivo ? 'rgba(22,163,74,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${positivo ? 'rgba(22,163,74,0.2)' : 'rgba(239,68,68,0.2)'}`, borderRadius: 16, padding: '22px 24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: positivo ? '#16a34a' : '#ef4444', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Resultado Líquido</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 700, color: positivo ? '#16a34a' : '#ef4444', lineHeight: 1 }}>{positivo ? '+' : ''}{fmtR(dre.resultadoLiquido)}</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: positivo ? '#16a34a' : '#ef4444', marginTop: 6, opacity: 0.7 }}>Margem: {dre.margemPercentual.toFixed(1)}%</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: positivo ? '#16a34a' : '#ef4444', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Resultado Líquido</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700, color: positivo ? '#16a34a' : '#ef4444', lineHeight: 1 }}>{positivo ? '+' : ''}{fmtR(dre.resultadoLiquido)}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: positivo ? '#16a34a' : '#ef4444', marginTop: 6, opacity: 0.7 }}>Margem: {dre.margemPercentual.toFixed(1)}%</p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* Despesas por categoria */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>Total Despesas</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#ef4444', marginBottom: 20 }}>{fmtR(dre.totalDespesas)}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>Total Despesas</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: '#ef4444', marginBottom: 20 }}>{fmtR(dre.totalDespesas)}</p>
           {dre.despesasPorCategoria.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '24px 0' }}>
               <AlertCircle size={24} color="var(--line)" style={{ margin: '0 auto 8px' }} />
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Nenhuma despesa paga</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Nenhuma despesa paga</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -465,8 +465,8 @@ function DREPane({ lojaId, vendas, theme }) {
                 return (
                   <div key={categoria}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)', textTransform: 'capitalize' }}>{categoria}</span>
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary }}>{fmtR(total)} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({pct.toFixed(0)}%)</span></span>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)', textTransform: 'capitalize' }}>{categoria}</span>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary }}>{fmtR(total)} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({pct.toFixed(0)}%)</span></span>
                     </div>
                     <div style={{ height: 6, borderRadius: 3, background: 'var(--line)' }}>
                       <div style={{ height: '100%', borderRadius: 3, background: theme.primary, width: `${pct}%`, transition: 'width 0.5s' }} />
@@ -480,13 +480,13 @@ function DREPane({ lojaId, vendas, theme }) {
 
         {/* Gráfico de pizza de despesas com recharts BarChart */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Resumo Visual</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Resumo Visual</p>
           {dre.despesasPorCategoria.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={dre.despesasPorCategoria} layout="vertical">
-                <XAxis type="number" tickFormatter={v => `R$${v}`} tick={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
-                <YAxis dataKey="categoria" type="category" tick={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fill: 'var(--ink)' }} axisLine={false} tickLine={false} width={72} />
-                <Tooltip formatter={v => fmtR(v)} contentStyle={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, borderRadius: 10 }} />
+                <XAxis type="number" tickFormatter={v => `R$${v}`} tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+                <YAxis dataKey="categoria" type="category" tick={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fill: 'var(--ink)' }} axisLine={false} tickLine={false} width={72} />
+                <Tooltip formatter={v => fmtR(v)} contentStyle={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, borderRadius: 10 }} />
                 <Bar dataKey="total" radius={[0, 4, 4, 0]}>
                   {dre.despesasPorCategoria.map((_, i) => (
                     <Cell key={i} fill={theme.primary} fillOpacity={1 - i * 0.12} />
@@ -497,7 +497,7 @@ function DREPane({ lojaId, vendas, theme }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 10 }}>
               <Wallet size={32} color="var(--line)" />
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>Registre despesas pagas para visualizar aqui</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center' }}>Registre despesas pagas para visualizar aqui</p>
             </div>
           )}
         </div>
@@ -534,7 +534,7 @@ export default function FinanceiroDesktop({ data, theme }) {
           <button key={id} onClick={() => setTab(id)} style={{
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '10px 18px', border: 'none', background: 'transparent',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: tab === id ? 700 : 500,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: tab === id ? 700 : 500,
             color: tab === id ? primary : 'var(--muted)',
             cursor: 'pointer',
             borderBottom: tab === id ? `2px solid ${primary}` : '2px solid transparent',

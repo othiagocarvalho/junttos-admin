@@ -77,19 +77,19 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
         padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden',
       }}>
         <p style={{
-          fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
           color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
           textTransform: 'uppercase', marginBottom: 10,
         }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long' })}
         </p>
         <p style={{
-          fontFamily: "'Playfair Display', serif",
+          fontFamily: "'Space Mono', monospace",
           fontSize: 42, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
         }}>
           {fmtR(totalMes)}
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', marginTop: 10 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', marginTop: 10 }}>
           {vendasMes.length} venda{vendasMes.length !== 1 ? 's' : ''}{' '}
           {meta > 0 ? `· ${pctMeta.toFixed(0)}% da meta` : '· sem meta definida'}
         </p>
@@ -110,14 +110,14 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
             minWidth: 0, boxSizing: 'border-box', overflow: 'hidden',
           }}>
             <p style={{
-              fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
               color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8,
             }}>{label}</p>
             <p style={{
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: "'Space Mono', monospace",
               fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4,
             }}>{value}</p>
-            <p style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{sub}</p>
+            <p style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{sub}</p>
           </div>
         ))}
       </div>
@@ -130,11 +130,11 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>Meta Mensal</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 6 }}>Meta Mensal</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
             {meta > 0 ? `${pctMeta.toFixed(0)}%` : '—'}
           </p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
             {meta > 0 ? fmtR(meta) : 'Toque para definir meta'}
           </p>
           {meta > 0 && (
@@ -153,7 +153,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
           border: '1px solid var(--line)', padding: '20px 18px',
         }}>
           <p style={{
-            fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
             color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16,
           }}>Mais vendidos este mês</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -164,10 +164,10 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
                   background: isDark ? (i === 0 ? '#D4A017' : 'rgba(212,160,23,0.15)') : (i === 0 ? 'var(--primary)' : 'var(--rose)'),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Manrope, sans-serif' }}>{i + 1}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i + 1}</span>
                 </div>
-                <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>{nome}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Manrope, sans-serif' }}>{qtd}×</span>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{nome}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{qtd}×</span>
               </div>
             ))}
           </div>
@@ -180,7 +180,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
           padding: '40px 24px', textAlign: 'center',
         }}>
           <ShoppingBag size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontSize: 14 }}>
+          <p style={{ color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14 }}>
             Nenhuma venda registrada ainda.
           </p>
         </div>
@@ -201,7 +201,7 @@ function RelatoriosMobile({ data, theme }) {
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id)} style={{
             flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
             border: subTab === st.id ? 'none' : '1px solid var(--line)',
             background: subTab === st.id ? theme.primary : 'var(--surface)',
             color: subTab === st.id ? '#fff' : 'var(--muted)',
@@ -264,7 +264,7 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
         {!legado && (
           <span style={{
             fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-            fontFamily: 'Manrope, sans-serif', padding: '2px 8px', borderRadius: 99,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', padding: '2px 8px', borderRadius: 99,
             background: badgeStyle.bg, color: badgeStyle.color, flexShrink: 0,
           }}>{planoLabel}</span>
         )}
@@ -345,7 +345,7 @@ function BottomTabBar({ tab, setTab, primary, config }) {
           )
         })}
       </div>
-      <p style={{ fontSize: 10, color: '#bbb', margin: '0 0 8px', fontFamily: 'Manrope, sans-serif', textAlign: 'center' }}>
+      <p style={{ fontSize: 10, color: '#bbb', margin: '0 0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center' }}>
         jun<span style={{ color: '#F4613A' }}>tt</span>os
       </p>
     </nav>
@@ -394,7 +394,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     const catalogoB2BNivelDesktop = data?.config?.features?.catalogo_b2b
     if (catalogoB2BNivelDesktop === 'simples' || catalogoB2BNivelDesktop === 'pro') {
       return (
-        <div style={{ fontFamily: 'Manrope, sans-serif', ...themeVars }}>
+        <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', ...themeVars }}>
           <CatalogoB2BAdminDesktop
             data={data}
             theme={theme}
@@ -438,8 +438,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
           <div style={{ display: 'flex', gap: 12 }}>
             <AlertCircle size={20} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Erro de conexão</p>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', fontFamily: 'monospace' }}>{data.dbError}</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Erro de conexão</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', fontFamily: 'monospace' }}>{data.dbError}</p>
             </div>
           </div>
         </div>
@@ -451,7 +451,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
   if (catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') {
     return (
-      <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
+      <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
         <CatalogoB2BAdmin
           data={data}
           theme={theme}
@@ -476,7 +476,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
     crediario: legado
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Funcionalidade não disponível neste plano</div>
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Funcionalidade não disponível neste plano</div>
       : (temAcesso(plano, 'pro')
           ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
           : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
@@ -496,13 +496,13 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       <div>
         <Fechamento {...data} theme={theme} />
         <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Mais opções</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Mais opções</p>
           <button
             onClick={() => setTab('config')}
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
             }}
           >Configurações da loja</button>
           {features?.atacado && (
@@ -511,7 +511,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               style={{
                 width: '100%', background: 'var(--surface)', border: '1px solid #F0C870',
                 borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#B85C38', fontWeight: 600,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: '#B85C38', fontWeight: 600,
               }}
             >Contas a Pagar</button>
           )}
@@ -521,7 +521,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}
           >
@@ -533,7 +533,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             style={{
               width: '100%', border: '1px solid var(--line)',
               borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: (legado || temAcesso(plano, 'pro')) ? 'var(--surface)' : '#f3f4f6',
               color: (legado || temAcesso(plano, 'pro')) ? 'var(--ink)' : '#9ca3af',
@@ -550,7 +550,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               style={{
                 width: '100%', border: '1px solid var(--line)',
                 borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 background: temAcesso(plano, 'pro') ? 'var(--surface)' : '#f3f4f6',
                 color: temAcesso(plano, 'pro') ? 'var(--ink)' : '#9ca3af',
@@ -572,7 +572,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               style={{
                 width: '100%', border: '1px solid var(--line)',
                 borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
                 color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
@@ -590,7 +590,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
               style={{
                 width: '100%', border: '1px solid var(--line)',
                 borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 500,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
                 color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
@@ -614,7 +614,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'catalogo', 'financeiro', 'crediario'].includes(tab)
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Manrope, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
       <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} legado={legado} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px', overflowX: 'hidden', boxSizing: 'border-box' }}>
         {panels[tab]}
@@ -625,7 +625,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
               onClick={() => setTab('conta')}
-              style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}
             >
               ← Voltar
             </button>

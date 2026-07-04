@@ -97,10 +97,10 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         }}>
           <CheckCircle2 size={34} color={theme.primary} />
         </div>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
           Importação concluída!
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
           {preview.length} produto{preview.length !== 1 ? 's' : ''} adicionado{preview.length !== 1 ? 's' : ''} ao estoque.
         </p>
       </div>
@@ -118,8 +118,8 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Importar Planilha Excel</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Cadastre vários produtos de uma vez</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Importar Planilha Excel</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Cadastre vários produtos de uma vez</p>
         </div>
       </div>
 
@@ -129,12 +129,12 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         border: '1px solid var(--line)', padding: '20px 18px', marginBottom: 14,
       }}>
         <p style={{
-          fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
           color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10,
         }}>
           Passo 1 — Baixar o modelo
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.6 }}>
           Baixe o modelo, preencha com seus produtos e volte para importar.
         </p>
         <button onClick={downloadTemplate} style={{
@@ -142,7 +142,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
           height: 44, padding: '0 18px', borderRadius: 12,
           background: 'var(--bg)', border: `1.5px solid ${theme.primary}50`,
           color: theme.primary, cursor: 'pointer',
-          fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
         }}>
           <Download size={15} /> Baixar modelo .xlsx
         </button>
@@ -154,7 +154,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         border: '1px solid var(--line)', padding: '20px 18px', marginBottom: 14,
       }}>
         <p style={{
-          fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
           color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12,
         }}>
           Passo 2 — Enviar planilha preenchida
@@ -171,13 +171,13 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         >
           <FileSpreadsheet size={28} color={fileName ? theme.primary : 'var(--line)'} style={{ margin: '0 auto 10px' }} />
           <p style={{
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
             color: fileName ? theme.primary : 'var(--muted)',
           }}>
             {fileName || 'Clique para selecionar a planilha'}
           </p>
           {!fileName && (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
               .xlsx ou .xls
             </p>
           )}
@@ -191,7 +191,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
             background: '#fee2e2', border: '1px solid #fca5a5',
           }}>
             <AlertCircle size={14} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>
           </div>
         )}
       </div>
@@ -203,7 +203,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
           border: `1px solid ${theme.primary}30`, padding: '20px 18px', marginBottom: 16,
         }}>
           <p style={{
-            fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
             color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 14,
           }}>
             Passo 3 — Confirmar ({preview.length} produto{preview.length !== 1 ? 's' : ''})
@@ -216,17 +216,17 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
                 borderRadius: 12, border: '1px solid var(--line)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: p.variacoes.length > 0 ? 6 : 0 }}>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
                     {p.nome}
                   </span>
                   <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                     {p.precoCusto > 0 && (
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                         Custo: {fmtR(p.precoCusto)}
                       </span>
                     )}
                     {p.precoVenda > 0 && (
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary }}>
                         Venda: {fmtR(p.precoVenda)}
                       </span>
                     )}
@@ -238,7 +238,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
                       <span key={j} style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 6,
                         background: `${theme.primary}14`, color: theme.primary,
-                        fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
                       }}>
                         {v.cor} ({v.quantidade})
                       </span>
@@ -254,7 +254,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
             background: saving ? 'var(--line)' : theme.primary,
             color: saving ? 'var(--muted)' : '#fff',
             cursor: saving ? 'not-allowed' : 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             boxShadow: saving ? 'none' : `0 4px 16px ${theme.primary}40`,
             transition: 'opacity .15s',

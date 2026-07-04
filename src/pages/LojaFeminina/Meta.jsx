@@ -9,13 +9,13 @@ const labelStyle = {
   display: 'block', fontSize: 11, fontWeight: 700,
   color: 'var(--muted)', marginBottom: 8,
   letterSpacing: '0.14em', textTransform: 'uppercase',
-  fontFamily: 'Manrope, sans-serif',
+  fontFamily: 'Plus Jakarta Sans, sans-serif',
 }
 
 const inputBase = {
   width: '100%', height: 48,
   border: '1.5px solid var(--line)', borderRadius: 14,
-  padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 15,
+  padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15,
   color: 'var(--ink)', background: 'var(--bg)',
   outline: 'none', boxSizing: 'border-box',
   transition: 'border-color .18s, box-shadow .18s',
@@ -65,10 +65,10 @@ function ProgressRing({ pct, size = 180, stroke = 14 }) {
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}>
-        <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 36, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
           {Math.min(pct, 100).toFixed(0)}%
         </span>
-        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>da meta</span>
+        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>da meta</span>
       </div>
     </div>
   )
@@ -115,7 +115,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Definir meta */}
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
           Definir Meta Mensal
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -130,7 +130,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
                 <input value={valor} onChange={e => setValor(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
                   placeholder="0,00"
@@ -142,7 +142,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
                   padding: '0 20px', borderRadius: 14, border: 'none', cursor: saving || !valor ? 'not-allowed' : 'pointer',
                   background: saving || !valor ? 'var(--line)' : METALLIC,
                   color: saving || !valor ? 'var(--muted)' : '#fff',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 13,
                   boxShadow: saving || !valor ? 'none' : '0 3px 12px rgba(122,62,51,0.25)',
                 }}>
                 {saving ? '...' : 'Salvar'}
@@ -155,7 +155,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
       {/* Acompanhamento */}
       {meta > 0 ? (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 18px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24, textAlign: 'center' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24, textAlign: 'center' }}>
             {new Date(y, m - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
 
@@ -172,16 +172,16 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
               { label: 'Projeção', value: fmtR(projecao), sub: projecao >= meta ? '✅ No caminho' : '⚠️ Abaixo' },
             ].map(s => (
               <div key={s.label} style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{s.label}</p>
-                <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 3 }}>{s.value}</p>
-                <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{s.sub}</p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{s.label}</p>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 3 }}>{s.value}</p>
+                <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{s.sub}</p>
               </div>
             ))}
           </div>
 
           {precisaDia && !atingida && (
             <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 14, padding: '12px 16px', textAlign: 'center' }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
                 Para bater a meta, precisa de{' '}
                 <span style={{ fontWeight: 700, color: 'var(--rose-deep)' }}>{precisaDia}/dia</span>
                 {' '}nos {diasRestantes} dias restantes.
@@ -195,7 +195,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
           padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
         }}>
           <Target size={28} color="var(--line)" />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma meta definida para este mês.</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma meta definida para este mês.</p>
         </div>
       )}
     </div>

@@ -13,14 +13,14 @@ const labelStyle = {
   display: 'flex', alignItems: 'center', gap: 6,
   fontSize: 11, fontWeight: 700, color: 'var(--muted)',
   letterSpacing: '0.14em', textTransform: 'uppercase',
-  fontFamily: 'Manrope, sans-serif', marginBottom: 8,
+  fontFamily: 'Plus Jakarta Sans, sans-serif', marginBottom: 8,
 }
 
 const inputBase = {
   width: '100%', height: 48,
   border: '1.5px solid var(--line)', borderRadius: 14,
   padding: '0 14px',
-  fontFamily: 'Manrope, sans-serif', fontSize: 15,
+  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15,
   color: 'var(--ink)', background: 'var(--bg)',
   outline: 'none', boxSizing: 'border-box',
   transition: 'border-color .18s, box-shadow .18s',
@@ -144,8 +144,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : METALLIC, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
         </div>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
       </div>
     )
   }
@@ -167,7 +167,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   <div style={{
                     width: 26, height: 26, borderRadius: '50%',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, fontFamily: 'Manrope, sans-serif',
+                    fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
                     ...(past
                       ? { background: isDark ? GOLD : METALLIC, color: isDark ? '#0A0A0A' : '#fff' }
                       : active
@@ -177,7 +177,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     {past ? <Check size={13} strokeWidth={2.5} /> : i + 1}
                   </div>
                   <span style={{
-                    fontSize: 12, fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                    fontSize: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
                     color: active ? 'var(--ink)' : past ? 'var(--ink-soft)' : 'var(--muted)',
                     display: window.innerWidth < 360 ? 'none' : 'block',
                   }}>{s}</span>
@@ -193,8 +193,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Dados da Cliente</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Identificação opcional</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Dados da Cliente</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Identificação opcional</p>
             </div>
             <Field label="Nome da Cliente" Icon={User}>
               <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
@@ -235,8 +235,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
-                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
+                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                   {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
                 </p>
               </div>
@@ -246,7 +246,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 12px', borderRadius: 10, cursor: 'pointer',
                   border: '1px solid var(--line)', background: 'var(--bg)',
-                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)',
                 }}
               >
                 <Plus size={13} /> Novo
@@ -259,7 +259,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   onKeyDown={e => e.key === 'Enter' && handleAddProd()}
                   placeholder="Nome do produto..." autoFocus
                   style={{ ...inputBase, flex: 1 }} onFocus={focusIn} onBlur={focusOut} />
-                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: isDark ? GOLD : METALLIC, border: 'none', color: isDark ? '#0A0A0A' : '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+                <button onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 14, background: isDark ? GOLD : METALLIC, border: 'none', color: isDark ? '#0A0A0A' : '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
                 <button onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 14, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
                   <X size={15} />
                 </button>
@@ -320,7 +320,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           {selCount > 0 && <Check size={12} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />}
                         </div>
                         <span style={{
-                          fontSize: 14, fontFamily: 'Manrope, sans-serif',
+                          fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif',
                           color: selCount > 0 ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
                           fontWeight: selCount > 0 ? 600 : 400,
                         }}>{nome}</span>
@@ -405,7 +405,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         borderRadius: '0 0 14px 14px',
                         background: isDark ? '#111110' : '#F6EFE8',
                       }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
                             const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
@@ -418,7 +418,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                   borderRadius: 8, overflow: 'hidden', userSelect: 'none',
                                   border: `1.5px solid ${theme.primary}`,
                                   background: theme.primary,
-                                  fontFamily: 'Manrope, sans-serif',
+                                  fontFamily: 'Plus Jakarta Sans, sans-serif',
                                 }}>
                                   <button
                                     onClick={e => {
@@ -456,7 +456,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                   display: 'inline-flex', alignItems: 'center',
                                   padding: '5px 12px', borderRadius: 8,
                                   cursor: esgotado ? 'not-allowed' : 'pointer',
-                                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                                   userSelect: 'none', opacity: esgotado ? 0.5 : 1,
                                   border: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
                                   background: isDark ? '#1a1a1a' : '#f5f5f5',
@@ -503,13 +503,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Valor e formas de pagamento</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
+              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Valor e formas de pagamento</p>
             </div>
 
             <Field label="Valor Total (R$)" Icon={CreditCard}>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>R$</span>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
                 <input value={form.valor} onChange={e => handleValorChange(e.target.value)}
                   placeholder="0,00" autoFocus
                   style={{ ...inputBase, paddingLeft: 36, fontSize: 18, fontWeight: 700 }}
@@ -535,7 +535,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           height: 46, flex: '2 1 0', minWidth: 0,
                           border: '1.5px solid var(--line)', borderRadius: 12,
                           padding: '0 8px',
-                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                           color: 'var(--ink)', background: 'var(--bg)',
                           outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
                         }}
@@ -543,7 +543,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
                       <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                         <input
                           value={p.valor}
                           onChange={e => setPgto(i, 'valor', e.target.value)}
@@ -552,7 +552,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             width: '100%', height: 46,
                             border: '1.5px solid var(--line)', borderRadius: 12,
                             padding: '0 10px 0 28px',
-                            fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
                             color: 'var(--ink)', background: 'var(--bg)',
                             outline: 'none', boxSizing: 'border-box',
                           }}
@@ -573,13 +573,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         {[15, 30, 45, 60].map(dias => (
                           <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
                             padding: '5px 14px', borderRadius: 8, cursor: 'pointer',
-                            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                             border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
                             background: p.vencimento === dias ? theme.primary : 'var(--bg)',
                             color: p.vencimento === dias ? '#fff' : 'var(--muted)',
                           }}>{dias} dias</button>
                         ))}
-                        {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Manrope, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
+                        {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
                       </div>
                     )}
                   </div>
@@ -592,7 +592,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
                   padding: '7px 14px', borderRadius: 10,
                   border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
-                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)',
                 }}
               >
                 <Plus size={13} /> Adicionar forma
@@ -603,7 +603,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   marginTop: 10, padding: '8px 12px', borderRadius: 10,
                   background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
                   border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
-                  fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                   color: pgtoOk ? '#16a34a' : '#dc2626',
                 }}>
                   {pgtoOk
@@ -622,10 +622,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
             {form.produtos.length > 0 && (
               <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10, fontFamily: 'Manrope, sans-serif' }}>Resumo dos produtos</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Resumo dos produtos</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {form.produtos.map((p, idx) => (
-                    <span key={idx} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Manrope, sans-serif' }}>
+                    <span key={idx} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                       {p.nome}{p.obs && p.obs !== 'Único' && p.variacao !== 'Único' ? ` — ${p.obs}` : ''}{p.quantidade > 1 ? ` ×${p.quantidade}` : ''}
                     </span>
                   ))}
@@ -642,7 +642,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   flex: 1, height: 48, background: saving || !pgtoOk ? 'var(--line)' : (isDark ? GOLD : METALLIC),
                   color: saving || !pgtoOk ? 'var(--muted)' : (isDark ? '#0A0A0A' : '#fff'),
                   border: 'none', borderRadius: 99, cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
-                  fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   boxShadow: saving || !pgtoOk ? 'none' : (isDark ? '0 4px 16px rgba(212,160,23,0.35)' : '0 4px 16px rgba(122,62,51,0.28)'),
                 }}
@@ -675,7 +675,7 @@ function MetallicBtn({ onClick, children, disabled, isDark }) {
       background: disabled ? 'var(--line)' : bg,
       color: disabled ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
       border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-      fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
+      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
       boxShadow: disabled ? 'none' : isDark ? '0 4px 14px rgba(212,160,23,0.30)' : '0 4px 14px rgba(122,62,51,0.25)',
       marginLeft: 'auto',
     }}>{children}</button>
@@ -688,7 +688,7 @@ function OutlineBtn({ onClick, children }) {
       display: 'flex', alignItems: 'center', gap: 6,
       padding: '0 16px', height: 44, borderRadius: 99,
       background: 'var(--surface)', border: '1px solid var(--line)',
-      cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+      cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
       fontSize: 13, fontWeight: 600, color: 'var(--ink-soft)',
     }}>{children}</button>
   )

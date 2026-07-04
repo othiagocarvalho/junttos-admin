@@ -34,14 +34,14 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
 
       {/* Título */}
       <h1 style={{
-        fontFamily: "'Playfair Display', serif",
+        fontFamily: "'Space Mono', monospace",
         fontSize: 30, fontWeight: 700, color: 'var(--ink)',
         marginBottom: 12, lineHeight: 1.2,
       }}>
         Olá, que bom te ver!
       </h1>
       <p style={{
-        fontFamily: 'Manrope, sans-serif', fontSize: 14,
+        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
         color: 'var(--muted)', lineHeight: 1.65, marginBottom: 40,
       }}>
         Para começar a registrar vendas, cadastre os produtos do seu estoque.
@@ -55,7 +55,7 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
             width: '100%', height: 54, borderRadius: 16,
             background: theme.primary, border: 'none',
             color: '#fff', cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
             boxShadow: `0 4px 20px ${theme.primary}45`,
             transition: 'box-shadow .15s',
@@ -72,7 +72,7 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
             background: 'var(--surface)',
             border: `1.5px solid ${theme.primary}35`,
             color: theme.primary, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontWeight: 600, fontSize: 15,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, fontSize: 15,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}
         >
@@ -83,7 +83,7 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
 
       {/* Dica */}
       <p style={{
-        fontFamily: 'Manrope, sans-serif', fontSize: 11,
+        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11,
         color: 'var(--muted)', marginTop: 28, lineHeight: 1.5,
       }}>
         Você pode importar uma planilha Excel com todos os seus produtos de uma vez, ou adicioná-los um por um.
