@@ -4,6 +4,9 @@ import {
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt,
 } from 'lucide-react'
+import { HeroCard } from '../../components/studio/Card'
+import { StatGrid } from '../../components/studio/StatCard'
+import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
@@ -86,78 +89,76 @@ const PLANO_BADGE_DESKTOP = {
   business: { bg: '#ede9fe', color: '#6d28d9', label: 'Business' },
 }
 
-// ── Sidebar (mini 56px → hover 196px) ────────────────────────
+// ── Sidebar (fixo 250px) ──────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile }) {
-  const [open, setOpen] = useState(false)
-  const primary = config?.cor_primaria || theme.primary
+  const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
+
+  function navItemStyle(active) {
+    return {
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 12px', borderRadius: 10, width: '100%',
+      background: active ? 'var(--primary)' : 'transparent',
+      border: 'none', cursor: 'pointer', textAlign: 'left',
+      color: active ? '#fff' : 'var(--ink-soft)',
+      fontSize: 13.5, fontWeight: active ? 700 : 500,
+      fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
+      boxShadow: active ? 'var(--shadow-btn-primary)' : 'none',
+    }
+  }
 
   return (
     <aside
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
       style={{
         position: 'fixed', left: 0, top: 0,
-        width: open ? 196 : 56, height: '100dvh',
-        background: '#F8F7F5',
+        width: 250, height: '100dvh',
+        background: 'var(--surface)',
         display: 'flex', flexDirection: 'column',
         zIndex: 50, fontFamily: 'Plus Jakarta Sans, sans-serif',
-        borderRight: '1px solid #e8e4df',
-        transition: 'width 0.2s ease',
-        overflow: 'hidden',
+        borderRight: '1px solid var(--line)',
       }}
     >
       {/* Logo area */}
       <div style={{
-        padding: open ? '18px 14px 16px' : '12px 0',
-        borderBottom: '1px solid #e8e4df',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        padding: '20px 18px 16px',
+        borderBottom: '1px solid var(--line)',
+        display: 'flex', alignItems: 'center', gap: 10,
         minHeight: 64, flexShrink: 0,
       }}>
-        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-          <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
-          <circle cx="40" cy="37" r="14" fill="#341780" />
-          <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
-        </svg>
-        {open && logoUrl && (
-          <>
-            <div style={{ width: 1, height: 22, background: '#ddd', flexShrink: 0 }} />
-            <div style={{ background: 'var(--surface)', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid var(--line)' }}>
-              <img src={logoUrl} alt={config?.nome || 'Loja'}
-                style={{ height: 28, width: 'auto', maxWidth: 76, objectFit: 'contain', display: 'block' }} />
-            </div>
-          </>
-        )}
+        {logoUrl
+          ? <img src={logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0, border: '1px solid var(--line)', background: '#fff' }} />
+          : <Logo variant="light" size={26} showWordmark={false} />
+        }
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)',
+            margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{config?.nome || theme.nome || 'Sua Loja'}</p>
+          {planoBadge && (
+            <span style={{
+              display: 'inline-block', marginTop: 2,
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              padding: '1px 7px', borderRadius: 99,
+              background: planoBadge.bg, color: planoBadge.color,
+            }}>{planoBadge.label}</span>
+          )}
+        </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
           return (
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
-              className={isLocked ? '' : 'cds-nav-btn'}
-              title={!open ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: open ? 10 : 0,
-                justifyContent: open ? 'flex-start' : 'center',
-                padding: open ? '10px 12px 10px 10px' : '10px 0',
-                borderRadius: 10, width: '100%',
-                background: active ? 'var(--surface)' : 'transparent',
-                border: active ? '1px solid var(--line)' : '1px solid transparent',
-                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-                cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
-                color: isLocked ? 'var(--muted)' : (active ? 'var(--ink)' : 'var(--ink-soft)'),
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
-              }}>
-              <Icon size={16} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
-              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
-              {open && isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
+              className={isLocked || active ? '' : 'cds-nav-btn'}
+              style={{ ...navItemStyle(active), cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1 }}>
+              <Icon size={16} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
+              {isLocked && <Lock size={12} style={{ flexShrink: 0 }} />}
             </button>
           )
         })}
@@ -165,27 +166,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           <button
             onClick={() => setTab('contas_pagar')}
             className={tab === 'contas_pagar' ? '' : 'cds-nav-btn'}
-            title={!open ? 'Contas a Pagar' : undefined}
-            style={{
-              display: 'flex', alignItems: 'center',
-              gap: open ? 10 : 0,
-              justifyContent: open ? 'flex-start' : 'center',
-              padding: open ? '10px 12px 10px 10px' : '10px 0',
-              borderRadius: 10, width: '100%',
-              background: tab === 'contas_pagar' ? '#FDEEE8' : 'transparent',
-              border: tab === 'contas_pagar' ? '1px solid #F0C870' : '1px solid transparent',
-              borderLeft: `3px solid ${tab === 'contas_pagar' ? '#B85C38' : 'transparent'}`,
-              cursor: 'pointer', textAlign: 'left',
-              color: tab === 'contas_pagar' ? '#B85C38' : 'var(--ink-soft)',
-              fontSize: 14, fontWeight: tab === 'contas_pagar' ? 600 : 400,
-              fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
-            }}
+            style={navItemStyle(tab === 'contas_pagar')}
           >
             <FileText size={16} style={{ flexShrink: 0 }} />
-            {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>}
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>
           </button>
         )}
-        <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
+        <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
           if (legado && ['catalogo', 'financeiro', 'crediario'].includes(id)) return null
           const hasAccess = legado || temAcesso(plano, planoMinimo)
@@ -195,31 +182,17 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             <button key={id}
               onClick={() => setTab(id)}
               className={active ? '' : 'cds-nav-btn'}
-              title={!open ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: open ? 10 : 0,
-                justifyContent: open ? 'flex-start' : 'center',
-                padding: open ? '10px 12px 10px 10px' : '10px 0',
-                borderRadius: 10, width: '100%',
-                background: active ? 'var(--surface)' : 'transparent',
-                border: active ? '1px solid var(--line)' : '1px solid transparent',
-                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-                cursor: 'pointer', textAlign: 'left',
-                color: active ? 'var(--ink)' : 'var(--ink-soft)',
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
-                opacity: hasAccess ? 1 : 0.5,
-              }}>
+              style={{ ...navItemStyle(active), opacity: hasAccess ? 1 : 0.55 }}>
               {hasAccess
                 ? <Icon size={16} style={{ flexShrink: 0 }} />
                 : <Lock size={16} style={{ flexShrink: 0 }} />
               }
-              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
-              {open && badge && (
+              <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
+              {badge && (
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99,
-                  background: badge.bg, color: badge.color, flexShrink: 0,
+                  background: active ? 'rgba(255,255,255,0.25)' : badge.bg,
+                  color: active ? '#fff' : badge.color, flexShrink: 0,
                   letterSpacing: '0.08em',
                 }}>{badge.label}</span>
               )}
@@ -229,33 +202,22 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
-        {open ? (
-          <>
-            <button onClick={onSwitchToMobile} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 12px', borderRadius: 10, width: '100%',
-              border: '1px solid #e8e4df',
-              background: 'transparent', cursor: 'pointer',
-              color: '#999', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
-              Versão Celular
-            </button>
-            <p style={{ fontSize: 10, color: '#bbb', fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center', margin: '8px 0 0' }}>
-              jun<span style={{ color: '#F4613A' }}>tt</span>os
-            </p>
-          </>
-        ) : (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
-          </div>
-        )}
+      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid var(--line)', flexShrink: 0 }}>
+        <button onClick={onSwitchToMobile} style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 12px', borderRadius: 10, width: '100%', minHeight: 40,
+          border: '1px solid var(--line)',
+          background: 'transparent', cursor: 'pointer',
+          color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />
+          Versão Celular
+        </button>
       </div>
 
       <style>{`
-        .cds-nav-btn:hover { background: #f0ece8 !important; color: #2C1F14 !important; }
+        .cds-nav-btn:hover { background: color-mix(in srgb, var(--primary) 8%, transparent) !important; color: var(--ink) !important; }
       `}</style>
     </aside>
   )
@@ -283,16 +245,11 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
   return (
     <div>
       {/* Hero — full width */}
-      <div style={{
-        background: isDark ? '#0F0E0C' : `linear-gradient(135deg, ${theme.primary}f0 0%, ${theme.primary} 100%)`,
-        borderTop: isDark ? '2px solid #D4A017' : undefined,
-        borderRadius: 20, padding: '36px 40px', marginBottom: 24,
-        position: 'relative', overflow: 'hidden',
-      }}>
+      <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </p>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 56, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 10 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 48, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 10 }}>
           {fmtR(totalMes)}
         </p>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.68)' }}>
@@ -304,22 +261,22 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
             <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pct}%`, transition: 'width 0.7s' }} />
           </div>
         )}
-      </div>
+      </HeroCard>
 
-      {/* 3-column KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* KPIs — auto-fit, never cuts values */}
+      <StatGrid style={{ marginBottom: 24 }}>
         {[
           { label: 'Hoje',           value: fmtR(totalHoje),  sub: `${vendasHoje.length} vendas` },
           { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
           { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
         ].map(({ label, value, sub }, i) => (
-          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)'), padding: '22px 20px' }}>
+          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid var(--accent)' : '1px solid var(--line)'), padding: '22px 20px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>{value}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
             <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{sub}</p>
           </div>
         ))}
-      </div>
+      </StatGrid>
 
       {/* Meta card clicável */}
       <div
@@ -1071,8 +1028,8 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   return (
     <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100dvh', boxSizing: 'border-box', minWidth: 0 }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tab]}
         </div>
       </div>

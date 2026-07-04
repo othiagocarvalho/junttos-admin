@@ -1,6 +1,9 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard } from 'lucide-react'
+import { HeroCard } from '../../components/studio/Card'
+import { StatGrid } from '../../components/studio/StatCard'
+import EmptyState from '../../components/studio/EmptyState'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
@@ -28,11 +31,21 @@ import Financeiro from './Financeiro'
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 const BOTTOM_TABS = [
-  { id: 'inicio',     label: 'Início',    Icon: Home      },
-  { id: 'estoque',    label: 'Estoque',   Icon: Package   },
-  { id: 'venda',      label: '',          Icon: Plus,     isFAB: true },
-  { id: 'relatorios', label: 'Relatórios',Icon: BarChart2 },
-  { id: 'conta',      label: 'Fechamento',Icon: Wallet    },
+  { id: 'inicio',   label: 'Início',   Icon: Home          },
+  { id: 'catalogo', label: 'Catálogo', Icon: ShoppingBag   },
+  { id: 'venda',    label: '',         Icon: Plus, isFAB: true },
+  { id: 'estoque',  label: 'Estoque',  Icon: Package       },
+  { id: 'mais',     label: 'Mais',     Icon: MoreHorizontal },
+]
+
+const MAIS_ITEMS = [
+  { id: 'relatorios',   label: 'Relatórios',       Icon: BarChart2, planoMinimo: null      },
+  { id: 'financeiro',   label: 'Financeiro',       Icon: CreditCard, planoMinimo: 'business' },
+  { id: 'clientes',     label: 'Clientes',         Icon: Users,     planoMinimo: 'starter'  },
+  { id: 'meta',         label: 'Metas',            Icon: Target,    planoMinimo: 'pro'      },
+  { id: 'crediario',    label: 'Crediário',        Icon: Receipt,   planoMinimo: 'pro'      },
+  { id: 'conta',        label: 'Fechamento',       Icon: Wallet,    planoMinimo: null      },
+  { id: 'config',       label: 'Configurações',    Icon: Settings,  planoMinimo: null      },
 ]
 
 // ── Sub-views ──────────────────────────────────────────────
@@ -70,12 +83,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
       {/* Hero */}
-      <div style={{
-        background: isDark ? '#0F0E0C' : 'linear-gradient(135deg, var(--primary) 0%, var(--rose-deep) 100%)',
-        borderTop: isDark ? '2px solid #D4A017' : undefined,
-        borderRadius: 20,
-        padding: '28px 24px', marginBottom: 16, position: 'relative', overflow: 'hidden',
-      }}>
+      <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{
           fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
           color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.72)', letterSpacing: '0.14em',
@@ -85,7 +93,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
         </p>
         <p style={{
           fontFamily: "'Space Mono', monospace",
-          fontSize: 42, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
+          fontSize: 38, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 4,
         }}>
           {fmtR(totalMes)}
         </p>
@@ -98,13 +106,13 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
             <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
           </div>
         )}
-      </div>
+      </HeroCard>
 
       {/* KPI grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+      <StatGrid style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 16 }}>
         {kpis.map(({ label, value, sub }, i) => (
           <div key={label} style={{
-            background: 'var(--surface)', borderRadius: 16,
+            background: 'var(--surface)', borderRadius: 'var(--r-card)',
             border: '1px solid var(--line)', padding: '16px 14px',
             gridColumn: i === 2 ? '1 / -1' : 'auto',
             minWidth: 0, boxSizing: 'border-box', overflow: 'hidden',
@@ -116,15 +124,16 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
             <p style={{
               fontFamily: "'Space Mono', monospace",
               fontSize: 22, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{value}</p>
             <p style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{sub}</p>
           </div>
         ))}
-      </div>
+      </StatGrid>
 
       {/* Meta card clicável */}
       <div onClick={() => setTab('meta')} style={{
-        background: 'var(--surface)', borderRadius: 16,
+        background: 'var(--surface)', borderRadius: 'var(--r-card)',
         border: '1px solid var(--line)', padding: '16px 18px',
         marginBottom: 16, cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -149,7 +158,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
       {/* Top produtos */}
       {topProds.length > 0 && (
         <div style={{
-          background: 'var(--surface)', borderRadius: 16,
+          background: 'var(--surface)', borderRadius: 'var(--r-card)',
           border: '1px solid var(--line)', padding: '20px 18px',
         }}>
           <p style={{
@@ -167,7 +176,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
                   <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? (i === 0 ? '#0A0A0A' : '#D4A017') : (i === 0 ? '#fff' : 'var(--rose-deep)'), fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i + 1}</span>
                 </div>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{nome}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{qtd}×</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: isDark ? '#F0C040' : 'var(--rose-deep)' }}>{qtd}×</span>
               </div>
             ))}
           </div>
@@ -175,15 +184,13 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
       )}
 
       {topProds.length === 0 && vendas.length === 0 && (
-        <div style={{
-          background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-          padding: '40px 24px', textAlign: 'center',
-        }}>
-          <ShoppingBag size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14 }}>
-            Nenhuma venda registrada ainda.
-          </p>
-        </div>
+        <EmptyState
+          icon={ShoppingBag}
+          title="Nenhuma venda ainda"
+          subtitle="Registre sua primeira venda para acompanhar o desempenho da loja aqui."
+          actionLabel="Nova venda"
+          onAction={() => setTab('venda')}
+        />
       )}
     </div>
   )
@@ -245,6 +252,8 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative', flexShrink: 0,
       width: '100%', maxWidth: '100vw', overflow: 'hidden', boxSizing: 'border-box',
+      borderBottomLeftRadius: 18, borderBottomRightRadius: 18,
+      boxShadow: '0 8px 20px -12px rgba(0,0,0,0.25)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -282,54 +291,35 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, primary, config }) {
-  const activeColor = primary || '#CC7870'
-  const crmEnabled = config?.features?.crm
+function BottomTabBar({ tab, setTab, primary }) {
+  const activeColor = primary || 'var(--primary)'
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      background: '#F8F7F5',
-      borderTop: '1px solid #e8e4df',
+      background: 'var(--surface)',
+      borderTop: '1px solid var(--line)',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       <div style={{
-        height: 72, width: '100%',
+        height: 68, width: '100%',
         display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
         alignItems: 'center',
         overflow: 'hidden',
       }}>
-        {BOTTOM_TABS.map(({ id, Icon, isFAB, isCRM }) => {
+        {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
           if (isFAB) {
             return (
-              <button key={id} onClick={() => setTab(id)} style={{
-                width: 52, height: 52, borderRadius: '50%',
-                background: '#F4613A',
+              <button key={id} onClick={() => setTab(id)} aria-label="Nova venda" style={{
+                width: 52, height: 52, borderRadius: 16,
+                background: activeColor,
                 border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto', marginTop: -26,
-                boxShadow: '0 4px 18px rgba(244,97,58,0.38)',
+                boxShadow: `0 10px 22px -8px color-mix(in srgb, ${activeColor} 65%, transparent)`,
+                minHeight: 44, minWidth: 44,
               }}>
-                <Icon size={22} color="#fff" strokeWidth={2.5} />
-              </button>
-            )
-          }
-          if (isCRM) {
-            const locked = !crmEnabled
-            return (
-              <button key={id}
-                onClick={locked ? undefined : () => setTab(id)}
-                style={{
-                  height: '100%', background: 'none', border: 'none',
-                  cursor: locked ? 'default' : 'pointer',
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  opacity: locked ? 0.4 : 1,
-                }}>
-                <div style={{ position: 'relative' }}>
-                  <Icon size={19} color={!locked && tab === id ? activeColor : '#bbb'} strokeWidth={1.5} />
-                  {locked && <Lock size={9} color="#bbb" style={{ position: 'absolute', top: -4, right: -6 }} />}
-                </div>
+                <Icon size={24} color="#fff" strokeWidth={2.5} />
               </button>
             )
           }
@@ -337,17 +327,18 @@ function BottomTabBar({ tab, setTab, primary, config }) {
           return (
             <button key={id} onClick={() => setTab(id)} style={{
               height: '100%', background: 'none', border: 'none',
-              cursor: 'pointer', display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 3,
+              alignItems: 'center', justifyContent: 'center', minHeight: 44,
             }}>
-              <Icon size={19} color={active ? activeColor : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
+              <Icon size={20} color={active ? activeColor : 'var(--muted)'} strokeWidth={active ? 2.3 : 1.7} />
+              <span style={{
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: active ? 700 : 500,
+                color: active ? activeColor : 'var(--muted)',
+              }}>{label}</span>
             </button>
           )
         })}
       </div>
-      <p style={{ fontSize: 10, color: '#bbb', margin: '0 0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center' }}>
-        jun<span style={{ color: '#F4613A' }}>tt</span>os
-      </p>
     </nav>
   )
 }
@@ -492,116 +483,52 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     financeiro: temAcesso(plano, 'business')
       ? <Financeiro lojaId={lojaId} vendas={data.vendas} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
-    conta:      (
-      <div>
-        <Fechamento {...data} theme={theme} />
-        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Mais opções</p>
-          <button
-            onClick={() => setTab('config')}
-            style={{
-              width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
-            }}
-          >Configurações da loja</button>
-          {features?.atacado && (
+    conta: <Fechamento {...data} theme={theme} />,
+    mais: (
+      <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
+          const unlocked = !planoMinimo || legado || temAcesso(plano, planoMinimo)
+          return (
             <button
-              onClick={() => setTab('contas_pagar')}
+              key={id}
+              onClick={unlocked ? () => setTab(id) : undefined}
               style={{
-                width: '100%', background: 'var(--surface)', border: '1px solid #F0C870',
-                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: '#B85C38', fontWeight: 600,
-              }}
-            >Contas a Pagar</button>
-          )}
-          {/* Clientes — todos os planos */}
-          <button
-            onClick={() => setTab('clientes')}
-            style={{
-              width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}
-          >
-            <span>Clientes finais</span>
-          </button>
-          {/* Metas — Pro+ */}
-          <button
-            onClick={() => setTab('meta')}
-            style={{
-              width: '100%', border: '1px solid var(--line)',
-              borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: (legado || temAcesso(plano, 'pro')) ? 'var(--surface)' : '#f3f4f6',
-              color: (legado || temAcesso(plano, 'pro')) ? 'var(--ink)' : '#9ca3af',
-              opacity: (legado || temAcesso(plano, 'pro')) ? 1 : 0.6,
-            }}
-          >
-            <span>Metas</span>
-            {!(legado || temAcesso(plano, 'pro')) && <Lock size={13} color="#9ca3af" />}
-          </button>
-          {/* Crediário — Pro+ (oculto para legados) */}
-          {!legado && (
-            <button
-              onClick={() => setTab('crediario')}
-              style={{
-                width: '100%', border: '1px solid var(--line)',
-                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: temAcesso(plano, 'pro') ? 'var(--surface)' : '#f3f4f6',
-                color: temAcesso(plano, 'pro') ? 'var(--ink)' : '#9ca3af',
-                opacity: temAcesso(plano, 'pro') ? 1 : 0.6,
+                width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
+                borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
+                cursor: unlocked ? 'pointer' : 'not-allowed', minHeight: 44,
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 12,
+                color: unlocked ? 'var(--ink)' : 'var(--muted)',
+                opacity: unlocked ? 1 : 0.6,
               }}
             >
-              <span>Crediário</span>
-              {!temAcesso(plano, 'pro') && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}>
-                  <Lock size={12} color="#9ca3af" /> Pro
-                </span>
-              )}
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                background: `color-mix(in srgb, var(--primary) 12%, white)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={17} color="var(--primary)" strokeWidth={2} />
+              </div>
+              <span style={{ flex: 1 }}>{label}</span>
+              {unlocked
+                ? <ChevronRight size={16} color="var(--muted)" />
+                : <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700 }}>
+                    <Lock size={12} color="var(--muted)" /> {planoMinimo}
+                  </span>
+              }
             </button>
-          )}
-          {/* Catálogo — Business (oculto para legados) */}
-          {!legado && (
-            <button
-              onClick={() => setTab('catalogo')}
-              style={{
-                width: '100%', border: '1px solid var(--line)',
-                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
-                color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
-                opacity: temAcesso(plano, 'business') ? 1 : 0.6,
-              }}
-            >
-              <span>Catálogo online</span>
-              {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
-            </button>
-          )}
-          {/* Financeiro — Business (oculto para legados) */}
-          {!legado && (
-            <button
-              onClick={() => setTab('financeiro')}
-              style={{
-                width: '100%', border: '1px solid var(--line)',
-                borderRadius: 14, padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 500,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: temAcesso(plano, 'business') ? 'var(--surface)' : '#f3f4f6',
-                color: temAcesso(plano, 'business') ? 'var(--ink)' : '#9ca3af',
-                opacity: temAcesso(plano, 'business') ? 1 : 0.6,
-              }}
-            >
-              <span>Financeiro</span>
-              {!temAcesso(plano, 'business') && <Lock size={13} color="#9ca3af" />}
-            </button>
-          )}
-        </div>
+          )
+        })}
+        {features?.atacado && (
+          <button
+            onClick={() => setTab('contas_pagar')}
+            style={{
+              width: '100%', background: 'var(--surface)', border: '1px solid var(--status-warn-dot)',
+              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left', cursor: 'pointer', minHeight: 44,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--status-warn-tx)', fontWeight: 700,
+            }}
+          >Contas a Pagar</button>
+        )}
       </div>
     ),
     faturamento:   <Faturamento {...data} theme={theme} />,
@@ -611,7 +538,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'catalogo', 'financeiro', 'crediario'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
@@ -622,10 +549,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       {showBottomBar
         ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} config={data.config} />
         : (
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: '#F8F7F5', borderTop: '1px solid #e8e4df', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
-              onClick={() => setTab('conta')}
-              style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}
+              onClick={() => setTab('mais')}
+              style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}
             >
               ← Voltar
             </button>
