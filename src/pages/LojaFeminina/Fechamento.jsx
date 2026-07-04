@@ -3,6 +3,12 @@ import { Wallet, History } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
+// Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
+function toLocalISO(d = new Date()) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0')
+}
 
 const EMPTY = { dinheiro: '', pix: '', pix_santander: '', pix_bb: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
 
@@ -41,7 +47,7 @@ function CurrField({ k, label, form, setForm, theme }) {
 }
 
 export default function Fechamento({ caixas, fecharCaixa, theme, features, vendas = [] }) {
-  const hoje = new Date().toISOString().slice(0, 10)
+  const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
@@ -57,7 +63,7 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
 
   // Total real de vendas do sistema para a data escolhida (usado na validação de divergência)
   const vendasDoDia = vendas.filter(v => {
-    try { return new Date(v.data).toISOString().slice(0, 10) === dataSelecionada }
+    try { return toLocalISO(new Date(v.data)) === dataSelecionada }
     catch (_) { return false }
   })
   const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
