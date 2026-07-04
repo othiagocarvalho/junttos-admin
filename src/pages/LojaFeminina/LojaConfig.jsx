@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleLeft, ToggleRight, Lock } from 'lucide-react'
+import { Settings, Save, Palette, ToggleRight, Lock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
+import Card from '../../components/studio/Card'
+import Input, { Label } from '../../components/studio/Input'
+import Button from '../../components/studio/Button'
+import Toggle from '../../components/studio/Toggle'
 
 const PRESETS = [
   { label: 'Junttos',   primary: '#5E2BD0', accent: '#FF6F5E' },
@@ -95,53 +99,31 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
     setTimeout(() => setPwdMsg(null), 4000)
   }
 
-  const card = {
-    background: 'var(--surface)',
-    border: '1px solid var(--line)',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
-  }
-
   const sectionTitle = {
-    fontSize: 14, fontWeight: 600, color: 'var(--ink)',
+    fontSize: 14, fontWeight: 700, color: 'var(--ink)',
     marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
     fontFamily: 'Plus Jakarta Sans, sans-serif',
   }
 
-  const lbl = {
-    fontSize: 11, fontWeight: 700, color: theme.primary,
-    textTransform: 'uppercase', letterSpacing: '0.1em',
-    display: 'block', marginBottom: 6, fontFamily: 'Plus Jakarta Sans, sans-serif',
-  }
-
-  const inputStyle = {
-    width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
-    borderRadius: 10, padding: '10px 14px', fontSize: 14,
-    color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif', outline: 'none',
-    boxSizing: 'border-box',
-  }
-
   return (
-    <div style={{ background: 'var(--bg)', padding: '0 16px 32px', minHeight: '100dvh' }}>
+    <div style={{ background: 'var(--bg)', padding: '0 16px 32px', minHeight: '100dvh', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* Identidade */}
-      <div style={card}>
+      <Card>
         <p style={sectionTitle}>
           <Settings size={16} style={{ color: theme.primary }} />
           Identidade da Loja
         </p>
-        <label style={lbl}>Nome da Loja</label>
-        <input
+        <Label>Nome da Loja</Label>
+        <Input
           value={nome}
           onChange={e => setNome(e.target.value)}
           placeholder="Ex: Estrada Moda Feminina"
-          style={inputStyle}
         />
-      </div>
+      </Card>
 
       {/* Funcionalidades */}
-      <div style={card}>
+      <Card>
         <p style={{ ...sectionTitle, marginBottom: 4 }}>
           <ToggleRight size={16} style={{ color: theme.primary }} />
           Funcionalidades Habilitadas
@@ -155,32 +137,25 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
             return (
               <div
                 key={key}
-                role="button"
-                tabIndex={0}
-                onClick={() => toggleFeat(key)}
-                onKeyDown={e => e.key === 'Enter' && toggleFeat(key)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
-                  userSelect: 'none',
-                  border: on ? `1px solid ${theme.primary}50` : '1px solid var(--line)',
-                  background: on ? `${theme.primary}0A` : 'var(--bg)',
+                  padding: '12px 16px', borderRadius: 'var(--r-input)',
+                  border: '1px solid var(--line)',
+                  background: 'var(--bg)',
                 }}
               >
                 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                   {label}
                 </span>
-                {on
-                  ? <ToggleRight size={20} style={{ color: theme.primary }} />
-                  : <ToggleLeft  size={20} style={{ color: 'var(--muted)' }} />}
+                <Toggle on={on} onClick={() => toggleFeat(key)} />
               </div>
             )
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Tema */}
-      <div style={card}>
+      <Card>
         <p style={sectionTitle}>
           <Palette size={16} style={{ color: theme.primary }} />
           Tema de Cores
@@ -217,91 +192,80 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
         {/* Color pickers */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
-            <label style={lbl}>Cor primária</label>
+            <Label>Cor primária</Label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="color" value={primary} onChange={e => setPrimary(e.target.value)}
-                style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)' }} />
-              <input value={primary} onChange={e => setPrimary(e.target.value)}
-                style={{ ...inputStyle, fontFamily: 'monospace', flex: 1 }} />
+                style={{ width: 40, height: 40, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)', flexShrink: 0 }} />
+              <Input mono value={primary} onChange={e => setPrimary(e.target.value)}
+                style={{ flex: 1 }} />
             </div>
           </div>
           <div>
-            <label style={lbl}>Cor de destaque</label>
+            <Label>Cor de destaque</Label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="color" value={accent} onChange={e => setAccent(e.target.value)}
-                style={{ width: 40, height: 40, borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)' }} />
-              <input value={accent} onChange={e => setAccent(e.target.value)}
-                style={{ ...inputStyle, fontFamily: 'monospace', flex: 1 }} />
+                style={{ width: 40, height: 40, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)', flexShrink: 0 }} />
+              <Input mono value={accent} onChange={e => setAccent(e.target.value)}
+                style={{ flex: 1 }} />
             </div>
           </div>
         </div>
 
         {/* Preview */}
-        <div style={{ borderRadius: 12, padding: 12, border: '1px solid var(--line)' }}>
+        <div style={{ borderRadius: 'var(--r-input)', padding: 12, border: '1px solid var(--line)', background: 'var(--bg)' }}>
           <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Preview</p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            <div style={{ height: 32, flex: 1, borderRadius: 'var(--r-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Primária
             </div>
-            <div style={{ height: 32, flex: 1, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: accent, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            <div style={{ height: 32, flex: 1, borderRadius: 'var(--r-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: accent, color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Destaque
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Salvar */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={!saving ? handleSave : undefined}
-        onKeyDown={e => !saving && e.key === 'Enter' && handleSave()}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 8, padding: 14, borderRadius: 12, marginBottom: 12,
-          fontSize: 14, fontWeight: 600, color: '#fff',
-          cursor: saving ? 'not-allowed' : 'pointer',
-          background: saved ? '#16a34a' : theme.primary,
-          opacity: saving ? 0.5 : 1,
-          userSelect: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif',
-        }}
+      <Button
+        variant="primary"
+        fullWidth
+        icon={Save}
+        onClick={handleSave}
+        disabled={saving}
+        style={saved ? { background: '#16a34a', boxShadow: 'none' } : undefined}
       >
-        <Save size={16} color="#fff" />
         {saved ? 'Configurações salvas!' : saving ? 'Salvando...' : 'Salvar configurações'}
-      </div>
+      </Button>
 
       {/* Alterar Senha */}
-      <div style={card}>
+      <Card>
         <p style={sectionTitle}>
           <Lock size={16} style={{ color: theme.primary }} />
           Alterar Senha
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={lbl}>Senha atual</label>
-            <input
+            <Label>Senha atual</Label>
+            <Input
               type="password" value={pwdForm.current} autoComplete="current-password"
               onChange={e => setPwdForm({ ...pwdForm, current: e.target.value })}
               placeholder="••••••••"
-              style={inputStyle}
             />
           </div>
           <div>
-            <label style={lbl}>Nova senha</label>
-            <input
+            <Label>Nova senha</Label>
+            <Input
               type="password" value={pwdForm.novo} autoComplete="new-password"
               onChange={e => setPwdForm({ ...pwdForm, novo: e.target.value })}
               placeholder="Mínimo 6 caracteres"
-              style={inputStyle}
             />
           </div>
           <div>
-            <label style={lbl}>Confirmar nova senha</label>
-            <input
+            <Label>Confirmar nova senha</Label>
+            <Input
               type="password" value={pwdForm.confirm} autoComplete="new-password"
               onChange={e => setPwdForm({ ...pwdForm, confirm: e.target.value })}
               placeholder="••••••••"
-              style={inputStyle}
             />
           </div>
 
@@ -317,25 +281,15 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
             </div>
           )}
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={!pwdSaving && pwdForm.current && pwdForm.novo && pwdForm.confirm ? handleChangePwd : undefined}
-            onKeyDown={e => e.key === 'Enter' && !pwdSaving && pwdForm.current && pwdForm.novo && pwdForm.confirm && handleChangePwd()}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '10px 14px', borderRadius: 10,
-              fontSize: 13, fontWeight: 600, color: '#fff',
-              cursor: pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm ? 'not-allowed' : 'pointer',
-              background: theme.primary,
-              opacity: pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm ? 0.4 : 1,
-              userSelect: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif',
-            }}
+          <Button
+            variant="primary"
+            onClick={handleChangePwd}
+            disabled={pwdSaving || !pwdForm.current || !pwdForm.novo || !pwdForm.confirm}
           >
             {pwdSaving ? 'Salvando...' : 'Salvar nova senha'}
-          </div>
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
