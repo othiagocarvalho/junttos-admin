@@ -46,7 +46,9 @@ A partir daqui, várias telas independentes foram delegadas a subagentes em para
 - [x] Crediário — StatGrid + StatusPill.
 - [x] Configurações — Toggle nas funcionalidades, mantém color pickers reais.
 - [x] Contas a Pagar — HeroCard + StatGrid + StatusPill.
-- [ ] Stretch (CatalogoB2BAdmin/Desktop, ProdutosB2BPro, PedidosConsolidados, EstoquePage desktop, WelcomeOnboarding, ImportarPlanilha)
+- [~] Stretch (CatalogoB2BAdmin/Desktop, ProdutosB2BPro, PedidosConsolidados ✅, EstoquePage desktop, WelcomeOnboarding ✅, ImportarPlanilha ✅)
+  - `src/pages/cliente/EstoquePage.jsx` verificado e **não é usado em lugar nenhum** (nenhum import no projeto) — puro código morto, pulado de propósito (não vale estilizar tela inalcançável).
+  - Faltam: CatalogoB2BAdmin.jsx / CatalogoB2BAdminDesktop.jsx / ProdutosB2BPro.jsx (variante Business/B2B do catálogo — telas grandes, em andamento).
 - [ ] Verificação final (build + lint + revisão)
 
 **Todas as 12 telas principais listadas na tarefa estão concluídas.** A partir
