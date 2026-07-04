@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react'
 import { BarChart2, TrendingUp, ShoppingBag, ChevronRight, ArrowLeft, Search, Tag, Calendar, User, Clock, Pencil, Trash2, Plus, X } from 'lucide-react'
+import { HeroCard } from '../../components/studio/Card'
+import { StatGrid } from '../../components/studio/StatCard'
+import Input, { Label } from '../../components/studio/Input'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
@@ -97,23 +101,22 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 
       {/* Search */}
       <div style={{ position: 'relative' }}>
-        <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-        <input
+        <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+        <Input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar por cliente, vendedora..."
-          style={{
-            width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
-            padding: '0 14px 0 40px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
-            color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
-          }}
+          style={{ height: 46, paddingLeft: 40 }}
         />
       </div>
 
       {/* Groups */}
       {groups.length === 0 ? (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <Tag size={28} color="var(--line)" />
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma venda encontrada.</p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)' }}>
+          <EmptyState
+            icon={Tag}
+            title="Nenhuma venda encontrada"
+            subtitle="Tente ajustar os termos da busca."
+          />
         </div>
       ) : (
         groups.map(group => (
@@ -131,7 +134,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {group.vendas.map(v => (
-                <div key={v.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px' }}>
+                <div key={v.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -142,12 +145,12 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
                           </span>
                         </div>
                         {v.forma_pgto && (
-                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600 }}>
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600 }}>
                             {fmtPgtos(v)}
                           </span>
                         )}
                         {v.vendedora && (
-                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'rgba(180,122,107,0.1)', border: '1px solid rgba(180,122,107,0.2)', color: 'var(--rose-deep)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600 }}>
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'rgba(180,122,107,0.1)', border: '1px solid rgba(180,122,107,0.2)', color: 'var(--rose-deep)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600 }}>
                             {v.vendedora}
                           </span>
                         )}
@@ -206,11 +209,11 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setConfirmDel(null)}
-                style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 44, borderRadius: 'var(--r-input)', border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleDelete}
-                style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+                style={{ flex: 1, height: 44, borderRadius: 'var(--r-input)', border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
                 Excluir
               </button>
             </div>
@@ -235,7 +238,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
                 <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <select value={p.forma}
                     onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
-                    style={{ height: 46, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                    style={{ height: 46, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
                     {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
@@ -243,7 +246,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
                     <input value={p.valor}
                       onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))}
                       placeholder="0,00"
-                      style={{ width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 12, padding: '0 10px 0 30px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 10px 0 30px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   {editPgtos.length > 1 && (
                     <button onClick={() => setEditPgtos(prev => prev.filter((_, idx) => idx !== i))}
@@ -255,19 +258,19 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
               ))}
             </div>
             <button onClick={() => setEditPgtos(prev => [...prev, { forma: 'Pix', valor: '' }])}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 'var(--r-input)', border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
               <Plus size={13} /> Adicionar forma
             </button>
-            <div style={{ marginBottom: 16, padding: '8px 12px', borderRadius: 10, background: editPgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${editPgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: editPgtoOk ? '#16a34a' : '#dc2626' }}>
+            <div style={{ marginBottom: 16, padding: '8px 12px', borderRadius: 'var(--r-input)', background: editPgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${editPgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: editPgtoOk ? '#16a34a' : '#dc2626' }}>
               {editPgtoOk ? '✓ Valor alocado corretamente' : `Alocado: ${fmtR(editAlloc)} · Total: ${fmtR(editTotal)}`}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditVenda(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
-                style={{ flex: 2, height: 46, borderRadius: 12, border: 'none', background: editPgtoOk && !editSaving ? theme.primary : 'var(--line)', cursor: editPgtoOk && !editSaving ? 'pointer' : 'not-allowed', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: editPgtoOk && !editSaving ? '#fff' : 'var(--muted)', fontSize: 14 }}>
+                style={{ flex: 2, height: 46, borderRadius: 'var(--r-input)', border: 'none', background: editPgtoOk && !editSaving ? theme.primary : 'var(--line)', cursor: editPgtoOk && !editSaving ? 'pointer' : 'not-allowed', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: editPgtoOk && !editSaving ? '#fff' : 'var(--muted)', fontSize: 14 }}>
                 {editSaving ? 'Salvando...' : 'Salvar pagamento'}
               </button>
             </div>
@@ -306,6 +309,18 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       pgtoMap[p.forma] = (pgtoMap[p.forma] || 0) + Number(p.valor)
     })
   })
+
+  const porDia = useMemo(() => {
+    const map = {}
+    filtered.forEach(v => {
+      const d = new Date(v.data)
+      const key = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      if (!map[key]) map[key] = { label: key, total: 0, ts: d.setHours(0, 0, 0, 0) }
+      map[key].total += Number(v.valor)
+    })
+    return Object.values(map).sort((a, b) => a.ts - b.ts)
+  }, [filtered])
+  const maxDia = porDia.length > 0 ? Math.max(...porDia.map(d => d.total)) : 0
 
   const curvABC = useMemo(() => {
     if (!temAcessoPro || filtered.length === 0) return []
@@ -358,17 +373,6 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
     )
   }
 
-  const labelStyle = {
-    display: 'block', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
-    color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5,
-  }
-  const inputStyle = {
-    width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 12,
-    padding: '0 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
-    color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box', cursor: 'pointer',
-    colorScheme: theme?.isDark ? 'dark' : 'light',
-  }
-
   function openPicker(e) {
     const input = e.currentTarget.querySelector('input')
     if (input?.showPicker) {
@@ -380,58 +384,94 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
-      {/* Header */}
-      <div style={{ background: theme.primary, borderRadius: 16, padding: '22px 20px' }}>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
-          Relatórios
+      {/* Hero */}
+      <HeroCard tone="primary" style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, var(--rose-deep) 100%)` }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+          Relatórios · Faturamento total
         </p>
         <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 34, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
           {fmtR(totalVendas)}
         </p>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 8 }}>
           {nVendas} venda{nVendas !== 1 ? 's' : ''} no período
         </p>
-      </div>
+      </HeroCard>
 
       {/* Date range filter */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>De</label>
+          <Label>De</Label>
           <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
+            <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ height: 42, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }} />
           </div>
         </div>
         <div style={{ flex: 1 }}>
-          <label style={labelStyle}>Até</label>
+          <Label>Até</Label>
           <div onClick={openPicker} style={{ position: 'relative', cursor: 'pointer' }}>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
+            <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ height: 42, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }} />
           </div>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <StatGrid style={{ gridTemplateColumns: '1fr 1fr' }}>
         {[
-          { label: 'Faturamento',  value: fmtR(totalVendas), Icon: TrendingUp },
+          { label: 'Faturamento',  value: fmtR(totalVendas), Icon: TrendingUp,  hero: true },
           { label: 'Nº de Vendas', value: nVendas,           Icon: ShoppingBag },
           { label: 'Ticket Médio', value: fmtR(ticketMedio), Icon: BarChart2 },
           { label: 'P.A.',         value: pa, sub: 'peças/atend.', Icon: BarChart2 },
-        ].map(({ label, value, sub, Icon }) => (
-          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '14px 12px', minWidth: 0 }}>
+        ].map(({ label, value, sub, Icon, hero }) => (
+          <div key={label} style={{
+            background: hero ? theme.primary : 'var(--surface)',
+            border: hero ? 'none' : '1px solid var(--line)',
+            borderRadius: 'var(--r-card)', padding: '14px 12px', minWidth: 0,
+          }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: theme.primary + '22' }}>
-                <Icon size={12} style={{ color: theme.primary }} />
+              <div style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: hero ? 'rgba(255,255,255,0.2)' : theme.primary + '22' }}>
+                <Icon size={12} style={{ color: hero ? '#fff' : theme.primary }} />
               </div>
-              <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: hero ? 'rgba(255,255,255,0.75)' : 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.10em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             </div>
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: sub ? 4 : 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
-            {sub && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{sub}</p>}
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: hero ? '#fff' : 'var(--ink)', lineHeight: 1, marginBottom: sub ? 4 : 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
+            {sub && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: hero ? 'rgba(255,255,255,0.75)' : 'var(--muted)' }}>{sub}</p>}
           </div>
         ))}
-      </div>
+      </StatGrid>
 
-      {/* Payment breakdown */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+      {/* Faturamento por dia */}
+      {nVendas === 0 ? (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)' }}>
+          <EmptyState
+            icon={BarChart2}
+            title="Nenhuma venda no período"
+            subtitle="Ajuste o período ou registre novas vendas."
+          />
+        </div>
+      ) : (
+        <>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+              Faturamento por dia
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', overflowX: 'auto', paddingBottom: 8, minHeight: 100 }}>
+              {porDia.map(d => {
+                const isMax = maxDia > 0 && d.total === maxDia
+                const h = maxDia > 0 ? Math.max(4, (d.total / maxDia) * 84) : 4
+                return (
+                  <div key={d.label} title={fmtR(d.total)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0, minWidth: 26 }}>
+                    <div style={{
+                      width: 16, borderRadius: '6px 6px 2px 2px', height: h,
+                      background: isMax ? 'var(--accent)' : `color-mix(in srgb, ${theme.primary} 30%, white)`,
+                    }} />
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9, color: 'var(--muted)' }}>{d.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Payment breakdown */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
           Por forma de pagamento
         </p>
@@ -459,10 +499,12 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* PIX por conta — exclusivo Du Charme (atacado) */}
       {features?.atacado && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
             Vendas por conta PIX
           </p>
@@ -509,7 +551,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
 
       {/* Curva ABC de produtos — Pro+ */}
       {temAcessoPro && curvABC.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
             Curva ABC de produtos
           </p>
@@ -527,7 +569,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
                   <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
                   <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{p.qtd}×</span>
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: theme.primary, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtR(p.valor)}</span>
-                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, background: badgeBg, color: badgeColor, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>{p.classe}</span>
+                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: badgeBg, color: badgeColor, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>{p.classe}</span>
                 </div>
               )
             })}
@@ -537,12 +579,12 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
 
       {/* Comissão por vendedora — Pro+ */}
       {temAcessoPro && comissaoVendedoras.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px 18px' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
             Comissão por vendedora
           </p>
           {comissaoVendedoras[0]?.pct === 0 && (
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#ca8a04', background: 'rgba(202,138,4,0.08)', border: '1px solid rgba(202,138,4,0.2)', borderRadius: 10, padding: '8px 12px', marginBottom: 12 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#ca8a04', background: 'rgba(202,138,4,0.08)', border: '1px solid rgba(202,138,4,0.2)', borderRadius: 'var(--r-input)', padding: '8px 12px', marginBottom: 12 }}>
               Configure o percentual de comissão em Configurações
             </p>
           )}
@@ -564,7 +606,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       <div
         onClick={() => setShowDetalhadas(true)}
         style={{
-          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16,
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)',
           padding: '16px 18px', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}
