@@ -763,17 +763,17 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             )}
           </div>
           <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
-            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
+            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 'var(--r-input)',
               cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
               fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
+              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'var(--primary)',
               color: saving || !pgtoOk ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
-              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)',
+              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : 'var(--shadow-btn-primary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              transition: 'box-shadow .18s',
+              transition: 'filter .15s',
             }}
-            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
-            onMouseLeave={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
+            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.filter = 'brightness(0.94)' }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
             {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
