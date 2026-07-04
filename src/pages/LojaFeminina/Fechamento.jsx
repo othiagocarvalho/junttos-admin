@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wallet, History } from 'lucide-react'
+import { Wallet, History, Trash2 } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
@@ -46,13 +46,16 @@ function CurrField({ k, label, form, setForm, theme }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, theme, features, vendas = [] }) {
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, theme, features, vendas = [] }) {
   const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [modalDivergencia, setModalDivergencia] = useState(false)
+  const [caixaParaExcluir, setCaixaParaExcluir] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const n = k => parseFloat(form[k] || 0) || 0
   const totalVendas = features?.atacado
@@ -91,6 +94,29 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
       setModalDivergencia(false)
       setDone(true)
       setTimeout(() => { setDone(false); setForm(EMPTY) }, 2200)
+    }
+  }
+
+  function handleDeleteRequest(c) {
+    setDeleteError('')
+    setCaixaParaExcluir(c)
+  }
+
+  function handleDeleteCancel() {
+    if (deleting) return
+    setCaixaParaExcluir(null)
+    setDeleteError('')
+  }
+
+  async function handleDeleteConfirm() {
+    setDeleting(true)
+    setDeleteError('')
+    const err = await deleteCaixa(caixaParaExcluir.id)
+    setDeleting(false)
+    if (err) {
+      setDeleteError(err.message || 'Erro ao excluir. Tente novamente.')
+    } else {
+      setCaixaParaExcluir(null)
     }
   }
 
@@ -236,12 +262,71 @@ export default function Fechamento({ caixas, fecharCaixa, theme, features, venda
                   </p>
                   {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Manrope, sans-serif' }}>{c.obs}</p>}
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4 }}>
                   <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(c.total)}</p>
                   <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
+                  <button
+                    onClick={() => handleDeleteRequest(c)}
+                    title="Excluir fechamento"
+                    style={{
+                      border: 'none', background: 'none', cursor: 'pointer',
+                      color: '#dc2626', padding: '2px 4px', borderRadius: 6,
+                      display: 'flex', alignItems: 'center', opacity: 0.65,
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmação de exclusão */}
+      {caixaParaExcluir && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
+              Excluir fechamento?
+            </p>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 22 }}>
+              O fechamento de <strong style={{ color: 'var(--ink)' }}>{fmtDate(caixaParaExcluir.data)}</strong> ({fmtR(caixaParaExcluir.total)}) será removido permanentemente. Esta ação não pode ser desfeita.
+            </p>
+            {deleteError && (
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626', marginBottom: 14, background: '#fee2e2', borderRadius: 8, padding: '8px 12px' }}>
+                {deleteError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deleting}
+                style={{
+                  flex: 1, height: 46, borderRadius: 12,
+                  border: '1.5px solid var(--line)', background: 'var(--bg)',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                  color: 'var(--ink)', fontSize: 13,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                style={{
+                  flex: 1, height: 46, borderRadius: 12,
+                  border: 'none',
+                  background: deleting ? 'var(--line)' : '#dc2626',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  color: deleting ? 'var(--muted)' : '#fff', fontSize: 13,
+                }}
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
           </div>
         </div>
       )}
