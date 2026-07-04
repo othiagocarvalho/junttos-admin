@@ -50,8 +50,6 @@ const NAV = [
   { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
   { id: 'crm',        label: 'CRM',           Icon: Users,    locked: true },
   { id: 'conta',      label: 'Fechamento',    Icon: Wallet    },
-  { divider: true },
-  { id: 'config',     label: 'Configurações', Icon: Settings  },
 ]
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
@@ -199,6 +197,14 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
+        <button
+          onClick={() => setTab('config')}
+          className={tab === 'config' ? '' : 'cds-nav-btn'}
+          style={navItemStyle(tab === 'config')}
+        >
+          <Settings size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Configurações</span>
+        </button>
       </nav>
 
       {/* Footer */}
