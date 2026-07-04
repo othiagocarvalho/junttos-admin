@@ -84,25 +84,25 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
   }
 
   const section = {
-    background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 28px',
+    background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', padding: '24px 28px',
   }
   const inp = {
     width: '100%', height: 44, boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
-    borderRadius: 12, padding: '0 14px',
-    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+    borderRadius: 'var(--r-input)', padding: '0 14px',
+    fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
   }
   const lbl = {
     display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
     marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    fontFamily: 'var(--font-ui)',
   }
   const msgStyle = (type) => ({
-    padding: '10px 14px', borderRadius: 10, fontSize: 13,
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    padding: '10px 14px', borderRadius: 'var(--r-chip)', fontSize: 13,
+    fontFamily: 'var(--font-ui)',
     ...(type === 'success'
-      ? { background: 'rgba(22,163,74,0.08)', color: '#16a34a' }
-      : { background: 'rgba(220,38,38,0.08)', color: '#dc2626' }),
+      ? { background: 'var(--status-ok-bg)', color: 'var(--status-ok-tx)' }
+      : { background: 'var(--status-bad-bg)', color: 'var(--status-bad-tx)' }),
   })
 
   return (
@@ -111,16 +111,16 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
       {/* Lista de colaboradoras */}
       <div style={section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
             Colaboradoras ativas
           </p>
           <button
             onClick={() => { setShowForm(v => !v); setMsg(null) }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10, border: 'none',
+              padding: '8px 16px', borderRadius: 'var(--r-chip)', border: 'none',
               background: primary, color: '#fff',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
+              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700,
               cursor: 'pointer',
             }}
           >
@@ -132,9 +132,9 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
         {!showForm && msg && <div style={{ ...msgStyle(msg.type), marginBottom: 16 }}>{msg.text}</div>}
 
         {loadingU ? (
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Carregando...</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>Carregando...</p>
         ) : usuarios.length === 0 ? (
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>
             Nenhuma colaboradora cadastrada.
           </p>
         ) : (
@@ -142,20 +142,20 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
             {usuarios.map(u => (
               <div key={u.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 16px', borderRadius: 12,
+                padding: '12px 16px', borderRadius: 'var(--r-chip)',
                 background: 'var(--bg)', border: '1px solid var(--line)',
               }}>
                 <div>
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
                     {u.nome || u.email}
                   </p>
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{u.email}</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>{u.email}</p>
                 </div>
                 {u.auth_user_id === user?.id ? (
                   <span style={{
                     padding: '4px 12px', borderRadius: 8,
                     background: `${primary}15`, color: primary,
-                    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                    fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700,
                   }}>
                     Você
                   </span>
@@ -163,9 +163,9 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
                   <button
                     onClick={() => handleDesativar(u.id)}
                     style={{
-                      padding: '7px 14px', borderRadius: 8, border: '1.5px solid #dc2626',
-                      background: 'transparent', color: '#dc2626',
-                      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                      padding: '7px 14px', borderRadius: 8, border: '1.5px solid var(--status-bad-dot)',
+                      background: 'transparent', color: 'var(--status-bad-tx)',
+                      fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
@@ -181,7 +181,7 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
       {/* Formulário de convite */}
       {showForm ? (
         <div style={section}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>
             Nova colaboradora
           </p>
           <form onSubmit={handleConvidar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -200,17 +200,17 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
             {msg && <div style={msgStyle(msg.type)}>{msg.text}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => { setShowForm(false); setMsg(null) }} style={{
-                flex: 1, height: 44, borderRadius: 12, border: '1.5px solid var(--line)',
+                flex: 1, height: 44, borderRadius: 'var(--r-input)', border: '1.5px solid var(--line)',
                 background: 'transparent', color: 'var(--muted)', cursor: 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
+                fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600,
               }}>
                 Cancelar
               </button>
               <button type="submit" disabled={saving} style={{
-                flex: 2, height: 44, borderRadius: 12, border: 'none',
+                flex: 2, height: 44, borderRadius: 'var(--r-input)', border: 'none',
                 background: saving ? 'var(--line)' : primary, color: '#fff',
                 cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
+                fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700,
               }}>
                 {saving ? 'Convidando...' : 'Convidar colaboradora'}
               </button>
@@ -219,10 +219,10 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
         </div>
       ) : (
         <div style={{ ...section, opacity: 0.5, pointerEvents: 'none' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
             Nova colaboradora
           </p>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>
             Clique em "Convidar colaboradora" para adicionar uma nova usuária a esta loja.
           </p>
         </div>
@@ -250,10 +250,10 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
       style={{
         position: 'fixed', left: 0, top: 0,
         width: open ? 196 : 56, height: '100dvh',
-        background: '#F8F7F5',
+        background: 'var(--surface)',
         display: 'flex', flexDirection: 'column',
-        zIndex: 50, fontFamily: 'Plus Jakarta Sans, sans-serif',
-        borderRight: '1px solid #e8e4df',
+        zIndex: 50, fontFamily: 'var(--font-ui)',
+        borderRight: '1px solid var(--line)',
         transition: 'width 0.2s ease',
         overflow: 'hidden',
       }}
@@ -261,7 +261,7 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
       {/* Logo area */}
       <div style={{
         padding: open ? '18px 14px 16px' : '12px 0',
-        borderBottom: '1px solid #e8e4df',
+        borderBottom: '1px solid var(--line)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         minHeight: 64, flexShrink: 0,
       }}>
@@ -272,14 +272,14 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
         </svg>
         {open && (
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>
               {config?.nome || 'Catálogo B2B'}
             </p>
             <span style={{
               fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
               background: `${primary}20`, color: primary,
               letterSpacing: '0.08em', textTransform: 'uppercase',
-              fontFamily: 'Plus Jakarta Sans, sans-serif',
+              fontFamily: 'var(--font-ui)',
             }}>
               {nivel === 'pro' ? 'Pro' : 'Simples'}
             </span>
@@ -303,13 +303,13 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
                 justifyContent: open ? 'flex-start' : 'center',
                 padding: open ? '10px 12px 10px 10px' : '10px 0',
                 borderRadius: 10, width: '100%',
-                background: active ? 'var(--surface)' : 'transparent',
+                background: active ? 'var(--bg)' : 'transparent',
                 border: active ? '1px solid var(--line)' : '1px solid transparent',
                 borderLeft: `3px solid ${active ? primary : 'transparent'}`,
                 cursor: 'pointer', textAlign: 'left',
                 color: active ? 'var(--ink)' : 'var(--ink-soft)',
                 fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
+                fontFamily: 'var(--font-ui)', transition: 'all .15s',
               }}
             >
               <Icon size={16} style={{ flexShrink: 0 }} />
@@ -320,32 +320,32 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
+      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid var(--line)', flexShrink: 0 }}>
         {open ? (
           <>
             <button onClick={onSwitchToMobile} style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '8px 12px', borderRadius: 10, width: '100%',
-              border: '1px solid #e8e4df',
+              border: '1px solid var(--line)',
               background: 'transparent', cursor: 'pointer',
-              color: '#999', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 500,
+              color: 'var(--muted)', fontFamily: 'var(--font-ui)', fontSize: 11, fontWeight: 500,
               whiteSpace: 'nowrap',
             }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />
               Versão Celular
             </button>
-            <p style={{ fontSize: 10, color: '#bbb', fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center', margin: '8px 0 0' }}>
-              jun<span style={{ color: '#F4613A' }}>tt</span>os
+            <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-ui)', textAlign: 'center', margin: '8px 0 0' }}>
+              jun<span style={{ color: 'var(--accent)' }}>tt</span>os
             </p>
           </>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
           </div>
         )}
       </div>
 
-      <style>{`.cb2b-nav-btn:hover { background: #f0ece8 !important; color: #2C1F14 !important; }`}</style>
+      <style>{`.cb2b-nav-btn:hover { background: var(--bg) !important; color: var(--ink) !important; }`}</style>
     </aside>
   )
 }
@@ -395,16 +395,16 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   const lbl = {
     display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
     marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    fontFamily: 'var(--font-ui)',
   }
   const inp = {
     width: '100%', height: 44, boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
-    borderRadius: 12, padding: '0 14px',
-    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+    borderRadius: 'var(--r-input)', padding: '0 14px',
+    fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
   }
   const section = {
-    background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 28px',
+    background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', padding: '24px 28px',
   }
 
   return (
@@ -412,7 +412,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       {/* Left: Identidade */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Identidade</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Identidade</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={lbl}>Nome da Loja</label>
@@ -443,7 +443,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
                 <input type="color" value={primary} onChange={e => setPrimary(e.target.value)}
                   style={{ width: 44, height: 40, borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)' }} />
                 <input value={primary} onChange={e => setPrimary(e.target.value)}
-                  style={{ ...inp, fontFamily: 'monospace', flex: 1 }} />
+                  style={{ ...inp, fontFamily: 'var(--font-mono)', flex: 1 }} />
               </div>
             </div>
           </div>
@@ -453,7 +453,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       {/* Right: Pagamento & Pedido Mínimo */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pagamento &amp; Contato</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pagamento &amp; Contato</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={lbl}>Chave Pix</label>
@@ -468,7 +468,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
 
         {nivel === 'pro' ? (
           <div style={section}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={lbl}>Tipo de mínimo</label>
@@ -486,7 +486,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
                 <div>
                   <label style={lbl}>Valor mínimo do pedido</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input
                       type="number" min="0" step="0.01"
                       value={pmValor}
@@ -513,8 +513,8 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
           </div>
         ) : (
           <div style={{ ...section, opacity: 0.4, pointerEvents: 'none' }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Pedido Mínimo</p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Exclusivo do nível Pro.</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Pedido Mínimo</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>Exclusivo do nível Pro.</p>
           </div>
         )}
 
@@ -522,9 +522,9 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
           onClick={handleSave}
           disabled={saving}
           style={{
-            height: 50, borderRadius: 14, border: 'none',
-            background: saved ? '#16a34a' : theme.primary,
-            color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700,
+            height: 50, borderRadius: 'var(--r-input)', border: 'none',
+            background: saved ? 'var(--status-ok-tx)' : theme.primary,
+            color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 700,
             cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
@@ -585,7 +585,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
     pedidos: (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {nivel === 'pro' && (
-          <div style={{ display: 'inline-flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 4, alignSelf: 'flex-start' }}>
+          <div style={{ display: 'inline-flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-chip)', padding: 4, alignSelf: 'flex-start' }}>
             {[
               { id: 'lista',       label: 'Lista' },
               { id: 'consolidado', label: 'Consolidado' },
@@ -594,10 +594,10 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
                 key={opt.id}
                 onClick={() => setPedidosView(opt.id)}
                 style={{
-                  height: 36, padding: '0 20px', borderRadius: 9, border: 'none',
+                  height: 36, padding: '0 20px', borderRadius: 8, border: 'none',
                   background: pedidosView === opt.id ? theme.primary : 'transparent',
                   color: pedidosView === opt.id ? '#fff' : 'var(--muted)',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                  fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', transition: 'all .15s',
                 }}
               >
@@ -639,7 +639,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)', ...contentVars }}>
       <B2BSidebar
         tab={tab}
         setTab={setTab}
