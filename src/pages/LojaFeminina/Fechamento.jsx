@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wallet, History } from 'lucide-react'
+import { Wallet, History, Trash2 } from 'lucide-react'
 import Card, { HeroCard } from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -7,6 +7,12 @@ import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
+// Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
+function toLocalISO(d = new Date()) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0')
+}
 
 const EMPTY = { dinheiro: '', pix: '', pix_santander: '', pix_bb: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
 
@@ -28,13 +34,16 @@ function CurrField({ k, label, form, setForm }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, features, vendas = [] }) {
-  const hoje = new Date().toISOString().slice(0, 10)
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features, vendas = [] }) {
+  const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [modalDivergencia, setModalDivergencia] = useState(false)
+  const [caixaParaExcluir, setCaixaParaExcluir] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const n = k => parseFloat(form[k] || 0) || 0
   const totalVendas = features?.atacado
@@ -45,8 +54,8 @@ export default function Fechamento({ caixas, fecharCaixa, features, vendas = [] 
 
   // Total real de vendas do sistema para a data escolhida (usado na validação de divergência)
   const vendasDoDia = vendas.filter(v => {
-    try { return new Date(v.data).toISOString().slice(0, 10) === dataSelecionada }
-    catch (_) { return false }
+    try { return toLocalISO(new Date(v.data)) === dataSelecionada }
+    catch { return false }
   })
   const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
   const divergencia = Math.abs(totalVendas - totalVendasSistema)
@@ -73,6 +82,29 @@ export default function Fechamento({ caixas, fecharCaixa, features, vendas = [] 
       setModalDivergencia(false)
       setDone(true)
       setTimeout(() => { setDone(false); setForm(EMPTY) }, 2200)
+    }
+  }
+
+  function handleDeleteRequest(c) {
+    setDeleteError('')
+    setCaixaParaExcluir(c)
+  }
+
+  function handleDeleteCancel() {
+    if (deleting) return
+    setCaixaParaExcluir(null)
+    setDeleteError('')
+  }
+
+  async function handleDeleteConfirm() {
+    setDeleting(true)
+    setDeleteError('')
+    const err = await deleteCaixa(caixaParaExcluir.id)
+    setDeleting(false)
+    if (err) {
+      setDeleteError(err.message || 'Erro ao excluir. Tente novamente.')
+    } else {
+      setCaixaParaExcluir(null)
     }
   }
 
@@ -215,15 +247,74 @@ export default function Fechamento({ caixas, fecharCaixa, features, vendas = [] 
                   </p>
                   {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{c.obs}</p>}
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4 }}>
                   <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>{fmtR(c.total)}</p>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
+                  <button
+                    onClick={() => handleDeleteRequest(c)}
+                    title="Excluir fechamento"
+                    style={{
+                      border: 'none', background: 'none', cursor: 'pointer',
+                      color: 'var(--status-bad-tx)', padding: '2px 4px', borderRadius: 6,
+                      display: 'flex', alignItems: 'center', opacity: 0.65,
+                    }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </Card>
+
+      {/* Modal de confirmação de exclusão */}
+      {caixaParaExcluir && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
+              Excluir fechamento?
+            </p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.65, marginBottom: 22 }}>
+              O fechamento de <strong style={{ color: 'var(--ink)' }}>{fmtDate(caixaParaExcluir.data)}</strong> ({fmtR(caixaParaExcluir.total)}) será removido permanentemente. Esta ação não pode ser desfeita.
+            </p>
+            {deleteError && (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--status-bad-tx)', marginBottom: 14, background: 'var(--status-bad-bg)', borderRadius: 'var(--r-input)', padding: '8px 12px' }}>
+                {deleteError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleDeleteCancel}
+                disabled={deleting}
+                style={{
+                  flex: 1, height: 46, borderRadius: 'var(--r-input)',
+                  border: '1.5px solid var(--line)', background: 'var(--bg)',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
+                  color: 'var(--ink)', fontSize: 13,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                style={{
+                  flex: 1, height: 46, borderRadius: 'var(--r-input)',
+                  border: 'none',
+                  background: deleting ? 'var(--line)' : 'var(--status-bad-tx)',
+                  cursor: deleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
+                  color: deleting ? 'var(--muted)' : '#fff', fontSize: 13,
+                }}
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de divergência de valores (aviso, não bloqueio) */}
       {modalDivergencia && (
