@@ -4,25 +4,40 @@ Execução autônoma, sem supervisão. Este arquivo é atualizado a cada etapa.
 
 ## ⚠️ BLOQUEIO CRÍTICO — leia primeiro
 
-**Não foi possível dar `git push` para o repositório remoto nesta sessão.**
+**Não foi possível dar `git push` para o repositório remoto nesta sessão, em nenhum momento.**
 
-- `git push -u origin claude/wizardly-fermi-96skty` retorna `403` no proxy git local, mesmo após 4 tentativas com backoff (2s/4s/8s/16s).
-- Tentei o caminho alternativo via GitHub MCP (`create_branch` / `push_files`): também retorna `403 Resource not accessible by integration` — ou seja, o GitHub App desta sessão não tem permissão de escrita (nem para criar a branch, nem para dar push) no repo `othiagocarvalho/junttos-admin`, apenas leitura (`get_me`, `list_branches` funcionam normalmente).
-- Leitura (`git ls-remote`, `git fetch`) funciona sem problemas — o bloqueio é especificamente de escrita.
-- **Todo o trabalho abaixo está commitado apenas localmente**, no branch `claude/wizardly-fermi-96skty`, dentro deste container. Se o container for reciclado antes de alguém copiar/pushar esses commits manualmente (ou reautorizar a sessão e eu conseguir dar push), o trabalho será perdido.
-- Enviei uma notificação push avisando sobre isso assim que identifiquei o bloqueio.
-- **Ação recomendada:** conceder permissão de escrita ao app/integração do Claude Code neste repositório (GitHub → Settings → Claude in Slack/Admin) e então pedir para eu tentar o push novamente — os commits locais continuam intactos e prontos.
-- Vou continuar tentando `git push` periodicamente entre as áreas, sem bloquear o resto do trabalho.
+Diagnóstico (refeito e reconfirmado a pedido do usuário, ao final da sessão):
 
-## Commits locais até agora
+- `git push` (via `http://local_proxy@127.0.0.1:41729/git/...`, o proxy git desta sessão) retorna sempre `403`, tanto para a branch `claude/wizardly-fermi-96skty` quanto para uma branch nova `claude/redesign-studio-admin` (`git push -u origin HEAD:refs/heads/claude/redesign-studio-admin` → `403`).
+- O caminho alternativo via GitHub MCP também falha: `create_branch`/`push_files` retornam `403 Resource not accessible by integration` — para `claude/wizardly-fermi-96skty` e também ao tentar criar `claude/redesign-studio-admin` a partir de `master`.
+- Em contraste, toda operação de **leitura** funciona perfeitamente: `git fetch`, `git ls-remote`, `mcp__github__get_me`, `mcp__github__list_branches`.
+- Essa combinação (leitura ok, escrita 403 "Resource not accessible by integration" tanto no proxy git quanto na API do GitHub, em branches diferentes) indica que **a integração/GitHub App usada por esta sessão tem permissão somente-leitura neste repositório** — não é um problema de rede, proxy, TLS ou nome de branch. Não há nada que eu possa configurar dentro da sessão para contornar isso (e as instruções desta sessão são explícitas: não tentar contornar bloqueios de política 403, e sim reportar).
+- **Ação necessária (fora desta sessão):** conceder permissão de escrita (`contents: write`) à integração do Claude Code neste repositório GitHub (`othiagocarvalho/junttos-admin`) — ex.: GitHub → Settings → GitHub Apps → permissões da app, ou via admin da integração usada. Depois disso, me peça para tentar o push de novo: **todos os commits abaixo já estão prontos localmente**, nada precisa ser refeito.
+- Enviei uma notificação push assim que identifiquei esse bloqueio, e voltei a tentar (sem sucesso) a cada poucos commits.
 
-1. `estilo: fundamentos do redesign Studio (fontes, tokens, componentes base)` — fontes (Plus Jakarta Sans / Space Mono) trocadas globalmente, CSS vars neutras, `src/components/studio/*` criado.
-2. `docs: adiciona PROGRESS.md...`
-3. `estilo: Shell (sidebar desktop + tab bar mobile) e Início` — sidebar fixa 250px com item ativo roxo cheio; tab bar mobile com 5 itens (Início/Catálogo/FAB/Estoque/Mais) e menu "Mais"; Início mobile/desktop com HeroCard/StatGrid/EmptyState.
-4. `estilo: Nova Venda (mobile + desktop)` — substitui gradiente fixo "metallic/rose-gold" por var(--primary)/theme.primary nos CTAs.
-5. `estilo: Estoque` — HeroCard roxo/escuro para custo total/venda total, StatusPill para alerta de estoque baixo, EmptyState (vazio + sem resultado de busca).
+## Commits locais prontos para push (branch local `claude/wizardly-fermi-96skty`, 20 commits à frente de `origin/master`)
 
-A partir daqui, várias telas independentes foram delegadas a subagentes em paralelo (arquivos sem sobreposição), cada uma revisada e commitada por mim depois de conferir build/lint.
+1. `estilo: fundamentos do redesign Studio (fontes, tokens, componentes base)`
+2. `docs: adiciona PROGRESS.md com status do redesign e bloqueio de push`
+3. `estilo: Shell (sidebar desktop + tab bar mobile) e Início`
+4. `estilo: Nova Venda (mobile + desktop)`
+5. `estilo: Estoque + PROGRESS.md`
+6. `estilo: Catálogo online / Pedidos`
+7. `estilo: Relatórios (mobile + desktop)`
+8. `estilo: Financeiro (mobile + desktop)`
+9. `docs: atualiza PROGRESS.md (Relatórios, Catálogo, Financeiro concluídos)`
+10. `estilo: Metas`
+11. `estilo: Fechamento de Caixa`
+12. `estilo: Crediário`
+13. `estilo: Clientes`
+14. `docs: atualiza PROGRESS.md (Fechamento, Clientes, Metas, Crediário concluídos)`
+15. `estilo: Configurações`
+16. `estilo: Contas a Pagar`
+17. `docs: atualiza PROGRESS.md (12 telas principais concluídas)`
+18. `estilo: WelcomeOnboarding (stretch)`
+19. `estilo: PedidosConsolidados (stretch)`
+20. `estilo: ImportarPlanilha (stretch)`
+21. `docs: atualiza PROGRESS.md (stretch parcial)`
 
 ## Mapa do app (para contexto)
 
@@ -32,31 +47,52 @@ A partir daqui, várias telas independentes foram delegadas a subagentes em para
 
 ## Status por área
 
-- [x] Fundamentos (fontes, tokens, componentes `studio/*`) — commit 1.
-- [x] Shell (Sidebar desktop + BottomTabBar/Header mobile) — commit 3.
-- [x] Início — commit 3.
-- [x] Nova Venda — commit 4.
-- [x] Estoque — commit 5.
-- [x] Relatórios (mobile + desktop) — gráfico "Faturamento por dia" novo.
-- [x] Catálogo online / Pedidos — StatusPill, chips de filtro, EmptyState.
-- [x] Financeiro (mobile + desktop) — abas underline, HeroCard Saldo/DRE.
-- [x] Fechamento de Caixa — HeroCard Total de Vendas/Saldo final.
-- [x] Clientes — cards com avatar, telefone/valores mono, EmptyState.
-- [x] Metas — barra roxo->coral, EmptyState.
-- [x] Crediário — StatGrid + StatusPill.
-- [x] Configurações — Toggle nas funcionalidades, mantém color pickers reais.
-- [x] Contas a Pagar — HeroCard + StatGrid + StatusPill.
-- [~] Stretch (CatalogoB2BAdmin/Desktop, ProdutosB2BPro, PedidosConsolidados ✅, EstoquePage desktop, WelcomeOnboarding ✅, ImportarPlanilha ✅)
-  - `src/pages/cliente/EstoquePage.jsx` verificado e **não é usado em lugar nenhum** (nenhum import no projeto) — puro código morto, pulado de propósito (não vale estilizar tela inalcançável).
-  - Faltam: CatalogoB2BAdmin.jsx / CatalogoB2BAdminDesktop.jsx / ProdutosB2BPro.jsx (variante Business/B2B do catálogo — telas grandes, em andamento).
-- [ ] Verificação final (build + lint + revisão)
+**As 12 telas principais listadas na tarefa original estão 100% concluídas:**
 
-**Todas as 12 telas principais listadas na tarefa estão concluídas.** A partir
-daqui, indo para as telas "stretch" (variante Business/B2B do catálogo,
-onboarding, importação de planilha) — fora da lista original de telas mas
-parte do mesmo produto, então também recebem o tratamento Studio se der
-tempo. Cada commit passou por `npm run build` + `npx eslint` comparado ao
-baseline (nenhum problema novo introduzido; alguns pré-existentes até
-foram corrigidos incidentalmente).
+- [x] Fundamentos (fontes, tokens, componentes `studio/*`)
+- [x] Shell (Sidebar desktop 250px fixa + BottomTabBar/Header mobile)
+- [x] Início (mobile + desktop)
+- [x] Nova Venda (mobile + desktop)
+- [x] Estoque
+- [x] Relatórios (mobile + desktop) — gráfico "Faturamento por dia" novo
+- [x] Catálogo online / Pedidos — StatusPill, chips de filtro, EmptyState
+- [x] Financeiro (mobile + desktop) — abas underline, HeroCard Saldo/DRE
+- [x] Fechamento de Caixa — HeroCard Total de Vendas/Saldo final
+- [x] Clientes — cards com avatar, telefone/valores mono, EmptyState
+- [x] Metas — barra roxo→coral, EmptyState
+- [x] Crediário — StatGrid + StatusPill
+- [x] Configurações — Toggle nas funcionalidades, mantém color pickers reais
+- [x] Contas a Pagar — HeroCard + StatGrid + StatusPill
 
-(seções serão preenchidas conforme cada área for concluída)
+**Stretch (fora da lista original, mesmo produto, nível Business/B2B):**
+
+- [x] WelcomeOnboarding
+- [x] PedidosConsolidados
+- [x] ImportarPlanilha
+- [ ] **CatalogoB2BAdmin.jsx / CatalogoB2BAdminDesktop.jsx / ProdutosB2BPro.jsx — NÃO concluídos.**
+  Três subagentes começaram essas 3 telas em paralelo, mas foram interrompidos no meio
+  por um limite de sessão da API ("session limit · resets 11:30am UTC"). As edições
+  parciais **foram revertidas** (`git checkout --`) para não deixar o projeto com
+  lint/estado inconsistente — essas 3 telas continuam exatamente como estavam antes
+  desta sessão (funcionais, só sem o novo visual Studio ainda). Build e lint
+  conferidos após a reversão: idênticos ao baseline.
+- `src/pages/cliente/EstoquePage.jsx` verificado e **não é usado em lugar nenhum**
+  no projeto (nenhum import) — código morto, propositalmente não estilizado.
+
+- [x] Verificação final parcial: `npm run build` e `npx eslint` rodados após
+  cada commit e comparados ao baseline (nenhum problema novo introduzido;
+  vários avisos pré-existentes de `theme`/props não usadas foram corrigidos
+  incidentalmente ao trocar cores fixas por `var(--primary)`).
+
+## Pendências para uma próxima sessão
+
+1. **Prioridade 1:** resolver a permissão de escrita no GitHub e dar push nestes
+   commits (branch local `claude/wizardly-fermi-96skty`, ou a branch que o
+   usuário pedir).
+2. Terminar o redesign de `CatalogoB2BAdmin.jsx`, `CatalogoB2BAdminDesktop.jsx`
+   e `ProdutosB2BPro.jsx` (telas Business/B2B, ~1900 linhas somadas) — nenhuma
+   mudança foi aplicada a elas, então é um trabalho limpo, sem retrabalho.
+3. Revisão visual final em navegador (mobile 375px e desktop) das 15 telas já
+   estilizadas — esta sessão não teve acesso a um preview visual interativo,
+   todo o trabalho foi verificado via build/lint + leitura de código, não
+   via screenshot.
