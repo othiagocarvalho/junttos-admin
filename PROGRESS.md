@@ -37,9 +37,9 @@ A partir daqui, várias telas independentes foram delegadas a subagentes em para
 - [x] Início — commit 3.
 - [x] Nova Venda — commit 4.
 - [x] Estoque — commit 5.
-- [ ] Relatórios
-- [ ] Catálogo online / Pedidos
-- [ ] Financeiro
+- [x] Relatórios (mobile + desktop) — gráfico "Faturamento por dia" novo.
+- [x] Catálogo online / Pedidos — StatusPill, chips de filtro, EmptyState.
+- [x] Financeiro (mobile + desktop) — abas underline, HeroCard Saldo/DRE.
 - [ ] Fechamento de Caixa
 - [ ] Clientes
 - [ ] Metas
