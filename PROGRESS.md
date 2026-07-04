@@ -44,9 +44,17 @@ A partir daqui, várias telas independentes foram delegadas a subagentes em para
 - [x] Clientes — cards com avatar, telefone/valores mono, EmptyState.
 - [x] Metas — barra roxo->coral, EmptyState.
 - [x] Crediário — StatGrid + StatusPill.
-- [ ] Configurações
-- [ ] Contas a Pagar
+- [x] Configurações — Toggle nas funcionalidades, mantém color pickers reais.
+- [x] Contas a Pagar — HeroCard + StatGrid + StatusPill.
 - [ ] Stretch (CatalogoB2BAdmin/Desktop, ProdutosB2BPro, PedidosConsolidados, EstoquePage desktop, WelcomeOnboarding, ImportarPlanilha)
 - [ ] Verificação final (build + lint + revisão)
+
+**Todas as 12 telas principais listadas na tarefa estão concluídas.** A partir
+daqui, indo para as telas "stretch" (variante Business/B2B do catálogo,
+onboarding, importação de planilha) — fora da lista original de telas mas
+parte do mesmo produto, então também recebem o tratamento Studio se der
+tempo. Cada commit passou por `npm run build` + `npx eslint` comparado ao
+baseline (nenhum problema novo introduzido; alguns pré-existentes até
+foram corrigidos incidentalmente).
 
 (seções serão preenchidas conforme cada área for concluída)
