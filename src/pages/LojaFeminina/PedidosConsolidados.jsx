@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Package } from 'lucide-react'
+import { Package, Wallet } from 'lucide-react'
+import Card, { HeroCard } from '../../components/studio/Card'
+import StatCard, { StatGrid } from '../../components/studio/StatCard'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -50,7 +53,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>
           Consolidado por produto
         </p>
-        <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 10, padding: 3 }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--r-input)', padding: 3 }}>
           {[
             { id: 'todos', label: 'Todos' },
             { id: 'pago',  label: 'Só pagos' },
@@ -74,48 +77,48 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
 
       {/* Totais gerais */}
       {consolidado.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ background: theme.primary, borderRadius: 14, padding: '14px 16px' }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+        <StatGrid style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <HeroCard tone="primary" style={{ padding: '14px 16px' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
               Total de peças
             </p>
             <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
               {totalGeralQtd}
             </p>
-          </div>
-          <div style={{ background: `${theme.primary}10`, border: `1px solid ${theme.primary}25`, borderRadius: 14, padding: '14px 16px' }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
-              Valor total
-            </p>
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: theme.primary, lineHeight: 1 }}>
-              {fmtR(totalGeralVal)}
-            </p>
-          </div>
-        </div>
+          </HeroCard>
+          <StatCard
+            label="Valor total"
+            value={fmtR(totalGeralVal)}
+            icon={Wallet}
+            iconColor="var(--primary)"
+          />
+        </StatGrid>
       )}
 
       {/* Lista */}
       {consolidado.length === 0 ? (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
-          <Package size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
-            Nenhum pedido para consolidar.
-          </p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="Nenhum pedido para consolidar"
+          subtitle={
+            filtroStatus === 'pago'
+              ? 'Ainda não há pedidos pagos para consolidar.'
+              : 'Assim que houver pedidos, o consolidado por produto e tamanho aparece aqui.'
+          }
+          actionLabel={filtroStatus === 'pago' ? 'Ver todos os pedidos' : undefined}
+          onAction={filtroStatus === 'pago' ? () => setFiltroStatus('todos') : undefined}
+        />
       ) : consolidado.map((prod, idx) => {
         const variacoes = Object.entries(prod.variacoes)
         const temVariacao = variacoes.some(([k]) => k !== '')
 
         return (
-          <div key={prod.nome} style={{
-            background: 'var(--surface)', border: '1px solid var(--line)',
-            borderRadius: 16, padding: '16px 18px',
-          }}>
+          <Card key={prod.nome} padding="16px 18px">
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{
-                    fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 6,
+                    fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 'var(--r-chip)',
                     background: `${theme.primary}15`, color: theme.primary,
                     fontFamily: 'Plus Jakarta Sans, sans-serif', flexShrink: 0,
                   }}>
@@ -133,7 +136,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                       .sort((a, b) => b[1].qtd - a[1].qtd)
                       .map(([label, data]) => (
                         <span key={label} style={{
-                          fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 7,
+                          fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--r-chip)',
                           background: `${theme.primary}10`, color: theme.primary,
                           border: `1px solid ${theme.primary}28`,
                           fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -163,7 +166,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                 )}
               </div>
             </div>
-          </div>
+          </Card>
         )
       })}
 
