@@ -69,13 +69,9 @@ Diagnóstico (refeito e reconfirmado a pedido do usuário, ao final da sessão):
 - [x] WelcomeOnboarding
 - [x] PedidosConsolidados
 - [x] ImportarPlanilha
-- [ ] **CatalogoB2BAdmin.jsx / CatalogoB2BAdminDesktop.jsx / ProdutosB2BPro.jsx — NÃO concluídos.**
-  Três subagentes começaram essas 3 telas em paralelo, mas foram interrompidos no meio
-  por um limite de sessão da API ("session limit · resets 11:30am UTC"). As edições
-  parciais **foram revertidas** (`git checkout --`) para não deixar o projeto com
-  lint/estado inconsistente — essas 3 telas continuam exatamente como estavam antes
-  desta sessão (funcionais, só sem o novo visual Studio ainda). Build e lint
-  conferidos após a reversão: idênticos ao baseline.
+- [x] **CatalogoB2BAdmin.jsx** — CSS vars em cards, inputs, nav bar e header; header com bordas arredondadas inferiores + sombra; status vars em mensagens de feedback.
+- [x] **CatalogoB2BAdminDesktop.jsx** — Sidebar migrada de cores hardcoded para CSS vars; section/inp/lbl locais com --r-card/--r-input/--font-ui; hover class usa var(--bg); save button e botões com border-radius de CSS var.
+- [x] **ProdutosB2BPro.jsx** — Toast usa var(--ink); stat cards, product cards, search/novo, modais e botões com CSS vars; badge de vídeo usa --status-info-*; delete usa --status-bad-*.
 - `src/pages/cliente/EstoquePage.jsx` verificado e **não é usado em lugar nenhum**
   no projeto (nenhum import) — código morto, propositalmente não estilizado.
 
@@ -86,13 +82,7 @@ Diagnóstico (refeito e reconfirmado a pedido do usuário, ao final da sessão):
 
 ## Pendências para uma próxima sessão
 
-1. **Prioridade 1:** resolver a permissão de escrita no GitHub e dar push nestes
-   commits (branch local `claude/wizardly-fermi-96skty`, ou a branch que o
-   usuário pedir).
-2. Terminar o redesign de `CatalogoB2BAdmin.jsx`, `CatalogoB2BAdminDesktop.jsx`
-   e `ProdutosB2BPro.jsx` (telas Business/B2B, ~1900 linhas somadas) — nenhuma
-   mudança foi aplicada a elas, então é um trabalho limpo, sem retrabalho.
-3. Revisão visual final em navegador (mobile 375px e desktop) das 15 telas já
-   estilizadas — esta sessão não teve acesso a um preview visual interativo,
-   todo o trabalho foi verificado via build/lint + leitura de código, não
-   via screenshot.
+1. Revisão visual final em navegador (mobile 375px e desktop) de todas as telas
+   estilizadas — todo o trabalho foi verificado via build/lint + leitura de código,
+   não via screenshot interativo.
+2. Merge para master quando aprovado.
