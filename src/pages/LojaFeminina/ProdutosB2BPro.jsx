@@ -27,11 +27,11 @@ const EMPTY_GRADE = () => TAMANHOS_DEFAULT.map(t => ({ tamanho: t, quantidade: '
 const lbl = {
   display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
   textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6,
-  fontFamily: 'Plus Jakarta Sans, sans-serif',
+  fontFamily: 'var(--font-ui)',
 }
 const inp = {
-  width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12,
-  padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
+  width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)',
+  padding: '0 14px', fontFamily: 'var(--font-ui)', fontSize: 14,
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 
@@ -49,7 +49,7 @@ function GradeForm({ grade, setGrade, theme }) {
 
   const rowInp = {
     height: 42, border: '1.5px solid var(--line)', borderRadius: 10,
-    padding: '0 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
+    padding: '0 12px', fontFamily: 'var(--font-ui)', fontSize: 14,
     color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box', width: '100%',
   }
 
@@ -91,9 +91,9 @@ function GradeForm({ grade, setGrade, theme }) {
         onClick={addTamanho}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '7px 14px', borderRadius: 10,
+          padding: '7px 14px', borderRadius: 'var(--r-chip)',
           border: `1px dashed ${theme.primary}80`, background: `${theme.primary}08`,
-          cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
+          cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: theme.primary,
         }}
       >
         <Plus size={13} /> Adicionar tamanho
@@ -134,11 +134,11 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
         <video src={previewUrl} controls muted style={{ width: '100%', borderRadius: 10, maxHeight: 200, background: '#000' }} />
         <button
           onClick={onRemovePreview}
-          style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600 }}
+          style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px solid var(--status-bad-dot)', background: 'var(--status-bad-bg)', color: 'var(--status-bad-tx)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600 }}
         >
           <X size={12} /> Remover seleção
         </button>
-        {error && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>}
+        {error && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)' }}>{error}</p>}
       </div>
     )
   }
@@ -150,18 +150,18 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
         <div style={{ display: 'flex', gap: 8 }}>
           <label style={{ flex: 1, cursor: 'pointer' }}>
             <input type="file" accept="video/mp4,video/quicktime,video/webm,video/mov" style={{ display: 'none' }} onChange={e => pick(e.target.files[0])} />
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 8, border: `1px solid ${theme.primary}`, color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 34, borderRadius: 8, border: `1px solid ${theme.primary}`, color: theme.primary, fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <Video size={12} /> Substituir
             </span>
           </label>
           <button
             onClick={onRemoveExisting}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid #fca5a5', background: '#fee2e2', color: '#dc2626', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 34, borderRadius: 8, border: '1px solid var(--status-bad-dot)', background: 'var(--status-bad-bg)', color: 'var(--status-bad-tx)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600 }}
           >
             <X size={12} /> Remover
           </button>
         </div>
-        {error && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>}
+        {error && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)' }}>{error}</p>}
       </div>
     )
   }
@@ -170,13 +170,13 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
     <div>
       <label style={{ display: 'block', cursor: 'pointer' }}>
         <input type="file" accept="video/mp4,video/quicktime,video/webm,video/mov" style={{ display: 'none' }} onChange={e => pick(e.target.files[0])} />
-        <div style={{ border: '1.5px dashed var(--line)', borderRadius: 12, padding: '20px 16px', textAlign: 'center', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <div style={{ border: '1.5px dashed var(--line)', borderRadius: 'var(--r-input)', padding: '20px 16px', textAlign: 'center', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
           <Video size={22} color="var(--muted)" />
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Selecionar vídeo</p>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>MP4, MOV ou WebM · Máx. 50MB</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Selecionar vídeo</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--muted)' }}>MP4, MOV ou WebM · Máx. 50MB</p>
         </div>
       </label>
-      {error && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626', marginTop: 6 }}>{error}</p>}
+      {error && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)', marginTop: 6 }}>{error}</p>}
     </div>
   )
 }
@@ -336,8 +336,8 @@ export default function ProdutosB2BPro({
       {toast && (
         <div style={{
           position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
-          background: '#1e1b4b', color: '#fff', padding: '10px 22px', borderRadius: 12,
-          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400,
+          background: 'var(--ink)', color: '#fff', padding: '10px 22px', borderRadius: 'var(--r-chip)',
+          fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, zIndex: 400,
           whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
         }}>
           {toast}
@@ -346,25 +346,25 @@ export default function ProdutosB2BPro({
 
       {/* Totais */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ background: theme.primary, borderRadius: 16, padding: '18px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: theme.primary, borderRadius: 'var(--r-card)', padding: '18px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
               Valor em Estoque
             </p>
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
               {fmtR(totalVenda)}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
           </div>
         </div>
-        <div style={{ background: `${theme.primary}12`, borderRadius: 16, padding: '18px 14px', border: `1px solid ${theme.primary}25`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: theme.primary, color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'flex-start', marginBottom: 6 }}>
+        <div style={{ background: `${theme.primary}12`, borderRadius: 'var(--r-card)', padding: '18px 14px', border: `1px solid ${theme.primary}25`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'flex-start', marginBottom: 6 }}>
             Pro
           </span>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: theme.primary }}>
             Grade de tamanho ativa
           </p>
         </div>
@@ -377,14 +377,14 @@ export default function ProdutosB2BPro({
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar produto..."
-            style={{ width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14, padding: '0 14px 0 40px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 14px 0 40px', fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }}
           />
         </div>
         <div
           role="button" tabIndex={0}
           onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewProdOpen(true) }}
           onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewProdOpen(true))}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 14, flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
           <Plus size={14} color="#fff" /> Novo
         </div>
@@ -392,9 +392,9 @@ export default function ProdutosB2BPro({
 
       {/* Lista */}
       {filtered.length === 0 ? (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '48px 24px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', padding: '48px 24px', textAlign: 'center' }}>
           <Package size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--muted)' }}>
             {search ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}
           </p>
         </div>
@@ -406,21 +406,21 @@ export default function ProdutosB2BPro({
           : variacoes.some(v => statusOf(v.quantidade) === 'atencao') ? 'atencao' : null
 
         return (
-          <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
+          <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden' }}>
             <button
               onClick={() => setExpanded(p => ({ ...p, [produto.id]: !p[produto.id] }))}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
+                  <span style={{ fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
                   {ps && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: BADGE[ps].bg, color: BADGE[ps].color, border: `1px solid ${BADGE[ps].border}`, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: BADGE[ps].bg, color: BADGE[ps].color, border: `1px solid ${BADGE[ps].border}`, fontFamily: 'var(--font-ui)' }}>
                       {BADGE[ps].label}
                     </span>
                   )}
                   {produto.video_url && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: '#ede9fe', color: '#7c3aed', border: '1px solid #c4b5fd', fontFamily: 'Plus Jakarta Sans, sans-serif', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: 'var(--status-info-bg)', color: 'var(--status-info-tx)', border: '1px solid var(--status-info-dot)', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: 3 }}>
                       <Video size={9} /> vídeo
                     </span>
                   )}
@@ -436,14 +436,14 @@ export default function ProdutosB2BPro({
                         background: s ? BADGE[s].bg : `${theme.primary}10`,
                         color: s ? BADGE[s].color : theme.primary,
                         border: `1px solid ${s ? BADGE[s].border : theme.primary + '28'}`,
-                        fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        fontFamily: 'var(--font-ui)',
                       }}>
                         {label}: {v.quantidade}
                       </span>
                     )
                   })}
                   {variacoes.length === 0 && (
-                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>Sem tamanhos cadastrados</span>
+                    <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--muted)' }}>Sem tamanhos cadastrados</span>
                   )}
                 </div>
               </div>
@@ -454,15 +454,15 @@ export default function ProdutosB2BPro({
 
             {isOpen && (
               <div style={{ borderTop: '1px solid var(--line)', padding: '12px 18px 16px' }}>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
                   {total} peça{total !== 1 ? 's' : ''} · {fmtR(produto.preco_venda)}/peça
                 </p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => openEdit(produto)}
                     style={{
-                      flex: 1, height: 38, borderRadius: 10, border: `1px solid ${theme.primary}`,
-                      background: 'none', color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif',
+                      flex: 1, height: 38, borderRadius: 'var(--r-chip)', border: `1px solid ${theme.primary}`,
+                      background: 'none', color: theme.primary, fontFamily: 'var(--font-ui)',
                       fontSize: 13, fontWeight: 600, cursor: 'pointer',
                     }}
                   >
@@ -471,9 +471,9 @@ export default function ProdutosB2BPro({
                   <button
                     onClick={() => setDeleteConfirm({ produto })}
                     style={{
-                      height: 38, padding: '0 14px', borderRadius: 10,
-                      border: '1px solid #fca5a5', background: '#fee2e2',
-                      color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      height: 38, padding: '0 14px', borderRadius: 'var(--r-chip)',
+                      border: '1px solid var(--status-bad-dot)', background: 'var(--status-bad-bg)',
+                      color: 'var(--status-bad-tx)', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                     }}
                   >
                     Excluir
@@ -494,7 +494,7 @@ export default function ProdutosB2BPro({
           <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Novo Produto com Grade
               </p>
               <button onClick={() => setNewProdOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
@@ -517,14 +517,14 @@ export default function ProdutosB2BPro({
                 <div>
                   <label style={lbl}>Preço de Custo</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoCusto} onChange={e => setNewProd(p => ({ ...p, precoCusto: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
                   </div>
                 </div>
                 <div>
                   <label style={lbl}>Preço de Venda *</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoVenda} onChange={e => setNewProd(p => ({ ...p, precoVenda: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
                   </div>
                 </div>
@@ -558,17 +558,17 @@ export default function ProdutosB2BPro({
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button onClick={() => setNewProdOpen(false)}
-                style={{ flex: 1, height: 48, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 48, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button
                 onClick={handleAddProduto}
                 disabled={!newCanSave}
                 style={{
-                  flex: 2, height: 48, borderRadius: 14, border: 'none',
+                  flex: 2, height: 48, borderRadius: 'var(--r-input)', border: 'none',
                   background: newCanSave ? theme.primary : 'var(--line)',
                   cursor: newCanSave ? 'pointer' : 'not-allowed',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
+                  fontFamily: 'var(--font-ui)', fontWeight: 700,
                   color: newCanSave ? '#fff' : 'var(--muted)', fontSize: 14,
                 }}
               >
@@ -588,7 +588,7 @@ export default function ProdutosB2BPro({
           <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Editar Grade — {editModal.produto.nome}
               </p>
               <button onClick={() => setEditModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
@@ -617,17 +617,17 @@ export default function ProdutosB2BPro({
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button onClick={() => setEditModal(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button
                 onClick={handleSaveEdit}
                 disabled={editSaving}
                 style={{
-                  flex: 2, height: 46, borderRadius: 12, border: 'none',
+                  flex: 2, height: 46, borderRadius: 'var(--r-input)', border: 'none',
                   background: editSaving ? 'var(--line)' : theme.primary,
                   cursor: editSaving ? 'not-allowed' : 'pointer',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
+                  fontFamily: 'var(--font-ui)', fontWeight: 700,
                   color: editSaving ? 'var(--muted)' : '#fff', fontSize: 14,
                 }}
               >
@@ -642,19 +642,19 @@ export default function ProdutosB2BPro({
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
               Excluir produto?
             </p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20 }}>
               Tem certeza que quer excluir <strong style={{ color: 'var(--ink)' }}>{deleteConfirm.produto.nome}</strong>? Essa ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} disabled={deleting}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleDeleteProduto} disabled={deleting}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: deleting ? 'var(--line)' : '#DC2626', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: 'none', background: deleting ? 'var(--line)' : 'var(--status-bad-tx)', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 700, color: deleting ? 'var(--muted)' : '#fff', fontSize: 14 }}>
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
