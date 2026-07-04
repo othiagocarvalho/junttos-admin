@@ -507,7 +507,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                       Pagamento ao fornecedor
                     </span>
-                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: '#FDEEE8', color: '#B85C38', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: 'color-mix(in srgb, var(--primary) 12%, white)', color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                       novo
                     </span>
                   </div>

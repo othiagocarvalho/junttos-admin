@@ -237,7 +237,7 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
   const fallbackSrc = gerarLogoDataURL({
     nome: storeName || 'Loja',
-    corPrimaria: primary || '#B47A6B',
+    corPrimaria: primary || '#5E2BD0',
     corSecundaria: accent || '#2A1F1F',
   })
   const src = logoUrl && !imgErr ? logoUrl : fallbackSrc
@@ -352,11 +352,11 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
 
-  const primary = data.config?.cor_primaria || '#B47A6B'
+  const primary = data.config?.cor_primaria || '#5E2BD0'
   const isDark = primary === '#D4A017'
   const theme = {
     primary,
-    accent:  data.config?.cor_secundaria || '#D9A99B',
+    accent:  data.config?.cor_secundaria || '#F2643C',
     nome:    data.config?.nome || 'Loja Estrada',
     isDark,
   }

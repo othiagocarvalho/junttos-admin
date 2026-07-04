@@ -534,10 +534,10 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
                     <div key={conta}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{conta}</span>
-                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#B85C38' }}>{fmtR(val)}</span>
+                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>{fmtR(val)}</span>
                       </div>
                       <div style={{ height: 6, borderRadius: 3, background: 'var(--line)' }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: '#B85C38', width: `${pct}%`, transition: 'width 0.5s' }} />
+                        <div style={{ height: '100%', borderRadius: 3, background: 'var(--primary)', width: `${pct}%`, transition: 'width 0.5s' }} />
                       </div>
                       <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{pct.toFixed(0)}%</p>
                     </div>
