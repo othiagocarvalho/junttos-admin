@@ -1,85 +1,37 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Target } from 'lucide-react'
-
-const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
+import Card from '../../components/studio/Card'
+import Input, { Label } from '../../components/studio/Input'
+import Button from '../../components/studio/Button'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
-const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 700,
-  color: 'var(--muted)', marginBottom: 8,
-  letterSpacing: '0.14em', textTransform: 'uppercase',
-  fontFamily: 'Plus Jakarta Sans, sans-serif',
+const sectionLabelStyle = {
+  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
+  color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em',
 }
 
-const inputBase = {
-  width: '100%', height: 48,
-  border: '1.5px solid var(--line)', borderRadius: 14,
-  padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15,
-  color: 'var(--ink)', background: 'var(--bg)',
-  outline: 'none', boxSizing: 'border-box',
-  transition: 'border-color .18s, box-shadow .18s',
-}
-
-function focusIn(e) {
-  e.target.style.borderColor = 'var(--rose-deep)'
-  e.target.style.boxShadow = '0 0 0 3px rgba(180,122,107,0.12)'
-  e.target.style.background = '#fff'
-}
-function focusOut(e) {
-  e.target.style.borderColor = 'var(--line)'
-  e.target.style.boxShadow = 'none'
-  e.target.style.background = 'var(--bg)'
-}
-
-function ProgressRing({ pct, size = 180, stroke = 14 }) {
-  const r = (size - stroke) / 2
-  const circumference = 2 * Math.PI * r
-  const offset = circumference - (Math.min(pct, 100) / 100) * circumference
-
+function ProgressBar({ pct }) {
+  const clamped = Math.min(Math.max(pct, 0), 100)
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <defs>
-          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#E8C0AF" />
-            <stop offset="22%" stopColor="#D49E8A" />
-            <stop offset="42%" stopColor="#B97766" />
-            <stop offset="58%" stopColor="#7A3E33" />
-            <stop offset="72%" stopColor="#B97766" />
-            <stop offset="88%" stopColor="#DCAA96" />
-            <stop offset="100%" stopColor="#F0C9B6" />
-          </linearGradient>
-        </defs>
-        <circle cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke="var(--line)" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r}
-          fill="none" stroke="url(#ringGrad)" strokeWidth={stroke}
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 0.7s ease' }}
-        />
-      </svg>
-      {/* Center text — rotated back */}
+    <div style={{ width: '100%', height: 14, borderRadius: 'var(--r-pill)', background: 'var(--bg)', overflow: 'hidden' }}>
       <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 36, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
-          {Math.min(pct, 100).toFixed(0)}%
-        </span>
-        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>da meta</span>
-      </div>
+        width: `${clamped}%`, height: '100%', borderRadius: 'var(--r-pill)',
+        background: 'linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%)',
+        transition: 'width 0.7s ease',
+      }} />
     </div>
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, theme }) {
+export default function Meta({ vendas, metas, salvarMeta }) {
   const now = new Date()
   const currentYM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
   const [mes, setMes] = useState(currentYM)
   const [valor, setValor] = useState('')
   const [saving, setSaving] = useState(false)
+  const valorInputRef = useRef(null)
 
   const meta = metas[mes] || 0
   const [y, m] = mes.split('-').map(Number)
@@ -114,54 +66,56 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
       {/* Definir meta */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '20px 18px' }}>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
+      <Card>
+        <p style={{ ...sectionLabelStyle, marginBottom: 16 }}>
           Definir Meta Mensal
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={labelStyle}>Mês / Ano</label>
-            <input type="month" value={mes} onChange={e => setMes(e.target.value)}
-              style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+            <Label>Mês / Ano</Label>
+            <Input type="month" value={mes} onChange={e => setMes(e.target.value)} />
           </div>
           <div>
-            <label style={labelStyle}>
+            <Label>
               Valor da meta{meta > 0 && <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}> — atual: {fmtR(meta)}</span>}
-            </label>
+            </Label>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
-                <input value={valor} onChange={e => setValor(e.target.value)}
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', zIndex: 1 }}>R$</span>
+                <Input
+                  ref={valorInputRef}
+                  mono
+                  value={valor} onChange={e => setValor(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
                   placeholder="0,00"
                   inputMode="decimal"
-                  style={{ ...inputBase, paddingLeft: 36 }} onFocus={focusIn} onBlur={focusOut} />
+                  style={{ paddingLeft: 36 }}
+                />
               </div>
-              <button onClick={handleSave} disabled={saving || !valor}
-                style={{
-                  padding: '0 20px', borderRadius: 14, border: 'none', cursor: saving || !valor ? 'not-allowed' : 'pointer',
-                  background: saving || !valor ? 'var(--line)' : METALLIC,
-                  color: saving || !valor ? 'var(--muted)' : '#fff',
-                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 13,
-                  boxShadow: saving || !valor ? 'none' : '0 3px 12px rgba(122,62,51,0.25)',
-                }}>
+              <Button variant="primary" onClick={handleSave} disabled={saving || !valor}>
                 {saving ? '...' : 'Salvar'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Acompanhamento */}
       {meta > 0 ? (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 18px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24, textAlign: 'center' }}>
+        <Card padding="24px 18px">
+          <p style={{ ...sectionLabelStyle, marginBottom: 20, textAlign: 'center' }}>
             {new Date(y, m - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
           </p>
 
-          {/* Ring */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-            <ProgressRing pct={pct} />
+          {/* Progress bar + percentage */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 40, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>
+              {Math.min(pct, 100).toFixed(0)}%
+            </span>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, fontWeight: 600 }}>da meta</p>
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <ProgressBar pct={pct} />
           </div>
 
           {/* Stats grid */}
@@ -171,7 +125,7 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
               { label: atingida ? 'Meta batida' : 'Faltam', value: atingida ? '🎉' : fmtR(Math.max(meta - realizado, 0)), sub: atingida ? 'Parabéns!' : `${diasRestantes}d restantes` },
               { label: 'Projeção', value: fmtR(projecao), sub: projecao >= meta ? '✅ No caminho' : '⚠️ Abaixo' },
             ].map(s => (
-              <div key={s.label} style={{ background: 'var(--bg)', borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
+              <div key={s.label} style={{ background: 'var(--bg)', borderRadius: 'var(--r-input)', padding: '12px 10px', textAlign: 'center' }}>
                 <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>{s.label}</p>
                 <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 3 }}>{s.value}</p>
                 <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{s.sub}</p>
@@ -180,23 +134,25 @@ export default function Meta({ vendas, metas, salvarMeta, theme }) {
           </div>
 
           {precisaDia && !atingida && (
-            <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 14, padding: '12px 16px', textAlign: 'center' }}>
+            <div style={{ marginTop: 14, background: 'var(--bg)', borderRadius: 'var(--r-input)', padding: '12px 16px', textAlign: 'center' }}>
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
                 Para bater a meta, precisa de{' '}
-                <span style={{ fontWeight: 700, color: 'var(--rose-deep)' }}>{precisaDia}/dia</span>
+                <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{precisaDia}/dia</span>
                 {' '}nos {diasRestantes} dias restantes.
               </p>
             </div>
           )}
-        </div>
+        </Card>
       ) : (
-        <div style={{
-          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16,
-          padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-        }}>
-          <Target size={28} color="var(--line)" />
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhuma meta definida para este mês.</p>
-        </div>
+        <Card padding={0}>
+          <EmptyState
+            icon={Target}
+            title="Nenhuma meta definida"
+            subtitle="Defina o alvo do mês para acompanhar seu progresso."
+            actionLabel="Definir meta"
+            onAction={() => valorInputRef.current?.focus()}
+          />
+        </Card>
       )}
     </div>
   )
