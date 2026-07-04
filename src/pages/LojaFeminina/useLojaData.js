@@ -242,6 +242,12 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  async function deleteCaixa(id) {
+    const { error } = await supabase.from('lf_caixas').delete().eq('id', id).eq('loja_id', lojaId)
+    if (!error) await fetchAll()
+    return error
+  }
+
   async function salvarMeta(mes, valor) {
     const { error } = await supabase
       .from('lf_metas')
@@ -399,6 +405,7 @@ export function useLojaData(lojaId = 'estrada') {
     deleteVenda,
     updateVenda,
     fecharCaixa,
+    deleteCaixa,
     salvarMeta,
     addProduto,
     updateProduto,
