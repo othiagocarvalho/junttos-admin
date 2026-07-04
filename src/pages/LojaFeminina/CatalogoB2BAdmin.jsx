@@ -28,16 +28,16 @@ const TAB_CONFIG     = { id: 'config',     label: 'Config',     Icon: Settings }
 const lbl = {
   display: 'block', fontSize: 10, fontWeight: 700,
   color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em',
-  marginBottom: 6, fontFamily: 'Plus Jakarta Sans, sans-serif',
+  marginBottom: 6, fontFamily: 'var(--font-ui)',
 }
 const inp = {
-  width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12,
-  padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
+  width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)',
+  padding: '0 14px', fontFamily: 'var(--font-ui)', fontSize: 14,
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 const card = {
   background: 'var(--surface)', border: '1px solid var(--line)',
-  borderRadius: 14, padding: '16px 16px 20px', marginBottom: 12,
+  borderRadius: 'var(--r-card)', padding: '16px 16px 20px', marginBottom: 12,
 }
 
 function UsuariosB2B({ lojaId, theme }) {
@@ -104,32 +104,32 @@ function UsuariosB2B({ lojaId, theme }) {
     await fetchUsuarios()
   }
 
-  const inp = {
-    width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12,
-    padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
+  const localInp = {
+    width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)',
+    padding: '0 14px', fontFamily: 'var(--font-ui)', fontSize: 14,
     color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
   }
   const msgStyle = (type) => ({
-    padding: '9px 12px', borderRadius: 10, fontSize: 13,
-    fontFamily: 'Plus Jakarta Sans, sans-serif',
+    padding: '9px 12px', borderRadius: 'var(--r-chip)', fontSize: 13,
+    fontFamily: 'var(--font-ui)',
     ...(type === 'success'
-      ? { background: 'rgba(22,163,74,0.08)', color: '#16a34a' }
-      : { background: 'rgba(220,38,38,0.08)', color: '#dc2626' }),
+      ? { background: 'var(--status-ok-bg)', color: 'var(--status-ok-tx)' }
+      : { background: 'var(--status-bad-bg)', color: 'var(--status-bad-tx)' }),
   })
 
   return (
     <div style={{ paddingTop: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
           Colaboradoras ativas
         </p>
         <button
           onClick={() => { setShowForm(v => !v); setMsg(null) }}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 14px', borderRadius: 10, border: 'none',
+            padding: '8px 14px', borderRadius: 'var(--r-chip)', border: 'none',
             background: primary, color: '#fff',
-            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+            fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700,
             cursor: 'pointer',
           }}
         >
@@ -140,37 +140,37 @@ function UsuariosB2B({ lojaId, theme }) {
 
       {showForm && (
         <form onSubmit={handleConvidar} style={{ ...card, marginBottom: 16 }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
             Nova colaboradora
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input
               value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
-              placeholder="Nome" style={inp}
+              placeholder="Nome" style={localInp}
             />
             <input
               type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              placeholder="E-mail de acesso" style={inp}
+              placeholder="E-mail de acesso" style={localInp}
             />
             <input
               type="text" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))}
-              placeholder="Senha temporária" style={inp}
+              placeholder="Senha temporária" style={localInp}
             />
           </div>
           {msg && <div style={{ ...msgStyle(msg.type), marginTop: 10 }}>{msg.text}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button type="button" onClick={() => { setShowForm(false); setMsg(null) }} style={{
-              flex: 1, height: 42, borderRadius: 10, border: '1.5px solid var(--line)',
+              flex: 1, height: 42, borderRadius: 'var(--r-input)', border: '1.5px solid var(--line)',
               background: 'transparent', color: 'var(--muted)', cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
             }}>
               Cancelar
             </button>
             <button type="submit" disabled={saving} style={{
-              flex: 1, height: 42, borderRadius: 10, border: 'none',
+              flex: 1, height: 42, borderRadius: 'var(--r-input)', border: 'none',
               background: saving ? 'var(--line)' : primary, color: '#fff',
               cursor: saving ? 'not-allowed' : 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
+              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700,
             }}>
               {saving ? 'Convidando...' : 'Convidar'}
             </button>
@@ -181,11 +181,11 @@ function UsuariosB2B({ lojaId, theme }) {
       {!showForm && msg && <div style={{ ...msgStyle(msg.type), marginBottom: 12 }}>{msg.text}</div>}
 
       {loadingU ? (
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
           Carregando...
         </p>
       ) : usuarios.length === 0 ? (
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)', padding: '12px 0' }}>
           Nenhuma colaboradora cadastrada.
         </p>
       ) : (
@@ -197,10 +197,10 @@ function UsuariosB2B({ lojaId, theme }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <div>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
                   {u.nome || u.email}
                 </p>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>
                   {u.email}
                 </p>
               </div>
@@ -208,7 +208,7 @@ function UsuariosB2B({ lojaId, theme }) {
                 <span style={{
                   padding: '4px 10px', borderRadius: 8,
                   background: `${primary}15`, color: primary,
-                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
+                  fontFamily: 'var(--font-ui)', fontSize: 11, fontWeight: 700,
                 }}>
                   Você
                 </span>
@@ -216,9 +216,9 @@ function UsuariosB2B({ lojaId, theme }) {
                 <button
                   onClick={() => handleDesativar(u.id)}
                   style={{
-                    padding: '6px 12px', borderRadius: 8, border: '1.5px solid #dc2626',
-                    background: 'transparent', color: '#dc2626',
-                    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
+                    padding: '6px 12px', borderRadius: 8, border: '1.5px solid var(--status-bad-dot)',
+                    background: 'transparent', color: 'var(--status-bad-tx)',
+                    fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600,
                     cursor: 'pointer',
                   }}
                 >
@@ -277,7 +277,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
   return (
     <div style={{ paddingTop: 8 }}>
       <div style={card}>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
           Identidade
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -317,7 +317,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
       </div>
 
       <div style={card}>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
           Pagamento &amp; Contato
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -345,7 +345,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
 
       {nivel === 'pro' ? (
         <div style={card}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
             Pedido Mínimo
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -365,7 +365,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
               <div>
                 <label style={lbl}>Valor mínimo do pedido</label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                   <input
                     type="number" min="0" step="0.01"
                     value={pmValor}
@@ -392,10 +392,10 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
         </div>
       ) : (
         <div style={{ ...card, opacity: 0.45, pointerEvents: 'none' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
             Pedido Mínimo
           </p>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>
             Exclusivo do nível Pro.
           </p>
         </div>
@@ -405,9 +405,9 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
         onClick={handleSave}
         disabled={saving}
         style={{
-          width: '100%', height: 48, borderRadius: 14, border: 'none',
-          background: saved ? '#16a34a' : theme.primary,
-          color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
+          width: '100%', height: 48, borderRadius: 'var(--r-input)', border: 'none',
+          background: saved ? 'var(--status-ok-tx)' : theme.primary,
+          color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700,
           cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}
@@ -434,13 +434,15 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
   ]
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)' }}>
 
       {/* Header */}
       <header style={{
         background: primary, height: 56, paddingLeft: 20, paddingRight: 16,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
+        borderBottomLeftRadius: 18, borderBottomRightRadius: 18,
+        boxShadow: '0 8px 20px -12px rgba(0,0,0,0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <svg width="28" height="28" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -450,10 +452,10 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
           </svg>
           <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
           <div>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>
               {data.config?.nome || 'Catálogo B2B'}
             </p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Catálogo {nivel === 'pro' ? 'Pro' : 'Simples'}
             </p>
           </div>
@@ -498,7 +500,7 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
         {tab === 'pedidos' && (
           <div style={{ paddingTop: 8 }}>
             {nivel === 'pro' && (
-              <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: 4, marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-chip)', padding: 4, marginBottom: 16 }}>
                 {[
                   { id: 'lista',      label: 'Lista' },
                   { id: 'consolidado', label: 'Consolidado' },
@@ -507,10 +509,10 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
                     key={opt.id}
                     onClick={() => setPedidosView(opt.id)}
                     style={{
-                      flex: 1, height: 36, borderRadius: 9, border: 'none',
+                      flex: 1, height: 36, borderRadius: 8, border: 'none',
                       background: pedidosView === opt.id ? primary : 'transparent',
                       color: pedidosView === opt.id ? '#fff' : 'var(--muted)',
-                      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                      fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
                       cursor: 'pointer', transition: 'all .15s',
                     }}
                   >
@@ -554,7 +556,7 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
       {/* Bottom Nav */}
       <nav style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
-        background: '#F8F7F5', borderTop: '1px solid #e8e4df',
+        background: 'var(--surface)', borderTop: '1px solid var(--line)',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
@@ -574,16 +576,16 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
                 }}
               >
-                <Icon size={19} color={active ? primary : '#bbb'} strokeWidth={active ? 2.2 : 1.5} />
-                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: active ? 700 : 400, color: active ? primary : '#bbb' }}>
+                <Icon size={19} color={active ? primary : 'var(--muted)'} strokeWidth={active ? 2.2 : 1.5} />
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: active ? 700 : 400, color: active ? primary : 'var(--muted)' }}>
                   {label}
                 </span>
               </button>
             )
           })}
         </div>
-        <p style={{ fontSize: 10, color: '#bbb', margin: '0 0 4px', fontFamily: 'Plus Jakarta Sans, sans-serif', textAlign: 'center' }}>
-          jun<span style={{ color: '#F4613A' }}>tt</span>os
+        <p style={{ fontSize: 10, color: 'var(--muted)', margin: '0 0 4px', fontFamily: 'var(--font-ui)', textAlign: 'center' }}>
+          jun<span style={{ color: 'var(--accent)' }}>tt</span>os
         </p>
       </nav>
     </div>
