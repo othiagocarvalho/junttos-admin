@@ -17,6 +17,12 @@ Execução autônoma, sem supervisão. Este arquivo é atualizado a cada etapa.
 ## Commits locais até agora
 
 1. `estilo: fundamentos do redesign Studio (fontes, tokens, componentes base)` — fontes (Plus Jakarta Sans / Space Mono) trocadas globalmente, CSS vars neutras, `src/components/studio/*` criado.
+2. `docs: adiciona PROGRESS.md...`
+3. `estilo: Shell (sidebar desktop + tab bar mobile) e Início` — sidebar fixa 250px com item ativo roxo cheio; tab bar mobile com 5 itens (Início/Catálogo/FAB/Estoque/Mais) e menu "Mais"; Início mobile/desktop com HeroCard/StatGrid/EmptyState.
+4. `estilo: Nova Venda (mobile + desktop)` — substitui gradiente fixo "metallic/rose-gold" por var(--primary)/theme.primary nos CTAs.
+5. `estilo: Estoque` — HeroCard roxo/escuro para custo total/venda total, StatusPill para alerta de estoque baixo, EmptyState (vazio + sem resultado de busca).
+
+A partir daqui, várias telas independentes foram delegadas a subagentes em paralelo (arquivos sem sobreposição), cada uma revisada e commitada por mim depois de conferir build/lint.
 
 ## Mapa do app (para contexto)
 
@@ -27,10 +33,10 @@ Execução autônoma, sem supervisão. Este arquivo é atualizado a cada etapa.
 ## Status por área
 
 - [x] Fundamentos (fontes, tokens, componentes `studio/*`) — commit 1.
-- [ ] Shell (Sidebar desktop + BottomTabBar/Header mobile)
-- [ ] Início
-- [ ] Nova Venda
-- [ ] Estoque
+- [x] Shell (Sidebar desktop + BottomTabBar/Header mobile) — commit 3.
+- [x] Início — commit 3.
+- [x] Nova Venda — commit 4.
+- [x] Estoque — commit 5.
 - [ ] Relatórios
 - [ ] Catálogo online / Pedidos
 - [ ] Financeiro
