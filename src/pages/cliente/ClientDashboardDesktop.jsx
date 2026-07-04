@@ -4,6 +4,9 @@ import {
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt,
 } from 'lucide-react'
+import { HeroCard } from '../../components/studio/Card'
+import { StatGrid } from '../../components/studio/StatCard'
+import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
@@ -58,7 +61,7 @@ const inp = (primary) => ({
   width: '100%', height: 44, boxSizing: 'border-box',
   background: 'var(--bg)', border: '1.5px solid var(--line)',
   borderRadius: 12, padding: '0 14px',
-  fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
   transition: 'border-color .18s, box-shadow .18s',
 })
 const onF = (primary) => (e) => {
@@ -71,7 +74,7 @@ const onB = (e) => {
   e.target.style.boxShadow = 'none'
   e.target.style.background = 'var(--bg)'
 }
-const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }
+const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 
 const PLANO_NAV_ITEMS = [
   { id: 'clientes',  label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'  },
@@ -86,78 +89,76 @@ const PLANO_BADGE_DESKTOP = {
   business: { bg: '#ede9fe', color: '#6d28d9', label: 'Business' },
 }
 
-// ── Sidebar (mini 56px → hover 196px) ────────────────────────
+// ── Sidebar (fixo 250px) ──────────────────────────────────────
 function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile }) {
-  const [open, setOpen] = useState(false)
-  const primary = config?.cor_primaria || theme.primary
+  const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
+
+  function navItemStyle(active) {
+    return {
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 12px', borderRadius: 10, width: '100%',
+      background: active ? 'var(--primary)' : 'transparent',
+      border: 'none', cursor: 'pointer', textAlign: 'left',
+      color: active ? '#fff' : 'var(--ink-soft)',
+      fontSize: 13.5, fontWeight: active ? 700 : 500,
+      fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all .15s',
+      boxShadow: active ? 'var(--shadow-btn-primary)' : 'none',
+    }
+  }
 
   return (
     <aside
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
       style={{
         position: 'fixed', left: 0, top: 0,
-        width: open ? 196 : 56, height: '100dvh',
-        background: '#F8F7F5',
+        width: 250, height: '100dvh',
+        background: 'var(--surface)',
         display: 'flex', flexDirection: 'column',
-        zIndex: 50, fontFamily: 'Manrope, sans-serif',
-        borderRight: '1px solid #e8e4df',
-        transition: 'width 0.2s ease',
-        overflow: 'hidden',
+        zIndex: 50, fontFamily: 'Plus Jakarta Sans, sans-serif',
+        borderRight: '1px solid var(--line)',
       }}
     >
       {/* Logo area */}
       <div style={{
-        padding: open ? '18px 14px 16px' : '12px 0',
-        borderBottom: '1px solid #e8e4df',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        padding: '20px 18px 16px',
+        borderBottom: '1px solid var(--line)',
+        display: 'flex', alignItems: 'center', gap: 10,
         minHeight: 64, flexShrink: 0,
       }}>
-        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-          <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
-          <circle cx="40" cy="37" r="14" fill="#341780" />
-          <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
-        </svg>
-        {open && logoUrl && (
-          <>
-            <div style={{ width: 1, height: 22, background: '#ddd', flexShrink: 0 }} />
-            <div style={{ background: 'var(--surface)', borderRadius: 7, padding: 2, flexShrink: 0, border: '1px solid var(--line)' }}>
-              <img src={logoUrl} alt={config?.nome || 'Loja'}
-                style={{ height: 28, width: 'auto', maxWidth: 76, objectFit: 'contain', display: 'block' }} />
-            </div>
-          </>
-        )}
+        {logoUrl
+          ? <img src={logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0, border: '1px solid var(--line)', background: '#fff' }} />
+          : <Logo variant="light" size={26} showWordmark={false} />
+        }
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)',
+            margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{config?.nome || theme.nome || 'Sua Loja'}</p>
+          {planoBadge && (
+            <span style={{
+              display: 'inline-block', marginTop: 2,
+              fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              padding: '1px 7px', borderRadius: 99,
+              background: planoBadge.bg, color: planoBadge.color,
+            }}>{planoBadge.label}</span>
+          )}
+        </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
-          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
+          if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
           const { id, label, Icon, locked: lockedProp } = item
           const isLocked = lockedProp && !config?.features?.crm
           const active = tab === id
           return (
             <button key={id}
               onClick={isLocked ? undefined : () => setTab(id)}
-              className={isLocked ? '' : 'cds-nav-btn'}
-              title={!open ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: open ? 10 : 0,
-                justifyContent: open ? 'flex-start' : 'center',
-                padding: open ? '10px 12px 10px 10px' : '10px 0',
-                borderRadius: 10, width: '100%',
-                background: active ? 'var(--surface)' : 'transparent',
-                border: active ? '1px solid var(--line)' : '1px solid transparent',
-                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-                cursor: isLocked ? 'default' : 'pointer', textAlign: 'left',
-                color: isLocked ? 'var(--muted)' : (active ? 'var(--ink)' : 'var(--ink-soft)'),
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
-              }}>
-              <Icon size={16} style={{ flexShrink: 0, opacity: isLocked ? 0.4 : 1 }} />
-              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
-              {open && isLocked && <Lock size={11} style={{ flexShrink: 0, opacity: 0.4 }} />}
+              className={isLocked || active ? '' : 'cds-nav-btn'}
+              style={{ ...navItemStyle(active), cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1 }}>
+              <Icon size={16} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
+              {isLocked && <Lock size={12} style={{ flexShrink: 0 }} />}
             </button>
           )
         })}
@@ -165,27 +166,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           <button
             onClick={() => setTab('contas_pagar')}
             className={tab === 'contas_pagar' ? '' : 'cds-nav-btn'}
-            title={!open ? 'Contas a Pagar' : undefined}
-            style={{
-              display: 'flex', alignItems: 'center',
-              gap: open ? 10 : 0,
-              justifyContent: open ? 'flex-start' : 'center',
-              padding: open ? '10px 12px 10px 10px' : '10px 0',
-              borderRadius: 10, width: '100%',
-              background: tab === 'contas_pagar' ? '#FDEEE8' : 'transparent',
-              border: tab === 'contas_pagar' ? '1px solid #F0C870' : '1px solid transparent',
-              borderLeft: `3px solid ${tab === 'contas_pagar' ? '#B85C38' : 'transparent'}`,
-              cursor: 'pointer', textAlign: 'left',
-              color: tab === 'contas_pagar' ? '#B85C38' : 'var(--ink-soft)',
-              fontSize: 14, fontWeight: tab === 'contas_pagar' ? 600 : 400,
-              fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
-            }}
+            style={navItemStyle(tab === 'contas_pagar')}
           >
             <FileText size={16} style={{ flexShrink: 0 }} />
-            {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>}
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>
           </button>
         )}
-        <div style={{ height: 1, background: 'var(--line)', margin: '6px 0' }} />
+        <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
           if (legado && ['catalogo', 'financeiro', 'crediario'].includes(id)) return null
           const hasAccess = legado || temAcesso(plano, planoMinimo)
@@ -195,31 +182,17 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             <button key={id}
               onClick={() => setTab(id)}
               className={active ? '' : 'cds-nav-btn'}
-              title={!open ? label : undefined}
-              style={{
-                display: 'flex', alignItems: 'center',
-                gap: open ? 10 : 0,
-                justifyContent: open ? 'flex-start' : 'center',
-                padding: open ? '10px 12px 10px 10px' : '10px 0',
-                borderRadius: 10, width: '100%',
-                background: active ? 'var(--surface)' : 'transparent',
-                border: active ? '1px solid var(--line)' : '1px solid transparent',
-                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
-                cursor: 'pointer', textAlign: 'left',
-                color: active ? 'var(--ink)' : 'var(--ink-soft)',
-                fontSize: 14, fontWeight: active ? 600 : 400,
-                fontFamily: 'Manrope, sans-serif', transition: 'all .15s',
-                opacity: hasAccess ? 1 : 0.5,
-              }}>
+              style={{ ...navItemStyle(active), opacity: hasAccess ? 1 : 0.55 }}>
               {hasAccess
                 ? <Icon size={16} style={{ flexShrink: 0 }} />
                 : <Lock size={16} style={{ flexShrink: 0 }} />
               }
-              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
-              {open && badge && (
+              <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
+              {badge && (
                 <span style={{
                   fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 99,
-                  background: badge.bg, color: badge.color, flexShrink: 0,
+                  background: active ? 'rgba(255,255,255,0.25)' : badge.bg,
+                  color: active ? '#fff' : badge.color, flexShrink: 0,
                   letterSpacing: '0.08em',
                 }}>{badge.label}</span>
               )}
@@ -229,33 +202,22 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid #e8e4df', flexShrink: 0 }}>
-        {open ? (
-          <>
-            <button onClick={onSwitchToMobile} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '8px 12px', borderRadius: 10, width: '100%',
-              border: '1px solid #e8e4df',
-              background: 'transparent', cursor: 'pointer',
-              color: '#999', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block', flexShrink: 0 }} />
-              Versão Celular
-            </button>
-            <p style={{ fontSize: 10, color: '#bbb', fontFamily: 'Manrope, sans-serif', textAlign: 'center', margin: '8px 0 0' }}>
-              jun<span style={{ color: '#F4613A' }}>tt</span>os
-            </p>
-          </>
-        ) : (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#FF6B47', display: 'inline-block' }} />
-          </div>
-        )}
+      <div style={{ padding: '12px 12px 16px', borderTop: '1px solid var(--line)', flexShrink: 0 }}>
+        <button onClick={onSwitchToMobile} style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 12px', borderRadius: 10, width: '100%', minHeight: 40,
+          border: '1px solid var(--line)',
+          background: 'transparent', cursor: 'pointer',
+          color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />
+          Versão Celular
+        </button>
       </div>
 
       <style>{`
-        .cds-nav-btn:hover { background: #f0ece8 !important; color: #2C1F14 !important; }
+        .cds-nav-btn:hover { background: color-mix(in srgb, var(--primary) 8%, transparent) !important; color: var(--ink) !important; }
       `}</style>
     </aside>
   )
@@ -283,19 +245,14 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
   return (
     <div>
       {/* Hero — full width */}
-      <div style={{
-        background: isDark ? '#0F0E0C' : `linear-gradient(135deg, ${theme.primary}f0 0%, ${theme.primary} 100%)`,
-        borderTop: isDark ? '2px solid #D4A017' : undefined,
-        borderRadius: 20, padding: '36px 40px', marginBottom: 24,
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
+      <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
           Total vendido — {now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </p>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 56, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 10 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 48, fontWeight: 700, color: isDark ? '#F0C040' : '#fff', lineHeight: 1, marginBottom: 10 }}>
           {fmtR(totalMes)}
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.68)' }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.68)' }}>
           {vendasMes.length} venda{vendasMes.length !== 1 ? 's' : ''}{' '}
           {meta > 0 ? `· ${pct.toFixed(0)}% da meta (${fmtR(meta)})` : '· sem meta definida'}
         </p>
@@ -304,22 +261,22 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
             <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pct}%`, transition: 'width 0.7s' }} />
           </div>
         )}
-      </div>
+      </HeroCard>
 
-      {/* 3-column KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+      {/* KPIs — auto-fit, never cuts values */}
+      <StatGrid style={{ marginBottom: 24 }}>
         {[
           { label: 'Hoje',           value: fmtR(totalHoje),  sub: `${vendasHoje.length} vendas` },
           { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
           { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
         ].map(({ label, value, sub }, i) => (
-          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid #FF6B47' : '1px solid var(--line)'), padding: '22px 20px' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>{value}</p>
-            <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{sub}</p>
+          <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid var(--accent)' : '1px solid var(--line)'), padding: '22px 20px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{sub}</p>
           </div>
         ))}
-      </div>
+      </StatGrid>
 
       {/* Meta card clicável */}
       <div
@@ -333,11 +290,11 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
           transition: 'background .15s',
         }}>
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Meta Mensal</p>
-          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>Meta Mensal</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4 }}>
             {meta > 0 ? `${pct.toFixed(0)}%` : '—'}
           </p>
-          <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
             {meta > 0 ? fmtR(meta) : 'Clique para definir a meta'}
           </p>
           {meta > 0 && (
@@ -352,7 +309,7 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
       {/* Top performers */}
       {topProds.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px 28px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Produtos mais vendidos este mês</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>Produtos mais vendidos este mês</p>
           <div style={{ display: 'flex', gap: 16 }}>
             {topProds.map(([nome, qtd], i) => (
               <div key={nome} style={{
@@ -360,9 +317,9 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
                 border: `1px solid ${i === 0 ? theme.primary + '25' : 'var(--line)'}`,
                 borderRadius: 14, padding: '18px 16px', textAlign: 'center',
               }}>
-                <span style={{ fontSize: 20, fontWeight: 700, color: i === 0 ? theme.primary : 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>{i + 1}°</span>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginTop: 8, marginBottom: 4 }}>{nome}</p>
-                <p style={{ fontSize: 13, color: theme.primary, fontFamily: 'Manrope, sans-serif', fontWeight: 700 }}>{qtd}×</p>
+                <span style={{ fontSize: 20, fontWeight: 700, color: i === 0 ? theme.primary : 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i + 1}°</span>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginTop: 8, marginBottom: 4 }}>{nome}</p>
+                <p style={{ fontSize: 13, color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700 }}>{qtd}×</p>
               </div>
             ))}
           </div>
@@ -432,7 +389,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, vendedora, pagamento..."
-            style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12, paddingLeft: 40, paddingRight: 14, fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }} />
+            style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12, paddingLeft: 40, paddingRight: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         {[
           { id: 'todos', label: 'Todos' },
@@ -442,21 +399,21 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
         ].map(f => (
           <button key={f.id} onClick={() => setFiltro(f.id)} style={{
             padding: '8px 18px', borderRadius: 99, cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
             border: filtro === f.id ? 'none' : '1px solid var(--line)',
             background: filtro === f.id ? theme.primary : 'var(--surface)',
             color: filtro === f.id ? '#fff' : 'var(--muted)',
             boxShadow: filtro === f.id ? `0 2px 8px ${theme.primary}30` : 'none',
           }}>{f.label}</button>
         ))}
-        <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginLeft: 4 }}>
+        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', marginLeft: 4 }}>
           {filtered.length} vendas · <strong style={{ color: theme.primary }}>{fmtR(total)}</strong>
         </span>
       </div>
 
       {/* Table */}
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
           <thead>
             <tr style={{ background: theme.primary }}>
               {['Data / Hora', 'Cliente', 'Vendedora', 'Produtos', 'Pagamento', 'Valor', ''].map(h => (
@@ -467,7 +424,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 14, fontFamily: 'Manrope, sans-serif' }}>Nenhuma venda encontrada.</td>
+                <td colSpan={7} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Nenhuma venda encontrada.</td>
               </tr>
             ) : filtered.map((v, i) => (
               <tr key={v.id} style={{ borderBottom: '1px solid var(--line)', background: i % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
@@ -484,7 +441,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
                     </span>
                   )}
                 </td>
-                <td style={{ padding: '12px 16px', fontFamily: "'Playfair Display', serif", fontSize: 17, fontWeight: 700, color: theme.primary, whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '12px 16px', fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700, color: theme.primary, whiteSpace: 'nowrap' }}>
                   {fmtR(v.valor)}
                 </td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
@@ -511,13 +468,13 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       {confirmDel && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 8 }}>Excluir venda?</p>
-            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 24, fontFamily: 'Manrope, sans-serif' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 8 }}>Excluir venda?</p>
+            <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 24, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Venda de <strong>{fmtR(confirmDel.valor)}</strong>{confirmDel.cliente_nome ? ` para ${confirmDel.cliente_nome}` : ''}. Esta ação não pode ser desfeita.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
-              <button onClick={confirmDelete} style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>Excluir</button>
+              <button onClick={() => setConfirmDel(null)} style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
+              <button onClick={confirmDelete} style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}>Excluir</button>
             </div>
           </div>
         </div>
@@ -528,7 +485,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 440, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Editar Pagamento — {fmtR(editVenda.valor)}
               </p>
               <button onClick={() => setEditVenda(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
@@ -542,17 +499,17 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
                   <select
                     value={p.forma}
                     onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
-                    style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                    style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                   >
                     {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                     <input
                       value={p.valor}
                       onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, valor: e.target.value } : x))}
                       placeholder="0,00"
-                      style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 30px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 30px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
                   {editPgtos.length > 1 && (
@@ -566,7 +523,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
             </div>
 
             <button onClick={() => setEditPgtos(prev => [...prev, { forma: 'Pix', valor: '' }])}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 14 }}>
               <Plus size={13} /> Adicionar forma
             </button>
 
@@ -574,7 +531,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
               marginBottom: 20, padding: '8px 12px', borderRadius: 10,
               background: editPgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
               border: `1px solid ${editPgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
-              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
               color: editPgtoOk ? '#16a34a' : '#dc2626',
             }}>
               {editPgtoOk
@@ -585,7 +542,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setEditVenda(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button onClick={handleSaveEdit} disabled={editSaving || !editPgtoOk}
@@ -593,7 +550,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
                   flex: 2, height: 46, borderRadius: 12, border: 'none',
                   background: editPgtoOk && !editSaving ? theme.primary : 'var(--line)',
                   cursor: editPgtoOk && !editSaving ? 'pointer' : 'not-allowed',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
                   color: editPgtoOk && !editSaving ? '#fff' : 'var(--muted)', fontSize: 14,
                   boxShadow: editPgtoOk && !editSaving ? `0 4px 16px ${theme.primary}40` : 'none',
                 }}>
@@ -698,8 +655,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <Check size={26} color="#fff" strokeWidth={2.5} />
         </div>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Venda registrada!</p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Venda registrada!</p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
       </div>
     )
   }
@@ -709,7 +666,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       {/* Left: Cliente + Pagamento */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label style={lbl}><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</label>
@@ -745,11 +702,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         </div>
 
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Pagamento</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Pagamento</p>
           <div>
             <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
             <div style={{ position: 'relative', marginBottom: 14 }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>R$</span>
+              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
               <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
                 style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
             </div>
@@ -763,13 +720,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       const f = e.target.value
                       setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
                     }}
-                    style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                    style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
                     {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                     <input value={p.valor} onChange={e => setPgto(i, 'valor', e.target.value)} placeholder="0,00"
-                      style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
                       onFocus={onF(theme.primary)} onBlur={onB} />
                   </div>
                   {form.pagamentos.length > 1 && (
@@ -783,40 +740,40 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       {[15, 30, 45, 60].map(dias => (
                         <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
                           padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
-                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                           border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
                           background: p.vencimento === dias ? theme.primary : 'var(--bg)',
                           color: p.vencimento === dias ? '#fff' : 'var(--muted)',
                         }}>{dias} dias</button>
                       ))}
-                      {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Manrope, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
+                      {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
                     </div>
                   )}
                 </div>
               ))}
             </div>
             <button type="button" onClick={addPgto}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
               <Plus size={13} /> Adicionar forma
             </button>
             {form.valor && (
-              <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
+              <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
                 {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
               </div>
             )}
           </div>
           <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
-            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 12,
+            style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 'var(--r-input)',
               cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
-              fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'linear-gradient(135deg, #6B4FBB, #4A2D9C)',
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700,
+              background: saving || !pgtoOk ? 'var(--line)' : isDark ? 'linear-gradient(135deg, #D4A017, #F0C040)' : 'var(--primary)',
               color: saving || !pgtoOk ? 'var(--muted)' : isDark ? '#0A0A0A' : '#fff',
-              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : '0 4px 16px rgba(107,79,187,0.4)',
+              boxShadow: saving || !pgtoOk ? 'none' : isDark ? '0 4px 16px rgba(212,160,23,0.4)' : 'var(--shadow-btn-primary)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              transition: 'box-shadow .18s',
+              transition: 'filter .15s',
             }}
-            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 22px rgba(255,107,71,0.45)' }}
-            onMouseLeave={e => { if (!saving && pgtoOk) e.currentTarget.style.boxShadow = '0 4px 16px rgba(107,79,187,0.4)' }}
+            onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.filter = 'brightness(0.94)' }}
+            onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
             {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
@@ -827,11 +784,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Produtos</p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Produtos</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}</p>
           </div>
           <button type="button" onClick={() => setAddingProd(v => !v)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
             <ShoppingBag size={13} /> Novo produto
           </button>
         </div>
@@ -840,7 +797,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <input value={newProd} onChange={e => setNewProd(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddProd()}
               placeholder="Nome do produto..." autoFocus style={{ ...inputS, flex: 1 }} onFocus={fo} onBlur={onB} />
-            <button type="button" onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 12, background: theme.primary, border: 'none', color: '#fff', fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
+            <button type="button" onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 12, background: theme.primary, border: 'none', color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
             <button type="button" onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 12, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={15} /></button>
           </div>
         )}
@@ -875,7 +832,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       ? (isDark ? '#2a1f00' : `${theme.primary}18`)
                       : (isDark ? '#1a1a1a' : '#FFFFFF'),
                     color: isDark ? '#D4A017' : (selCount > 0 ? theme.primary : '#1a1a1a'),
-                    fontSize: 14, fontFamily: 'Manrope, sans-serif',
+                    fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif',
                     cursor: 'pointer', userSelect: 'none',
                   }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -914,7 +871,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     borderRadius: '0 0 10px 10px',
                     background: isDark ? '#111110' : '#F6EFE8',
                   }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Variações disponíveis</p>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {vars.map(({ label, qty }, idx) => {
                         const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
@@ -934,7 +891,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                               display: 'inline-flex', alignItems: 'center',
                               padding: '5px 12px', borderRadius: 8,
                               cursor: esgotado ? 'not-allowed' : 'pointer',
-                              fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
+                              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                               userSelect: 'none', opacity: esgotado ? 0.5 : 1,
                               ...(isSel ? {
                                 border: '1.5px solid #D4A017',
@@ -971,10 +928,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
         {form.produtos.length > 0 && (
           <div style={{ marginTop: 16, padding: '12px 14px', background: isDark ? '#050504' : '#F6EFE8', borderRadius: 12 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Manrope, sans-serif' }}>Selecionados</p>
+            <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Selecionados</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {form.produtos.map((p, i) => (
-                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: isDark ? '#1C1A14' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : '#EDE2DA'}`, color: isDark ? '#D4A017' : '#2A1F1F', fontFamily: 'Manrope, sans-serif' }}>
+                <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: isDark ? '#1C1A14' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : '#EDE2DA'}`, color: isDark ? '#D4A017' : '#2A1F1F', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                   {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}
                 </span>
               ))}
@@ -1045,7 +1002,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
     crediario: legado
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif' }}>Funcionalidade não disponível neste plano</div>
+      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Funcionalidade não disponível neste plano</div>
       : (temAcesso(plano, 'pro')
           ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
           : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
@@ -1069,10 +1026,10 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif', ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} />
-      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100dvh', boxSizing: 'border-box', minWidth: 0 }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tab]}
         </div>
       </div>

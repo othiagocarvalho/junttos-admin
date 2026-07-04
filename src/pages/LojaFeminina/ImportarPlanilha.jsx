@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react'
 import * as XLSX from 'xlsx'
-import { Download, CheckCircle2, AlertCircle, ArrowLeft, FileSpreadsheet } from 'lucide-react'
+import { Download, CheckCircle2, AlertCircle, ArrowLeft, FileSpreadsheet, UploadCloud } from 'lucide-react'
+import Card from '../../components/studio/Card'
+import Button from '../../components/studio/Button'
+import StatusPill from '../../components/studio/StatusPill'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -88,21 +92,14 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
 
   if (done) {
     return (
-      <div style={{ paddingTop: 48, textAlign: 'center' }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: `${theme.primary}18`, border: `2px solid ${theme.primary}50`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 20px',
-        }}>
-          <CheckCircle2 size={34} color={theme.primary} />
-        </div>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
-          Importação concluída!
-        </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
-          {preview.length} produto{preview.length !== 1 ? 's' : ''} adicionado{preview.length !== 1 ? 's' : ''} ao estoque.
-        </p>
+      <div style={{ paddingTop: 32 }}>
+        <Card padding={0}>
+          <EmptyState
+            icon={CheckCircle2}
+            title="Importação concluída!"
+            subtitle={`${preview.length} produto${preview.length !== 1 ? 's' : ''} adicionado${preview.length !== 1 ? 's' : ''} ao estoque.`}
+          />
+        </Card>
       </div>
     )
   }
@@ -118,118 +115,119 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Importar Planilha Excel</p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Cadastre vários produtos de uma vez</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Importar Planilha Excel</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Cadastre vários produtos de uma vez</p>
         </div>
       </div>
 
       {/* Passo 1 — Baixar modelo */}
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16,
-        border: '1px solid var(--line)', padding: '20px 18px', marginBottom: 14,
-      }}>
+      <Card style={{ marginBottom: 14 }}>
         <p style={{
-          fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
           color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10,
         }}>
           Passo 1 — Baixar o modelo
         </p>
-        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.6 }}>
           Baixe o modelo, preencha com seus produtos e volte para importar.
         </p>
-        <button onClick={downloadTemplate} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          height: 44, padding: '0 18px', borderRadius: 12,
-          background: 'var(--bg)', border: `1.5px solid ${theme.primary}50`,
-          color: theme.primary, cursor: 'pointer',
-          fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
-        }}>
-          <Download size={15} /> Baixar modelo .xlsx
-        </button>
-      </div>
+        <Button
+          variant="secondary"
+          icon={Download}
+          onClick={downloadTemplate}
+          style={{ background: 'var(--bg)', border: `1.5px solid ${theme.primary}50`, color: theme.primary }}
+        >
+          Baixar modelo .xlsx
+        </Button>
+      </Card>
 
       {/* Passo 2 — Upload */}
-      <div style={{
-        background: 'var(--surface)', borderRadius: 16,
-        border: '1px solid var(--line)', padding: '20px 18px', marginBottom: 14,
-      }}>
+      <Card style={{ marginBottom: 14 }}>
         <p style={{
-          fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
           color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 12,
         }}>
           Passo 2 — Enviar planilha preenchida
         </p>
 
-        <div
+        <Card
           onClick={() => fileRef.current?.click()}
+          padding="28px 20px"
           style={{
             border: `2px dashed ${fileName ? theme.primary + '70' : 'var(--line)'}`,
-            borderRadius: 14, padding: '28px 20px', textAlign: 'center',
-            cursor: 'pointer', background: fileName ? `${theme.primary}06` : 'var(--bg)',
+            textAlign: 'center', cursor: 'pointer',
+            background: fileName ? `${theme.primary}06` : 'var(--bg)',
             transition: 'all .15s',
           }}
         >
-          <FileSpreadsheet size={28} color={fileName ? theme.primary : 'var(--line)'} style={{ margin: '0 auto 10px' }} />
+          {fileName
+            ? <FileSpreadsheet size={28} color={theme.primary} style={{ margin: '0 auto 10px' }} />
+            : <UploadCloud size={28} color="var(--muted)" style={{ margin: '0 auto 10px' }} />
+          }
           <p style={{
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
             color: fileName ? theme.primary : 'var(--muted)',
           }}>
             {fileName || 'Clique para selecionar a planilha'}
           </p>
           {!fileName && (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
               .xlsx ou .xls
             </p>
           )}
-        </div>
+        </Card>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: 'none' }} />
 
         {error && (
           <div style={{
             display: 'flex', gap: 8, alignItems: 'flex-start',
-            marginTop: 10, padding: '10px 14px', borderRadius: 10,
-            background: '#fee2e2', border: '1px solid #fca5a5',
+            marginTop: 10, padding: '10px 14px', borderRadius: 'var(--r-input)',
+            background: 'var(--status-bad-bg)', border: '1px solid transparent',
           }}>
-            <AlertCircle size={14} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>
+            <AlertCircle size={14} color="var(--status-bad-tx)" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--status-bad-tx)' }}>{error}</p>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Passo 3 — Preview e confirmação */}
       {preview && (
-        <div style={{
-          background: 'var(--surface)', borderRadius: 16,
-          border: `1px solid ${theme.primary}30`, padding: '20px 18px', marginBottom: 16,
-        }}>
-          <p style={{
-            fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
-            color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 14,
-          }}>
-            Passo 3 — Confirmar ({preview.length} produto{preview.length !== 1 ? 's' : ''})
-          </p>
+        <Card style={{ border: `1px solid ${theme.primary}30`, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <p style={{
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
+              color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em',
+            }}>
+              Passo 3 — Confirmar ({preview.length} produto{preview.length !== 1 ? 's' : ''})
+            </p>
+            <StatusPill tone="ok" label="Prontos" />
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', marginBottom: 16 }}>
             {preview.map((p, i) => (
               <div key={i} style={{
                 padding: '12px 14px', background: 'var(--bg)',
-                borderRadius: 12, border: '1px solid var(--line)',
+                borderRadius: 'var(--r-input)', border: '1px solid var(--line)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: p.variacoes.length > 0 ? 6 : 0 }}>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: p.variacoes.length > 0 ? 6 : 0 }}>
+                  <span style={{
+                    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+                  }}>
                     {p.nome}
                   </span>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     {p.precoCusto > 0 && (
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                         Custo: {fmtR(p.precoCusto)}
                       </span>
                     )}
                     {p.precoVenda > 0 && (
-                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary }}>
                         Venda: {fmtR(p.precoVenda)}
                       </span>
                     )}
+                    <StatusPill tone="ok" label="Válido" />
                   </div>
                 </div>
                 {p.variacoes.length > 0 && (
@@ -238,7 +236,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
                       <span key={j} style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 6,
                         background: `${theme.primary}14`, color: theme.primary,
-                        fontFamily: 'Manrope, sans-serif', fontWeight: 600,
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
                       }}>
                         {v.cor} ({v.quantidade})
                       </span>
@@ -249,22 +247,20 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
             ))}
           </div>
 
-          <button onClick={handleConfirm} disabled={saving} style={{
-            width: '100%', height: 50, borderRadius: 14, border: 'none',
-            background: saving ? 'var(--line)' : theme.primary,
-            color: saving ? 'var(--muted)' : '#fff',
-            cursor: saving ? 'not-allowed' : 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: saving ? 'none' : `0 4px 16px ${theme.primary}40`,
-            transition: 'opacity .15s',
-          }}>
+          <Button
+            variant="primary"
+            fullWidth
+            icon={saving ? undefined : CheckCircle2}
+            disabled={saving}
+            onClick={handleConfirm}
+            style={{ height: 50, background: theme.primary, boxShadow: saving ? 'none' : `0 4px 16px ${theme.primary}40` }}
+          >
             {saving
               ? 'Importando...'
               : `Confirmar e importar ${preview.length} produto${preview.length !== 1 ? 's' : ''}`
             }
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
     </div>
   )

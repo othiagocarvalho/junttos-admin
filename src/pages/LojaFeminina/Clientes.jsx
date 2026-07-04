@@ -1,5 +1,8 @@
 import { useState } from 'react'
-import { User, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check } from 'lucide-react'
+import Input, { Label } from '../../components/studio/Input'
+import Button from '../../components/studio/Button'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtData(iso) {
@@ -31,16 +34,12 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
     }
   }
 
-  const inp = {
-    width: '100%', height: 44, boxSizing: 'border-box',
+  const textareaStyle = {
+    width: '100%', boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
-    borderRadius: 10, padding: '0 14px',
-    fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
-  }
-  const lbl = {
-    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    marginBottom: 6, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'Manrope, sans-serif',
+    borderRadius: 'var(--r-input)', padding: '10px 14px',
+    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
+    resize: 'vertical', lineHeight: 1.5,
   }
 
   return (
@@ -49,10 +48,10 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
         background: 'var(--surface)', borderRadius: '20px 20px 0 0',
         width: '100%', maxWidth: 520, padding: '24px 20px',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',
-        maxHeight: '90dvh', overflowY: 'auto',
+        maxHeight: '90dvh', overflowY: 'auto', boxSizing: 'border-box',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
             {initial ? 'Editar cliente' : 'Novo cliente'}
           </p>
           <button onClick={onCancelar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex' }}>
@@ -62,56 +61,52 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={lbl}>Nome *</label>
-            <input value={form.nome} onChange={e => set('nome', e.target.value)}
-              placeholder="Nome completo" autoFocus style={inp}
-              onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.boxShadow = `0 0 0 3px ${theme.primary}20` }}
-              onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none' }} />
+            <Label>Nome *</Label>
+            <Input value={form.nome} onChange={e => set('nome', e.target.value)}
+              placeholder="Nome completo" autoFocus />
           </div>
           <div>
-            <label style={lbl}>Telefone</label>
-            <input value={form.telefone} onChange={e => set('telefone', e.target.value)}
-              placeholder="(00) 00000-0000" type="tel" style={inp}
-              onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.boxShadow = `0 0 0 3px ${theme.primary}20` }}
-              onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none' }} />
+            <Label>Telefone</Label>
+            <Input value={form.telefone} onChange={e => set('telefone', e.target.value)}
+              placeholder="(00) 00000-0000" type="tel" mono />
           </div>
           <div>
-            <label style={lbl}>E-mail</label>
-            <input value={form.email} onChange={e => set('email', e.target.value)}
-              placeholder="email@exemplo.com" type="email" style={inp}
-              onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.boxShadow = `0 0 0 3px ${theme.primary}20` }}
-              onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none' }} />
+            <Label>E-mail</Label>
+            <Input value={form.email} onChange={e => set('email', e.target.value)}
+              placeholder="email@exemplo.com" type="email" />
           </div>
           <div>
-            <label style={lbl}>Data de nascimento</label>
-            <input value={form.data_nascimento} onChange={e => set('data_nascimento', e.target.value)}
-              type="date" style={inp}
-              onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.boxShadow = `0 0 0 3px ${theme.primary}20` }}
-              onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none' }} />
+            <Label>Data de nascimento</Label>
+            <Input value={form.data_nascimento} onChange={e => set('data_nascimento', e.target.value)}
+              type="date" />
           </div>
           <div>
-            <label style={lbl}>Observações</label>
+            <Label>Observações</Label>
             <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)}
               placeholder="Preferências, tamanho, anotações..." rows={3}
-              style={{ ...inp, height: 'auto', padding: '10px 14px', resize: 'vertical', lineHeight: 1.5 }}
+              style={textareaStyle}
               onFocus={e => { e.target.style.borderColor = theme.primary; e.target.style.boxShadow = `0 0 0 3px ${theme.primary}20` }}
               onBlur={e => { e.target.style.borderColor = 'var(--line)'; e.target.style.boxShadow = 'none' }} />
           </div>
         </div>
 
         {erro && (
-          <p style={{ marginTop: 10, fontSize: 13, color: '#ef4444', fontFamily: 'Manrope, sans-serif' }}>{erro}</p>
+          <p style={{ marginTop: 10, fontSize: 13, color: '#ef4444', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{erro}</p>
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button onClick={onCancelar}
-            style={{ flex: 1, height: 48, borderRadius: 12, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>
+          <Button variant="secondary" onClick={onCancelar} style={{ flex: 1 }}>
             Cancelar
-          </button>
-          <button onClick={handleSalvar} disabled={salvando}
-            style={{ flex: 2, height: 48, borderRadius: 12, border: 'none', background: salvando ? 'var(--line)' : theme.primary, cursor: salvando ? 'not-allowed' : 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {salvando ? 'Salvando...' : <><Check size={15} /> Salvar</>}
-          </button>
+          </Button>
+          <Button
+            variant="primary"
+            icon={salvando ? undefined : Check}
+            disabled={salvando}
+            onClick={handleSalvar}
+            style={{ flex: 2, background: theme.primary }}
+          >
+            {salvando ? 'Salvando...' : 'Salvar'}
+          </Button>
         </div>
       </div>
     </div>
@@ -130,36 +125,40 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
   const inicial = (cliente.nome || '?')[0].toUpperCase()
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, overflow: 'hidden', marginBottom: 10 }}>
-      {/* Cabeçalho clicável */}
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', overflow: 'hidden', marginBottom: 10 }}>
+      {/* Cabeçalho clicável — vira um "card" empilhado em telas estreitas */}
       <div
         onClick={() => setAberto(v => !v)}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
       >
         <div style={{
-          width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-          background: `${theme.primary}20`, border: `1.5px solid ${theme.primary}40`,
+          width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
+          background: `color-mix(in srgb, ${theme.primary} 12%, white)`,
+          border: `1.5px solid color-mix(in srgb, ${theme.primary} 30%, transparent)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: theme.primary, fontFamily: 'Manrope, sans-serif' }}>{inicial}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{inicial}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>{cliente.nome}</p>
+          <p style={{
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{cliente.nome}</p>
           {cliente.telefone && (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{cliente.telefone}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: 'var(--muted)' }}>{cliente.telefone}</p>
           )}
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <span style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', color: 'var(--muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--muted)' }}>
               {vendasCliente.length} compra{vendasCliente.length !== 1 ? 's' : ''}
             </span>
             {totalGasto > 0 && (
-              <span style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: theme.primary }}>
+              <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700, color: theme.primary }}>
                 {fmtR(totalGasto)}
               </span>
             )}
           </div>
         </div>
-        {aberto ? <ChevronUp size={16} color="var(--muted)" /> : <ChevronDown size={16} color="var(--muted)" />}
+        {aberto ? <ChevronUp size={16} color="var(--muted)" style={{ flexShrink: 0 }} /> : <ChevronDown size={16} color="var(--muted)" style={{ flexShrink: 0 }} />}
       </div>
 
       {/* Detalhes expandidos */}
@@ -168,17 +167,17 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {/* Dados extras */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
             {cliente.email && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', overflowWrap: 'anywhere' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>E-mail: </span>{cliente.email}
               </p>
             )}
             {cliente.data_nascimento && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Nascimento: </span>{fmtData(cliente.data_nascimento)}
               </p>
             )}
             {cliente.observacoes && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Obs: </span>{cliente.observacoes}
               </p>
             )}
@@ -187,21 +186,21 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {/* Histórico de compras */}
           {ultimas5.length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
                 Últimas compras
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ultimas5.map(v => (
-                  <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                  <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, padding: '8px 10px', background: 'var(--bg)', borderRadius: 'var(--r-chip)', border: '1px solid var(--line)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtDataHora(v.data)}</p>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtDataHora(v.data)}</p>
                       {(v.produtos || []).length > 0 && (
-                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: 'var(--ink-soft)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--ink-soft)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.produtos.map(p => p.nome).join(', ')}
                         </p>
                       )}
                     </div>
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary, marginLeft: 10, flexShrink: 0 }}>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: theme.primary, flexShrink: 0 }}>
                       {fmtR(v.valor)}
                     </span>
                   </div>
@@ -213,27 +212,28 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
           {/* Botões de ação */}
           {!confirmDel ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => onEditar(cliente)}
-                style={{ flex: 1, height: 38, borderRadius: 10, border: `1.5px solid ${theme.primary}`, background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <Pencil size={13} /> Editar
-              </button>
+              <Button
+                variant="ghost" icon={Pencil} onClick={() => onEditar(cliente)}
+                style={{ flex: 1, border: `1.5px solid ${theme.primary}`, color: theme.primary, height: 38, minHeight: 38, fontSize: 13 }}
+              >
+                Editar
+              </Button>
               <button onClick={() => setConfirmDel(true)}
-                style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid #fca5a5', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                style={{ flex: 1, height: 38, borderRadius: 'var(--r-input)', border: '1.5px solid #fca5a5', background: 'transparent', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                 <Trash2 size={13} /> Excluir
               </button>
             </div>
           ) : (
             <div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10 }}>
                 Confirmar exclusão de <strong style={{ color: 'var(--ink)' }}>{cliente.nome}</strong>?
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setConfirmDel(false)}
-                  style={{ flex: 1, height: 38, borderRadius: 10, border: '1.5px solid var(--line)', background: 'transparent', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
+                <Button variant="secondary" onClick={() => setConfirmDel(false)} style={{ flex: 1, height: 38, minHeight: 38, fontSize: 13 }}>
                   Cancelar
-                </button>
+                </Button>
                 <button onClick={() => onExcluir(cliente.id)}
-                  style={{ flex: 1, height: 38, borderRadius: 10, border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                  style={{ flex: 1, height: 38, borderRadius: 'var(--r-input)', border: 'none', background: '#ef4444', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#fff' }}>
                   Excluir
                 </button>
               </div>
@@ -276,61 +276,41 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>
           Clientes
         </p>
-        <button
-          onClick={() => setModal('novo')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 10, border: 'none',
-            background: theme.primary, color: '#fff', cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
-          }}
+        <Button
+          variant="primary" icon={Plus} onClick={() => setModal('novo')}
+          style={{ background: theme.primary, flexShrink: 0 }}
         >
-          <Plus size={14} /> Novo cliente
-        </button>
+          Novo cliente
+        </Button>
       </div>
 
       {/* Busca */}
       {clientes.length > 0 && (
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-          <input
+          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
+          <Input
             value={busca}
             onChange={e => setBusca(e.target.value)}
             placeholder="Buscar por nome ou telefone..."
-            style={{
-              width: '100%', height: 44, boxSizing: 'border-box',
-              background: 'var(--surface)', border: '1.5px solid var(--line)',
-              borderRadius: 12, paddingLeft: 38, paddingRight: 14,
-              fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none',
-            }}
-            onFocus={e => { e.target.style.borderColor = theme.primary }}
-            onBlur={e => { e.target.style.borderColor = 'var(--line)' }}
+            style={{ paddingLeft: 38 }}
           />
         </div>
       )}
 
       {/* Estado vazio */}
       {clientes.length === 0 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: `${theme.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <User size={26} color={theme.primary} />
-          </div>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>
-            Nenhum cliente cadastrado
-          </p>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
-            Cadastre seus clientes para acompanhar o histórico de compras
-          </p>
-          <button
-            onClick={() => setModal('novo')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 12, border: 'none', background: theme.primary, color: '#fff', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700 }}
-          >
-            <Plus size={15} /> Cadastrar primeiro cliente
-          </button>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
+          <EmptyState
+            icon={Users}
+            title="Nenhum cliente ainda"
+            subtitle="Cadastre suas clientes para acompanhar o histórico e faturar mais no crediário."
+            actionLabel="Cadastrar primeira cliente"
+            onAction={() => setModal('novo')}
+          />
         </div>
       )}
 
@@ -348,8 +328,13 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
 
       {/* Sem resultados de busca */}
       {clientes.length > 0 && filtrados.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '32px 24px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Nenhum cliente encontrado para "{busca}"</p>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
+          <EmptyState
+            icon={Search}
+            title={`Nada encontrado para "${busca}"`}
+            actionLabel="Limpar busca"
+            onAction={() => setBusca('')}
+          />
         </div>
       )}
 

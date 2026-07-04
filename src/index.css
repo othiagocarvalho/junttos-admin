@@ -7,16 +7,51 @@
 }
 
 :root {
-  --bg: #F6EFE8;
+  /* ── Studio neutral shell (theme-independent — every store shares these) ── */
+  --bg: #F6F6F9;
   --surface: #FFFFFF;
-  --ink: #2A1F1F;
-  --ink-soft: #5C4A47;
-  --muted: #9C8580;
-  --line: #EDE2DA;
-  --rose: #D9A99B;
-  --rose-deep: #B47A6B;
+  --ink: #18181B;
+  --ink-soft: #3F3F46;
+  --muted: #8A8A93;
+  --muted-2: #A1A1AA;
+  --line: #ECECF1;
+
+  /* ── Store brand color — overridden per-store by useLojaTheme.js ── */
+  --primary: #5E2BD0;
+  --rose: #5E2BD0;
+  --rose-deep: #341780;
+  --accent: #F2643C;
+
+  /* ── Semantic (fixed — do not vary by store theme) ── */
+  --positive: #1E8A54;
+  --negative: #C4443B;
+  --status-warn-bg: #FBEFD6;  --status-warn-tx: #B7791F;  --status-warn-dot: #E0A93B;
+  --status-ok-bg:   #DCF3E6;  --status-ok-tx:   #1E7A4D;  --status-ok-dot:   #27A263;
+  --status-info-bg: #ECE6FB;  --status-info-tx: #5E2BD0;  --status-info-dot: #7C4DEC;
+  --status-bad-bg:  #F6E6E2;  --status-bad-tx:  #9B3B3B;  --status-bad-dot:  #C25A4E;
+
+  /* ── Shape & elevation ── */
+  --r-card: 18px;
+  --r-input: 12px;
+  --r-pill: 999px;
+  --r-chip: 10px;
+  --shadow-card: 0 1px 2px rgba(24,24,27,.04), 0 8px 24px rgba(24,24,27,.05);
+  --shadow-btn-primary: 0 10px 22px -10px color-mix(in srgb, var(--primary) 65%, transparent);
+
+  /* ── Typography ── */
+  --font-ui: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
   --metallic: linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%);
   --metallic-soft: linear-gradient(135deg, #F4DCD0 0%, #E5BCA9 30%, #D19F8C 55%, #E2BAA7 80%, #F4DCD0 100%);
+}
+
+@keyframes jt-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.jt-skeleton {
+  background: linear-gradient(90deg, var(--line) 25%, #F6F6F9 37%, var(--line) 63%);
+  background-size: 400% 100%;
+  animation: jt-shimmer 1.4s ease infinite;
+  border-radius: 10px;
 }
 
 * {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Package, ShoppingBag, Settings, Save, Users, UserPlus, Smartphone, CreditCard } from 'lucide-react'
+import { Package, ShoppingBag, Settings, Save, Users, UserPlus, CreditCard } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
@@ -9,12 +9,6 @@ import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 
-const UI   = "'Plus Jakarta Sans', sans-serif"
-const MONO = "'Space Mono', monospace"
-
-const P      = '#5E2BD0'
-const ACCENT = '#F2643C'
-
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
   { label: 'Rosê',     primary: '#C9956C' },
@@ -23,32 +17,18 @@ const PRESETS = [
   { label: 'Borgonha', primary: '#9D174D' },
 ]
 
-const NAV_BASE       = [
+const NAV_BASE = [
   { id: 'produtos', label: 'Produtos',      Icon: Package },
   { id: 'pedidos',  label: 'Pedidos',       Icon: ShoppingBag },
 ]
-const NAV_FINANCEIRO = { id: 'financeiro', label: 'Financeiro',     Icon: CreditCard }
 const NAV_USUARIOS   = { id: 'usuarios',   label: 'Usuários',       Icon: Users }
+const NAV_FINANCEIRO = { id: 'financeiro', label: 'Financeiro',     Icon: CreditCard }
 const NAV_CONFIG     = { id: 'config',     label: 'Configurações',  Icon: Settings }
 
-const lbl = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#8A8A93',
-  marginBottom: 7, letterSpacing: '0.1em', textTransform: 'uppercase',
-  fontFamily: UI,
-}
-const inp = {
-  width: '100%', height: 44, boxSizing: 'border-box',
-  background: '#F6F6F9', border: '1px solid #ECECF1',
-  borderRadius: 12, padding: '0 14px',
-  fontFamily: UI, fontSize: 14, color: '#18181B', outline: 'none',
-}
-const section = {
-  background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: '24px 28px',
-}
-
-// ── Gerenciamento de usuários ──────────────────────────────────
-function UsuariosB2BDesktop({ lojaId }) {
+// ── Gerenciamento de usuários (exclusivo pro) ──────────────────
+function UsuariosB2BDesktop({ lojaId, theme }) {
   const { user } = useClientAuth()
+  const primary = theme.primary
 
   const [usuarios, setUsuarios] = useState([])
   const [loadingU, setLoadingU] = useState(true)
@@ -103,28 +83,45 @@ function UsuariosB2BDesktop({ lojaId }) {
     await fetchUsuarios()
   }
 
+  const section = {
+    background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', padding: '24px 28px',
+  }
+  const inp = {
+    width: '100%', height: 44, boxSizing: 'border-box',
+    background: 'var(--bg)', border: '1.5px solid var(--line)',
+    borderRadius: 'var(--r-input)', padding: '0 14px',
+    fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
+  }
+  const lbl = {
+    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
+    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
+    fontFamily: 'var(--font-ui)',
+  }
   const msgStyle = (type) => ({
-    padding: '10px 14px', borderRadius: 10, fontSize: 13, fontFamily: UI,
+    padding: '10px 14px', borderRadius: 'var(--r-chip)', fontSize: 13,
+    fontFamily: 'var(--font-ui)',
     ...(type === 'success'
-      ? { background: '#DCF3E6', color: '#1E7A4D' }
-      : { background: '#fee2e2', color: '#dc2626' }),
+      ? { background: 'var(--status-ok-bg)', color: 'var(--status-ok-tx)' }
+      : { background: 'var(--status-bad-bg)', color: 'var(--status-bad-tx)' }),
   })
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-      {/* Lista */}
+
+      {/* Lista de colaboradoras */}
       <div style={section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B' }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
             Colaboradoras ativas
           </p>
           <button
             onClick={() => { setShowForm(v => !v); setMsg(null) }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10, border: 'none',
-              background: P, color: '#fff', fontFamily: UI, fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(94,43,208,.55)',
+              padding: '8px 16px', borderRadius: 'var(--r-chip)', border: 'none',
+              background: primary, color: '#fff',
+              fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700,
+              cursor: 'pointer',
             }}
           >
             <UserPlus size={14} />
@@ -135,33 +132,30 @@ function UsuariosB2BDesktop({ lojaId }) {
         {!showForm && msg && <div style={{ ...msgStyle(msg.type), marginBottom: 16 }}>{msg.text}</div>}
 
         {loadingU ? (
-          <p style={{ fontFamily: UI, fontSize: 13, color: '#8A8A93' }}>Carregando...</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>Carregando...</p>
         ) : usuarios.length === 0 ? (
-          <div style={{ padding: '32px 0', textAlign: 'center' }}>
-            <Users size={32} color="#ECECF1" style={{ margin: '0 auto 10px' }} />
-            <p style={{ fontFamily: UI, fontSize: 14, color: '#8A8A93' }}>
-              Nenhuma colaboradora cadastrada.
-            </p>
-          </div>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>
+            Nenhuma colaboradora cadastrada.
+          </p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {usuarios.map(u => (
               <div key={u.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 14px', borderRadius: 12,
-                background: '#F6F6F9', border: '1px solid #ECECF1',
+                padding: '12px 16px', borderRadius: 'var(--r-chip)',
+                background: 'var(--bg)', border: '1px solid var(--line)',
               }}>
                 <div>
-                  <p style={{ fontFamily: UI, fontSize: 14, fontWeight: 600, color: '#18181B', marginBottom: 2 }}>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
                     {u.nome || u.email}
                   </p>
-                  <p style={{ fontFamily: MONO, fontSize: 11, color: '#8A8A93' }}>{u.email}</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>{u.email}</p>
                 </div>
                 {u.auth_user_id === user?.id ? (
                   <span style={{
                     padding: '4px 12px', borderRadius: 8,
-                    background: '#ECE6FB', color: P,
-                    fontFamily: UI, fontSize: 11, fontWeight: 700,
+                    background: `${primary}15`, color: primary,
+                    fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700,
                   }}>
                     Você
                   </span>
@@ -169,9 +163,10 @@ function UsuariosB2BDesktop({ lojaId }) {
                   <button
                     onClick={() => handleDesativar(u.id)}
                     style={{
-                      padding: '7px 14px', borderRadius: 8, border: '1px solid #fca5a5',
-                      background: '#fee2e2', color: '#dc2626',
-                      fontFamily: UI, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      padding: '7px 14px', borderRadius: 8, border: '1.5px solid var(--status-bad-dot)',
+                      background: 'transparent', color: 'var(--status-bad-tx)',
+                      fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer',
                     }}
                   >
                     Desativar
@@ -183,10 +178,10 @@ function UsuariosB2BDesktop({ lojaId }) {
         )}
       </div>
 
-      {/* Formulário / Placeholder */}
+      {/* Formulário de convite */}
       {showForm ? (
         <div style={section}>
-          <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 20 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>
             Nova colaboradora
           </p>
           <form onSubmit={handleConvidar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -205,18 +200,17 @@ function UsuariosB2BDesktop({ lojaId }) {
             {msg && <div style={msgStyle(msg.type)}>{msg.text}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" onClick={() => { setShowForm(false); setMsg(null) }} style={{
-                flex: 1, height: 44, borderRadius: 12, border: '1px solid #ECECF1',
-                background: '#F6F6F9', color: '#8A8A93', cursor: 'pointer',
-                fontFamily: UI, fontSize: 14, fontWeight: 600,
+                flex: 1, height: 44, borderRadius: 'var(--r-input)', border: '1.5px solid var(--line)',
+                background: 'transparent', color: 'var(--muted)', cursor: 'pointer',
+                fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600,
               }}>
                 Cancelar
               </button>
               <button type="submit" disabled={saving} style={{
-                flex: 2, height: 44, borderRadius: 12, border: 'none',
-                background: saving ? '#ECECF1' : P, color: saving ? '#A1A1AA' : '#fff',
+                flex: 2, height: 44, borderRadius: 'var(--r-input)', border: 'none',
+                background: saving ? 'var(--line)' : primary, color: '#fff',
                 cursor: saving ? 'not-allowed' : 'pointer',
-                fontFamily: UI, fontSize: 14, fontWeight: 700,
-                boxShadow: saving ? 'none' : '0 10px 22px -10px rgba(94,43,208,.55)',
+                fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700,
               }}>
                 {saving ? 'Convidando...' : 'Convidar colaboradora'}
               </button>
@@ -225,10 +219,10 @@ function UsuariosB2BDesktop({ lojaId }) {
         </div>
       ) : (
         <div style={{ ...section, opacity: 0.5, pointerEvents: 'none' }}>
-          <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 8 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
             Nova colaboradora
           </p>
-          <p style={{ fontFamily: UI, fontSize: 13, color: '#8A8A93', lineHeight: 1.5 }}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>
             Clique em "Convidar colaboradora" para adicionar uma nova usuária a esta loja.
           </p>
         </div>
@@ -237,7 +231,126 @@ function UsuariosB2BDesktop({ lojaId }) {
   )
 }
 
-// ── Config Desktop ─────────────────────────────────────────────
+// ── Sidebar (mesmo padrão collapse do ClientDashboardDesktop) ──
+function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToMobile }) {
+  const [open, setOpen] = useState(false)
+  const primary = config?.cor_primaria || theme.primary
+
+  const NAV = [
+    ...NAV_BASE,
+    ...(nivel === 'pro' ? [NAV_USUARIOS] : []),
+    ...(isBusiness ? [NAV_FINANCEIRO] : []),
+    NAV_CONFIG,
+  ]
+
+  return (
+    <aside
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{
+        position: 'fixed', left: 0, top: 0,
+        width: open ? 196 : 56, height: '100dvh',
+        background: 'var(--surface)',
+        display: 'flex', flexDirection: 'column',
+        zIndex: 50, fontFamily: 'var(--font-ui)',
+        borderRight: '1px solid var(--line)',
+        transition: 'width 0.2s ease',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Logo area */}
+      <div style={{
+        padding: open ? '18px 14px 16px' : '12px 0',
+        borderBottom: '1px solid var(--line)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        minHeight: 64, flexShrink: 0,
+      }}>
+        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+          <circle cx="40" cy="37" r="14" fill="#341780" />
+          <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
+        </svg>
+        {open && (
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 }}>
+              {config?.nome || 'Catálogo B2B'}
+            </p>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
+              background: `${primary}20`, color: primary,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              fontFamily: 'var(--font-ui)',
+            }}>
+              {nivel === 'pro' ? 'Pro' : 'Simples'}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: open ? '12px 10px' : '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV.map(({ id, label, Icon }) => {
+          const active = tab === id
+          return (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={active ? '' : 'cb2b-nav-btn'}
+              title={!open ? label : undefined}
+              style={{
+                display: 'flex', alignItems: 'center',
+                gap: open ? 10 : 0,
+                justifyContent: open ? 'flex-start' : 'center',
+                padding: open ? '10px 12px 10px 10px' : '10px 0',
+                borderRadius: 10, width: '100%',
+                background: active ? 'var(--bg)' : 'transparent',
+                border: active ? '1px solid var(--line)' : '1px solid transparent',
+                borderLeft: `3px solid ${active ? primary : 'transparent'}`,
+                cursor: 'pointer', textAlign: 'left',
+                color: active ? 'var(--ink)' : 'var(--ink-soft)',
+                fontSize: 14, fontWeight: active ? 600 : 400,
+                fontFamily: 'var(--font-ui)', transition: 'all .15s',
+              }}
+            >
+              <Icon size={16} style={{ flexShrink: 0 }} />
+              {open && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div style={{ padding: open ? '10px 10px 14px' : '10px 0 14px', borderTop: '1px solid var(--line)', flexShrink: 0 }}>
+        {open ? (
+          <>
+            <button onClick={onSwitchToMobile} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 12px', borderRadius: 10, width: '100%',
+              border: '1px solid var(--line)',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--muted)', fontFamily: 'var(--font-ui)', fontSize: 11, fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />
+              Versão Celular
+            </button>
+            <p style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-ui)', textAlign: 'center', margin: '8px 0 0' }}>
+              jun<span style={{ color: 'var(--accent)' }}>tt</span>os
+            </p>
+          </>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
+          </div>
+        )}
+      </div>
+
+      <style>{`.cb2b-nav-btn:hover { background: var(--bg) !important; color: var(--ink) !important; }`}</style>
+    </aside>
+  )
+}
+
+// ── Config Desktop (2 colunas) ─────────────────────────────────
 function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   const [nome,     setNome]     = useState(config?.nome           || '')
   const [chavePix, setChavePix] = useState(config?.chave_pix      || '')
@@ -279,12 +392,27 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
     setTimeout(() => setSaved(false), 2200)
   }
 
+  const lbl = {
+    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
+    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
+    fontFamily: 'var(--font-ui)',
+  }
+  const inp = {
+    width: '100%', height: 44, boxSizing: 'border-box',
+    background: 'var(--bg)', border: '1.5px solid var(--line)',
+    borderRadius: 'var(--r-input)', padding: '0 14px',
+    fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
+  }
+  const section = {
+    background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', padding: '24px 28px',
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-      {/* Esquerda: Identidade */}
+      {/* Left: Identidade */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 20 }}>Identidade</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Identidade</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={lbl}>Nome da Loja</label>
@@ -313,19 +441,19 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input type="color" value={primary} onChange={e => setPrimary(e.target.value)}
-                  style={{ width: 44, height: 40, borderRadius: 8, border: '1px solid #ECECF1', cursor: 'pointer', padding: 2, background: '#fff' }} />
+                  style={{ width: 44, height: 40, borderRadius: 8, border: '1px solid var(--line)', cursor: 'pointer', padding: 2, background: 'var(--surface)' }} />
                 <input value={primary} onChange={e => setPrimary(e.target.value)}
-                  style={{ ...inp, fontFamily: MONO, flex: 1 }} />
+                  style={{ ...inp, fontFamily: 'var(--font-mono)', flex: 1 }} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Direita: Pagamento & Pedido Mínimo */}
+      {/* Right: Pagamento & Pedido Mínimo */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 20 }}>Pagamento &amp; Contato</p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pagamento &amp; Contato</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={lbl}>Chave Pix</label>
@@ -340,11 +468,15 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
 
         {nivel === 'pro' ? (
           <div style={section}>
-            <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 20 }}>Pedido Mínimo</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={lbl}>Tipo de mínimo</label>
-                <select value={pmTipo} onChange={e => setPmTipo(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                <select
+                  value={pmTipo}
+                  onChange={e => setPmTipo(e.target.value)}
+                  style={{ ...inp, cursor: 'pointer' }}
+                >
                   <option value="nenhum">Nenhum</option>
                   <option value="valor">Por valor (R$)</option>
                   <option value="quantidade">Por quantidade de peças</option>
@@ -354,23 +486,35 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
                 <div>
                   <label style={lbl}>Valor mínimo do pedido</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#8A8A93', fontFamily: UI, pointerEvents: 'none' }}>R$</span>
-                    <input type="number" min="0" step="0.01" value={pmValor} onChange={e => setPmValor(e.target.value)} placeholder="Ex: 300" style={{ ...inp, paddingLeft: 36 }} />
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={pmValor}
+                      onChange={e => setPmValor(e.target.value)}
+                      placeholder="Ex: 300"
+                      style={{ ...inp, paddingLeft: 36 }}
+                    />
                   </div>
                 </div>
               )}
               {pmTipo === 'quantidade' && (
                 <div>
                   <label style={lbl}>Quantidade mínima de peças</label>
-                  <input type="number" min="1" step="1" value={pmQtd} onChange={e => setPmQtd(e.target.value)} placeholder="Ex: 10" style={inp} />
+                  <input
+                    type="number" min="1" step="1"
+                    value={pmQtd}
+                    onChange={e => setPmQtd(e.target.value)}
+                    placeholder="Ex: 10"
+                    style={inp}
+                  />
                 </div>
               )}
             </div>
           </div>
         ) : (
           <div style={{ ...section, opacity: 0.4, pointerEvents: 'none' }}>
-            <p style={{ fontFamily: UI, fontSize: 15, fontWeight: 700, color: '#18181B', marginBottom: 8 }}>Pedido Mínimo</p>
-            <p style={{ fontFamily: UI, fontSize: 13, color: '#8A8A93' }}>Exclusivo do nível Pro.</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Pedido Mínimo</p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--muted)' }}>Exclusivo do nível Pro.</p>
           </div>
         )}
 
@@ -378,12 +522,11 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
           onClick={handleSave}
           disabled={saving}
           style={{
-            height: 50, borderRadius: 14, border: 'none',
-            background: saved ? '#1E7A4D' : P,
-            color: '#fff', fontFamily: UI, fontSize: 15, fontWeight: 700,
+            height: 50, borderRadius: 'var(--r-input)', border: 'none',
+            background: saved ? 'var(--status-ok-tx)' : theme.primary,
+            color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 700,
             cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: saved ? 'none' : '0 10px 22px -10px rgba(94,43,208,.6)',
           }}
         >
           <Save size={16} />
@@ -394,129 +537,16 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   )
 }
 
-// ── Sidebar ────────────────────────────────────────────────────
-function B2BSidebar({ tab, setTab, config, nivel, isBusiness, onSwitchToMobile }) {
-  const NAV = nivel === 'pro'
-    ? [...NAV_BASE, ...(isBusiness ? [NAV_FINANCEIRO] : []), NAV_USUARIOS, NAV_CONFIG]
-    : [...NAV_BASE, NAV_CONFIG]
-
-  const storeName = config?.nome || 'Catálogo B2B'
-
-  return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: 236, height: '100dvh',
-      background: '#fff',
-      display: 'flex', flexDirection: 'column',
-      zIndex: 50, fontFamily: UI,
-      borderRight: '1px solid #ECECF1',
-    }}>
-      {/* Logo area */}
-      <div style={{
-        padding: '20px 20px 18px',
-        borderBottom: '1px solid #ECECF1',
-        display: 'flex', alignItems: 'center', gap: 10,
-        flexShrink: 0,
-      }}>
-        <svg width="32" height="32" viewBox="18 21 64 64" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
-          <rect x="20" y="55" width="60" height="28" rx="14" fill={P} />
-          <circle cx="40" cy="37" r="14" fill="#341780" />
-          <circle cx="64" cy="39" r="14" fill={ACCENT} />
-        </svg>
-        <div style={{ minWidth: 0 }}>
-          <p style={{
-            fontFamily: UI, fontSize: 13, fontWeight: 700, color: '#18181B',
-            lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 148,
-          }}>
-            {storeName}
-          </p>
-          <span style={{
-            fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 999,
-            background: '#ECE6FB', color: P,
-            letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: UI,
-          }}>
-            {nivel === 'pro' ? 'Pro' : 'Simples'}
-          </span>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-        {NAV.map(({ id, label, Icon }) => {
-          const active = tab === id
-          return (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', borderRadius: 10, width: '100%',
-                background: active ? P : 'transparent',
-                border: 'none', cursor: 'pointer', textAlign: 'left',
-                color: active ? '#fff' : '#71717A',
-                fontSize: 14, fontWeight: active ? 600 : 500,
-                fontFamily: UI, transition: 'all .15s',
-                boxShadow: active ? '0 10px 22px -10px rgba(94,43,208,.55)' : 'none',
-              }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#F6F6F9' }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
-            >
-              <Icon size={16} style={{ flexShrink: 0 }} color={active ? '#fff' : '#71717A'} />
-              <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
-            </button>
-          )
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div style={{ padding: '12px 12px 20px', borderTop: '1px solid #ECECF1', flexShrink: 0 }}>
-        <button onClick={onSwitchToMobile} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 14px', borderRadius: 10, width: '100%',
-          border: '1px solid #ECECF1',
-          background: 'transparent', cursor: 'pointer',
-          color: '#71717A', fontFamily: UI, fontSize: 12, fontWeight: 500,
-          whiteSpace: 'nowrap', transition: 'all .15s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#F6F6F9'; e.currentTarget.style.color = '#18181B' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#71717A' }}
-        >
-          <Smartphone size={14} />
-          Versão Celular
-        </button>
-        <p style={{ fontSize: 10, color: '#A1A1AA', fontFamily: UI, textAlign: 'center', margin: '10px 0 0' }}>
-          jun<span style={{ color: ACCENT }}>tt</span>os
-        </p>
-      </div>
-    </aside>
-  )
-}
-
-// ── Page header metadata ───────────────────────────────────────
-const PAGE_META = {
-  produtos:   { title: 'Produtos',       sub: 'Gerencie seu catálogo' },
-  pedidos:    { title: 'Pedidos',        sub: 'Acompanhe os pedidos do catálogo' },
-  financeiro: { title: 'Financeiro',     sub: 'Resumo financeiro do catálogo' },
-  usuarios:   { title: 'Usuários',       sub: 'Colaboradoras com acesso ao painel' },
-  config:     { title: 'Configurações',  sub: 'Personalize seu catálogo' },
-}
-
-// ── Main export ────────────────────────────────────────────────
-export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, plano, onSwitchToMobile }) {
-  const [tab, setTab]               = useState('produtos')
+// ── Main export ───────────────────────────────────────────────
+export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, onSwitchToMobile }) {
+  const [tab, setTab] = useState('produtos')
   const [pedidosView, setPedidosView] = useState('lista')
-
+  const plano = data.config?.plano || 'starter'
   const isBusiness = temAcesso(plano, 'business')
-  const isDark = theme.isDark || theme.primary === '#D4A017'
 
+  const isDark = theme.isDark || theme.primary === '#D4A017'
   const contentVars = {
     '--primary': theme.primary,
-    '--bg':      '#F6F6F9',
-    '--surface': '#FFFFFF',
-    '--line':    '#ECECF1',
-    '--ink':     '#18181B',
-    '--ink-soft':'#52525B',
-    '--muted':   '#8A8A93',
     ...(isDark ? {
       '--bg':      '#0A0A0A',
       '--surface': '#0F0E0C',
@@ -527,7 +557,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, pl
     } : {}),
   }
 
-  const meta = PAGE_META[tab] || PAGE_META.produtos
+  const effectiveLogo = data.config?.logo_url || (lojaId ? `/logos/${lojaId}.svg` : null)
 
   const content = {
     produtos: nivel === 'pro' ? (
@@ -553,9 +583,9 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, pl
       />
     ),
     pedidos: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {nivel === 'pro' && (
-          <div style={{ display: 'inline-flex', gap: 3, background: '#fff', border: '1px solid #ECECF1', borderRadius: 12, padding: 4, alignSelf: 'flex-start' }}>
+          <div style={{ display: 'inline-flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-chip)', padding: 4, alignSelf: 'flex-start' }}>
             {[
               { id: 'lista',       label: 'Lista' },
               { id: 'consolidado', label: 'Consolidado' },
@@ -564,12 +594,11 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, pl
                 key={opt.id}
                 onClick={() => setPedidosView(opt.id)}
                 style={{
-                  height: 36, padding: '0 20px', borderRadius: 9, border: 'none',
-                  background: pedidosView === opt.id ? P : 'transparent',
-                  color: pedidosView === opt.id ? '#fff' : '#8A8A93',
-                  fontFamily: UI, fontSize: 13, fontWeight: 600,
+                  height: 36, padding: '0 20px', borderRadius: 8, border: 'none',
+                  background: pedidosView === opt.id ? theme.primary : 'transparent',
+                  color: pedidosView === opt.id ? '#fff' : 'var(--muted)',
+                  fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', transition: 'all .15s',
-                  boxShadow: pedidosView === opt.id ? '0 10px 22px -10px rgba(94,43,208,.5)' : 'none',
                 }}
               >
                 {opt.label}
@@ -610,30 +639,18 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, pl
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh', background: '#F6F6F9', fontFamily: UI, ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'var(--font-ui)', ...contentVars }}>
       <B2BSidebar
         tab={tab}
         setTab={setTab}
+        theme={theme}
         config={data.config}
         nivel={nivel}
         isBusiness={isBusiness}
         onSwitchToMobile={onSwitchToMobile}
       />
-
-      <div style={{ marginLeft: 236, flex: 1, minHeight: '100dvh' }}>
-        {/* Page header */}
-        <div style={{ padding: '32px 44px 20px' }}>
-          <h1 style={{
-            fontFamily: UI, fontSize: 26, fontWeight: 800, color: '#18181B',
-            letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 4,
-          }}>
-            {meta.title}
-          </h1>
-          <p style={{ fontFamily: UI, fontSize: 14, color: '#8A8A93' }}>{meta.sub}</p>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: '0 44px 48px', maxWidth: 1244 }}>
+      <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {content[tab]}
         </div>
       </div>

@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { Search, Plus, X, ChevronDown, ChevronRight, Package } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { HeroCard } from '../../components/studio/Card'
+import StatusPill from '../../components/studio/StatusPill'
+import Button from '../../components/studio/Button'
+import EmptyState from '../../components/studio/EmptyState'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -10,13 +14,13 @@ const BADGE = {
 }
 
 const labelStyle = {
-  display: 'block', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
+  display: 'block', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
   color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6,
 }
 
 const inputStyle = {
   width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 12,
-  padding: '0 14px', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 600,
+  padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 
@@ -186,7 +190,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
 
       {deleteToast && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1e1b4b', color: '#fff', padding: '10px 22px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1e1b4b', color: '#fff', padding: '10px 22px', borderRadius: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
           {deleteToast}
         </div>
       )}
@@ -194,85 +198,80 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       {/* Totais */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {/* Custo total */}
-        <div style={{
-          background: theme.primary, borderRadius: 16, padding: '18px 14px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
+        <HeroCard tone="primary" style={{ padding: '18px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
               Custo Total do Estoque
             </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
               {fmtR(totalCusto)}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
           </div>
-        </div>
+        </HeroCard>
         {/* Venda total */}
-        <div style={{
-          background: theme.primary, borderRadius: 16, padding: '18px 14px',
-          display: 'flex', alignItems: 'center',
-        }}>
+        <HeroCard tone="dark" style={{ padding: '18px 14px', display: 'flex', alignItems: 'center' }}>
           <div>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
               Venda Total
             </p>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
               {fmtR(totalVenda)}
             </p>
           </div>
-        </div>
+        </HeroCard>
       </div>
 
       {/* Busca + botão novo produto */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar produto..."
             style={{
-              width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
-              padding: '0 14px 0 40px', fontFamily: 'Manrope, sans-serif', fontSize: 14,
+              width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)',
+              padding: '0 14px 0 40px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
               color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
             }}
           />
         </div>
-        <div
-          role="button" tabIndex={0}
+        <Button
+          variant="primary" icon={Plus} style={{ height: 46, flexShrink: 0, background: theme.primary }}
           onClick={() => { setNewProd(EMPTY_NEW); setNewProdOpen(true) }}
-          onKeyDown={e => e.key === 'Enter' && (setNewProd(EMPTY_NEW), setNewProdOpen(true))}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '0 16px', height: 46, borderRadius: 14, flexShrink: 0,
-            background: theme.primary, color: '#fff',
-            fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700,
-            cursor: 'pointer', userSelect: 'none',
-          }}
         >
-          <Plus size={14} color="#fff" /> Novo
-        </div>
+          Novo
+        </Button>
       </div>
 
       {/* Lista */}
-      {filtered.length === 0 ? (
-        <div style={{
-          background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)',
-          padding: '48px 24px', textAlign: 'center',
-        }}>
-          <Package size={32} color="var(--line)" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)' }}>
-            {search ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado.'}
-          </p>
+      {produtosData.length === 0 ? (
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
+          <EmptyState
+            icon={Package}
+            title="Nenhum produto"
+            subtitle="Cadastre seu primeiro produto para começar a vender."
+            actionLabel="Novo produto"
+            onAction={() => { setNewProd(EMPTY_NEW); setNewProdOpen(true) }}
+          />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
+          <EmptyState
+            icon={Package}
+            title={`Nada encontrado para "${search}"`}
+            actionLabel="Limpar busca"
+            onAction={() => setSearch('')}
+          />
         </div>
       ) : features?.atacado ? (
         /* ── Modo Atacado: tabela plana por variação ── */
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
           <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Manrope, sans-serif', minWidth: 700 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Plus Jakarta Sans, sans-serif', minWidth: 700 }}>
               <thead>
                 <tr style={{ background: theme.primary }}>
                   {['Referência', 'Descrição', 'Fornecedor', 'Tamanho', 'Custo', 'Venda', 'Qtd', ''].map(h => (
@@ -295,7 +294,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                         <td style={tdBase}>{fmtR(produto.preco_venda)}</td>
                         <td style={{ ...tdBase, color: 'var(--muted)' }}>—</td>
                         <td style={{ ...tdBase, textAlign: 'right' }}>
-                          <button onClick={() => openAdd(produto)} style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${theme.primary}`, background: 'none', color: theme.primary, fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Var</button>
+                          <button onClick={() => openAdd(produto)} style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${theme.primary}`, background: 'none', color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Var</button>
                         </td>
                       </tr>
                     )]
@@ -318,9 +317,9 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                         </td>
                         <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_custo)}</td>
                         <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_venda)}</td>
-                        <td style={{ ...tdBase, fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: s ? BADGE[s].color : 'var(--ink)' }}>{v.quantidade}</td>
+                        <td style={{ ...tdBase, fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: s ? BADGE[s].color : 'var(--ink)' }}>{v.quantidade}</td>
                         <td style={{ ...tdBase, textAlign: 'right' }}>
-                          <button onClick={() => openEdit(produto, idx)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
+                          <button onClick={() => openEdit(produto, idx)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
                         </td>
                       </tr>
                     )
@@ -338,28 +337,32 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           const ps        = productStatus(variacoes)
 
           return (
-            <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', overflow: 'hidden' }}>
+            <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden' }}>
 
               {/* Cabeçalho colapsável */}
               <button
                 onClick={() => toggleExpand(produto.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
+                <div style={{
+                  width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                  background: `color-mix(in srgb, ${theme.primary} 10%, white)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Package size={18} color={theme.primary} strokeWidth={2} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
-                    {ps && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
-                        background: BADGE[ps].bg, color: BADGE[ps].color, border: `1px solid ${BADGE[ps].border}`,
-                        fontFamily: 'Manrope, sans-serif',
-                      }}>{BADGE[ps].label}</span>
-                    )}
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
+                    {ps && <StatusPill tone={ps === 'critico' ? 'bad' : 'warn'} label={BADGE[ps].label} />}
                   </div>
-                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                     {variacoes.length} variação{variacoes.length !== 1 ? 'ões' : ''} · {total} peça{total !== 1 ? 's' : ''}
                   </p>
                 </div>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
+                  {fmtR(produto.preco_venda)}
+                </span>
                 {isOpen
                   ? <ChevronDown size={16} color="var(--muted)" />
                   : <ChevronRight size={16} color="var(--muted)" />
@@ -370,7 +373,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
               {isOpen && (
                 <div style={{ borderTop: '1px solid var(--line)', padding: '12px 18px 16px' }}>
                   {variacoes.length === 0 ? (
-                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10, textAlign: 'center' }}>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 10, textAlign: 'center' }}>
                       Nenhuma variação cadastrada.
                     </p>
                   ) : (
@@ -384,22 +387,16 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                           }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: produto.preco_custo > 0 ? 2 : 0 }}>
-                                <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cor}</span>
-                                {s && (
-                                  <span style={{
-                                    fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
-                                    background: BADGE[s].bg, color: BADGE[s].color, border: `1px solid ${BADGE[s].border}`,
-                                    fontFamily: 'Manrope, sans-serif',
-                                  }}>{BADGE[s].label}</span>
-                                )}
+                                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cor}</span>
+                                {s && <StatusPill tone={s === 'critico' ? 'bad' : 'warn'} label={BADGE[s].label} />}
                               </div>
                               {produto.preco_custo > 0 && (
-                                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                                   {fmtR(produto.preco_custo)} / peça
                                 </p>
                               )}
                             </div>
-                            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
+                            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
                               {v.quantidade}
                             </span>
                             <button
@@ -407,7 +404,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                               style={{
                                 background: 'none', border: '1px solid var(--line)', borderRadius: 8,
                                 padding: '5px 11px', cursor: 'pointer',
-                                fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)',
+                                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)',
                               }}
                             >
                               Editar
@@ -424,7 +421,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '8px 14px', borderRadius: 10,
                       border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
-                      fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
+                      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
                     }}
                   >
                     <Plus size={13} /> Adicionar variação
@@ -436,7 +433,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                       style={{
                         width: '100%', height: 36, borderRadius: 10,
                         border: '1px solid #fca5a5', background: '#fee2e2',
-                        cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+                        cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
                         fontSize: 12, fontWeight: 700, color: '#dc2626',
                       }}
                     >
@@ -457,7 +454,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
                 Novo Produto
               </p>
               <div role="button" tabIndex={0} onClick={() => setNewProdOpen(false)}
@@ -507,10 +504,10 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 <div>
                   <div style={{ borderTop: '1px dashed var(--line)', margin: '4px 0 12px' }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                       Pagamento ao fornecedor
                     </span>
-                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: '#FDEEE8', color: '#B85C38', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: '#FDEEE8', color: '#B85C38', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
                       novo
                     </span>
                   </div>
@@ -518,7 +515,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     <div>
                       <label style={{ ...labelStyle, color: theme.primary }}>Valor total do lote</label>
                       <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                         <input
                           type="number" min="0" step="0.01"
                           value={newProd.valor_lote}
@@ -550,7 +547,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                         onClick={() => setNewProd(p => ({ ...p, status_pgto: opt.val }))}
                         style={{
                           flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
-                          fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
+                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
                           background: newProd.status_pgto === opt.val ? opt.bg : 'var(--bg)',
                           border: newProd.status_pgto === opt.val ? `2px solid ${opt.border}` : '1px solid var(--line)',
                           color: newProd.status_pgto === opt.val ? opt.color : 'var(--muted)',
@@ -569,7 +566,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 <div>
                   <label style={{ ...labelStyle, color: theme.primary }}>Preço de Custo</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                     <input
                       type="number" min="0" step="0.01"
                       value={newProd.precoCusto} onChange={e => setNewProd(p => ({ ...p, precoCusto: e.target.value }))}
@@ -581,7 +578,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 <div>
                   <label style={{ ...labelStyle, color: theme.primary }}>Preço de Venda</label>
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Manrope, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
                     <input
                       type="number" min="0" step="0.01"
                       value={newProd.precoVenda} onChange={e => setNewProd(p => ({ ...p, precoVenda: e.target.value }))}
@@ -633,7 +630,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     padding: '8px 14px', borderRadius: 10,
                     border: `1px dashed ${theme.primary}80`, background: `${theme.primary}08`,
                     cursor: 'pointer', userSelect: 'none',
-                    fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
+                    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
                   }}>
                   <Plus size={13} /> Adicionar variação
                 </div>
@@ -651,7 +648,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                         boxShadow: `0 0 0 3px ${theme.primary}22`,
                       }}
                     />
-                    <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                       Produto sem variações — informe a quantidade total.
                     </p>
                   </div>
@@ -667,7 +664,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 style={{
                   flex: 1, height: 48, borderRadius: 14, border: '1px solid var(--line)',
                   background: 'var(--bg)', cursor: 'pointer', userSelect: 'none',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                 Cancelar
@@ -680,7 +677,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   background: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? theme.primary : 'var(--line)',
                   cursor: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? 'pointer' : 'not-allowed',
                   userSelect: 'none',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
                   color: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? '#fff' : 'var(--muted)', fontSize: 14,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -697,7 +694,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
                 {modal.mode === 'add' ? `Nova variação — ${modal.produto.nome}` : `Editar — ${modal.produto.variacoes[modal.idx].cor}`}
               </p>
               <button onClick={() => setModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
@@ -758,13 +755,13 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
               {modal.mode === 'edit' && (
                 <button
                   onClick={handleDelete} disabled={saving}
-                  style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#fee2e2', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#dc2626', fontSize: 14 }}
+                  style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: '#fee2e2', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#dc2626', fontSize: 14 }}
                 >
                   Excluir
                 </button>
               )}
               <button onClick={() => setModal(null)}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                 Cancelar
               </button>
               <button
@@ -773,7 +770,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   flex: 2, height: 46, borderRadius: 12, border: 'none',
                   background: canSave ? theme.primary : 'var(--line)',
                   cursor: canSave ? 'pointer' : 'not-allowed',
-                  fontFamily: 'Manrope, sans-serif', fontWeight: 700,
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
                   color: canSave ? '#fff' : 'var(--muted)', fontSize: 14,
                 }}
               >
@@ -788,7 +785,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   style={{
                     width: '100%', height: 40, borderRadius: 10,
                     border: '1px solid #fca5a5', background: '#fee2e2',
-                    cursor: 'pointer', fontFamily: 'Manrope, sans-serif',
+                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
                     fontSize: 12, fontWeight: 700, color: '#dc2626',
                   }}
                 >
@@ -803,14 +800,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
               Excluir produto?
             </p>
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20 }}>
               Tem certeza que quer excluir <strong style={{ color: 'var(--ink)' }}>{deleteConfirm.produto.nome}</strong>? Essa ação não pode ser desfeita.
             </p>
             {deleteError && (
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: '#dc2626', marginBottom: 14, padding: '8px 12px', background: '#fee2e2', borderRadius: 8 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: '#dc2626', marginBottom: 14, padding: '8px 12px', background: '#fee2e2', borderRadius: 8 }}>
                 {deleteError}
               </p>
             )}
@@ -818,14 +815,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
               <button
                 onClick={() => { setDeleteConfirm(null); setDeleteError(null) }}
                 disabled={deleting}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDeleteProduto}
                 disabled={deleting}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: deleting ? 'var(--line)' : '#DC2626', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Manrope, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: 'none', background: deleting ? 'var(--line)' : '#DC2626', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: '#fff', fontSize: 14 }}
               >
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>

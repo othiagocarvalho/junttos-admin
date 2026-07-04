@@ -1,394 +1,271 @@
 import { useState } from 'react'
-import {
-  ShoppingBag, Copy, Check, Search, MessageCircle,
-  ChevronDown, ChevronRight, Clock, CheckCircle2, XCircle, Send,
-} from 'lucide-react'
+import { ShoppingBag, Copy, Check, ChevronDown, MessageCircle, Search, Clock, CheckCircle2, Package } from 'lucide-react'
+import StatCard, { StatGrid } from '../../components/studio/StatCard'
+import { HeroCard } from '../../components/studio/Card'
+import StatusPill from '../../components/studio/StatusPill'
+import Button from '../../components/studio/Button'
+import Input from '../../components/studio/Input'
+import Chip, { ChipRow } from '../../components/studio/Chip'
+import EmptyState from '../../components/studio/EmptyState'
 
 const PROD_BASE = 'https://junttos-admin.vercel.app'
 
-const UI   = "'Plus Jakarta Sans', sans-serif"
-const MONO = "'Space Mono', monospace"
+function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
-const P = '#5E2BD0'
-const ACCENT = '#F2643C'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+function iniciais(nome) {
+  return (nome || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
+
 const STATUS_MAP = {
-  aguardando_pagamento: { label: 'Aguardando pgto.', text: '#B7791F', bg: '#FBEFD6', dot: '#E0A93B' },
-  pago:                 { label: 'Pago',              text: '#1E7A4D', bg: '#DCF3E6', dot: '#27A263' },
-  enviado:              { label: 'Enviado',            text: '#5E2BD0', bg: '#ECE6FB', dot: '#7C4DEC' },
-  cancelado:            { label: 'Cancelado',          text: '#9B3B3B', bg: '#F6E6E2', dot: '#C25A4E' },
+  aguardando_pagamento: { label: 'Aguardando pagamento', tone: 'warn' },
+  pago:                 { label: 'Pago',                 tone: 'ok' },
+  cancelado:            { label: 'Cancelado',            tone: 'bad' },
 }
 
-function StatusPill({ status }) {
-  const s = STATUS_MAP[status] || STATUS_MAP.aguardando_pagamento
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '3px 9px', borderRadius: 999,
-      background: s.bg, color: s.text,
-      fontFamily: UI, fontSize: 11, fontWeight: 700,
-      whiteSpace: 'nowrap', flexShrink: 0,
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
-      {s.label}
-    </span>
-  )
-}
-
-function Avatar({ name }) {
-  const initial = (name || '?')[0].toUpperCase()
-  return (
-    <div style={{
-      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-      background: '#ECE6FB', color: P,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: UI, fontSize: 14, fontWeight: 700,
-    }}>
-      {initial}
-    </div>
-  )
-}
+const FILTROS = [
+  { key: 'todos', label: 'Todos' },
+  { key: 'aguardando_pagamento', label: 'Aguardando' },
+  { key: 'pago', label: 'Pagos' },
+  { key: 'cancelado', label: 'Cancelados' },
+]
 
 export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, lojaId }) {
-  const [atualizando, setAtualizando]     = useState(null)
-  const [copiado,     setCopiado]         = useState(false)
-  const [expanded,    setExpanded]        = useState({})
-  const [statusFilter, setStatusFilter]   = useState('todos')
-  const [search,      setSearch]          = useState('')
+  const [atualizando, setAtualizando] = useState(null)
+  const [copiado, setCopiado] = useState(false)
+  const [expandido, setExpandido] = useState(null)
+  const [filtro, setFiltro] = useState('todos')
+  const [busca, setBusca] = useState('')
 
   const linkCatalogo = `${PROD_BASE}/${lojaId}/catalogo`
-  const now  = new Date()
+
+  const now = new Date()
   const hoje = now.toDateString()
 
   const aguardando = pedidos.filter(p => p.status === 'aguardando_pagamento')
-  const pagosHoje  = pedidos.filter(p => p.status === 'pago' && new Date(p.created_at).toDateString() === hoje)
-  const totalHoje  = pagosHoje.reduce((s, p) => s + Number(p.valor_total), 0)
-  const enviados   = pedidos.filter(p => p.status === 'enviado')
+  const pagos = pedidos.filter(p => p.status === 'pago')
+  const cancelados = pedidos.filter(p => p.status === 'cancelado')
+  const pagosHoje = pedidos.filter(p => p.status === 'pago' && new Date(p.created_at).toDateString() === hoje)
+  const totalHoje = pagosHoje.reduce((s, p) => s + Number(p.valor_total), 0)
+
+  const COUNTS = { todos: pedidos.length, aguardando_pagamento: aguardando.length, pago: pagos.length, cancelado: cancelados.length }
+
+  const buscaNorm = busca.trim().toLowerCase()
+  const filtrados = pedidos.filter(p => {
+    if (filtro !== 'todos' && p.status !== filtro) return false
+    if (buscaNorm && !(p.cliente_nome || '').toLowerCase().includes(buscaNorm)) return false
+    return true
+  })
 
   async function marcarPago(id) {
     setAtualizando(id)
     try { await updatePedido(id, { status: 'pago' }) } catch (e) { alert('Erro: ' + e.message) }
     setAtualizando(null)
   }
+
   async function cancelar(id) {
     setAtualizando(id)
     try { await updatePedido(id, { status: 'cancelado' }) } catch (e) { alert('Erro: ' + e.message) }
     setAtualizando(null)
   }
+
   function copiarLink() {
     navigator.clipboard.writeText(linkCatalogo)
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2000)
   }
 
-  const filteredPedidos = pedidos.filter(p => {
-    const matchStatus = statusFilter === 'todos' || p.status === statusFilter
-    const matchSearch = !search || (p.cliente_nome || '').toLowerCase().includes(search.toLowerCase())
-    return matchStatus && matchSearch
-  })
-
-  const counts = {
-    todos:                pedidos.length,
-    aguardando_pagamento: aguardando.length,
-    pago:                 pedidos.filter(p => p.status === 'pago').length,
-    enviado:              enviados.length,
-    cancelado:            pedidos.filter(p => p.status === 'cancelado').length,
+  function limparFiltros() {
+    setFiltro('todos')
+    setBusca('')
   }
 
-  const kpis = [
-    { label: 'Aguardando', value: aguardando.length, iconBg: '#FBEFD6', iconColor: '#E0A93B', Icon: Clock },
-    { label: 'Pagos hoje',  value: pagosHoje.length,  iconBg: '#DCF3E6', iconColor: '#27A263', Icon: CheckCircle2 },
-    { label: 'Recebido hoje', value: fmtR(totalHoje), iconBg: 'rgba(255,255,255,0.22)', iconColor: '#fff', Icon: ShoppingBag, highlight: true },
-    { label: 'Enviados',   value: enviados.length,   iconBg: '#ECE6FB', iconColor: '#7C4DEC', Icon: Send },
-  ]
-
-  const statusChips = [
-    { id: 'todos',                label: 'Todos' },
-    { id: 'aguardando_pagamento', label: 'Aguardando' },
-    { id: 'pago',                 label: 'Pagos' },
-    { id: 'enviado',              label: 'Enviados' },
-    { id: 'cancelado',            label: 'Cancelados' },
-  ]
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <style>{`
-        .kpi-grid { grid-template-columns: repeat(4, 1fr); }
-        @media (max-width: 600px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-        .pc-th { display: flex; }
-        @media (max-width: 600px) { .pc-th { display: none !important; } }
-        .pc-col-sm { display: flex; }
-        @media (max-width: 600px) { .pc-col-sm { display: none !important; } }
-      `}</style>
-
-      {/* KPI cards */}
-      <div className="kpi-grid" style={{ display: 'grid', gap: 12 }}>
-        {kpis.map(({ label, value, iconBg, iconColor, Icon, highlight }) => (
-          <div key={label} style={{
-            background: highlight ? P : '#fff',
-            border: highlight ? 'none' : '1px solid #ECECF1',
-            borderRadius: 16, padding: '16px',
-            position: 'relative', overflow: 'hidden',
-            boxShadow: highlight ? '0 10px 22px -10px rgba(94,43,208,.45)' : 'none',
-          }}>
-            {highlight && (
-              <div style={{
-                position: 'absolute', right: -18, top: -18,
-                width: 68, height: 68, borderRadius: '50%',
-                background: ACCENT, opacity: 0.4,
-              }} />
-            )}
-            <div style={{
-              width: 34, height: 34, borderRadius: 10, background: iconBg,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: 12, position: 'relative',
-            }}>
-              <Icon size={15} color={iconColor} />
-            </div>
-            <p style={{
-              fontFamily: MONO, fontSize: typeof value === 'string' ? 15 : 26,
-              fontWeight: 700, color: highlight ? '#fff' : '#18181B',
-              lineHeight: 1, marginBottom: 5,
-            }}>{value}</p>
-            <p style={{ fontFamily: UI, fontSize: 11, fontWeight: 500, color: highlight ? 'rgba(255,255,255,0.72)' : '#8A8A93', lineHeight: 1.2 }}>{label}</p>
-          </div>
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Pedidos do catálogo</p>
       </div>
 
-      {/* Link do catálogo */}
-      <div style={{ background: '#fff', border: '1px solid #ECECF1', borderRadius: 16, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontFamily: UI, fontSize: 10, fontWeight: 700, color: '#8A8A93', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5 }}>Link do catálogo</p>
-          <p style={{ fontFamily: MONO, fontSize: 12, color: P, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linkCatalogo}</p>
+      {/* Link copiável */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Link do catálogo</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linkCatalogo}</p>
         </div>
-        <button
+        <Button
+          variant="secondary"
+          icon={copiado ? Check : Copy}
           onClick={copiarLink}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 14px', borderRadius: 10,
-            border: '1px solid #ECECF1',
-            background: copiado ? '#DCF3E6' : '#F6F6F9',
-            cursor: 'pointer', fontFamily: UI, fontSize: 12, fontWeight: 700,
-            color: copiado ? '#1E7A4D' : '#8A8A93', flexShrink: 0,
-            transition: 'all .15s',
-          }}
+          style={{ flexShrink: 0, minHeight: 38, height: 38, padding: '0 14px', color: copiado ? 'var(--status-ok-tx)' : 'var(--ink)' }}
         >
-          {copiado ? <><Check size={13} />Copiado</> : <><Copy size={13} />Copiar</>}
-        </button>
+          {copiado ? 'Copiado' : 'Copiar'}
+        </Button>
       </div>
 
-      {/* Filtros */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {statusChips.map(({ id, label }) => {
-            const active = statusFilter === id
-            return (
-              <button key={id} onClick={() => setStatusFilter(id)} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '6px 12px', borderRadius: 10,
-                border: active ? 'none' : '1px solid #ECECF1',
-                background: active ? P : '#fff',
-                color: active ? '#fff' : '#8A8A93',
-                fontFamily: UI, fontSize: 12, fontWeight: 600,
-                cursor: 'pointer', transition: 'all .15s',
-                boxShadow: active ? '0 10px 22px -10px rgba(94,43,208,.5)' : 'none',
-              }}>
-                {label}
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  minWidth: 18, height: 18, borderRadius: 999, padding: '0 4px',
-                  background: active ? 'rgba(255,255,255,0.22)' : '#F6F6F9',
-                  fontFamily: MONO, fontSize: 10, fontWeight: 700,
-                  color: active ? '#fff' : '#A1A1AA',
-                }}>
-                  {counts[id]}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <Search size={15} color="#A1A1AA" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar cliente..."
-            style={{
-              width: '100%', height: 42, border: '1px solid #ECECF1',
-              borderRadius: 10, padding: '0 14px 0 40px',
-              fontFamily: UI, fontSize: 13, color: '#18181B',
-              background: '#fff', outline: 'none', boxSizing: 'border-box',
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Lista */}
-      {filteredPedidos.length === 0 ? (
-        <div style={{ background: '#fff', border: '1px solid #ECECF1', borderRadius: 16, padding: '56px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <ShoppingBag size={32} color="#ECECF1" />
-          <p style={{ fontFamily: UI, fontSize: 14, color: '#8A8A93', textAlign: 'center' }}>
-            {pedidos.length === 0 ? 'Nenhum pedido recebido ainda.' : 'Nenhum pedido encontrado.'}
+      {/* Cards de resumo */}
+      <StatGrid>
+        <StatCard label="Aguardando" value={aguardando.length} icon={Clock} iconColor="var(--status-warn-dot)" />
+        <StatCard label="Pagos" value={pagos.length} icon={CheckCircle2} iconColor="var(--status-ok-dot)" />
+        <HeroCard tone="primary">
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.78)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Recebido hoje</p>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{fmtR(totalHoje)}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.78)', marginTop: 10 }}>
+            {pagosHoje.length} {pagosHoje.length === 1 ? 'pedido pago' : 'pedidos pagos'} hoje
           </p>
-          {pedidos.length === 0 && (
-            <p style={{ fontFamily: UI, fontSize: 12, color: '#A1A1AA', textAlign: 'center' }}>Compartilhe o link do catálogo com suas clientes.</p>
-          )}
-        </div>
+        </HeroCard>
+        <StatCard label="Total de pedidos" value={pedidos.length} icon={Package} iconColor="var(--status-info-dot)" />
+      </StatGrid>
+
+      {pedidos.length === 0 ? (
+        <EmptyState
+          icon={ShoppingBag}
+          title="Nenhum pedido ainda"
+          subtitle="Compartilhe o link do catálogo para receber pedidos com pagamento."
+          actionLabel="Copiar link do catálogo"
+          onAction={copiarLink}
+        />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #ECECF1', borderRadius: 16, overflow: 'hidden' }}>
-          {/* Table header */}
-          <div className="pc-th" style={{
-            alignItems: 'center', gap: 12,
-            padding: '10px 18px', borderBottom: '1px solid #ECECF1',
-            background: '#F6F6F9',
-          }}>
-            <div style={{ width: 36, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontFamily: UI, fontSize: 11, fontWeight: 600, color: '#A1A1AA' }}>Cliente</span>
+        <>
+          {/* Filtros por status + busca */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <ChipRow>
+              {FILTROS.map(f => (
+                <Chip key={f.key} label={f.label} count={COUNTS[f.key]} active={filtro === f.key} onClick={() => setFiltro(f.key)} />
+              ))}
+            </ChipRow>
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <Input
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                placeholder="Buscar por cliente..."
+                style={{ paddingLeft: 38 }}
+              />
             </div>
-            <div style={{ width: 60, textAlign: 'center', flexShrink: 0 }}>
-              <span style={{ fontFamily: UI, fontSize: 11, fontWeight: 600, color: '#A1A1AA' }}>Itens</span>
-            </div>
-            <div style={{ width: 100, textAlign: 'right', flexShrink: 0 }}>
-              <span style={{ fontFamily: UI, fontSize: 11, fontWeight: 600, color: '#A1A1AA' }}>Valor</span>
-            </div>
-            <div style={{ width: 135, flexShrink: 0 }}>
-              <span style={{ fontFamily: UI, fontSize: 11, fontWeight: 600, color: '#A1A1AA' }}>Status</span>
-            </div>
-            <div style={{ width: 90, textAlign: 'right', flexShrink: 0 }}>
-              <span style={{ fontFamily: UI, fontSize: 11, fontWeight: 600, color: '#A1A1AA' }}>Data</span>
-            </div>
-            <div style={{ width: 20, flexShrink: 0 }} />
           </div>
 
-          {filteredPedidos.map((pedido, idx) => {
-            const isOpen = !!expanded[pedido.id]
-            const isAguardando = pedido.status === 'aguardando_pagamento'
-            const busy = atualizando === pedido.id
-            const totalItens = (pedido.produtos || []).reduce((s, p) => s + (Number(p.qtd) || 1), 0)
-            const phone = (pedido.cliente_whatsapp || '').replace(/\D/g, '')
+          {/* Lista de pedidos */}
+          {filtrados.length === 0 ? (
+            <EmptyState
+              icon={ShoppingBag}
+              title={buscaNorm ? `Nada encontrado para "${busca.trim()}"` : 'Nenhum pedido com esse status'}
+              subtitle={buscaNorm ? 'Tente buscar por outro nome de cliente.' : 'Experimente outro filtro ou veja todos os pedidos.'}
+              actionLabel={buscaNorm ? 'Limpar busca' : 'Ver todos'}
+              onAction={limparFiltros}
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {filtrados.map(pedido => {
+                const statusInfo = STATUS_MAP[pedido.status] || STATUS_MAP.aguardando_pagamento
+                const isAguardando = pedido.status === 'aguardando_pagamento'
+                const busy = atualizando === pedido.id
+                const isOpen = expandido === pedido.id
+                const itens = pedido.produtos || []
+                const qtdItens = itens.reduce((s, p) => s + Number(p.qtd || 0), 0)
+                const waDigits = (pedido.cliente_whatsapp || '').replace(/\D/g, '')
 
-            return (
-              <div key={pedido.id} style={{ borderTop: idx > 0 ? '1px solid #ECECF1' : 'none' }}>
-                <button
-                  onClick={() => setExpanded(p => ({ ...p, [pedido.id]: !p[pedido.id] }))}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '14px 18px', background: 'none', border: 'none',
-                    cursor: 'pointer', textAlign: 'left',
-                    transition: 'background .12s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F6F6F9'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  <Avatar name={pedido.cliente_nome} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: UI, fontSize: 14, fontWeight: 600, color: '#18181B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
-                      {pedido.cliente_nome}
-                    </p>
-                    {pedido.cliente_whatsapp && (
-                      <p style={{ fontFamily: MONO, fontSize: 11, color: '#8A8A93' }}>{pedido.cliente_whatsapp}</p>
-                    )}
-                  </div>
-                  <div className="pc-col-sm" style={{ width: 60, justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: '#8A8A93' }}>{totalItens}</span>
-                  </div>
-                  <div style={{ width: 100, textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: '#18181B' }}>{fmtR(pedido.valor_total)}</span>
-                  </div>
-                  <div className="pc-col-sm" style={{ width: 135, flexShrink: 0 }}>
-                    <StatusPill status={pedido.status} />
-                  </div>
-                  <div className="pc-col-sm" style={{ width: 90, justifyContent: 'flex-end', flexShrink: 0 }}>
-                    <span style={{ fontFamily: UI, fontSize: 11, color: '#A1A1AA' }}>{fmtDT(pedido.created_at)}</span>
-                  </div>
-                  <div style={{ width: 20, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    {isOpen
-                      ? <ChevronDown size={16} color="#A1A1AA" />
-                      : <ChevronRight size={16} color="#A1A1AA" />
-                    }
-                  </div>
-                </button>
+                return (
+                  <div key={pedido.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', overflow: 'hidden' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandido(isOpen ? null : pedido.id)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', boxSizing: 'border-box' }}
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                        background: `color-mix(in srgb, ${theme.primary} 14%, white)`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary,
+                      }}>
+                        {iniciais(pedido.cliente_nome)}
+                      </div>
 
-                {isOpen && (
-                  <div style={{ borderTop: '1px solid #ECECF1', padding: '14px 18px 16px', background: '#F6F6F9' }}>
-                    {/* Mobile status + date */}
-                    <div style={{ display: 'none' }} className="pc-mobile-meta">
-                      <StatusPill status={pedido.status} />
-                      <span style={{ fontFamily: UI, fontSize: 11, color: '#A1A1AA' }}>{fmtDT(pedido.created_at)}</span>
-                    </div>
-                    <style>{`.pc-mobile-meta { display: none !important; } @media (max-width: 600px) { .pc-mobile-meta { display: flex !important; gap: 8px; align-items: center; margin-bottom: 10px; } }`}</style>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pedido.cliente_nome}
+                        </p>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {qtdItens} {qtdItens === 1 ? 'item' : 'itens'} · {fmtDT(pedido.created_at)}
+                        </p>
+                      </div>
 
-                    {(pedido.produtos || []).length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 14 }}>
-                        {(pedido.produtos || []).map((p, i) => (
-                          <span key={i} style={{
-                            fontSize: 12, padding: '3px 9px', borderRadius: 8,
-                            background: '#fff', border: '1px solid #ECECF1',
-                            color: '#52525B', fontFamily: UI, fontWeight: 500,
-                          }}>
-                            {p.qtd}× {p.nome}{p.variacao ? ` (${p.variacao})` : ''}
-                          </span>
-                        ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(pedido.valor_total)}</p>
+                        <StatusPill tone={statusInfo.tone} label={statusInfo.label} />
+                      </div>
+
+                      <ChevronDown size={18} color="var(--muted)" style={{ flexShrink: 0, transition: 'transform .15s', transform: isOpen ? 'rotate(180deg)' : 'none' }} />
+                    </button>
+
+                    {isOpen && (
+                      <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }} />
+
+                        {itens.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: -12 }}>
+                            {itens.map((p, i) => (
+                              <span key={i} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 'var(--r-chip)', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                                {p.qtd}× {p.nome}{p.variacao ? ` (${p.variacao})` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {waDigits && (
+                            <a
+                              href={`https://wa.me/55${waDigits}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              style={{
+                                flex: '1 1 140px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                height: 40, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)',
+                                color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                              }}
+                            >
+                              <MessageCircle size={15} /> WhatsApp
+                            </a>
+                          )}
+                          {isAguardando && (
+                            <>
+                              <button
+                                onClick={e => { e.stopPropagation(); marcarPago(pedido.id) }}
+                                disabled={busy}
+                                style={{
+                                  flex: '1 1 140px', height: 40, borderRadius: 'var(--r-input)', border: 'none',
+                                  background: busy ? 'var(--line)' : 'var(--status-ok-dot)', color: '#fff',
+                                  cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700,
+                                }}
+                              >
+                                {busy ? '...' : 'Marcar como pago'}
+                              </button>
+                              <button
+                                onClick={e => { e.stopPropagation(); cancelar(pedido.id) }}
+                                disabled={busy}
+                                style={{
+                                  flex: '1 1 100px', height: 40, borderRadius: 'var(--r-input)', border: '1px solid var(--line)',
+                                  background: 'var(--bg)', color: 'var(--status-bad-tx)',
+                                  cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {phone && (
-                        <a
-                          href={`https://wa.me/55${phone}`}
-                          target="_blank" rel="noreferrer"
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 6,
-                            padding: '0 14px', height: 38, borderRadius: 10,
-                            background: '#25D366', color: '#fff', textDecoration: 'none',
-                            fontFamily: UI, fontSize: 12, fontWeight: 700, flexShrink: 0,
-                          }}
-                        >
-                          <MessageCircle size={14} /> WhatsApp
-                        </a>
-                      )}
-                      {isAguardando && (
-                        <>
-                          <button
-                            onClick={() => marcarPago(pedido.id)}
-                            disabled={busy}
-                            style={{
-                              flex: 1, minWidth: 120, height: 38, borderRadius: 10, border: 'none',
-                              background: busy ? '#ECECF1' : '#1E7A4D', color: busy ? '#8A8A93' : '#fff',
-                              cursor: busy ? 'not-allowed' : 'pointer',
-                              fontFamily: UI, fontSize: 12, fontWeight: 700,
-                            }}
-                          >
-                            {busy ? '...' : 'Marcar como pago'}
-                          </button>
-                          <button
-                            onClick={() => cancelar(pedido.id)}
-                            disabled={busy}
-                            style={{
-                              height: 38, padding: '0 14px', borderRadius: 10,
-                              border: '1px solid #ECECF1', background: '#fff',
-                              color: '#9B3B3B', cursor: busy ? 'not-allowed' : 'pointer',
-                              fontFamily: UI, fontSize: 12, fontWeight: 600,
-                            }}
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      )}
-                    </div>
                   </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

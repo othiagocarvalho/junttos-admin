@@ -19,14 +19,14 @@ function parsePgtos(v) {
 
 const dateInputStyle = {
   height: 40, border: '1.5px solid var(--line)', borderRadius: 10,
-  padding: '0 10px', fontFamily: 'Manrope, sans-serif', fontSize: 13,
+  padding: '0 10px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13,
   color: 'var(--ink)', background: 'var(--surface)', outline: 'none',
   width: '100%', boxSizing: 'border-box',
 }
 const dateLabel = {
   display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
   textTransform: 'uppercase', letterSpacing: '0.12em',
-  fontFamily: 'Manrope, sans-serif', marginBottom: 4,
+  fontFamily: 'Plus Jakarta Sans, sans-serif', marginBottom: 4,
 }
 
 export default function Faturamento({ vendas, theme }) {
@@ -88,9 +88,9 @@ export default function Faturamento({ vendas, theme }) {
               <div style={{ width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.primary + '18', flexShrink: 0 }}>
                 <Icon size={13} style={{ color: theme.primary }} />
               </div>
-              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+              <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
             </div>
-            <p style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>
           </div>
         ))}
       </div>
@@ -98,9 +98,9 @@ export default function Faturamento({ vendas, theme }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
         {/* Product ranking */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Produtos mais vendidos</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Produtos mais vendidos</p>
           {rankProd.length === 0 ? (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Sem dados para o período</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Sem dados para o período</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {rankProd.map(([nome, qtd], i) => (
@@ -108,13 +108,13 @@ export default function Faturamento({ vendas, theme }) {
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, fontFamily: 'Manrope, sans-serif',
+                    fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
                     background: i === 0 ? theme.primary : i === 1 ? (theme.accent || '#D49E8A') : 'var(--bg)',
                     color: i < 2 ? '#fff' : 'var(--muted)',
                     border: i >= 2 ? '1px solid var(--line)' : 'none',
                   }}>{i + 1}</div>
-                  <span style={{ flex: 1, fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{nome}</span>
-                  <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary }}>{qtd}×</span>
+                  <span style={{ flex: 1, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{nome}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: theme.primary }}>{qtd}×</span>
                 </div>
               ))}
             </div>
@@ -123,9 +123,9 @@ export default function Faturamento({ vendas, theme }) {
 
         {/* Payment breakdown */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px' }}>
-          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Por forma de pagamento</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Por forma de pagamento</p>
           {Object.keys(pgtoMap).length === 0 ? (
-            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Sem dados para o período</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Sem dados para o período</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {Object.entries(pgtoMap)
@@ -134,14 +134,14 @@ export default function Faturamento({ vendas, theme }) {
                   const pct = totalVendas > 0 ? (val / totalVendas) * 100 : 0
                   return (
                     <div key={pgto}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13 }}>
                         <span style={{ color: 'var(--ink)' }}>{pgto}</span>
                         <span style={{ fontWeight: 700, color: theme.primary }}>{fmtR(val)}</span>
                       </div>
                       <div style={{ height: 6, borderRadius: 3, background: 'var(--line)' }}>
                         <div style={{ height: '100%', borderRadius: 3, background: theme.primary, width: `${pct}%`, transition: 'width 0.5s' }} />
                       </div>
-                      <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(0)}%</p>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{pct.toFixed(0)}%</p>
                     </div>
                   )
                 })}
