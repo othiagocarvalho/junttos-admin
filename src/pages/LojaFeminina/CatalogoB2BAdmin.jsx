@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Package, ShoppingBag, Settings, Monitor, Save, Users, UserPlus } from 'lucide-react'
+import { Package, ShoppingBag, Settings, Monitor, Save, Users, UserPlus, CreditCard } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import PedidosConsolidados from './PedidosConsolidados'
+import Financeiro from './Financeiro'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
+import { temAcesso } from '../../utils/planos'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -19,8 +21,9 @@ const TABS_BASE = [
   { id: 'produtos', label: 'Produtos', Icon: Package },
   { id: 'pedidos',  label: 'Pedidos',  Icon: ShoppingBag },
 ]
-const TAB_USUARIOS = { id: 'usuarios', label: 'Usuários', Icon: Users }
-const TAB_CONFIG   = { id: 'config',   label: 'Config',   Icon: Settings }
+const TAB_USUARIOS   = { id: 'usuarios',   label: 'Usuários',   Icon: Users }
+const TAB_FINANCEIRO = { id: 'financeiro', label: 'Financeiro', Icon: CreditCard }
+const TAB_CONFIG     = { id: 'config',     label: 'Config',     Icon: Settings }
 
 const lbl = {
   display: 'block', fontSize: 10, fontWeight: 700,
@@ -420,10 +423,15 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
   const [tab, setTab] = useState('produtos')
   const [pedidosView, setPedidosView] = useState('lista')
   const primary = theme.primary
+  const plano = data.config?.plano || 'starter'
+  const isBusiness = temAcesso(plano, 'business')
 
-  const TABS = nivel === 'pro'
-    ? [...TABS_BASE, TAB_USUARIOS, TAB_CONFIG]
-    : [...TABS_BASE, TAB_CONFIG]
+  const TABS = [
+    ...TABS_BASE,
+    ...(nivel === 'pro' ? [TAB_USUARIOS] : []),
+    ...(isBusiness ? [TAB_FINANCEIRO] : []),
+    TAB_CONFIG,
+  ]
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Manrope, sans-serif' }}>
@@ -529,6 +537,9 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
         )}
         {tab === 'usuarios' && nivel === 'pro' && (
           <UsuariosB2B lojaId={lojaId} theme={theme} />
+        )}
+        {tab === 'financeiro' && isBusiness && (
+          <Financeiro lojaId={lojaId} vendas={data.vendas || []} theme={theme} />
         )}
         {tab === 'config' && (
           <ConfigB2B

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Package, ShoppingBag, Settings, Save, Users, UserPlus } from 'lucide-react'
+import { Package, ShoppingBag, Settings, Save, Users, UserPlus, CreditCard } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import PedidosConsolidados from './PedidosConsolidados'
+import FinanceiroDesktop from '../cliente/FinanceiroDesktop'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
+import { temAcesso } from '../../utils/planos'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -19,8 +21,9 @@ const NAV_BASE = [
   { id: 'produtos', label: 'Produtos',      Icon: Package },
   { id: 'pedidos',  label: 'Pedidos',       Icon: ShoppingBag },
 ]
-const NAV_USUARIOS = { id: 'usuarios', label: 'Usuários',       Icon: Users }
-const NAV_CONFIG   = { id: 'config',   label: 'Configurações',  Icon: Settings }
+const NAV_USUARIOS   = { id: 'usuarios',   label: 'Usuários',       Icon: Users }
+const NAV_FINANCEIRO = { id: 'financeiro', label: 'Financeiro',     Icon: CreditCard }
+const NAV_CONFIG     = { id: 'config',     label: 'Configurações',  Icon: Settings }
 
 // ── Gerenciamento de usuários (exclusivo pro) ──────────────────
 function UsuariosB2BDesktop({ lojaId, theme }) {
@@ -229,13 +232,16 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
 }
 
 // ── Sidebar (mesmo padrão collapse do ClientDashboardDesktop) ──
-function B2BSidebar({ tab, setTab, theme, config, nivel, onSwitchToMobile }) {
+function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToMobile }) {
   const [open, setOpen] = useState(false)
   const primary = config?.cor_primaria || theme.primary
 
-  const NAV = nivel === 'pro'
-    ? [...NAV_BASE, NAV_USUARIOS, NAV_CONFIG]
-    : [...NAV_BASE, NAV_CONFIG]
+  const NAV = [
+    ...NAV_BASE,
+    ...(nivel === 'pro' ? [NAV_USUARIOS] : []),
+    ...(isBusiness ? [NAV_FINANCEIRO] : []),
+    NAV_CONFIG,
+  ]
 
   return (
     <aside
@@ -535,6 +541,8 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
 export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, onSwitchToMobile }) {
   const [tab, setTab] = useState('produtos')
   const [pedidosView, setPedidosView] = useState('lista')
+  const plano = data.config?.plano || 'starter'
+  const isBusiness = temAcesso(plano, 'business')
 
   const isDark = theme.isDark || theme.primary === '#D4A017'
   const contentVars = {
@@ -617,6 +625,9 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
     usuarios: nivel === 'pro' ? (
       <UsuariosB2BDesktop lojaId={lojaId} theme={theme} />
     ) : null,
+    financeiro: isBusiness ? (
+      <FinanceiroDesktop data={data} theme={theme} />
+    ) : null,
     config: (
       <ConfigB2BDesktop
         config={data.config}
@@ -635,6 +646,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
         theme={theme}
         config={data.config}
         nivel={nivel}
+        isBusiness={isBusiness}
         onSwitchToMobile={onSwitchToMobile}
       />
       <div style={{ marginLeft: 56, flex: 1, padding: '40px 44px', minHeight: '100dvh' }}>
