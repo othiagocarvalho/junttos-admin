@@ -40,10 +40,10 @@ A partir daqui, várias telas independentes foram delegadas a subagentes em para
 - [x] Relatórios (mobile + desktop) — gráfico "Faturamento por dia" novo.
 - [x] Catálogo online / Pedidos — StatusPill, chips de filtro, EmptyState.
 - [x] Financeiro (mobile + desktop) — abas underline, HeroCard Saldo/DRE.
-- [ ] Fechamento de Caixa
-- [ ] Clientes
-- [ ] Metas
-- [ ] Crediário
+- [x] Fechamento de Caixa — HeroCard Total de Vendas/Saldo final.
+- [x] Clientes — cards com avatar, telefone/valores mono, EmptyState.
+- [x] Metas — barra roxo->coral, EmptyState.
+- [x] Crediário — StatGrid + StatusPill.
 - [ ] Configurações
 - [ ] Contas a Pagar
 - [ ] Stretch (CatalogoB2BAdmin/Desktop, ProdutosB2BPro, PedidosConsolidados, EstoquePage desktop, WelcomeOnboarding, ImportarPlanilha)
