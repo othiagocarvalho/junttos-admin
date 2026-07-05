@@ -80,6 +80,34 @@ Diagnóstico (refeito e reconfirmado a pedido do usuário, ao final da sessão):
   vários avisos pré-existentes de `theme`/props não usadas foram corrigidos
   incidentalmente ao trocar cores fixas por `var(--primary)`).
 
+## Simulador de Plano (branch staging — Julho 2025)
+
+Nova página de qualificação comercial adicionada ao admin.
+
+### Arquivos
+
+- `src/data/simuladorPlanos.js` — perguntas, opções, pontuação e sinais de justificativa para Moda e Barbearia; Ótica como placeholder "em breve".
+- `src/pages/SimuladorPlano.jsx` — seletor de vertical, quiz de 10 perguntas uma por vez, barra de progresso, resultado com plano + preço + justificativa dinâmica.
+- `src/components/Sidebar.jsx` — item "Simulador de Plano" (ícone Sparkles) antes de Configurações.
+- `src/App.jsx` — rota `/simulador` com `ProtectedLayout`.
+
+### Preços por vertical
+
+| Vertical   | Starter   | Pro        | Business   |
+|------------|-----------|------------|------------|
+| Moda       | R$ 99,90  | R$ 149,90  | R$ 259,90  |
+| Barbearia  | R$ 59,90  | R$ 99,90   | R$ 179,90  |
+
+### Status
+
+- [x] Estrutura de dados: 10 perguntas × 2 verticais + Ótica em breve
+- [x] UI: seletor de vertical, quiz por pergunta, barra de progresso
+- [x] Resultado: plano + preço + justificativa dinâmica (2-3 frases)
+- [x] Design system Studio (CSS vars, Card, Button, PageHeader)
+- [x] Mobile + Desktop simultâneos
+- [x] `npm run build` — 0 erros
+- [ ] Revisão visual em navegador (mobile 375px e desktop)
+
 ## Pendências para uma próxima sessão
 
 1. Revisão visual final em navegador (mobile 375px e desktop) de todas as telas
