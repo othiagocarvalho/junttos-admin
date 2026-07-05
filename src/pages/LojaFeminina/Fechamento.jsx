@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Wallet, History, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Wallet, History, Trash2, Info } from 'lucide-react'
 import Card, { HeroCard } from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -14,7 +14,21 @@ function toLocalISO(d = new Date()) {
     String(d.getDate()).padStart(2, '0')
 }
 
-const EMPTY = { dinheiro: '', pix: '', pix_santander: '', pix_bb: '', debito: '', credito: '', saldo_ini: '', sangria: '', despesas: '', obs: '' }
+// Parses forma_pgto JSON string from a venda
+function parsePgtos(raw) {
+  try {
+    const arr = JSON.parse(raw || '[]')
+    return Array.isArray(arr) ? arr : []
+  } catch { return [] }
+}
+
+const EMPTY = {
+  dinheiro: '', pix: '', pix_santander: '', pix_bb: '',
+  debito: '', credito: '',
+  saldo_ini: '', sangria: '', suprimento: '',
+  valor_contado: '',
+  despesas: '', obs: '',
+}
 
 function CurrField({ k, label, form, setForm }) {
   return (
@@ -44,13 +58,52 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
   const [caixaParaExcluir, setCaixaParaExcluir] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [autoFilled, setAutoFilled] = useState(false)
+
+  // Auto-fill payment fields by summing registered sales for the selected date
+  useEffect(() => {
+    const doDia = vendas.filter(v => {
+      try { return toLocalISO(new Date(v.data)) === dataSelecionada }
+      catch { return false }
+    })
+
+    const tot = { dinheiro: 0, pix: 0, pix_santander: 0, pix_bb: 0, debito: 0, credito: 0 }
+    doDia.forEach(v => {
+      parsePgtos(v.forma_pgto).forEach(p => {
+        const val = Number(p.valor || 0)
+        if (p.forma === 'Dinheiro') tot.dinheiro += val
+        else if (p.forma === 'Pix') tot.pix += val
+        else if (p.forma === 'PIX Santander') tot.pix_santander += val
+        else if (p.forma === 'PIX Banco do Brasil') tot.pix_bb += val
+        else if (p.forma === 'Cartão de Crédito') tot.credito += val
+        else if (p.forma === 'Cartão de Débito') tot.debito += val
+      })
+    })
+
+    setAutoFilled(doDia.length > 0)
+    setForm(prev => ({
+      ...prev,
+      dinheiro:      tot.dinheiro      > 0 ? tot.dinheiro.toFixed(2)      : '',
+      pix:           tot.pix           > 0 ? tot.pix.toFixed(2)           : '',
+      pix_santander: tot.pix_santander > 0 ? tot.pix_santander.toFixed(2) : '',
+      pix_bb:        tot.pix_bb        > 0 ? tot.pix_bb.toFixed(2)        : '',
+      debito:        tot.debito        > 0 ? tot.debito.toFixed(2)        : '',
+      credito:       tot.credito       > 0 ? tot.credito.toFixed(2)       : '',
+    }))
+  }, [dataSelecionada, vendas])
 
   const n = k => parseFloat(form[k] || 0) || 0
   const totalVendas = features?.atacado
     ? n('dinheiro') + n('pix_santander') + n('pix_bb') + n('debito') + n('credito')
     : n('dinheiro') + n('pix') + n('debito') + n('credito')
-  const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria')
+  const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria') + n('suprimento')
   const liquido = totalVendas - n('despesas')
+
+  // Cash count verification
+  const dinheiroEsperado = n('dinheiro') - n('sangria') + n('suprimento')
+  const hasValorContado = form.valor_contado !== ''
+  const diferenca = hasValorContado ? n('valor_contado') - dinheiroEsperado : null
+  const temDivergenciaCaixa = diferenca !== null && Math.abs(diferenca) >= 0.01
 
   // Total real de vendas do sistema para a data escolhida (usado na validação de divergência)
   const vendasDoDia = vendas.filter(v => {
@@ -60,9 +113,8 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
   const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
   const divergencia = Math.abs(totalVendas - totalVendasSistema)
 
-  // Bloqueio de data duplicada (mantido da tarefa anterior)
+  // Bloqueio de data duplicada
   const jaDuplicado = caixas.some(c => c.data === dataSelecionada)
-
   const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
 
   async function salvarFechamento() {
@@ -74,6 +126,9 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
       ...(features?.atacado ? { pix_santander: n('pix_santander'), pix_bb: n('pix_bb') } : {}),
       debito: n('debito'), credito: n('credito'),
       saldo_ini: n('saldo_ini'), sangria: n('sangria'),
+      suprimento: n('suprimento'),
+      valor_contado: hasValorContado ? n('valor_contado') : null,
+      diferenca: hasValorContado ? diferenca : null,
       despesas: n('despesas'), obs: form.obs || null,
       total: totalVendas,
     })
@@ -151,9 +206,22 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
         Valores do Caixa — {fmtDate(dataSelecionada)}
       </p>
 
-      {/* Recebimentos */}
+      {/* Recebimentos — pré-preenchidos automaticamente */}
       <Card>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Recebimentos</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>Recebimentos</p>
+          {autoFilled && (
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
+              color: 'var(--primary)',
+              background: 'color-mix(in srgb, var(--primary) 10%, white)',
+              padding: '3px 9px', borderRadius: 99,
+            }}>
+              <Info size={10} /> Pré-preenchido pelo sistema
+            </span>
+          )}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} />
           {features?.atacado ? (
@@ -169,13 +237,62 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
         </div>
       </Card>
 
-      {/* Caixa */}
+      {/* Caixa — saldo inicial + ajustes */}
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Caixa</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} />
-          <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} />
+            <CurrField k="suprimento" label="Suprimento" form={form} setForm={setForm} />
+          </div>
         </div>
+      </Card>
+
+      {/* Conferência de Caixa */}
+      <Card>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 6 }}>
+          Conferência de Caixa
+        </p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.55 }}>
+          Dinheiro esperado em caixa:{' '}
+          <strong style={{ color: 'var(--ink)', fontFamily: "'Space Mono', monospace", fontSize: 13 }}>
+            {fmtR(dinheiroEsperado)}
+          </strong>
+          {' '}(vendas − sangria + suprimento)
+        </p>
+        <CurrField k="valor_contado" label="Valor Físico Contado" form={form} setForm={setForm} />
+
+        {hasValorContado && (
+          <div style={{
+            marginTop: 12, padding: '10px 14px', borderRadius: 'var(--r-input)',
+            background: temDivergenciaCaixa
+              ? 'color-mix(in srgb, var(--negative) 10%, white)'
+              : 'color-mix(in srgb, var(--positive) 10%, white)',
+            border: `1px solid color-mix(in srgb, ${temDivergenciaCaixa ? 'var(--negative)' : 'var(--positive)'} 30%, white)`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                color: temDivergenciaCaixa ? 'var(--negative)' : 'var(--positive)',
+              }}>
+                {temDivergenciaCaixa
+                  ? (diferenca > 0 ? 'Sobra no caixa' : 'Falta no caixa')
+                  : 'Caixa conferido ✓'}
+              </p>
+              {temDivergenciaCaixa && (
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: 'var(--negative)' }}>
+                  {diferenca > 0 ? '+' : ''}{fmtR(diferenca)}
+                </p>
+              )}
+            </div>
+            {temDivergenciaCaixa && (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                Divergência informativa — o fechamento pode ser confirmado normalmente.
+              </p>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Despesas */}
@@ -203,7 +320,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
         </p>
       </HeroCard>
 
-      {/* Fechamento — resumo */}
+      {/* Resumo de fechamento */}
       <HeroCard tone="dark">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
@@ -245,6 +362,11 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                     Din. {fmtR(c.dinheiro)} · Pix {fmtR(c.pix)} · Déb. {fmtR(c.debito)} · Créd. {fmtR(c.credito)}
                   </p>
+                  {c.diferenca != null && Math.abs(c.diferenca) >= 0.01 && (
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--negative)', marginTop: 2, fontWeight: 600 }}>
+                      {c.diferenca > 0 ? 'Sobra' : 'Falta'}: {fmtR(Math.abs(c.diferenca))}
+                    </p>
+                  )}
                   {c.obs && <p style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic', marginTop: 3, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{c.obs}</p>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: 4 }}>
