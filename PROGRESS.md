@@ -108,8 +108,69 @@ o `LojaFeminina`/`cliente` tem) — não dois arquivos separados.
 
 ## FASE 2 — Módulo de Fornecedores
 
-Status: **investigação concluída, implementação ainda não iniciada nesta
-sessão** (ver seção abaixo assim que a implementação começar).
+Status: **implementação concluída nesta sessão.**
+
+### O que foi feito
+
+- [x] **SQL** (`supabase/fornecedores.sql`, não executado nesta sessão — sem
+      credenciais Supabase; precisa ser rodado manualmente no SQL Editor):
+      - `lf_fornecedores` (nome, contato, documento CNPJ/CPF opcional,
+        prazo_pagamento_dias, observacoes, ativo para soft delete).
+      - `lf_produtos.fornecedor_id` (FK opcional para `lf_fornecedores`,
+        `ADD COLUMN IF NOT EXISTS` — não afeta produtos existentes, e o
+        campo de texto livre `fornecedor` já existente **não foi tocado nem
+        removido**).
+      - `lf_compras` (histórico de compras: fornecedor_id, produto_id
+        opcional, descrição, valor, data_compra, data_vencimento,
+        status_pgto, data_pagamento, observacoes).
+- [x] **`useLojaData.js`**: novos estados `fornecedores`/`compras` (carregados
+      com o mesmo padrão tolerante a tabela ainda não existir usado por
+      `crediario`/`pedidos` — se a tabela não existir ainda no banco, a tela
+      simplesmente mostra vazio em vez de quebrar o app) e funções
+      `addFornecedor`, `updateFornecedor`, `removeFornecedor` (soft delete via
+      `ativo: false`), `addCompra`, `marcarCompraPaga`, `deleteCompra`.
+- [x] **`src/pages/LojaFeminina/Fornecedores.jsx`** (componente único,
+      compartilhado entre mobile e desktop, mesmo padrão do `EstoqueMobile`):
+      lista com busca, cadastro/edição de fornecedor (modal), detalhe do
+      fornecedor com prazo de pagamento em destaque (badge), histórico de
+      compras (registrar nova compra, marcar como paga, excluir), indicador
+      de valor em aberto por fornecedor e total geral.
+- [x] **Navegação**: adicionado a `MAIS_ITEMS` (mobile,
+      `src/pages/LojaFeminina/index.jsx`) e a `PLANO_NAV_ITEMS` (desktop,
+      `ClientDashboardDesktop.jsx`), com `planoMinimo: null` — disponível para
+      todas as lojas independente de plano, por ser ferramenta operacional de
+      estoque (mesmo critério já usado para "Estoque"/"Fechamento").
+- [x] **Vínculo produto → fornecedor** (`EstoqueMobile.jsx`, compartilhado
+      mobile/desktop): select opcional "Fornecedor" no formulário de Novo
+      Produto, populado a partir de `lf_fornecedores`, gravando
+      `fornecedor_id`. Só aparece quando há fornecedores cadastrados; produtos
+      já existentes sem fornecedor vinculado continuam funcionando
+      normalmente (coluna nullable, sem valor default obrigatório). O campo
+      de texto livre `fornecedor` (modo atacado) foi mantido intacto, sem
+      nenhuma alteração de comportamento.
+
+### Pendências conhecidas
+
+- **Rodar `supabase/fornecedores.sql` manualmente** no SQL Editor do Supabase
+  — sem isso a tela de Fornecedores carrega vazia (fetch tolera tabela
+  ausente) e o select de fornecedor no formulário de produto não aparece
+  (lista vem vazia).
+- Sem dados reais para testar visualmente esta sessão (sem credenciais
+  Supabase) — verificado apenas via `npm run build` + leitura de código.
+  Recomendo um teste manual em navegador (mobile 375px e desktop) após rodar
+  o SQL, antes de considerar a Fase 2 pronta para produção.
+- Não foi feita migração de dados do campo texto `lf_produtos.fornecedor`
+  para a nova tabela `lf_fornecedores` — os dois convivem em paralelo
+  (decisão deliberada, para não alterar produtos já cadastrados).
+
+### Build/lint
+
+- `npm run build`: 0 erros.
+- `npx eslint` nos arquivos alterados: mesmos erros de baseline mais 2 novos
+  `'_e' is defined but never used` em `useLojaData.js`, seguindo exatamente o
+  mesmo padrão já usado pelo código existente (catch de `crediario`/`pedidos`
+  também usa `_e` sem consumir) — não é um problema novo introduzido, é o
+  mesmo padrão do projeto replicado para as duas tabelas novas.
 
 ### Investigação
 

@@ -38,9 +38,9 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', fornecedor_id: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll, fornecedores = [] }) {
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
@@ -176,6 +176,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       variacoes,
       referencia: features?.atacado ? (newProd.referencia || null) : null,
       fornecedor: features?.atacado ? (newProd.fornecedor || null) : null,
+      fornecedor_id: newProd.fornecedor_id || null,
       ...(features?.atacado ? {
         valor_lote:      parseFloat(newProd.valor_lote) || null,
         data_vencimento: newProd.data_vencimento || null,
@@ -476,6 +477,23 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   autoFocus
                 />
               </div>
+
+              {/* Fornecedor cadastrado (opcional) */}
+              {fornecedores.length > 0 && (
+                <div>
+                  <label style={labelStyle}>Fornecedor (opcional)</label>
+                  <select
+                    value={newProd.fornecedor_id}
+                    onChange={e => setNewProd(p => ({ ...p, fornecedor_id: e.target.value }))}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    <option value="">Nenhum</option>
+                    {fornecedores.filter(f => f.ativo !== false).map(f => (
+                      <option key={f.id} value={f.id}>{f.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Referência e Fornecedor — apenas modo atacado */}
               {features?.atacado && (

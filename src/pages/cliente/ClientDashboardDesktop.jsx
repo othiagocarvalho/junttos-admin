@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -22,6 +22,7 @@ import Clientes from '../LojaFeminina/Clientes'
 import Crediario from '../LojaFeminina/Crediario'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import FinanceiroDesktop from './FinanceiroDesktop'
+import Fornecedores from '../LojaFeminina/Fornecedores'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -75,7 +76,8 @@ const onB = (e) => {
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 
 const PLANO_NAV_ITEMS = [
-  { id: 'clientes',  label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'  },
+  { id: 'clientes',    label: 'Clientes',       Icon: Users,       planoMinimo: 'starter'  },
+  { id: 'fornecedores',label: 'Fornecedores',   Icon: Truck,       planoMinimo: null       },
   { id: 'meta',      label: 'Metas',            Icon: Target,      planoMinimo: 'pro'      },
   { id: 'crediario', label: 'Crediário',        Icon: Receipt,     planoMinimo: 'pro'      },
   { id: 'catalogo',  label: 'Catálogo online',  Icon: ShoppingBag, planoMinimo: 'business' },
@@ -1005,7 +1007,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
       : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
+    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} fornecedores={data.fornecedores} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
     crediario: legado
       ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Funcionalidade não disponível neste plano</div>
@@ -1025,6 +1027,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <FinanceiroDesktop data={data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:        <Fechamento       {...data} theme={theme} />,
+    fornecedores: <Fornecedores     {...data} theme={theme} lojaId={data.LOJA_ID} />,
     config:       <LojaConfig       {...data} theme={theme} />,
     contas_pagar: data.features?.atacado
       ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
