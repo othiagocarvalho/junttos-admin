@@ -5,7 +5,7 @@ import Logo from './junttos/Logo'
 import {
   LayoutDashboard, Users, UserCheck, DollarSign, MapPin,
   Settings, LogOut, BarChart2, Network, CreditCard,
-  ChevronsRight, ChevronsLeft,
+  ChevronsRight, ChevronsLeft, Sparkles,
 } from 'lucide-react'
 import { T } from '../theme/tokens'
 
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/finance',     icon: DollarSign,      label: 'Faturamento' },
   { to: '/reports',     icon: BarChart2,       label: 'Relatórios' },
   { to: '/arquitetura', icon: Network,         label: 'Arquitetura' },
+  { to: '/simulador',   icon: Sparkles,        label: 'Simulador de Plano' },
   { to: '/settings',    icon: Settings,        label: 'Configurações' },
 ]
 

@@ -19,6 +19,7 @@ import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 import CadastroCliente from './pages/admin/CadastroCliente'
 import Cobrancas from './pages/admin/Cobrancas'
+import SimuladorPlano from './pages/SimuladorPlano'
 import { supabase } from './lib/supabase'
 import CatalogoPublico from './pages/catalogo/CatalogoPublico'
 
@@ -72,6 +73,7 @@ function AdminApp() {
             <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
             <Route path="/clientes" element={<ProtectedLayout><SuperAdminRoute><CadastroCliente /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/cobrancas" element={<ProtectedLayout><Cobrancas /></ProtectedLayout>} />
+            <Route path="/simulador" element={<ProtectedLayout><SimuladorPlano /></ProtectedLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
