@@ -58,7 +58,7 @@ function calcularResultado(perguntas, respostas) {
   })
   const ordem = ['starter', 'pro', 'business']
   const plano = Object.entries(totais)
-    .sort(([a, va], [b, vb]) => vb - va || ordem.indexOf(a) - ordem.indexOf(b))
+    .sort(([a, va], [b, vb]) => vb - va || ordem.indexOf(b) - ordem.indexOf(a))
     [0][0]
   return { plano, totais }
 }
