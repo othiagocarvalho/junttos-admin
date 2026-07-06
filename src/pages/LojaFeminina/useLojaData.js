@@ -21,6 +21,8 @@ export function useLojaData(lojaId = 'estrada') {
   const [clientes, setClientes] = useState([])
   const [crediario, setCrediario] = useState([])
   const [pedidos, setPedidos] = useState([])
+  const [fornecedores, setFornecedores] = useState([])
+  const [compras, setCompras] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
@@ -69,6 +71,18 @@ export function useLojaData(lojaId = 'estrada') {
         setPedidos(pedidosData || [])
       } catch (_e) {
         setPedidos([])
+      }
+      try {
+        const { data: fornecedoresData } = await supabase.from('lf_fornecedores').select('*').eq('loja_id', lojaId).order('nome')
+        setFornecedores(fornecedoresData || [])
+      } catch (_e) {
+        setFornecedores([])
+      }
+      try {
+        const { data: comprasData } = await supabase.from('lf_compras').select('*').eq('loja_id', lojaId).order('data_compra', { ascending: false })
+        setCompras(comprasData || [])
+      } catch (_e) {
+        setCompras([])
       }
       setDbError(null)
     } catch (e) {
@@ -264,6 +278,7 @@ export function useLojaData(lojaId = 'estrada') {
       preco_venda:     extras.precoVenda     || 0,
       variacoes:       extras.variacoes      || [],
       fornecedor:      extras.fornecedor     || null,
+      fornecedor_id:   extras.fornecedor_id  || null,
       referencia:      extras.referencia     || null,
       valor_lote:      extras.valor_lote     || null,
       data_vencimento: extras.data_vencimento || null,
@@ -385,6 +400,73 @@ export function useLojaData(lojaId = 'estrada') {
     return data
   }
 
+  async function addFornecedor(dados) {
+    const novo = {
+      loja_id: lojaId,
+      nome: dados.nome?.trim(),
+      contato: dados.contato?.trim() || null,
+      documento: dados.documento?.trim() || null,
+      prazo_pagamento_dias: dados.prazo_pagamento_dias ? Number(dados.prazo_pagamento_dias) : null,
+      observacoes: dados.observacoes?.trim() || null,
+      ativo: true,
+    }
+    const { data, error } = await supabase.from('lf_fornecedores').insert(novo).select().single()
+    if (error) throw error
+    setFornecedores(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+    return data
+  }
+
+  async function updateFornecedor(id, dados) {
+    const { data, error } = await supabase.from('lf_fornecedores').update(dados).eq('id', id).eq('loja_id', lojaId).select().single()
+    if (error) throw error
+    setFornecedores(prev => prev.map(f => f.id === id ? data : f).sort((a, b) => a.nome.localeCompare(b.nome)))
+    return data
+  }
+
+  async function removeFornecedor(id) {
+    const { data, error } = await supabase.from('lf_fornecedores').update({ ativo: false }).eq('id', id).eq('loja_id', lojaId).select().single()
+    if (error) throw error
+    setFornecedores(prev => prev.map(f => f.id === id ? data : f))
+    return data
+  }
+
+  async function addCompra(dados) {
+    const novo = {
+      loja_id: lojaId,
+      fornecedor_id: dados.fornecedor_id,
+      produto_id: dados.produto_id || null,
+      descricao: dados.descricao?.trim() || null,
+      valor: Number(dados.valor) || 0,
+      data_compra: dados.data_compra || new Date().toISOString().slice(0, 10),
+      data_vencimento: dados.data_vencimento || null,
+      status_pgto: dados.status_pgto || 'pendente',
+      observacoes: dados.observacoes?.trim() || null,
+    }
+    const { data, error } = await supabase.from('lf_compras').insert(novo).select().single()
+    if (error) throw error
+    setCompras(prev => [data, ...prev])
+    return data
+  }
+
+  async function marcarCompraPaga(id) {
+    const { data, error } = await supabase
+      .from('lf_compras')
+      .update({ status_pgto: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) })
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+      .select()
+      .single()
+    if (error) throw error
+    setCompras(prev => prev.map(c => c.id === id ? data : c))
+    return data
+  }
+
+  async function deleteCompra(id) {
+    const { error } = await supabase.from('lf_compras').delete().eq('id', id).eq('loja_id', lojaId)
+    if (error) throw error
+    setCompras(prev => prev.filter(c => c.id !== id))
+  }
+
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   return {
@@ -423,5 +505,13 @@ export function useLojaData(lojaId = 'estrada') {
     saveComissaoPercentual,
     pedidos,
     updatePedido,
+    fornecedores,
+    addFornecedor,
+    updateFornecedor,
+    removeFornecedor,
+    compras,
+    addCompra,
+    marcarCompraPaga,
+    deleteCompra,
   }
 }

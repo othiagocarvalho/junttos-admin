@@ -24,6 +24,7 @@ serve(async (req) => {
       email,
       password,
       email_confirm: true,
+      app_metadata: loja_id ? { loja_id } : undefined,
     })
 
     if (error) {

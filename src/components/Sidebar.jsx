@@ -36,6 +36,8 @@ export default function Sidebar({ navOpen, onClose }) {
   const [pinned,  setPinned]  = useState(readPinned)
   const [hovered, setHovered] = useState(false)
 
+  const nav = NAV.filter(item => item.to !== '/clientes' || user?.role === 'Super Admin')
+
   // Mobile (navOpen) always shows full sidebar; desktop uses hover/pin
   const isExpanded = pinned || hovered || navOpen
 
@@ -148,7 +150,7 @@ export default function Sidebar({ navOpen, onClose }) {
           overflowY:     'auto',
           overflowX:     'hidden',
         }}>
-          {NAV.map(({ to, icon: Icon, label }) => (
+          {nav.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
@@ -26,6 +26,7 @@ import Clientes from './Clientes'
 import Crediario from './Crediario'
 import PedidosCatalogo from './PedidosCatalogo'
 import Financeiro from './Financeiro'
+import Fornecedores from './Fornecedores'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -42,6 +43,7 @@ const MAIS_ITEMS = [
   { id: 'relatorios',   label: 'Relatórios',       Icon: BarChart2, planoMinimo: null      },
   { id: 'financeiro',   label: 'Financeiro',       Icon: CreditCard, planoMinimo: 'business' },
   { id: 'clientes',     label: 'Clientes',         Icon: Users,     planoMinimo: 'starter'  },
+  { id: 'fornecedores', label: 'Fornecedores',     Icon: Truck,     planoMinimo: null      },
   { id: 'meta',         label: 'Metas',            Icon: Target,    planoMinimo: 'pro'      },
   { id: 'crediario',    label: 'Crediário',        Icon: Receipt,   planoMinimo: 'pro'      },
   { id: 'conta',        label: 'Fechamento',       Icon: Wallet,    planoMinimo: null      },
@@ -484,6 +486,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <Financeiro lojaId={lojaId} vendas={data.vendas} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta: <Fechamento {...data} theme={theme} />,
+    fornecedores: <Fornecedores {...data} theme={theme} lojaId={lojaId} />,
     mais: (
       <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
@@ -538,7 +541,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta', 'fornecedores'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

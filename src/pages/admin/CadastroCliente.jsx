@@ -29,6 +29,17 @@ function toSlug(s) {
     .replace(/[^a-z0-9]+/g, '').trim()
 }
 
+const SLUG_RE = /^[a-z0-9]{3,32}$/
+
+async function buscarLojaComSlug(slug) {
+  const { data } = await supabase
+    .from('lf_config')
+    .select('nome')
+    .or(`loja_id.eq.${slug},slug.eq.${slug}`)
+    .maybeSingle()
+  return data
+}
+
 function rgbToHex([r, g, b]) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
 }
@@ -136,14 +147,26 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
   async function handleSave(e) {
     e.preventDefault()
-    if (!form.nome.trim() || !form.slug.trim()) { setError('Nome e slug são obrigatórios.'); return }
+    const slug = form.slug.trim()
+    if (!form.nome.trim() || !slug) { setError('Nome e slug são obrigatórios.'); return }
+    if (!SLUG_RE.test(slug)) {
+      setError('Slug inválido — use de 3 a 32 letras minúsculas e números, sem espaços ou símbolos.')
+      return
+    }
     setSaving(true); setError(''); setSuccessLink('')
     try {
+      const lojaExistente = await buscarLojaComSlug(slug)
+      if (lojaExistente) {
+        throw new Error(`Esse slug já está em uso pela loja "${lojaExistente.nome}". Escolha outro.`)
+      }
+
       let logoUrl = null
-      if (form.logoFile) logoUrl = await uploadLogo(form.slug, form.logoFile)
+      if (form.logoFile) logoUrl = await uploadLogo(slug, form.logoFile)
 
       const features = {
         ...DEFAULT_FEATURES,
+        catalogo_b2b: false,
+        legado: false,
         atacado: form.features.atacado,
         crm: form.features.crm,
       }
