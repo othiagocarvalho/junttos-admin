@@ -11,7 +11,7 @@ import { T } from '../theme/tokens'
 
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/clientes',    icon: Users,           label: 'Clientes' },
+  { to: '/clientes',    icon: Users,           label: 'Clientes',           superAdmin: true },
   { to: '/cobrancas',   icon: CreditCard,      label: 'Cobranças' },
   { to: '/consultants', icon: UserCheck,       label: 'Consultores' },
   { to: '/visits',      icon: MapPin,          label: 'Visitas e Rotas' },
@@ -149,7 +149,7 @@ export default function Sidebar({ navOpen, onClose }) {
           overflowY:     'auto',
           overflowX:     'hidden',
         }}>
-          {NAV.map(({ to, icon: Icon, label }) => (
+          {NAV.filter(item => !item.superAdmin || user?.role === 'Super Admin').map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

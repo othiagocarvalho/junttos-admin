@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import { DataProvider } from './context/DataContext'
 import { ClientAuthProvider, ClientPrivateRoute } from './context/ClientAuthContext'
 import PrivateRoute from './components/PrivateRoute'
+import SuperAdminRoute from './components/SuperAdminRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import LoginCliente from './pages/LoginCliente'
@@ -70,7 +71,7 @@ function AdminApp() {
             <Route path="/arquitetura" element={<ProtectedLayout><ArquiteturaPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
             <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
-            <Route path="/clientes" element={<ProtectedLayout><CadastroCliente /></ProtectedLayout>} />
+            <Route path="/clientes" element={<ProtectedLayout><SuperAdminRoute><CadastroCliente /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/cobrancas" element={<ProtectedLayout><Cobrancas /></ProtectedLayout>} />
             <Route path="/simulador" element={<ProtectedLayout><SimuladorPlano /></ProtectedLayout>} />
             <Route path="*" element={<Navigate to="/" replace />} />
