@@ -423,16 +423,21 @@ function FluxoCaixaPane({ lojaId, vendas, crediarios, theme }) {
 function DREPane({ lojaId, vendas, theme }) {
   const [periodo, setPeriodo] = useState(mesAtualRange())
   const [contasPagar, setContasPagar] = useState([])
+  const [contasReceber, setContasReceber] = useState([])
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('lf_contas_pagar').select('categoria, valor, status, data_pagamento').eq('loja_id', lojaId)
-      setContasPagar(data || [])
+      const [{ data: cp }, { data: cr }] = await Promise.all([
+        supabase.from('lf_contas_pagar').select('categoria, valor, status, data_pagamento').eq('loja_id', lojaId),
+        supabase.from('lf_contas_receber').select('valor, status, data_recebimento, origem').eq('loja_id', lojaId),
+      ])
+      setContasPagar(cp || [])
+      setContasReceber(cr || [])
     }
     load()
   }, [lojaId])
 
-  const dre = calcularDRE(vendas, contasPagar, periodo.inicio, periodo.fim)
+  const dre = calcularDRE(vendas, contasPagar, contasReceber, periodo.inicio, periodo.fim)
   const positivo = dre.resultadoLiquido >= 0
 
   return (
@@ -450,10 +455,19 @@ function DREPane({ lojaId, vendas, theme }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'var(--status-ok-bg)', border: '1px solid color-mix(in srgb, var(--status-ok-tx) 30%, transparent)', borderRadius: 'var(--r-card)', padding: '22px 24px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--status-ok-tx)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Receita Bruta</p>
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700, color: 'var(--status-ok-tx)', lineHeight: 1 }}>{fmtR(dre.receitaBruta)}</p>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--status-ok-tx)', marginTop: 6, opacity: 0.8 }}>Soma das vendas no período</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: 'var(--status-ok-bg)', border: '1px solid color-mix(in srgb, var(--status-ok-tx) 30%, transparent)', borderRadius: 'var(--r-card)', padding: '22px 24px' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--status-ok-tx)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Receita de Vendas</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700, color: 'var(--status-ok-tx)', lineHeight: 1 }}>{fmtR(dre.receitaBruta)}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--status-ok-tx)', marginTop: 6, opacity: 0.8 }}>Soma das vendas no período</p>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid color-mix(in srgb, var(--status-ok-tx) 20%, transparent)', borderRadius: 'var(--r-card)', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 4 }}>Outras Receitas</p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>Contas a receber manuais recebidas</p>
+            </div>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: dre.outrasReceitas > 0 ? 'var(--status-ok-tx)' : 'var(--muted)' }}>{fmtR(dre.outrasReceitas)}</p>
+          </div>
         </div>
         <HeroCard tone="dark" style={{ padding: '22px 24px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>Resultado Líquido</p>
