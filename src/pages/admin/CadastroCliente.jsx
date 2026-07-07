@@ -11,10 +11,13 @@ import { T } from '../../theme/tokens'
 
 const PROD_BASE = 'https://junttos-admin.vercel.app'
 
+// Default features for all new lojas — legado and catalogo_b2b always false on creation
 const DEFAULT_FEATURES = {
   vendas: true, historico: true, metas: true,
   fechamento_caixa: true, relatorios: true,
   clientes: false, estoque: false,
+  legado: false,
+  catalogo_b2b: false,
 }
 
 const PLANOS_VALORES = {
@@ -23,21 +26,18 @@ const PLANOS_VALORES = {
   business: { label: 'Business', valor: 259.90 },
 }
 
+// Allows a-z, 0-9 and hyphens; collapses spaces to hyphens; strips leading/trailing hyphens
 function toSlug(s) {
   return s.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '').trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
-const SLUG_RE = /^[a-z0-9]{3,32}$/
-
-async function buscarLojaComSlug(slug) {
-  const { data } = await supabase
-    .from('lf_config')
-    .select('nome')
-    .or(`loja_id.eq.${slug},slug.eq.${slug}`)
-    .maybeSingle()
-  return data
+function isValidSlug(s) {
+  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(s) && s.length >= 2 && s.length <= 40
 }
 
 function rgbToHex([r, g, b]) {
@@ -147,65 +147,61 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
   async function handleSave(e) {
     e.preventDefault()
-    const slug = form.slug.trim()
-    if (!form.nome.trim() || !slug) { setError('Nome e slug são obrigatórios.'); return }
-    if (!SLUG_RE.test(slug)) {
-      setError('Slug inválido — use de 3 a 32 letras minúsculas e números, sem espaços ou símbolos.')
+
+    // Basic validation
+    if (!form.nome.trim() || !form.slug.trim()) { setError('Nome e slug são obrigatórios.'); return }
+    if (!isValidSlug(form.slug)) {
+      setError('Slug inválido. Use apenas letras minúsculas, números e hífens (2–40 caracteres, não pode começar ou terminar com hífen).')
       return
     }
+
     setSaving(true); setError(''); setSuccessLink('')
     try {
-      const lojaExistente = await buscarLojaComSlug(slug)
-      if (lojaExistente) {
-        throw new Error(`Esse slug já está em uso pela loja "${lojaExistente.nome}". Escolha outro.`)
-      }
+      // Check slug uniqueness before touching anything
+      const { data: existing } = await supabase
+        .from('lf_config')
+        .select('nome')
+        .or(`loja_id.eq.${form.slug},slug.eq.${form.slug}`)
+        .maybeSingle()
+      if (existing) throw new Error(`O slug "${form.slug}" já está em uso pela loja "${existing.nome}".`)
 
       let logoUrl = null
-      if (form.logoFile) logoUrl = await uploadLogo(slug, form.logoFile)
+      if (form.logoFile) logoUrl = await uploadLogo(form.slug, form.logoFile)
 
       const features = {
         ...DEFAULT_FEATURES,
-        catalogo_b2b: false,
-        legado: false,
         atacado: form.features.atacado,
         crm: form.features.crm,
       }
 
-      const payload = {
+      // Insert only valid lf_config columns (no valor_mensal, email_acesso, senha_acesso)
+      const { error: cfgErr } = await supabase.from('lf_config').insert({
         loja_id:        form.slug,
         slug:           form.slug,
         nome:           form.nome,
         status:         form.status,
         plano:          form.plano,
-        valor_mensal:   parseFloat(form.valor_mensal) || 0,
         cor_primaria:   form.cor_primaria,
         cor_secundaria: form.cor_secundaria,
         features,
         logo_url:       logoUrl,
-        email_acesso:   form.email_acesso || null,
-        senha_acesso:   form.senha_acesso || null,
         updated_at:     new Date().toISOString(),
-      }
-
-      const { error: cfgErr } = await supabase.from('lf_config').upsert(payload, { onConflict: 'loja_id' })
+      })
       if (cfgErr) throw new Error(cfgErr.message)
 
+      // Create Auth user — rollback lf_config if this fails
       if (form.email_acesso && form.senha_acesso) {
-        const { data: fnData } = await supabase.functions.invoke('create-user', {
+        const { data: fnData, error: fnErr } = await supabase.functions.invoke('create-user', {
           body: { email: form.email_acesso, password: form.senha_acesso, loja_id: form.slug, nome: form.nome },
         })
-        if (fnData?.user?.id) {
-          await supabase.from('lf_usuarios').insert({
-            loja_id:       form.slug,
-            auth_user_id:  fnData.user.id,
-            email:         form.email_acesso,
-            nome:          form.nome,
-            ativo:         true,
-          })
+        const authError = fnErr?.message || fnData?.error
+        if (authError) {
+          await supabase.from('lf_config').delete().eq('loja_id', form.slug)
+          throw new Error(`Erro ao criar usuário: ${authError} — config da loja removida (rollback).`)
         }
       }
 
-      // Criar primeira cobrança
+      // Create first billing record
       const venc = new Date()
       venc.setDate(venc.getDate() + 30)
       await supabase.from('jt_cobrancas').insert({
@@ -214,14 +210,6 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         vencimento: venc.toISOString().split('T')[0],
         status:     'pendente',
       })
-
-      if (form.enviarBV) {
-        console.log('[Boas-vindas] Email seria enviado para:', {
-          nome: form.nome,
-          email: form.email_acesso,
-          link: `${PROD_BASE}/${form.slug}/`,
-        })
-      }
 
       setSuccessLink(`${PROD_BASE}/${form.slug}/`)
       onCreated()
@@ -244,7 +232,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px 0' }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 2 }}>Novo Cliente</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 2 }}>Nova Loja</h2>
             <p style={{ fontSize: 13, color: T.muted }}>Configure o painel da nova loja.</p>
           </div>
           <button onClick={handleClose} style={{ background: T.mist, border: 'none', borderRadius: T.rInput, width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -266,11 +254,16 @@ function NovoClienteModal({ open, onClose, onCreated }) {
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Slug — URL de acesso</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: T.muted, pointerEvents: 'none' }}>.../</span>
-              <input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: toSlug(e.target.value) }))} placeholder="mariastore" style={{ ...inp, paddingLeft: 38, fontFamily: T.mono }} />
+              <input
+                value={form.slug}
+                onChange={e => setForm(p => ({ ...p, slug: toSlug(e.target.value) }))}
+                placeholder="maria-store"
+                style={{ ...inp, paddingLeft: 38, fontFamily: T.mono }}
+              />
             </div>
             {form.slug && (
-              <p style={{ fontSize: 11, color: T.purpleText, marginTop: 5, fontFamily: T.mono }}>
-                {PROD_BASE}/{form.slug}/
+              <p style={{ fontSize: 11, color: isValidSlug(form.slug) ? T.purpleText : T.coralText, marginTop: 5, fontFamily: T.mono }}>
+                {isValidSlug(form.slug) ? `${PROD_BASE}/${form.slug}/` : 'Slug inválido — use letras, números e hífens'}
               </p>
             )}
           </div>
@@ -374,6 +367,9 @@ function NovoClienteModal({ open, onClose, onCreated }) {
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Senha de acesso</label>
             <input type="text" value={form.senha_acesso} onChange={e => setForm(p => ({ ...p, senha_acesso: e.target.value }))} placeholder="Ex: loja@2026" style={inp} />
           </div>
+          <p style={{ fontSize: 11, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>
+            Opcional — se preenchido, cria o usuário Supabase Auth vinculado à loja. A senha pode ser alterada depois nas configurações da loja.
+          </p>
 
           {/* ── Funcionalidades ── */}
           <Section title="Funcionalidades" />
@@ -412,7 +408,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           <div style={{ marginTop: 20 }}>
             {successLink ? (
               <div style={{ background: T.statusAtivoBg, border: `1px solid ${T.statusAtivoTx}44`, borderRadius: T.rCard, padding: '16px 18px', marginBottom: 16 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: T.statusAtivoTx, marginBottom: 8 }}>Cliente criada com sucesso!</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: T.statusAtivoTx, marginBottom: 8 }}>Loja criada com sucesso!</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <code style={{ flex: 1, fontSize: 12, background: T.white, padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.statusAtivoTx}28`, color: T.ink, wordBreak: 'break-all', fontFamily: T.mono }}>
                     {successLink}
@@ -424,7 +420,10 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                     <ExternalLink size={13} />
                   </a>
                 </div>
-                <button type="button" onClick={handleClose} style={{ marginTop: 14, width: '100%', height: 42, borderRadius: T.rInput, border: 'none', background: T.mist, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.ink }}>
+                <button type="button" onClick={() => { reset(); onCreated() }} style={{ marginTop: 14, width: '100%', height: 42, borderRadius: T.rInput, border: 'none', background: T.tintPurple, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.purpleText }}>
+                  Criar outra loja
+                </button>
+                <button type="button" onClick={handleClose} style={{ marginTop: 8, width: '100%', height: 42, borderRadius: T.rInput, border: 'none', background: T.mist, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.ink }}>
                   Fechar
                 </button>
               </div>
@@ -439,7 +438,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                 boxShadow: saving || extracting ? 'none' : '0 4px 16px rgba(255,111,94,0.32)',
                 transition: 'all .18s',
               }}>
-                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</> : <><Check size={16} /> Criar Cliente</>}
+                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</> : <><Check size={16} /> Criar Loja</>}
               </button>
             )}
           </div>
@@ -452,10 +451,10 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
 // ── Main Page ────────────────────────────────────────────────────
 export default function CadastroCliente() {
-  const [clientes, setClientes]   = useState([])
-  const [fetching, setFetching]   = useState(true)
+  const [clientes, setClientes]     = useState([])
+  const [fetching, setFetching]     = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [modalOpen, setModalOpen] = useState(false)
+  const [modalOpen, setModalOpen]   = useState(false)
 
   const fetchClientes = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -472,7 +471,7 @@ export default function CadastroCliente() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>Clientes</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>Lojas</h1>
           <p style={{ fontSize: 13.5, color: T.muted }}>Painéis de loja cadastrados na plataforma Junttos.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -484,7 +483,7 @@ export default function CadastroCliente() {
           <button onClick={() => setModalOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 20px', borderRadius: T.rPill, background: T.purple, color: T.white, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, boxShadow: '0 4px 16px rgba(94,43,208,0.28)', transition: 'background .18s' }}
             onMouseEnter={e => { e.currentTarget.style.background = T.purpleDeep }}
             onMouseLeave={e => { e.currentTarget.style.background = T.purple }}>
-            <Plus size={16} /> Novo Cliente
+            <Plus size={16} /> Nova Loja
           </button>
         </div>
       </div>
@@ -493,29 +492,29 @@ export default function CadastroCliente() {
       {fetching ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: T.muted, fontSize: 14, padding: 24 }}>
           <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-          Carregando clientes...
+          Carregando lojas...
         </div>
       ) : fetchError ? (
         <div style={{ background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rCard, padding: '20px 24px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <AlertCircle size={16} color={T.coralText} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: T.coralText, marginBottom: 4 }}>Erro ao carregar clientes</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: T.coralText, marginBottom: 4 }}>Erro ao carregar lojas</p>
             <p style={{ fontSize: 12, color: T.coralText, lineHeight: 1.6 }}>{fetchError}</p>
           </div>
         </div>
       ) : clientes.length === 0 ? (
         <div style={{ background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard, boxShadow: T.cardShadow }}>
           <EmptyState
-            title="Nenhum cliente cadastrado"
+            title="Nenhuma loja cadastrada"
             description="Comece criando o primeiro painel de loja."
-            action="Novo Cliente"
+            action="Nova Loja"
             onAction={() => setModalOpen(true)}
           />
         </div>
       ) : (
         <>
           <p style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>
-            {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'}
+            {clientes.length} {clientes.length === 1 ? 'loja' : 'lojas'}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
             {clientes.map(c => {

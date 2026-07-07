@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "validar:financeiro": "node scripts/validar-financeiro.mjs"
+    "validar:financeiro": "node scripts/validar-financeiro.mjs",
+    "validar:cadastro": "node scripts/validar-cadastro-loja.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

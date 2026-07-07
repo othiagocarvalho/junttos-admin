@@ -3,5 +3,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function SuperAdminRoute({ children }) {
   const { user } = useAuth()
-  return user?.role === 'Super Admin' ? children : <Navigate to="/dashboard" replace />
+  if (!user) return <Navigate to="/" replace />
+  if (user.role !== 'Super Admin') return <Navigate to="/dashboard" replace />
+  return children
 }
