@@ -488,16 +488,21 @@ function FluxoCaixaTab({ lojaId, vendas, crediarios, theme }) {
 function DRETab({ lojaId, vendas, theme }) {
   const [periodo, setPeriodo] = useState(mesAtualRange())
   const [contasPagar, setContasPagar] = useState([])
+  const [contasReceber, setContasReceber] = useState([])
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('lf_contas_pagar').select('categoria, valor, status, data_pagamento').eq('loja_id', lojaId)
-      setContasPagar(data || [])
+      const [{ data: cp }, { data: cr }] = await Promise.all([
+        supabase.from('lf_contas_pagar').select('categoria, valor, status, data_pagamento').eq('loja_id', lojaId),
+        supabase.from('lf_contas_receber').select('valor, status, data_recebimento, origem').eq('loja_id', lojaId),
+      ])
+      setContasPagar(cp || [])
+      setContasReceber(cr || [])
     }
     load()
   }, [lojaId])
 
-  const dre = calcularDRE(vendas, contasPagar, periodo.inicio, periodo.fim)
+  const dre = calcularDRE(vendas, contasPagar, contasReceber, periodo.inicio, periodo.fim)
   const positivo = dre.resultadoLiquido >= 0
 
   return (
@@ -524,9 +529,18 @@ function DRETab({ lojaId, vendas, theme }) {
 
       {/* Receita bruta */}
       <div style={{ background: 'var(--status-ok-bg)', border: '1px solid color-mix(in srgb, var(--status-ok-tx) 30%, transparent)', borderRadius: 'var(--r-card)', padding: '14px 12px' }}>
-        <p style={{ ...labelStyle, color: 'var(--status-ok-tx)', marginBottom: 6 }}>Receita Bruta</p>
+        <p style={{ ...labelStyle, color: 'var(--status-ok-tx)', marginBottom: 6 }}>Receita de Vendas</p>
         <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--status-ok-tx)' }}>{fmtR(dre.receitaBruta)}</p>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--status-ok-tx)', marginTop: 2, opacity: 0.8 }}>Vendas no período</p>
+      </div>
+
+      {/* Outras Receitas */}
+      <div style={{ background: 'var(--surface)', border: '1px solid color-mix(in srgb, var(--status-ok-tx) 20%, transparent)', borderRadius: 'var(--r-card)', padding: '14px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <p style={{ ...labelStyle, marginBottom: 4 }}>Outras Receitas</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)' }}>Contas a receber manuais recebidas</p>
+        </div>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: dre.outrasReceitas > 0 ? 'var(--status-ok-tx)' : 'var(--muted)' }}>{fmtR(dre.outrasReceitas)}</p>
       </div>
 
       {/* Total despesas + despesas por categoria */}

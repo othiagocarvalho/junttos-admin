@@ -17,6 +17,7 @@ export function mesclarContasReceber(contasManual, crediarios) {
 
   const derivadas = []
   ;(crediarios || []).forEach(cr => {
+    if (cr.status === 'quitado') return
     const totalParcelas = Number(cr.parcelas) || 1
     const pagas = Number(cr.parcelas_pagas) || 0
     const valorParcela = Number(cr.valor_parcela) || 0
@@ -92,13 +93,24 @@ export function calcularFluxoCaixa(vendas, contasPagar, contasReceber, dataInici
     })
 }
 
-export function calcularDRE(vendas, contasPagar, dataInicio, dataFim) {
+export function calcularDRE(vendas, contasPagar, contasReceber, dataInicio, dataFim) {
   const receitaBruta = vendas
     .filter(v => {
       const d = new Date(v.data).toISOString().slice(0, 10)
       return d >= dataInicio && d <= dataFim
     })
     .reduce((s, v) => s + Number(v.valor || 0), 0)
+
+  // Outras receitas: contas a receber manuais (não-crediário) recebidas no período
+  const outrasReceitas = (contasReceber || [])
+    .filter(c =>
+      c.origem !== 'crediario' &&
+      c._origem !== 'crediario' &&
+      c.status === 'recebido' &&
+      c.data_recebimento >= dataInicio &&
+      c.data_recebimento <= dataFim
+    )
+    .reduce((s, c) => s + Number(c.valor || 0), 0)
 
   const despesas = contasPagar.filter(c =>
     c.status === 'pago' &&
@@ -108,10 +120,11 @@ export function calcularDRE(vendas, contasPagar, dataInicio, dataFim) {
 
   const despesasPorCategoria = agruparPorCategoria(despesas)
   const totalDespesas = despesas.reduce((s, c) => s + Number(c.valor || 0), 0)
-  const resultadoLiquido = receitaBruta - totalDespesas
-  const margemPercentual = receitaBruta > 0 ? (resultadoLiquido / receitaBruta) * 100 : 0
+  const totalReceitas = receitaBruta + outrasReceitas
+  const resultadoLiquido = totalReceitas - totalDespesas
+  const margemPercentual = totalReceitas > 0 ? (resultadoLiquido / totalReceitas) * 100 : 0
 
-  return { receitaBruta, despesasPorCategoria, totalDespesas, resultadoLiquido, margemPercentual }
+  return { receitaBruta, outrasReceitas, despesasPorCategoria, totalDespesas, resultadoLiquido, margemPercentual }
 }
 
 export function mesAtualRange() {
