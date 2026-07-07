@@ -41,7 +41,7 @@ const BOTTOM_TABS = [
 
 const MAIS_ITEMS = [
   { id: 'relatorios',   label: 'Relatórios',       Icon: BarChart2, planoMinimo: null      },
-  { id: 'financeiro',   label: 'Financeiro',       Icon: CreditCard, planoMinimo: 'business' },
+  { id: 'financeiro',   label: 'Financeiro',       Icon: CreditCard, planoMinimo: 'business', semLegado: true },
   { id: 'clientes',     label: 'Clientes',         Icon: Users,     planoMinimo: 'starter'  },
   { id: 'fornecedores', label: 'Fornecedores',     Icon: Truck,     planoMinimo: null      },
   { id: 'meta',         label: 'Metas',            Icon: Target,    planoMinimo: 'pro'      },
@@ -489,8 +489,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     fornecedores: <Fornecedores {...data} theme={theme} lojaId={lojaId} />,
     mais: (
       <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
-          const unlocked = !planoMinimo || legado || temAcesso(plano, planoMinimo)
+        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo, semLegado }) => {
+          const unlocked = !planoMinimo || (legado && !semLegado) || temAcesso(plano, planoMinimo)
           return (
             <button
               key={id}
