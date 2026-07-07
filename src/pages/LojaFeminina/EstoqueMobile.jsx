@@ -427,6 +427,24 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     <Plus size={13} /> Adicionar variação
                   </button>
 
+                  {features?.catalogo_b2b && (
+                    <div style={{ marginTop: 14 }}>
+                      <button
+                        onClick={() => updateProduto(produto.id, { disponivel_catalogo_b2b: !produto.disponivel_catalogo_b2b })}
+                        style={{
+                          width: '100%', height: 36, borderRadius: 10,
+                          border: `1px solid ${produto.disponivel_catalogo_b2b ? theme.primary : 'var(--line)'}`,
+                          background: produto.disponivel_catalogo_b2b ? `${theme.primary}14` : 'var(--bg)',
+                          cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                          fontSize: 12, fontWeight: 700,
+                          color: produto.disponivel_catalogo_b2b ? theme.primary : 'var(--muted)',
+                        }}
+                      >
+                        {produto.disponivel_catalogo_b2b ? '✓ Disponível no Catálogo B2B' : 'Catálogo B2B: desativado'}
+                      </button>
+                    </div>
+                  )}
+
                   <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                     <button
                       onClick={() => setDeleteConfirm({ produto })}

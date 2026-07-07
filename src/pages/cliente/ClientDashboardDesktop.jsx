@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
@@ -8,6 +8,7 @@ import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
+import { calcularTotalVenda } from '../../utils/venda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
@@ -596,13 +597,27 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [saving,     setSaving]     = useState(false)
   const [varModal,   setVarModal]   = useState(null)
 
+  useEffect(() => {
+    const total = calcularTotalVenda(form.produtos, produtosData)
+    const valStr = form.produtos.length === 0 ? '' : total.toFixed(2).replace('.', ',')
+    setForm(prev => ({
+      ...prev,
+      valor: valStr,
+      pagamentos: prev.pagamentos.length === 1
+        ? [{ ...prev.pagamentos[0], valor: valStr }]
+        : prev.pagamentos,
+    }))
+  // produtosData excluído intencionalmente — não muda no meio de uma venda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.produtos])
+
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
   }
   function toggleProd(nome) {
-    const exists = form.produtos.find(p => p.nome === nome)
-    setForm({ ...form, produtos: exists ? form.produtos.filter(p => p.nome !== nome) : [...form.produtos, { nome, obs: '' }] })
+    const exists = form.produtos.find(p => p.nome === nome && !p.variacao)
+    setForm({ ...form, produtos: exists ? form.produtos.filter(p => !(p.nome === nome && !p.variacao)) : [...form.produtos, { nome, obs: '', quantidade: 1 }] })
   }
   function setProdObs(nome, obs) {
     setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, obs } : p) })
@@ -828,7 +843,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             }).filter(Boolean)
             const hasVars = vars.length > 0
             const selItems = form.produtos.filter(p => p.nome === nome)
-            const selCount = selItems.length
+            const selCount = selItems.reduce((s, p) => s + (p.quantidade || 1), 0)
             const isOpen = varModal === nome
             return (
               <div key={nome} style={{ marginBottom: 6 }}>
@@ -864,13 +879,39 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     <span style={{ fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {selCount > 0 && (
+                    {!hasVars && selCount > 0 ? (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        borderRadius: 8, overflow: 'hidden', userSelect: 'none',
+                        border: `1.5px solid ${theme.primary}`, background: theme.primary,
+                      }}>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (selCount <= 1) {
+                              setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && !p.variacao)) }))
+                            } else {
+                              setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
+                            }
+                          }}
+                          style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                        >−</button>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation()
+                            setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
+                          }}
+                          style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                        >+</button>
+                      </div>
+                    ) : hasVars && selCount > 0 ? (
                       <span style={{
                         fontSize: 11, padding: '2px 7px', borderRadius: 99,
                         background: isDark ? '#D4A01730' : `${theme.primary}20`,
                         color: isDark ? '#D4A017' : theme.primary, fontWeight: 700,
                       }}>{selCount}×</span>
-                    )}
+                    ) : null}
                     {hasVars && (
                       <ChevronDown size={14} color={isDark ? '#D4A017' : '#9C8580'}
                         style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
@@ -892,33 +933,56 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {vars.map(({ label, qty }, idx) => {
                         const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
+                        const selQty = isSel ? (form.produtos.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
                         const esgotado = qty === 0 && !isSel
+                        if (isSel) {
+                          return (
+                            <div key={idx} style={{
+                              display: 'inline-flex', alignItems: 'center',
+                              borderRadius: 8, overflow: 'hidden', userSelect: 'none',
+                              border: `1.5px solid ${theme.primary}`, background: theme.primary,
+                              fontFamily: 'Plus Jakarta Sans, sans-serif',
+                            }}>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (selQty <= 1) {
+                                    setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                  } else {
+                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                  }
+                                }}
+                                style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
+                              >−</button>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>
+                                {label} · {selQty}{selQty >= qty ? `/${qty}` : ''}
+                              </span>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  if (selQty < qty) {
+                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                  }
+                                }}
+                                title={selQty >= qty ? `Apenas ${qty} em estoque` : undefined}
+                                style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: selQty >= qty ? 'not-allowed' : 'pointer', color: selQty >= qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
+                              >+</button>
+                            </div>
+                          )
+                        }
                         return (
                           <div key={idx} role="button" tabIndex={0}
-                            onClick={() => {
-                              if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
-                              else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
-                            }}
-                            onKeyDown={e => {
-                              if (e.key !== 'Enter') return
-                              if (isSel) setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
-                              else if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label }] }))
-                            }}
+                            onClick={() => { if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] })) }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] })) }}
                             style={{
                               display: 'inline-flex', alignItems: 'center',
                               padding: '5px 12px', borderRadius: 8,
                               cursor: esgotado ? 'not-allowed' : 'pointer',
                               fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
                               userSelect: 'none', opacity: esgotado ? 0.5 : 1,
-                              ...(isSel ? {
-                                border: '1.5px solid #D4A017',
-                                background: isDark ? '#D4A01720' : `${theme.primary}18`,
-                                color: isDark ? '#D4A017' : theme.primary,
-                              } : {
-                                border: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
-                                background: isDark ? '#1a1a1a' : '#FFFFFF',
-                                color: isDark ? '#D4A017' : '#1a1a1a',
-                              }),
+                              border: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
+                              background: isDark ? '#1a1a1a' : '#FFFFFF',
+                              color: isDark ? '#D4A017' : '#1a1a1a',
                             }}>
                             {label}
                             <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: isDark ? '#A07830' : '#9C8580' }}>
@@ -949,7 +1013,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {form.produtos.map((p, i) => (
                 <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, background: isDark ? '#1C1A14' : '#FFFFFF', border: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : '#EDE2DA'}`, color: isDark ? '#D4A017' : '#2A1F1F', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                  {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}
+                  {p.nome}{p.variacao ? ` — ${p.variacao}` : p.obs ? ` — ${p.obs}` : ''}{(p.quantidade || 1) > 1 ? ` ×${p.quantidade || 1}` : ''}
                 </span>
               ))}
             </div>
