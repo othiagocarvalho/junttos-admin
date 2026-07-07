@@ -25,6 +25,7 @@ import WelcomeOnboarding from './WelcomeOnboarding'
 import Clientes from './Clientes'
 import Crediario from './Crediario'
 import PedidosCatalogo from './PedidosCatalogo'
+import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
 import Fornecedores from './Fornecedores'
 
@@ -345,6 +346,59 @@ function BottomTabBar({ tab, setTab, primary }) {
   )
 }
 
+// ── Catálogo B2B como módulo dentro do dashboard completo ────
+
+function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
+  const [subTab, setSubTab] = useState('produtos')
+  const primary = theme.primary
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          { id: 'produtos', label: 'Produtos' },
+          { id: 'pedidos',  label: 'Pedidos'  },
+        ].map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
+            flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+            border: subTab === st.id ? 'none' : '1px solid var(--line)',
+            background: subTab === st.id ? primary : 'var(--surface)',
+            color: subTab === st.id ? '#fff' : 'var(--muted)',
+          }}>{st.label}</button>
+        ))}
+      </div>
+      {subTab === 'produtos'
+        ? nivel === 'pro'
+          ? <ProdutosB2BPro
+              produtosData={data.produtosData}
+              updateVariacoes={data.updateVariacoes}
+              addProduto={data.addProduto}
+              updateProduto={data.updateProduto}
+              fetchAll={data.fetchAll}
+              theme={theme}
+              LOJA_ID={lojaId}
+            />
+          : <EstoqueMobile
+              produtosData={data.produtosData}
+              updateVariacoes={data.updateVariacoes}
+              addProduto={data.addProduto}
+              updateProduto={data.updateProduto}
+              features={data.features}
+              theme={theme}
+              LOJA_ID={lojaId}
+              fetchAll={data.fetchAll}
+            />
+        : <PedidosCatalogo
+            pedidos={data.pedidos || []}
+            updatePedido={data.updatePedido}
+            theme={theme}
+            lojaId={lojaId}
+          />
+      }
+    </div>
+  )
+}
+
 // ── Main export ─────────────────────────────────────────────
 
 export default function LojaFeminina({ lojaId = 'estrada' }) {
@@ -385,7 +439,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   // Desktop mode — render before loading check so it handles its own loading
   if (!data.loading && !data.dbError && viewMode === 'desktop') {
     const catalogoB2BNivelDesktop = data?.config?.features?.catalogo_b2b
-    if (catalogoB2BNivelDesktop === 'simples' || catalogoB2BNivelDesktop === 'pro') {
+    if ((catalogoB2BNivelDesktop === 'simples' || catalogoB2BNivelDesktop === 'pro') && data?.config?.features?.apenas_catalogo_b2b === true) {
       return (
         <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', ...themeVars }}>
           <CatalogoB2BAdminDesktop
@@ -440,9 +494,9 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     )
   }
 
-  // Catálogo B2B — admin reduzido mobile (viewMode já é 'mobile' aqui)
+  // Catálogo B2B — admin reduzido mobile (apenas para lojas SÓ-catálogo, sem o sistema completo)
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
-  if (catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') {
+  if ((catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') && data?.config?.features?.apenas_catalogo_b2b === true) {
     return (
       <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
         <CatalogoB2BAdmin
@@ -482,6 +536,9 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
+    catalogo_b2b: catalogoB2BNivel
+      ? <CatalogoB2BModulo data={data} theme={theme} lojaId={lojaId} nivel={catalogoB2BNivel} />
+      : null,
     financeiro: temAcesso(plano, 'business')
       ? <Financeiro lojaId={lojaId} vendas={data.vendas} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -532,6 +589,28 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             }}
           >Contas a Pagar</button>
         )}
+        {catalogoB2BNivel && (
+          <button
+            onClick={() => setTab('catalogo_b2b')}
+            style={{
+              width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
+              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
+              cursor: 'pointer', minHeight: 44,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 12, color: 'var(--ink)',
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+              background: 'color-mix(in srgb, var(--primary) 12%, white)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ShoppingBag size={17} color="var(--primary)" strokeWidth={2} />
+            </div>
+            <span style={{ flex: 1 }}>Catálogo B2B</span>
+            <ChevronRight size={16} color="var(--muted)" />
+          </button>
+        )}
       </div>
     ),
     faturamento:   <Faturamento {...data} theme={theme} />,
@@ -541,7 +620,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta', 'fornecedores'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta', 'fornecedores', 'catalogo_b2b'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

@@ -21,6 +21,7 @@ import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 import Clientes from '../LojaFeminina/Clientes'
 import Crediario from '../LojaFeminina/Crediario'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
+import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
 import Fornecedores from '../LojaFeminina/Fornecedores'
 
@@ -199,6 +200,16 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
+        {config?.features?.catalogo_b2b && (
+          <button
+            onClick={() => setTab('catalogo_b2b')}
+            className={tab === 'catalogo_b2b' ? '' : 'cds-nav-btn'}
+            style={navItemStyle(tab === 'catalogo_b2b')}
+          >
+            <ShoppingBag size={16} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Catálogo B2B</span>
+          </button>
+        )}
         <button
           onClick={() => setTab('config')}
           className={tab === 'config' ? '' : 'cds-nav-btn'}
@@ -965,12 +976,65 @@ function DesktopRelatorios({ data, theme, temAcessoPro }) {
   )
 }
 
+// ── Catálogo B2B como módulo dentro do dashboard completo ─────
+function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
+  const [subTab, setSubTab] = useState('produtos')
+  const primary = theme.primary
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        {[
+          { id: 'produtos', label: 'Produtos' },
+          { id: 'pedidos',  label: 'Pedidos'  },
+        ].map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)} style={{
+            padding: '10px 24px', borderRadius: 12, cursor: 'pointer',
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+            border: subTab === st.id ? 'none' : '1px solid var(--line)',
+            background: subTab === st.id ? primary : 'var(--surface)',
+            color: subTab === st.id ? '#fff' : 'var(--muted)',
+            boxShadow: subTab === st.id ? `0 2px 8px ${primary}30` : 'none',
+          }}>{st.label}</button>
+        ))}
+      </div>
+      {subTab === 'produtos'
+        ? nivel === 'pro'
+          ? <ProdutosB2BPro
+              produtosData={data.produtosData}
+              updateVariacoes={data.updateVariacoes}
+              addProduto={data.addProduto}
+              updateProduto={data.updateProduto}
+              fetchAll={data.fetchAll}
+              theme={theme}
+              LOJA_ID={lojaId}
+            />
+          : <EstoqueMobile
+              produtosData={data.produtosData}
+              updateVariacoes={data.updateVariacoes}
+              addProduto={data.addProduto}
+              updateProduto={data.updateProduto}
+              features={data.features}
+              theme={theme}
+              LOJA_ID={lojaId}
+              fetchAll={data.fetchAll}
+            />
+        : <PedidosCatalogo
+            pedidos={data.pedidos || []}
+            updatePedido={data.updatePedido}
+            theme={theme}
+            lojaId={lojaId}
+          />
+      }
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
 
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
-  if (catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') {
+  if ((catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') && data?.config?.features?.apenas_catalogo_b2b === true) {
     return (
       <CatalogoB2BAdminDesktop
         data={data}
@@ -1031,6 +1095,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     config:       <LojaConfig       {...data} theme={theme} />,
     contas_pagar: data.features?.atacado
       ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
+      : null,
+    catalogo_b2b: catalogoB2BNivel
+      ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
       : null,
   }
 
