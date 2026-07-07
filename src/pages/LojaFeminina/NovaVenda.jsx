@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
+import { calcularTotalVenda } from '../../utils/venda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
@@ -48,6 +49,20 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [done, setDone] = useState(false)
   const [saving, setSaving] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
+
+  useEffect(() => {
+    const total = calcularTotalVenda(form.produtos, produtosData)
+    const valStr = form.produtos.length === 0 ? '' : total.toFixed(2).replace('.', ',')
+    setForm(prev => ({
+      ...prev,
+      valor: valStr,
+      pagamentos: prev.pagamentos.length === 1
+        ? [{ ...prev.pagamentos[0], valor: valStr }]
+        : prev.pagamentos,
+    }))
+  // produtosData excluído intencionalmente — não muda no meio de uma venda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.produtos])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -343,7 +358,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                               }}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
                             >−</button>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>
+                              {selCount}{selCount >= vars[0].qty ? `/${vars[0].qty}` : ''}×
+                            </span>
                             <button
                               onClick={e => {
                                 e.stopPropagation()
@@ -351,6 +368,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                   setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade + 1 } : p) }))
                                 }
                               }}
+                              title={selCount >= vars[0].qty ? `Apenas ${vars[0].qty} em estoque` : undefined}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: selCount >= vars[0].qty ? 'not-allowed' : 'pointer', color: selCount >= vars[0].qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
                             >+</button>
                           </div>
@@ -430,7 +448,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                     }}
                                     style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
                                   >−</button>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>
+                                    {label} · {selQty}{selQty >= qty ? `/${qty}` : ''}
+                                  </span>
                                   <button
                                     onClick={e => {
                                       e.stopPropagation()
@@ -438,6 +458,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                         setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
                                       }
                                     }}
+                                    title={selQty >= qty ? `Apenas ${qty} em estoque` : undefined}
                                     style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: selQty >= qty ? 'not-allowed' : 'pointer', color: selQty >= qty ? 'rgba(255,255,255,0.45)' : '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
                                   >+</button>
                                 </div>

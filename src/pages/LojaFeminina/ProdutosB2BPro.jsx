@@ -216,13 +216,14 @@ export default function ProdutosB2BPro({
 
   const [uploadingVideo, setUploadingVideo] = useState(false)
 
-  const filtered = produtosData.filter(p =>
+  const b2bProdutos = produtosData.filter(p => p.disponivel_catalogo_b2b === true)
+  const filtered = b2bProdutos.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalPecas = produtosData.reduce((s, p) =>
+  const totalPecas = b2bProdutos.reduce((s, p) =>
     s + (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0), 0)
-  const totalVenda = produtosData.reduce((s, p) => {
+  const totalVenda = b2bProdutos.reduce((s, p) => {
     const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
     return s + qtd * Number(p.preco_venda || 0)
   }, 0)
@@ -277,6 +278,7 @@ export default function ProdutosB2BPro({
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
       video_url: videoUrl,
+      disponivel_catalogo_b2b: true,
     })
     setNewSaving(false)
     if (!err) {

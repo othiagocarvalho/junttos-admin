@@ -565,7 +565,7 @@ export default function CatalogoPublico({ lojaId }) {
   useEffect(() => {
     async function load() {
       const { data: cfg } = await supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle()
-      const { data: prods } = await supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome')
+      const { data: prods } = await supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).eq('disponivel_catalogo_b2b', true).order('nome')
       setConfig(cfg)
       setProdutos(prods || [])
       setLoading(false)
