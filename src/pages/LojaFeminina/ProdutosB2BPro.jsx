@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video } from 'lucide-react'
+import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -181,6 +181,50 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
   )
 }
 
+// ── Seção de upload de fotos (múltiplas por produto) ─────────
+function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, theme }) {
+  const MAX = 10 * 1024 * 1024
+  function pick(files) {
+    const validos = Array.from(files).filter(f => f.size <= MAX && f.type.startsWith('image/'))
+    if (!validos.length) return
+    onAddFiles(validos.map(f => ({ file: f, previewUrl: URL.createObjectURL(f) })))
+  }
+  const total = fotos.length + fotoFiles.length
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {total > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {fotos.map((url, i) => (
+            <div key={`u${i}`} style={{ position: 'relative' }}>
+              <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', display: 'block' }} />
+              <button onClick={() => onRemoveUrl(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+          {fotoFiles.map(({ previewUrl }, i) => (
+            <div key={`f${i}`} style={{ position: 'relative' }}>
+              <img src={previewUrl} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: `1.5px solid ${theme.primary}`, display: 'block' }} />
+              <button onClick={() => onRemoveFile(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <label style={{ display: 'block', cursor: 'pointer' }}>
+        <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => pick(e.target.files)} />
+        <div style={{ border: '1.5px dashed var(--line)', borderRadius: 'var(--r-input)', padding: '14px 16px', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <Image size={18} color="var(--muted)" />
+          <div>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+              {total > 0 ? 'Adicionar mais fotos' : 'Selecionar fotos'}
+            </p>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--muted)' }}>JPG, PNG, WebP · Máx. 10MB cada</p>
+          </div>
+        </div>
+      </label>
+      {uploading && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary }}>Enviando fotos...</p>}
+    </div>
+  )
+}
+
 // ── Main export ───────────────────────────────────────────────
 export default function ProdutosB2BPro({
   produtosData = [],
@@ -216,6 +260,20 @@ export default function ProdutosB2BPro({
 
   const [uploadingVideo, setUploadingVideo] = useState(false)
 
+  // Fotos — novo produto
+  const [newFotoFiles, setNewFotoFiles]   = useState([])
+  // Fotos — editar produto
+  const [editFotos, setEditFotos]         = useState([])
+  const [editFotoFiles, setEditFotoFiles] = useState([])
+
+  const [uploadingFotos, setUploadingFotos] = useState(false)
+
+  // Lote
+  const [loteOpen, setLoteOpen]     = useState(false)
+  const [loteItems, setLoteItems]   = useState([])
+  const [loteSaving, setLoteSaving] = useState(false)
+  const [loteError, setLoteError]   = useState('')
+
   const b2bProdutos = produtosData.filter(p => p.disponivel_catalogo_b2b === true)
   const filtered = b2bProdutos.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
@@ -244,12 +302,25 @@ export default function ProdutosB2BPro({
     return publicUrl
   }
 
+  async function uploadFoto(file, prefix) {
+    const ext = file.name.split('.').pop().toLowerCase()
+    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
+    const { error } = await supabase.storage
+      .from('produtos-fotos')
+      .upload(path, file, { upsert: true, contentType: file.type })
+    if (error) throw new Error(error.message)
+    const { data: { publicUrl } } = supabase.storage.from('produtos-fotos').getPublicUrl(path)
+    return publicUrl
+  }
+
   function openEdit(produto) {
     setEditGrade(variacaoesToGrade(produto.variacoes))
     setEditVideoUrl(produto.video_url || '')
     setEditVideoFile(null)
     setEditVideoPreview(null)
     setEditVideoError('')
+    setEditFotos(produto.fotos || [])
+    setEditFotoFiles([])
     setEditModal({ produto })
   }
 
@@ -273,11 +344,27 @@ export default function ProdutosB2BPro({
       setUploadingVideo(false)
     }
 
+    const fotoUrls = []
+    if (newFotoFiles.length > 0) {
+      setUploadingFotos(true)
+      try {
+        for (const { file } of newFotoFiles) {
+          fotoUrls.push(await uploadFoto(file, `prod_${Date.now()}`))
+        }
+      } catch (e) {
+        setNewSaving(false)
+        setUploadingFotos(false)
+        return
+      }
+      setUploadingFotos(false)
+    }
+
     const err = await addProduto(newProd.nome.trim(), {
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
       video_url: videoUrl,
+      fotos: fotoUrls,
       disponivel_catalogo_b2b: true,
     })
     setNewSaving(false)
@@ -287,6 +374,7 @@ export default function ProdutosB2BPro({
       setNewVideoFile(null)
       setNewVideoPreview(null)
       setNewVideoError('')
+      setNewFotoFiles([])
     }
   }
 
@@ -309,11 +397,31 @@ export default function ProdutosB2BPro({
       setUploadingVideo(false)
     }
 
+    let finalFotos = editFotos
+    if (editFotoFiles.length > 0) {
+      setUploadingFotos(true)
+      try {
+        const newUrls = []
+        for (const { file } of editFotoFiles) {
+          newUrls.push(await uploadFoto(file, editModal.produto.id))
+        }
+        finalFotos = [...finalFotos, ...newUrls]
+      } catch (e) {
+        setEditVideoError('Erro no upload de foto: ' + e.message)
+        setEditSaving(false)
+        setUploadingFotos(false)
+        return
+      }
+      setUploadingFotos(false)
+    }
+
     await updateProduto(editModal.produto.id, {
       variacoes,
       video_url: finalVideoUrl || null,
+      fotos: finalFotos,
     })
     setEditSaving(false)
+    setEditFotoFiles([])
     setEditModal(null)
   }
 
@@ -328,6 +436,33 @@ export default function ProdutosB2BPro({
     } else {
       setDeleting(false)
     }
+  }
+
+  async function handleLote() {
+    if (!loteItems.length || loteSaving) return
+    setLoteSaving(true)
+    setLoteError('')
+    try {
+      for (let i = 0; i < loteItems.length; i++) {
+        const item = loteItems[i]
+        setUploadingFotos(true)
+        const fotoUrl = await uploadFoto(item.file, `lote_${i}_${Date.now()}`)
+        setUploadingFotos(false)
+        await addProduto(item.nome.trim() || `Produto ${i + 1}`, {
+          precoVenda: parseFloat(item.precoVenda) || 0,
+          fotos: [fotoUrl],
+          disponivel_catalogo_b2b: true,
+          variacoes: [],
+        })
+      }
+      setLoteOpen(false)
+      setLoteItems([])
+      setLoteError('')
+    } catch (e) {
+      setUploadingFotos(false)
+      setLoteError('Erro: ' + e.message)
+    }
+    setLoteSaving(false)
   }
 
   const newCanSave = newProd.nome.trim() && !newSaving && buildVariacoes(newProd.grade).length > 0
@@ -384,7 +519,14 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewProdOpen(true) }}
+          onClick={() => { setLoteItems([]); setLoteError(''); setLoteOpen(true) }}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: `${theme.primary}18`, color: theme.primary, border: `1px solid ${theme.primary}40`, fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+        >
+          <Image size={14} /> Lote
+        </div>
+        <div
+          role="button" tabIndex={0}
+          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewProdOpen(true) }}
           onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewProdOpen(true))}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
@@ -413,6 +555,9 @@ export default function ProdutosB2BPro({
               onClick={() => setExpanded(p => ({ ...p, [produto.id]: !p[produto.id] }))}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
+              {produto.fotos?.[0] && (
+                <img src={produto.fotos[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)' }} />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                   <span style={{ fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
@@ -424,6 +569,16 @@ export default function ProdutosB2BPro({
                   {produto.video_url && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: 'var(--status-info-bg)', color: 'var(--status-info-tx)', border: '1px solid var(--status-info-dot)', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: 3 }}>
                       <Video size={9} /> vídeo
+                    </span>
+                  )}
+                  {variacoes.length === 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'var(--status-warn-bg)', color: 'var(--status-warn-tx)', border: '1px solid var(--status-warn-dot)', fontFamily: 'var(--font-ui)' }}>
+                      Sem grade
+                    </span>
+                  )}
+                  {produto.fotos?.length > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--line)', fontFamily: 'var(--font-ui)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Image size={9} /> {produto.fotos.length} foto{produto.fotos.length > 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
@@ -540,6 +695,20 @@ export default function ProdutosB2BPro({
                 />
               </div>
 
+              {/* Upload de fotos */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+                <label style={lbl}>Fotos do produto (opcional)</label>
+                <FotosSection
+                  fotos={[]}
+                  fotoFiles={newFotoFiles}
+                  onAddFiles={novos => setNewFotoFiles(p => [...p, ...novos])}
+                  onRemoveUrl={() => {}}
+                  onRemoveFile={i => setNewFotoFiles(p => p.filter((_, j) => j !== i))}
+                  uploading={uploadingFotos}
+                  theme={theme}
+                />
+              </div>
+
               {/* Upload de vídeo */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
                 <label style={lbl}>Vídeo do produto (opcional)</label>
@@ -574,7 +743,7 @@ export default function ProdutosB2BPro({
                   color: newCanSave ? '#fff' : 'var(--muted)', fontSize: 14,
                 }}
               >
-                {newSaving ? (uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar Produto'}
+                {newSaving ? (uploadingFotos ? 'Enviando fotos...' : uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar Produto'}
               </button>
             </div>
           </div>
@@ -599,6 +768,20 @@ export default function ProdutosB2BPro({
             </div>
 
             <GradeForm grade={editGrade} setGrade={setEditGrade} theme={theme} />
+
+            {/* Upload de fotos */}
+            <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
+              <label style={lbl}>Fotos do produto</label>
+              <FotosSection
+                fotos={editFotos}
+                fotoFiles={editFotoFiles}
+                onAddFiles={novos => setEditFotoFiles(p => [...p, ...novos])}
+                onRemoveUrl={i => setEditFotos(p => p.filter((_, j) => j !== i))}
+                onRemoveFile={i => setEditFotoFiles(p => p.filter((_, j) => j !== i))}
+                uploading={uploadingFotos}
+                theme={theme}
+              />
+            </div>
 
             {/* Upload de vídeo */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
@@ -633,9 +816,100 @@ export default function ProdutosB2BPro({
                   color: editSaving ? 'var(--muted)' : '#fff', fontSize: 14,
                 }}
               >
-                {editSaving ? (uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar'}
+                {editSaving ? (uploadingFotos ? 'Enviando fotos...' : uploadingVideo ? 'Enviando vídeo...' : 'Salvando...') : 'Salvar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal — Cadastro em Lote */}
+      {loteOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && !loteSaving && setLoteOpen(false)}
+        >
+          <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+              <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Cadastro em Lote</p>
+              <button onClick={() => !loteSaving && setLoteOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {loteItems.length === 0 ? (
+              <label style={{ display: 'block', cursor: 'pointer' }}>
+                <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => {
+                  const files = Array.from(e.target.files)
+                  if (!files.length) return
+                  setLoteItems(files.map((file, i) => ({ file, previewUrl: URL.createObjectURL(file), nome: '', precoVenda: '' })))
+                }} />
+                <div style={{ border: '2px dashed var(--line)', borderRadius: 'var(--r-input)', padding: '48px 24px', textAlign: 'center', background: 'var(--bg)' }}>
+                  <Image size={32} color="var(--muted)" style={{ margin: '0 auto 12px', display: 'block' }} />
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>Selecione as fotos</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>Cada foto vira um produto novo no catálogo</p>
+                </div>
+              </label>
+            ) : (
+              <>
+                <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+                  {loteItems.length} produto{loteItems.length > 1 ? 's' : ''} a criar. Edite os nomes e preços antes de salvar.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                  {loteItems.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '8px 10px', border: '1px solid var(--line)' }}>
+                      <img src={item.previewUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)' }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <input
+                          value={item.nome}
+                          onChange={e => setLoteItems(f => f.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))}
+                          placeholder={`Produto ${i + 1}`}
+                          style={{ ...inp, height: 36, fontSize: 13 }}
+                        />
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={item.precoVenda}
+                            onChange={e => setLoteItems(f => f.map((x, j) => j === i ? { ...x, precoVenda: e.target.value } : x))}
+                            placeholder="0,00"
+                            style={{ ...inp, height: 36, fontSize: 13, paddingLeft: 32 }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setLoteItems(f => f.filter((_, j) => j !== i))}
+                        style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--r-chip)', border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 16 }}>
+                  <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => {
+                    const novos = Array.from(e.target.files).map((file) => ({ file, previewUrl: URL.createObjectURL(file), nome: '', precoVenda: '' }))
+                    setLoteItems(f => [...f, ...novos])
+                  }} />
+                  <Plus size={13} /> Adicionar mais fotos
+                </label>
+
+                {loteError && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)', marginBottom: 10 }}>{loteError}</p>}
+                {uploadingFotos && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary, marginBottom: 10 }}>Enviando fotos...</p>}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => { setLoteItems([]); setLoteError('') }} disabled={loteSaving}
+                    style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
+                    Limpar
+                  </button>
+                  <button onClick={handleLote} disabled={loteSaving || loteItems.length === 0}
+                    style={{ flex: 2, height: 46, borderRadius: 'var(--r-input)', border: 'none', background: loteSaving ? 'var(--line)' : theme.primary, cursor: loteSaving ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 700, color: loteSaving ? 'var(--muted)' : '#fff', fontSize: 14 }}>
+                    {loteSaving ? 'Criando produtos...' : `Criar ${loteItems.length} produto${loteItems.length > 1 ? 's' : ''}`}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

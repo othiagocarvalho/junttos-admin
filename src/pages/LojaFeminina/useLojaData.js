@@ -284,6 +284,7 @@ export function useLojaData(lojaId = 'estrada') {
       data_vencimento: extras.data_vencimento || null,
       status_pgto:     extras.status_pgto    || null,
       video_url:       extras.video_url      || null,
+      fotos:           extras.fotos          || [],
       disponivel_catalogo_b2b: extras.disponivel_catalogo_b2b ?? false,
     })
     if (!error) await fetchAll()
