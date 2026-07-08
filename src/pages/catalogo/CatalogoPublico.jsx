@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 
@@ -56,6 +56,64 @@ function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
               }}
             />
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Carrossel de fotos (swipe touch + drag mouse, sem setas) ──
+function FotoCarousel({ fotos, alt, primary, iconSize = 36 }) {
+  const [idx, setIdx] = useState(0)
+  const startX = useRef(null)
+  const list = (fotos || []).filter(Boolean)
+  const multi = list.length > 1
+
+  function swipe(dir) {
+    setIdx(i => Math.max(0, Math.min(list.length - 1, i + dir)))
+  }
+  function onTouchStart(e) { startX.current = e.touches[0].clientX }
+  function onTouchEnd(e) {
+    if (startX.current === null) return
+    const dx = e.changedTouches[0].clientX - startX.current
+    if (Math.abs(dx) > 28) swipe(dx < 0 ? 1 : -1)
+    startX.current = null
+  }
+  function onMouseDown(e) { startX.current = e.clientX }
+  function onMouseUp(e) {
+    if (startX.current === null) return
+    const dx = e.clientX - startX.current
+    if (Math.abs(dx) > 28) swipe(dx < 0 ? 1 : -1)
+    startX.current = null
+  }
+
+  return (
+    <div
+      style={{ position: 'relative', width: '100%', aspectRatio: '4/5', overflow: 'hidden', background: primary + '12', cursor: multi ? 'grab' : 'default', userSelect: 'none' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+    >
+      {list.length > 0 ? (
+        <img src={list[idx]} alt={alt} draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+          <ShoppingBag size={iconSize} color={primary + '80'} />
+        </div>
+      )}
+      {multi && (
+        <div style={{ position: 'absolute', bottom: 7, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, pointerEvents: 'none' }}>
+          {list.map((_, i) => (
+            <div key={i} style={{
+              height: 5, borderRadius: 3,
+              width: i === idx ? 14 : 5,
+              background: i === idx ? '#fff' : 'rgba(255,255,255,0.55)',
+              transition: 'width 0.2s ease',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }} />
+          ))}
         </div>
       )}
     </div>
@@ -130,16 +188,10 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro, modoSimples }) {
             </div>
           </div>
         )}
-        <div style={{ background: primary + '12', height: 80, position: 'relative', overflow: 'hidden' }}>
-          {produto.fotos?.[0] ? (
-            <img src={produto.fotos[0]} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-              <ShoppingBag size={28} color={primary + '80'} />
-            </div>
-          )}
+        <div style={{ position: 'relative' }}>
+          <FotoCarousel fotos={produto.fotos} alt={produto.nome} primary={primary} iconSize={28} />
           {produto.video_url && (
-            <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 5, right: 5, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
+            <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, zIndex: 10 }}>
               <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
             </button>
           )}
@@ -221,16 +273,10 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro, modoSimples }) {
           </div>
         </div>
       )}
-      <div style={{ background: primary + '12', height: 110, position: 'relative', overflow: 'hidden' }}>
-        {produto.fotos?.[0] ? (
-          <img src={produto.fotos[0]} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <ShoppingBag size={36} color={primary + '80'} />
-          </div>
-        )}
+      <div style={{ position: 'relative' }}>
+        <FotoCarousel fotos={produto.fotos} alt={produto.nome} primary={primary} iconSize={36} />
         {produto.video_url && (
-          <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
+          <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700, zIndex: 10 }}>
             <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
           </button>
         )}

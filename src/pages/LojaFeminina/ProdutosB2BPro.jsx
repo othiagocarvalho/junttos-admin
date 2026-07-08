@@ -653,7 +653,7 @@ export default function ProdutosB2BPro({
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
               {produto.fotos?.[0] && (
-                <img src={produto.fotos[0]} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)' }} />
+                <img src={produto.fotos[0]} alt="" style={{ width: 48, height: 60, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)' }} />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
