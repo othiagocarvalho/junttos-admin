@@ -569,6 +569,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
         theme={theme}
         LOJA_ID={lojaId}
         fetchAll={data.fetchAll}
+        config={data.config}
       />
     ) : (
       <EstoqueMobile

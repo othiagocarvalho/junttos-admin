@@ -1071,6 +1071,7 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
               fetchAll={data.fetchAll}
               theme={theme}
               LOJA_ID={lojaId}
+              config={data.config}
             />
           : <EstoqueMobile
               produtosData={data.produtosData}
