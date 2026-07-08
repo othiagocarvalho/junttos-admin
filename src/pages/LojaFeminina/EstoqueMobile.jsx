@@ -54,18 +54,21 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [deleteError, setDeleteError] = useState(null)
   const [deleteToast, setDeleteToast] = useState('')
 
-  const filtered = produtosData.filter(p =>
+  // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro
+  const estoqueData = produtosData.filter(p => !p.disponivel_catalogo_b2b)
+
+  const filtered = estoqueData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalPecas = produtosData.reduce((s, p) =>
+  const totalPecas = estoqueData.reduce((s, p) =>
     s + (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0), 0
   )
-  const totalCusto = produtosData.reduce((s, p) => {
+  const totalCusto = estoqueData.reduce((s, p) => {
     const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
     return s + qtd * Number(p.preco_custo || 0)
   }, 0)
-  const totalVenda = produtosData.reduce((s, p) => {
+  const totalVenda = estoqueData.reduce((s, p) => {
     const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
     return s + qtd * Number(p.preco_venda || 0)
   }, 0)
@@ -248,7 +251,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       </div>
 
       {/* Lista */}
-      {produtosData.length === 0 ? (
+      {estoqueData.length === 0 ? (
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
           <EmptyState
             icon={Package}

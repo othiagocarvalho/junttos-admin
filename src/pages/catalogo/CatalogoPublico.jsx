@@ -127,8 +127,14 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
             </div>
           </div>
         )}
-        <div style={{ background: primary + '12', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <ShoppingBag size={28} color={primary + '80'} />
+        <div style={{ background: primary + '12', height: 80, position: 'relative', overflow: 'hidden' }}>
+          {produto.fotos?.[0] ? (
+            <img src={produto.fotos[0]} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <ShoppingBag size={28} color={primary + '80'} />
+            </div>
+          )}
           {produto.video_url && (
             <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 5, right: 5, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
               <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
@@ -212,8 +218,14 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
           </div>
         </div>
       )}
-      <div style={{ background: primary + '12', height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <ShoppingBag size={36} color={primary + '80'} />
+      <div style={{ background: primary + '12', height: 110, position: 'relative', overflow: 'hidden' }}>
+        {produto.fotos?.[0] ? (
+          <img src={produto.fotos[0]} alt={produto.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <ShoppingBag size={36} color={primary + '80'} />
+          </div>
+        )}
         {produto.video_url && (
           <button onClick={e => { e.stopPropagation(); setShowVideo(true) }} style={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 3, background: 'rgba(0,0,0,0.58)', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700 }}>
             <Play size={9} fill="#fff" strokeWidth={0} /> Vídeo
