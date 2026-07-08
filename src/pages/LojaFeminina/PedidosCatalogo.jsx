@@ -90,21 +90,14 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, loj
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Pedidos do catálogo</p>
       </div>
 
-      {/* Link copiável */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Link do catálogo</p>
-          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linkCatalogo}</p>
-        </div>
-        <Button
-          variant="secondary"
-          icon={copiado ? Check : Copy}
-          onClick={copiarLink}
-          style={{ flexShrink: 0, minHeight: 38, height: 38, padding: '0 14px', color: copiado ? 'var(--status-ok-tx)' : 'var(--ink)' }}
-        >
-          {copiado ? 'Copiado' : 'Copiar'}
-        </Button>
-      </div>
+      <Button
+        variant="secondary"
+        icon={copiado ? Check : Copy}
+        onClick={copiarLink}
+        style={{ alignSelf: 'flex-start', color: copiado ? 'var(--status-ok-tx)' : 'var(--ink)' }}
+      >
+        {copiado ? 'Copiado!' : 'Copiar link do catálogo'}
+      </Button>
 
       {/* Cards de resumo */}
       <StatGrid>
@@ -125,8 +118,6 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, loj
           icon={ShoppingBag}
           title="Nenhum pedido ainda"
           subtitle="Compartilhe o link do catálogo para receber pedidos com pagamento."
-          actionLabel="Copiar link do catálogo"
-          onAction={copiarLink}
         />
       ) : (
         <>
