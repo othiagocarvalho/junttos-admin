@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { detectarItensEsgotados } from '../../utils/catalogo'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -369,7 +370,8 @@ function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro, modoSimples 
 }
 
 // ── Etapa checkout ───────────────────────────────────────────
-function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando, erroConfirmar, hasMercadoPago, pedidoMinimo }) {
+function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalCarrinho, primary, salvando, erroConfirmar, hasMercadoPago, pedidoMinimo, itensEsgotados = [], onRemoverEsgotados }) {
+  const temEsgotados = itensEsgotados.length > 0
   // Progresso do pedido mínimo
   const totalQtd = carrinho.reduce((s, i) => s + i.qtd, 0)
   let minimoAtingido = true
@@ -448,18 +450,22 @@ function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalC
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #ede8e3', padding: '16px' }}>
         <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Seu pedido</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {carrinho.map(item => (
-            <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{item.nome}</p>
-                {item.variacao && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: '#999' }}>{item.variacao}</p>}
+          {carrinho.map(item => {
+            const isEsgotado = itensEsgotados.includes(item.key)
+            return (
+              <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isEsgotado ? '#FEF2F2' : 'transparent', borderRadius: isEsgotado ? 8 : 0, padding: isEsgotado ? '4px 8px' : 0, margin: isEsgotado ? '0 -8px' : 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: isEsgotado ? '#991B1B' : '#1a1a1a', textDecoration: isEsgotado ? 'line-through' : 'none' }}>{item.nome}</p>
+                  {item.variacao && <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 11, color: isEsgotado ? '#EF4444' : '#999' }}>{item.variacao}</p>}
+                </div>
+                {isEsgotado && <span style={{ fontSize: 10, fontWeight: 700, color: '#DC2626', background: '#FEE2E2', borderRadius: 4, padding: '2px 6px', flexShrink: 0, fontFamily: 'Manrope, sans-serif', whiteSpace: 'nowrap' }}>ESGOTOU</span>}
+                <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: isEsgotado ? '#DC2626' : primary, whiteSpace: 'nowrap', opacity: isEsgotado ? 0.6 : 1 }}>{fmtR(item.preco * item.qtd)}</p>
+                <button onClick={() => onRemover(item.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 2, display: 'flex', alignItems: 'center' }}>
+                  <X size={14} />
+                </button>
               </div>
-              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: primary, whiteSpace: 'nowrap' }}>{fmtR(item.preco * item.qtd)}</p>
-              <button onClick={() => onRemover(item.key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: 2, display: 'flex', alignItems: 'center' }}>
-                <X size={14} />
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div style={{ borderTop: '1px solid #ede8e3', marginTop: 12, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, color: '#555' }}>Total</span>
@@ -530,18 +536,32 @@ function EtapaCheckout({ carrinho, form, setForm, onConfirmar, onRemover, totalC
         </div>
       )}
 
+      {temEsgotados && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#991B1B' }}>
+            {itensEsgotados.length === 1 ? '1 item esgotou' : `${itensEsgotados.length} itens esgotaram`} desde que você montou o carrinho.
+          </p>
+          <button
+            onClick={onRemoverEsgotados}
+            style={{ height: 42, borderRadius: 10, border: 'none', background: '#DC2626', color: '#fff', fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Remover esgotados e continuar
+          </button>
+        </div>
+      )}
+
       <button
         onClick={onConfirmar}
-        disabled={salvando || !form.nome.trim() || !form.whatsapp.trim() || !minimoAtingido}
+        disabled={salvando || !form.nome.trim() || !form.whatsapp.trim() || !minimoAtingido || temEsgotados}
         style={{
           width: '100%', height: 50, borderRadius: 12, border: 'none',
-          background: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? primary : '#e5e7eb',
-          color: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? '#fff' : '#9ca3af',
+          background: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido && !temEsgotados ? primary : '#e5e7eb',
+          color: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido && !temEsgotados ? '#fff' : '#9ca3af',
           fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700,
-          cursor: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido ? 'pointer' : 'not-allowed',
+          cursor: !salvando && form.nome.trim() && form.whatsapp.trim() && minimoAtingido && !temEsgotados ? 'pointer' : 'not-allowed',
         }}
       >
-        {salvando ? 'Confirmando...' : !minimoAtingido && progresso ? 'Adicione mais itens' : 'Confirmar pedido'}
+        {salvando ? 'Confirmando...' : temEsgotados ? 'Remova os itens esgotados' : !minimoAtingido && progresso ? 'Adicione mais itens' : 'Confirmar pedido'}
       </button>
     </div>
   )
@@ -625,11 +645,13 @@ export default function CatalogoPublico({ lojaId }) {
   const [erroConfirmar, setErroConfirmar] = useState('')
   const [busca, setBusca] = useState('')
   const [pedidoId, setPedidoId] = useState(null)
+  const [erroAdd, setErroAdd] = useState('')
+  const [itensEsgotados, setItensEsgotados] = useState([])
 
   useEffect(() => {
     async function load() {
       const { data: cfg } = await supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle()
-      const { data: prods } = await supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).eq('disponivel_catalogo_b2b', true).order('nome')
+      const { data: prods } = await supabase.from('lf_produtos').select('id, nome, preco_venda, fotos, video_url, variacoes').eq('loja_id', lojaId).eq('ativo', true).eq('disponivel_catalogo_b2b', true).order('nome')
       setConfig(cfg)
       setProdutos(prods || [])
       setLoading(false)
@@ -649,8 +671,20 @@ export default function CatalogoPublico({ lojaId }) {
       }
     : null
 
-  function addItem(produto, variacaoRaw, qtd = 1) {
+  async function addItem(produto, variacaoRaw, qtd = 1) {
     const varLabel = getVariacaoLabel(variacaoRaw) || ''
+    if (!modoSimples && varLabel) {
+      const { data: fresh } = await supabase
+        .from('lf_produtos').select('variacoes').eq('id', produto.id).maybeSingle()
+      if (fresh) {
+        const freshVar = (fresh.variacoes || []).find(v => getVariacaoLabel(v) === varLabel)
+        if (freshVar && (freshVar.quantidade || 0) === 0) {
+          setErroAdd(`"${varLabel}" esgotou. Escolha outro tamanho.`)
+          setTimeout(() => setErroAdd(''), 3500)
+          return
+        }
+      }
+    }
     const key = produto.id + '_' + varLabel
     setCarrinho(prev => {
       const exists = prev.find(i => i.key === key)
@@ -661,6 +695,12 @@ export default function CatalogoPublico({ lojaId }) {
 
   function removeItem(key) {
     setCarrinho(prev => prev.filter(i => i.key !== key))
+    setItensEsgotados(prev => prev.filter(k => k !== key))
+  }
+
+  function removerEsgotados() {
+    setCarrinho(prev => prev.filter(i => !itensEsgotados.includes(i.key)))
+    setItensEsgotados([])
   }
 
   const totalCarrinho = carrinho.reduce((acc, i) => acc + Number(i.preco) * i.qtd, 0)
@@ -668,8 +708,23 @@ export default function CatalogoPublico({ lojaId }) {
   async function confirmarPedido() {
     if (!form.nome.trim() || !form.whatsapp.trim()) return
     setErroConfirmar('')
+    setItensEsgotados([])
     setSalvando(true)
     try {
+      // Revalidar estoque com dados frescos do banco antes de inserir
+      if (!modoSimples) {
+        const prodIds = [...new Set(carrinho.filter(i => i.variacao).map(i => i.produtoId))]
+        if (prodIds.length > 0) {
+          const { data: freshProds } = await supabase
+            .from('lf_produtos').select('id, variacoes').in('id', prodIds)
+          const esgotados = detectarItensEsgotados(carrinho, freshProds || [])
+          if (esgotados.length > 0) {
+            setItensEsgotados(esgotados)
+            return
+          }
+        }
+      }
+
       const novoPedido = {
         loja_id: lojaId,
         cliente_nome: form.nome.trim(),
@@ -691,27 +746,23 @@ export default function CatalogoPublico({ lojaId }) {
         return
       }
 
-      // Dar baixa no estoque — ignorado quando modoSimples (sem controle de quantidade)
+      // Dar baixa no estoque via RPC atômica (SELECT FOR UPDATE + UPDATE na mesma transação)
       if (!modoSimples) {
-        const byProduct = {}
         for (const item of carrinho) {
           if (!item.variacao) continue
-          const prod = produtos.find(p => p.id === item.produtoId)
-          if (!prod) continue
-          if (!byProduct[item.produtoId]) byProduct[item.produtoId] = { prod, items: [] }
-          byProduct[item.produtoId].items.push(item)
-        }
-        for (const { prod, items } of Object.values(byProduct)) {
-          let novasVars = [...(prod.variacoes || [])]
-          for (const item of items) {
-            novasVars = novasVars.map(v => {
-              const label = getVariacaoLabel(v)
-              return label === item.variacao
-                ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
-                : v
-            })
+          const { data: ok, error: rpcError } = await supabase.rpc('decrementar_estoque_variacao', {
+            p_produto_id: item.produtoId,
+            p_label: item.variacao,
+            p_qtd: item.qtd,
+          })
+          if (rpcError) {
+            console.error('RPC decrementar_estoque_variacao falhou:', rpcError.message, item.key)
+          } else if (!ok) {
+            // Race condition verdadeira: a pré-checagem passou mas o estoque esgotou entre
+            // a verificação e o decremento (janela de milissegundos). Pedido já registrado;
+            // admin vê o pedido e reconcilia manualmente se necessário.
+            console.warn('Race condition residual no decremento atômico:', item.key)
           }
-          await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
         }
       }
 
@@ -763,12 +814,23 @@ export default function CatalogoPublico({ lojaId }) {
             erroConfirmar={erroConfirmar}
             hasMercadoPago={hasMercadoPago}
             pedidoMinimo={pedidoMinimo}
+            itensEsgotados={itensEsgotados}
+            onRemoverEsgotados={removerEsgotados}
           />
         )}
         {etapa === 'confirmado' && (
           <EtapaConfirmado config={config} totalCarrinho={totalCarrinho} form={form} />
         )}
       </div>
+
+      {/* Toast de erro ao adicionar ao carrinho */}
+      {erroAdd && (
+        <div style={{ position: 'fixed', bottom: carrinho.length > 0 && etapa === 'catalogo' ? 90 : 20, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 200, padding: '0 16px', pointerEvents: 'none' }}>
+          <div style={{ background: '#1a1a1a', color: '#fff', padding: '10px 18px', borderRadius: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 16px rgba(0,0,0,0.3)', maxWidth: 400, textAlign: 'center' }}>
+            {erroAdd}
+          </div>
+        </div>
+      )}
 
       {/* Barra de carrinho — full-width, conteúdo centralizado */}
       {carrinho.length > 0 && etapa === 'catalogo' && (
