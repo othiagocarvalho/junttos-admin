@@ -482,6 +482,7 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
                 theme={theme}
                 LOJA_ID={lojaId}
                 fetchAll={data.fetchAll}
+                config={data.config}
               />
             ) : (
               <EstoqueMobile

@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image } from 'lucide-react'
+import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
+
+const PROD_BASE = 'https://junttos-admin.vercel.app'
+const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -109,6 +112,19 @@ function buildVariacoes(grade) {
     .map(t => ({ tamanho: t.tamanho.trim(), quantidade: parseInt(t.quantidade) || 0 }))
 }
 
+// ── Modo simples: salva tamanhos selecionados com quantidade fixa ──
+function buildVariacoesModoSimples(tamanhos) {
+  return tamanhos.map(t => ({ tamanho: t, quantidade: 9999 }))
+}
+
+function variacoeesToTamanhosSel(variacoes) {
+  if (!variacoes?.length) return []
+  return variacoes.map(v => {
+    const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    return key ? String(v[key]) : null
+  }).filter(Boolean)
+}
+
 // ── Converte variacoes salvas → grade form ───────────────────
 function variacaoesToGrade(variacoes) {
   if (!variacoes?.length) return EMPTY_GRADE()
@@ -116,6 +132,40 @@ function variacaoesToGrade(variacoes) {
     const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return { tamanho: key ? String(v[key]) : '', quantidade: String(v.quantidade || 0) }
   })
+}
+
+// ── Seletor de tamanhos (modo simples) ───────────────────────
+function SeletorTamanhos({ selected, onChange, theme }) {
+  function toggle(t) {
+    onChange(selected.includes(t) ? selected.filter(s => s !== t) : [...selected, t])
+  }
+  return (
+    <div>
+      <label style={lbl}>Tamanhos disponíveis</label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {TAMANHOS_SIMPLES.map(t => {
+          const active = selected.includes(t)
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => toggle(t)}
+              style={{
+                padding: '8px 16px', borderRadius: 20,
+                border: `1.5px solid ${active ? theme.primary : 'var(--line)'}`,
+                background: active ? theme.primary : 'var(--bg)',
+                color: active ? '#fff' : 'var(--ink)',
+                fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: active ? 700 : 500,
+                cursor: 'pointer',
+              }}
+            >
+              {t}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 // ── Seção de upload de vídeo (reutilizada nos dois modais) ───
@@ -234,7 +284,9 @@ export default function ProdutosB2BPro({
   fetchAll,
   theme,
   LOJA_ID,
+  config = null,
 }) {
+  const modoSimples = !!config?.features?.catalogo_b2b_modo_simples
   const [search, setSearch]               = useState('')
   const [expanded, setExpanded]           = useState({})
   const [newProdOpen, setNewProdOpen]     = useState(false)
@@ -268,6 +320,14 @@ export default function ProdutosB2BPro({
 
   const [uploadingFotos, setUploadingFotos] = useState(false)
 
+  // Tamanhos modo simples
+  const [newTamanhosSel,  setNewTamanhosSel]  = useState([])
+  const [editTamanhosSel, setEditTamanhosSel] = useState([])
+  const [loteTamanhosSel, setLoteTamanhosSel] = useState([])
+
+  // Link copiado
+  const [linkCopiado, setLinkCopiado] = useState(false)
+
   // Lote
   const [loteOpen, setLoteOpen]             = useState(false)
   const [loteItems, setLoteItems]           = useState([])
@@ -294,6 +354,12 @@ export default function ProdutosB2BPro({
     setTimeout(() => setToast(''), 2500)
   }
 
+  function copiarLinkCatalogo() {
+    navigator.clipboard.writeText(`${PROD_BASE}/${LOJA_ID}/catalogo`)
+    setLinkCopiado(true)
+    setTimeout(() => setLinkCopiado(false), 2000)
+  }
+
   async function uploadVideo(file, prefix) {
     const ext = file.name.split('.').pop().toLowerCase()
     const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
@@ -317,7 +383,11 @@ export default function ProdutosB2BPro({
   }
 
   function openEdit(produto) {
-    setEditGrade(variacaoesToGrade(produto.variacoes))
+    if (modoSimples) {
+      setEditTamanhosSel(variacoeesToTamanhosSel(produto.variacoes))
+    } else {
+      setEditGrade(variacaoesToGrade(produto.variacoes))
+    }
     setEditVideoUrl(produto.video_url || '')
     setEditVideoFile(null)
     setEditVideoPreview(null)
@@ -329,7 +399,9 @@ export default function ProdutosB2BPro({
 
   async function handleAddProduto() {
     if (!newProd.nome.trim() || newSaving) return
-    const variacoes = buildVariacoes(newProd.grade)
+    const variacoes = modoSimples
+      ? buildVariacoesModoSimples(newTamanhosSel)
+      : buildVariacoes(newProd.grade)
     if (variacoes.length === 0) return
     setNewSaving(true)
 
@@ -374,6 +446,7 @@ export default function ProdutosB2BPro({
     if (!err) {
       setNewProdOpen(false)
       setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() })
+      setNewTamanhosSel([])
       setNewVideoFile(null)
       setNewVideoPreview(null)
       setNewVideoError('')
@@ -383,7 +456,9 @@ export default function ProdutosB2BPro({
 
   async function handleSaveEdit() {
     if (!editModal || editSaving) return
-    const variacoes = buildVariacoes(editGrade)
+    const variacoes = modoSimples
+      ? buildVariacoesModoSimples(editTamanhosSel)
+      : buildVariacoes(editGrade)
     setEditSaving(true)
 
     let finalVideoUrl = editVideoUrl
@@ -446,7 +521,9 @@ export default function ProdutosB2BPro({
     setLoteSaving(true)
     setLoteError('')
     const nomeBase = loteNomeBase.trim() || 'Produto'
-    const variacoes = buildVariacoes(loteGrade)
+    const variacoes = modoSimples
+      ? buildVariacoesModoSimples(loteTamanhosSel)
+      : buildVariacoes(loteGrade)
     try {
       for (let i = 0; i < loteItems.length; i++) {
         const item = loteItems[i]
@@ -465,6 +542,7 @@ export default function ProdutosB2BPro({
       setLoteNomeBase('')
       setLotePrecoVenda('')
       setLoteGrade(EMPTY_GRADE())
+      setLoteTamanhosSel([])
       setLoteError('')
     } catch (e) {
       setUploadingFotos(false)
@@ -473,7 +551,9 @@ export default function ProdutosB2BPro({
     setLoteSaving(false)
   }
 
-  const newCanSave = newProd.nome.trim() && !newSaving && buildVariacoes(newProd.grade).length > 0
+  const newCanSave = newProd.nome.trim() && !newSaving && (
+    modoSimples ? newTamanhosSel.length > 0 : buildVariacoes(newProd.grade).length > 0
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8 }}>
@@ -527,15 +607,24 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteError(''); setLoteOpen(true) }}
+          onClick={copiarLinkCatalogo}
+          title="Copiar link do catálogo"
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: linkCopiado ? 'var(--status-ok-bg, #f0fdf4)' : 'var(--bg)', color: linkCopiado ? 'var(--status-ok-tx, #15803d)' : 'var(--muted)', border: `1px solid ${linkCopiado ? 'var(--status-ok-dot, #16a34a)' : 'var(--line)'}`, fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+        >
+          {linkCopiado ? <Check size={14} /> : <Copy size={14} />}
+          {linkCopiado ? 'Copiado!' : 'Link'}
+        </div>
+        <div
+          role="button" tabIndex={0}
+          onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteTamanhosSel([]); setLoteError(''); setLoteOpen(true) }}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: `${theme.primary}18`, color: theme.primary, border: `1px solid ${theme.primary}40`, fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
           <Image size={14} /> Lote
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewProdOpen(true) }}
-          onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewProdOpen(true))}
+          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewTamanhosSel([]); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewProdOpen(true) }}
+          onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewTamanhosSel([]), setNewProdOpen(true))}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
           <Plus size={14} color="#fff" /> Novo
@@ -696,11 +785,19 @@ export default function ProdutosB2BPro({
               </div>
 
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <GradeForm
-                  grade={newProd.grade}
-                  setGrade={g => setNewProd(p => ({ ...p, grade: g }))}
-                  theme={theme}
-                />
+                {modoSimples ? (
+                  <SeletorTamanhos
+                    selected={newTamanhosSel}
+                    onChange={setNewTamanhosSel}
+                    theme={theme}
+                  />
+                ) : (
+                  <GradeForm
+                    grade={newProd.grade}
+                    setGrade={g => setNewProd(p => ({ ...p, grade: g }))}
+                    theme={theme}
+                  />
+                )}
               </div>
 
               {/* Upload de fotos */}
@@ -775,7 +872,15 @@ export default function ProdutosB2BPro({
               </button>
             </div>
 
-            <GradeForm grade={editGrade} setGrade={setEditGrade} theme={theme} />
+            {modoSimples ? (
+              <SeletorTamanhos
+                selected={editTamanhosSel}
+                onChange={setEditTamanhosSel}
+                theme={theme}
+              />
+            ) : (
+              <GradeForm grade={editGrade} setGrade={setEditGrade} theme={theme} />
+            )}
 
             {/* Upload de fotos */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
@@ -886,7 +991,15 @@ export default function ProdutosB2BPro({
                     </div>
                   </div>
                   <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-                    <GradeForm grade={loteGrade} setGrade={setLoteGrade} theme={theme} />
+                    {modoSimples ? (
+                      <SeletorTamanhos
+                        selected={loteTamanhosSel}
+                        onChange={setLoteTamanhosSel}
+                        theme={theme}
+                      />
+                    ) : (
+                      <GradeForm grade={loteGrade} setGrade={setLoteGrade} theme={theme} />
+                    )}
                   </div>
                 </div>
 
@@ -920,7 +1033,7 @@ export default function ProdutosB2BPro({
                 {uploadingFotos && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary, marginBottom: 10 }}>Enviando fotos...</p>}
 
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteError('') }} disabled={loteSaving}
+                  <button onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteTamanhosSel([]); setLoteError('') }} disabled={loteSaving}
                     style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                     Limpar
                   </button>

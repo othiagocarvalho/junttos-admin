@@ -63,7 +63,7 @@ function CatalogoHeader({ config, etapa, onVoltar, busca, setBusca }) {
 }
 
 // ── Card de produto ──────────────────────────────────────────
-function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
+function ProdutoCard({ produto, onAdd, primary, isB2BPro, modoSimples }) {
   const [varSel, setVarSel] = useState(null)
   const [showVideo, setShowVideo] = useState(false)
 
@@ -80,10 +80,13 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
     return init
   })
 
-  const disponivel = produtoDisponivel(produto)
+  const disponivel = modoSimples
+    ? (produto.variacoes?.length > 0)
+    : produtoDisponivel(produto)
 
   function handleAdd() {
-    if (!varSel || varSel.quantidade === 0) return
+    if (!varSel) return
+    if (!modoSimples && varSel.quantidade === 0) return
     onAdd(produto, varSel.raw)
     setVarSel(null)
   }
@@ -98,7 +101,7 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
   const gradeHasAny = Object.values(gradeQtds).some(q => q > 0)
 
   function setGradeQtd(label, rawVal) {
-    const max = vars.find(v => v.label === label)?.quantidade || 0
+    const max = modoSimples ? 9999 : (vars.find(v => v.label === label)?.quantidade || 0)
     const n = Math.min(Math.max(0, parseInt(rawVal) || 0), max)
     setGradeQtds(prev => ({ ...prev, [label]: n }))
   }
@@ -159,24 +162,24 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
                   <div key={v.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{
                       fontFamily: 'Manrope, sans-serif', fontSize: 10, fontWeight: 700,
-                      color: v.quantidade === 0 ? '#bbb' : '#555',
+                      color: (!modoSimples && v.quantidade === 0) ? '#bbb' : '#555',
                       minWidth: 22, flexShrink: 0,
                     }}>
                       {v.label}
                     </span>
                     <input
-                      type="number" min="0" max={v.quantidade}
+                      type="number" min="0" max={modoSimples ? undefined : v.quantidade}
                       value={gradeQtds[v.label] || 0}
-                      disabled={v.quantidade === 0}
+                      disabled={!modoSimples && v.quantidade === 0}
                       onChange={e => setGradeQtd(v.label, e.target.value)}
                       style={{
                         width: '100%', height: 26, borderRadius: 6, textAlign: 'center',
                         border: `1.5px solid ${(gradeQtds[v.label] || 0) > 0 ? primary : '#e5e7eb'}`,
                         background: (gradeQtds[v.label] || 0) > 0 ? primary + '10' : '#fafafa',
                         fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 600,
-                        color: v.quantidade === 0 ? '#ccc' : '#1a1a1a',
+                        color: (!modoSimples && v.quantidade === 0) ? '#ccc' : '#1a1a1a',
                         outline: 'none', boxSizing: 'border-box',
-                        opacity: v.quantidade === 0 ? 0.45 : 1,
+                        opacity: (!modoSimples && v.quantidade === 0) ? 0.45 : 1,
                       }}
                     />
                   </div>
@@ -244,33 +247,36 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
         ) : vars.length > 0 ? (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
-              {vars.map(v => (
-                <button
-                  key={v.label}
-                  disabled={v.quantidade === 0}
-                  onClick={() => setVarSel(prev => prev?.label === v.label ? null : v)}
-                  style={{
-                    padding: '3px 8px', borderRadius: 6, cursor: v.quantidade === 0 ? 'not-allowed' : 'pointer',
-                    fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600,
-                    border: varSel?.label === v.label ? `2px solid ${primary}` : '1.5px solid #ede8e3',
-                    background: varSel?.label === v.label ? primary + '15' : '#fff',
-                    color: v.quantidade === 0 ? '#bbb' : (varSel?.label === v.label ? primary : '#555'),
-                    opacity: v.quantidade === 0 ? 0.5 : 1,
-                  }}
-                >
-                  {v.label}
-                </button>
-              ))}
+              {vars.map(v => {
+                const esgotado = !modoSimples && v.quantidade === 0
+                return (
+                  <button
+                    key={v.label}
+                    disabled={esgotado}
+                    onClick={() => setVarSel(prev => prev?.label === v.label ? null : v)}
+                    style={{
+                      padding: '3px 8px', borderRadius: 6, cursor: esgotado ? 'not-allowed' : 'pointer',
+                      fontFamily: 'Manrope, sans-serif', fontSize: 11, fontWeight: 600,
+                      border: varSel?.label === v.label ? `2px solid ${primary}` : '1.5px solid #ede8e3',
+                      background: varSel?.label === v.label ? primary + '15' : '#fff',
+                      color: esgotado ? '#bbb' : (varSel?.label === v.label ? primary : '#555'),
+                      opacity: esgotado ? 0.5 : 1,
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                )
+              })}
             </div>
             <button
               onClick={handleAdd}
-              disabled={!varSel || varSel.quantidade === 0}
+              disabled={!varSel || (!modoSimples && varSel.quantidade === 0)}
               style={{
                 marginTop: 'auto', height: 34, borderRadius: 8, border: 'none',
-                background: varSel && varSel.quantidade > 0 ? primary : '#e5e7eb',
-                color: varSel && varSel.quantidade > 0 ? '#fff' : '#9ca3af',
+                background: varSel && (modoSimples || varSel.quantidade > 0) ? primary : '#e5e7eb',
+                color: varSel && (modoSimples || varSel.quantidade > 0) ? '#fff' : '#9ca3af',
                 fontFamily: 'Manrope, sans-serif', fontSize: 12, fontWeight: 700,
-                cursor: varSel && varSel.quantidade > 0 ? 'pointer' : 'not-allowed',
+                cursor: varSel && (modoSimples || varSel.quantidade > 0) ? 'pointer' : 'not-allowed',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
               }}
             >
@@ -291,7 +297,7 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro }) {
 }
 
 // ── Etapa catálogo ───────────────────────────────────────────
-function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro }) {
+function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro, modoSimples }) {
   const filtered = useMemo(() => {
     if (!busca.trim()) return produtos
     const q = busca.toLowerCase()
@@ -310,7 +316,7 @@ function EtapaCatalogo({ produtos, onAdd, primary, busca, isB2BPro }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '16px' }}>
       {filtered.map(p => (
-        <ProdutoCard key={p.id} produto={p} onAdd={onAdd} primary={primary} isB2BPro={isB2BPro} />
+        <ProdutoCard key={p.id} produto={p} onAdd={onAdd} primary={primary} isB2BPro={isB2BPro} modoSimples={modoSimples} />
       ))}
     </div>
   )
@@ -588,6 +594,7 @@ export default function CatalogoPublico({ lojaId }) {
   const primary = config?.cor_primaria || '#5E2BD0'
   const hasMercadoPago = !!config?.mercadopago_token
   const isB2BPro = config?.features?.catalogo_b2b === 'pro'
+  const modoSimples = !!config?.features?.catalogo_b2b_modo_simples
   const pedidoMinimo = (isB2BPro && config?.pedido_minimo_tipo && config.pedido_minimo_tipo !== 'nenhum')
     ? {
         tipo:  config.pedido_minimo_tipo,
@@ -638,26 +645,28 @@ export default function CatalogoPublico({ lojaId }) {
         return
       }
 
-      // Dar baixa no estoque — agrupa por produto para aplicar todos os tamanhos de uma vez
-      const byProduct = {}
-      for (const item of carrinho) {
-        if (!item.variacao) continue
-        const prod = produtos.find(p => p.id === item.produtoId)
-        if (!prod) continue
-        if (!byProduct[item.produtoId]) byProduct[item.produtoId] = { prod, items: [] }
-        byProduct[item.produtoId].items.push(item)
-      }
-      for (const { prod, items } of Object.values(byProduct)) {
-        let novasVars = [...(prod.variacoes || [])]
-        for (const item of items) {
-          novasVars = novasVars.map(v => {
-            const label = getVariacaoLabel(v)
-            return label === item.variacao
-              ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
-              : v
-          })
+      // Dar baixa no estoque — ignorado quando modoSimples (sem controle de quantidade)
+      if (!modoSimples) {
+        const byProduct = {}
+        for (const item of carrinho) {
+          if (!item.variacao) continue
+          const prod = produtos.find(p => p.id === item.produtoId)
+          if (!prod) continue
+          if (!byProduct[item.produtoId]) byProduct[item.produtoId] = { prod, items: [] }
+          byProduct[item.produtoId].items.push(item)
         }
-        await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
+        for (const { prod, items } of Object.values(byProduct)) {
+          let novasVars = [...(prod.variacoes || [])]
+          for (const item of items) {
+            novasVars = novasVars.map(v => {
+              const label = getVariacaoLabel(v)
+              return label === item.variacao
+                ? { ...v, quantidade: Math.max(0, (v.quantidade || 0) - item.qtd) }
+                : v
+            })
+          }
+          await supabase.from('lf_produtos').update({ variacoes: novasVars }).eq('id', prod.id)
+        }
       }
 
       setPedidoId(pedidoInserido?.id || null)
@@ -693,7 +702,7 @@ export default function CatalogoPublico({ lojaId }) {
       {/* Conteúdo centralizado em 480px */}
       <div style={{ flex: 1, maxWidth: 480, width: '100%', margin: '0 auto', paddingBottom: carrinho.length > 0 && etapa === 'catalogo' ? 80 : 0, boxSizing: 'border-box' }}>
         {etapa === 'catalogo' && (
-          <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} isB2BPro={isB2BPro} />
+          <EtapaCatalogo produtos={produtos} onAdd={addItem} primary={primary} busca={busca} isB2BPro={isB2BPro} modoSimples={modoSimples} />
         )}
         {etapa === 'checkout' && (
           <EtapaCheckout
