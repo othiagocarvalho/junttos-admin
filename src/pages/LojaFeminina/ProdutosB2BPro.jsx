@@ -269,10 +269,13 @@ export default function ProdutosB2BPro({
   const [uploadingFotos, setUploadingFotos] = useState(false)
 
   // Lote
-  const [loteOpen, setLoteOpen]     = useState(false)
-  const [loteItems, setLoteItems]   = useState([])
-  const [loteSaving, setLoteSaving] = useState(false)
-  const [loteError, setLoteError]   = useState('')
+  const [loteOpen, setLoteOpen]             = useState(false)
+  const [loteItems, setLoteItems]           = useState([])
+  const [loteNomeBase, setLoteNomeBase]     = useState('')
+  const [lotePrecoVenda, setLotePrecoVenda] = useState('')
+  const [loteGrade, setLoteGrade]           = useState(EMPTY_GRADE)
+  const [loteSaving, setLoteSaving]         = useState(false)
+  const [loteError, setLoteError]           = useState('')
 
   const b2bProdutos = produtosData.filter(p => p.disponivel_catalogo_b2b === true)
   const filtered = b2bProdutos.filter(p =>
@@ -442,21 +445,26 @@ export default function ProdutosB2BPro({
     if (!loteItems.length || loteSaving) return
     setLoteSaving(true)
     setLoteError('')
+    const nomeBase = loteNomeBase.trim() || 'Produto'
+    const variacoes = buildVariacoes(loteGrade)
     try {
       for (let i = 0; i < loteItems.length; i++) {
         const item = loteItems[i]
         setUploadingFotos(true)
         const fotoUrl = await uploadFoto(item.file, `lote_${i}_${Date.now()}`)
         setUploadingFotos(false)
-        await addProduto(item.nome.trim() || `Produto ${i + 1}`, {
-          precoVenda: parseFloat(item.precoVenda) || 0,
+        await addProduto(`${nomeBase} ${i + 1}`, {
+          precoVenda: parseFloat(lotePrecoVenda) || 0,
           fotos: [fotoUrl],
           disponivel_catalogo_b2b: true,
-          variacoes: [],
+          variacoes,
         })
       }
       setLoteOpen(false)
       setLoteItems([])
+      setLoteNomeBase('')
+      setLotePrecoVenda('')
+      setLoteGrade(EMPTY_GRADE())
       setLoteError('')
     } catch (e) {
       setUploadingFotos(false)
@@ -519,7 +527,7 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setLoteItems([]); setLoteError(''); setLoteOpen(true) }}
+          onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteError(''); setLoteOpen(true) }}
           style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: `${theme.primary}18`, color: theme.primary, border: `1px solid ${theme.primary}40`, fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
           <Image size={14} /> Lote
@@ -842,54 +850,67 @@ export default function ProdutosB2BPro({
                 <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => {
                   const files = Array.from(e.target.files)
                   if (!files.length) return
-                  setLoteItems(files.map((file, i) => ({ file, previewUrl: URL.createObjectURL(file), nome: '', precoVenda: '' })))
+                  setLoteItems(files.map(file => ({ file, previewUrl: URL.createObjectURL(file) })))
                 }} />
                 <div style={{ border: '2px dashed var(--line)', borderRadius: 'var(--r-input)', padding: '48px 24px', textAlign: 'center', background: 'var(--bg)' }}>
                   <Image size={32} color="var(--muted)" style={{ margin: '0 auto 12px', display: 'block' }} />
                   <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>Selecione as fotos</p>
-                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>Cada foto vira um produto novo no catálogo</p>
+                  <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>Cada foto vira um produto com grade pronta</p>
                 </div>
               </label>
             ) : (
               <>
-                <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
-                  {loteItems.length} produto{loteItems.length > 1 ? 's' : ''} a criar. Edite os nomes e preços antes de salvar.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                  {loteItems.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--bg)', borderRadius: 10, padding: '8px 10px', border: '1px solid var(--line)' }}>
-                      <img src={item.previewUrl} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--line)' }} />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <input
-                          value={item.nome}
-                          onChange={e => setLoteItems(f => f.map((x, j) => j === i ? { ...x, nome: e.target.value } : x))}
-                          placeholder={`Produto ${i + 1}`}
-                          style={{ ...inp, height: 36, fontSize: 13 }}
-                        />
-                        <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
-                          <input
-                            type="number" min="0" step="0.01"
-                            value={item.precoVenda}
-                            onChange={e => setLoteItems(f => f.map((x, j) => j === i ? { ...x, precoVenda: e.target.value } : x))}
-                            placeholder="0,00"
-                            style={{ ...inp, height: 36, fontSize: 13, paddingLeft: 32 }}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setLoteItems(f => f.filter((_, j) => j !== i))}
-                        style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                      >
-                        <X size={14} />
-                      </button>
+                {/* Campos globais aplicados a todas as peças do lote */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+                  <div>
+                    <label style={lbl}>Nome Base *</label>
+                    <input
+                      value={loteNomeBase}
+                      onChange={e => setLoteNomeBase(e.target.value)}
+                      placeholder='Ex: "Camisa Longline" → gera "Camisa Longline 1", "2"...'
+                      style={inp}
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label style={lbl}>Preço de Venda</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={lotePrecoVenda}
+                        onChange={e => setLotePrecoVenda(e.target.value)}
+                        placeholder="0,00"
+                        style={{ ...inp, paddingLeft: 36 }}
+                      />
                     </div>
-                  ))}
+                  </div>
+                  <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+                    <GradeForm grade={loteGrade} setGrade={setLoteGrade} theme={theme} />
+                  </div>
+                </div>
+
+                {/* Grade de fotos — apenas thumbnails */}
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14, marginBottom: 14 }}>
+                  <label style={{ ...lbl, marginBottom: 10 }}>
+                    {loteItems.length} foto{loteItems.length !== 1 ? 's' : ''} selecionada{loteItems.length !== 1 ? 's' : ''}
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {loteItems.map((item, i) => (
+                      <div key={i} style={{ position: 'relative' }}>
+                        <img src={item.previewUrl} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', display: 'block' }} />
+                        <button
+                          onClick={() => setLoteItems(f => f.filter((_, j) => j !== i))}
+                          style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 'var(--r-chip)', border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 16 }}>
                   <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => {
-                    const novos = Array.from(e.target.files).map((file) => ({ file, previewUrl: URL.createObjectURL(file), nome: '', precoVenda: '' }))
+                    const novos = Array.from(e.target.files).map(file => ({ file, previewUrl: URL.createObjectURL(file) }))
                     setLoteItems(f => [...f, ...novos])
                   }} />
                   <Plus size={13} /> Adicionar mais fotos
@@ -899,7 +920,7 @@ export default function ProdutosB2BPro({
                 {uploadingFotos && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary, marginBottom: 10 }}>Enviando fotos...</p>}
 
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => { setLoteItems([]); setLoteError('') }} disabled={loteSaving}
+                  <button onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteError('') }} disabled={loteSaving}
                     style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}>
                     Limpar
                   </button>
