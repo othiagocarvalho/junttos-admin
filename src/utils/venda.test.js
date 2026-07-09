@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularTotalVenda } from './venda.js'
+import { calcularTotalVenda, calcularTotalComAjuste } from './venda.js'
 
 const produtosData = [
   { nome: 'Blusa Básica', preco_venda: 50 },
@@ -32,5 +32,47 @@ describe('calcularTotalVenda', () => {
     const itensDepois = [{ nome: 'Blusa Básica', quantidade: 4 }]
     expect(calcularTotalVenda(itensAntes,  produtosData)).toBe(50)
     expect(calcularTotalVenda(itensDepois, produtosData)).toBe(200)
+  })
+})
+
+describe('calcularTotalComAjuste', () => {
+  it('sem ajuste: retorna o subtotal intacto', () => {
+    expect(calcularTotalComAjuste(150, 'desconto', 'valor', 0)).toBe(150)
+  })
+
+  it('sem ajuste (valor undefined): retorna o subtotal intacto', () => {
+    expect(calcularTotalComAjuste(150, 'desconto', 'valor', undefined)).toBe(150)
+  })
+
+  it('desconto em R$: subtrai o valor fixo', () => {
+    expect(calcularTotalComAjuste(150, 'desconto', 'valor', 20)).toBe(130)
+  })
+
+  it('acréscimo em R$: soma o valor fixo', () => {
+    expect(calcularTotalComAjuste(150, 'acrescimo', 'valor', 10)).toBe(160)
+  })
+
+  it('desconto em %: aplica percentual sobre o subtotal', () => {
+    expect(calcularTotalComAjuste(200, 'desconto', 'percentual', 10)).toBe(180)
+  })
+
+  it('acréscimo em %: aplica percentual sobre o subtotal', () => {
+    expect(calcularTotalComAjuste(200, 'acrescimo', 'percentual', 5)).toBe(210)
+  })
+
+  it('desconto maior que subtotal: nunca retorna negativo (mínimo 0)', () => {
+    expect(calcularTotalComAjuste(50, 'desconto', 'valor', 80)).toBe(0)
+  })
+
+  it('desconto de 100%: total fica 0', () => {
+    expect(calcularTotalComAjuste(300, 'desconto', 'percentual', 100)).toBe(0)
+  })
+
+  it('subtotal 0 sem ajuste: retorna 0', () => {
+    expect(calcularTotalComAjuste(0, 'desconto', 'valor', 0)).toBe(0)
+  })
+
+  it('desconto em R$ com subtotal fracionado', () => {
+    expect(calcularTotalComAjuste(99.9, 'desconto', 'valor', 9.9)).toBeCloseTo(90)
   })
 })

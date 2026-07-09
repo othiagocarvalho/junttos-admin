@@ -8,7 +8,7 @@ import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
-import { calcularTotalVenda } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
@@ -596,9 +596,14 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [done,       setDone]       = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [varModal,   setVarModal]   = useState(null)
+  const [ajusteTipo,  setAjusteTipo]  = useState('desconto')
+  const [ajusteModo,  setAjusteModo]  = useState('valor')
+  const [ajusteInput, setAjusteInput] = useState('')
 
   useEffect(() => {
-    const total = calcularTotalVenda(form.produtos, produtosData)
+    const sub = calcularTotalVenda(form.produtos, produtosData)
+    const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
+    const total = form.produtos.length === 0 ? 0 : calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
     const valStr = form.produtos.length === 0 ? '' : total.toFixed(2).replace('.', ',')
     setForm(prev => ({
       ...prev,
@@ -609,7 +614,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }))
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.produtos])
+  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -645,10 +650,17 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   }
   async function handleSave() {
     setSaving(true)
+    const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
+    const sub = calcularTotalVenda(form.produtos, produtosData)
+    const ajusteR = ajNum === 0 ? 0
+      : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
+    const ajusteValor = ajNum === 0 ? 0
+      : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
     const err = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
       valor: parseFloat(form.valor.replace(',', '.')) || 0,
+      ajuste_valor: ajusteValor,
       forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
@@ -667,7 +679,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setSaving(false)
     if (!err) {
       setDone(true)
-      setTimeout(() => { setDone(false); setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] }) }, 2200)
+      setTimeout(() => {
+        setDone(false)
+        setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
+        setAjusteTipo('desconto')
+        setAjusteModo('valor')
+        setAjusteInput('')
+      }, 2200)
     }
   }
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -677,6 +695,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     : PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
     && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
+
+  const subtotal = calcularTotalVenda(form.produtos, produtosData)
+  const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
+  const ajusteR = ajusteNum === 0 ? 0
+    : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
 
   const inputS = inp(theme.primary)
   const fo = onF(theme.primary)
@@ -736,6 +759,68 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Pagamento</p>
           <div>
+            {/* Breakdown: Subtotal / Ajuste / Total */}
+            {form.produtos.length > 0 && (
+              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                </div>
+                {ajusteNum > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                      {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
+                      {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
+                    </span>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                      {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                )}
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>R$ {totalValor.toFixed(2).replace('.', ',')}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Ajuste: Desconto ou Acréscimo (opcional) */}
+            {form.produtos.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                <label style={lbl}>Ajuste (opcional)</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[['desconto', 'Desconto'], ['acrescimo', 'Acréscimo']].map(([val, label]) => (
+                    <button key={val} type="button" onClick={() => setAjusteTipo(val)} style={{
+                      flex: 1, height: 34, borderRadius: 8, cursor: 'pointer',
+                      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                      border: ajusteTipo === val ? 'none' : '1.5px solid var(--line)',
+                      background: ajusteTipo === val ? (val === 'desconto' ? '#dc2626' : '#16a34a') : 'var(--bg)',
+                      color: ajusteTipo === val ? '#fff' : 'var(--muted)',
+                    }}>{label}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1.5px solid var(--line)', flexShrink: 0 }}>
+                    {[['valor', 'R$'], ['percentual', '%']].map(([val, label]) => (
+                      <button key={val} type="button" onClick={() => setAjusteModo(val)} style={{
+                        padding: '0 14px', height: 44, cursor: 'pointer', border: 'none',
+                        fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700,
+                        background: ajusteModo === val ? theme.primary : 'var(--bg)',
+                        color: ajusteModo === val ? '#fff' : 'var(--muted)',
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                  <input
+                    value={ajusteInput}
+                    onChange={e => setAjusteInput(e.target.value)}
+                    placeholder="0,00"
+                    style={{ ...inputS, flex: 1 }}
+                    onFocus={fo} onBlur={onB}
+                  />
+                </div>
+              </div>
+            )}
+
             <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
             <div style={{ position: 'relative', marginBottom: 14 }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
