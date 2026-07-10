@@ -2,13 +2,17 @@ import { useState, useCallback } from 'react'
 
 const KEY = 'junttos_viewMode'
 
+function isForceMobile() {
+  return new URLSearchParams(window.location.search).get('forceMobile') === '1'
+}
+
 export function useViewMode() {
   const [viewMode, setViewModeState] = useState(
-    () => localStorage.getItem(KEY) || 'mobile'
+    () => isForceMobile() ? 'mobile' : (localStorage.getItem(KEY) || 'mobile')
   )
 
   const setViewMode = useCallback((mode) => {
-    localStorage.setItem(KEY, mode)
+    if (!isForceMobile()) localStorage.setItem(KEY, mode)
     setViewModeState(mode)
   }, [])
 
