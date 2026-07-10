@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ExternalLink, RotateCcw, Check, AlertCircle, Loader2, Zap } from 'lucide-react'
+import { ExternalLink, RotateCcw, Check, AlertCircle, Loader2, Zap, Smartphone, X } from 'lucide-react'
 import { T } from '../../theme/tokens'
 
 const DEMO_LOJA_ID = 'sualoja'
@@ -137,6 +137,7 @@ export default function DemoPanel() {
   const [confirmReset,  setConfirmReset]  = useState(false)
   const [feedbackPlano, setFeedbackPlano] = useState(null) // 'ok' | 'erro'
   const [feedbackReset, setFeedbackReset] = useState(null) // 'ok' | 'erro'
+  const [showMobile,    setShowMobile]    = useState(false)
 
   const fetchPlano = useCallback(async () => {
     const { data } = await supabase
@@ -194,20 +195,35 @@ export default function DemoPanel() {
             Troque o plano ao vivo e resete os dados de exemplo antes de uma demo.
           </p>
         </div>
-        <a
-          href={DEMO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7,
-            height: 36, padding: '0 16px', borderRadius: T.rPill,
-            background: T.purple, color: '#fff', textDecoration: 'none',
-            fontSize: 12.5, fontWeight: 700, flexShrink: 0,
-            boxShadow: '0 2px 8px rgba(94,43,208,.22)',
-          }}
-        >
-          <ExternalLink size={12} /> Abrir demo
-        </a>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button
+            onClick={() => setShowMobile(v => !v)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              height: 36, padding: '0 16px', borderRadius: T.rPill,
+              border: `1.5px solid ${showMobile ? T.purple : T.line}`,
+              background: showMobile ? `${T.purple}12` : T.white,
+              color: showMobile ? T.purple : T.muted,
+              fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: T.ui,
+            }}
+          >
+            <Smartphone size={12} /> Ver mobile
+          </button>
+          <a
+            href={DEMO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              height: 36, padding: '0 16px', borderRadius: T.rPill,
+              background: T.purple, color: '#fff', textDecoration: 'none',
+              fontSize: 12.5, fontWeight: 700,
+              boxShadow: '0 2px 8px rgba(94,43,208,.22)',
+            }}
+          >
+            <ExternalLink size={12} /> Abrir demo
+          </a>
+        </div>
       </div>
 
       {/* Plan switcher */}
@@ -318,6 +334,63 @@ export default function DemoPanel() {
       </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+
+      {/* Phone simulator */}
+      {showMobile && (
+        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+          <div style={{ height: 1, background: `${T.purple}18`, width: '100%', marginBottom: 2 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Simulador mobile — 375 × 812 px
+            </p>
+            <button
+              onClick={() => setShowMobile(false)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 30, padding: '0 12px', borderRadius: T.rPill,
+                border: `1.5px solid ${T.line}`, background: T.white,
+                color: T.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: T.ui,
+              }}
+            >
+              <X size={11} /> Fechar
+            </button>
+          </div>
+
+          {/* Phone frame */}
+          <div style={{
+            background: '#141414',
+            borderRadius: 52,
+            padding: '18px 12px 30px',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.06) inset',
+            position: 'relative',
+          }}>
+            {/* Dynamic-island pill */}
+            <div style={{
+              width: 116, height: 30, background: '#141414',
+              borderRadius: '0 0 20px 20px',
+              margin: '-18px auto 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <div style={{ width: 56, height: 5, borderRadius: 99, background: '#2a2a2a' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#1e1e1e', border: '1.5px solid #3a3a3a' }} />
+            </div>
+            {/* Screen */}
+            <div style={{ borderRadius: 40, overflow: 'hidden', width: 375, height: 812, background: '#000' }}>
+              <iframe
+                src={DEMO_URL}
+                width={375}
+                height={812}
+                style={{ border: 'none', display: 'block' }}
+                title="Simulador mobile — Sua Loja"
+              />
+            </div>
+            {/* Home bar */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+              <div style={{ width: 120, height: 5, borderRadius: 99, background: '#333' }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
