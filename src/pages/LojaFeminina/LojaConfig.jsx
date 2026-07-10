@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleRight, Lock } from 'lucide-react'
+import { Settings, Save, Palette, ToggleRight, Lock, Bell } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import Card from '../../components/studio/Card'
@@ -151,6 +151,29 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
               </div>
             )
           })}
+        </div>
+      </Card>
+
+      {/* Notificações */}
+      <Card>
+        <p style={sectionTitle}>
+          <Bell size={16} style={{ color: theme.primary }} />
+          Notificações no Celular
+        </p>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', borderRadius: 'var(--r-input)',
+          border: '1px solid var(--line)', background: 'var(--bg)',
+        }}>
+          <div>
+            <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+              Notificações push
+            </span>
+            <p style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 2 }}>
+              Em breve, via app
+            </p>
+          </div>
+          <Toggle on={false} onClick={() => {}} disabled />
         </div>
       </Card>
 

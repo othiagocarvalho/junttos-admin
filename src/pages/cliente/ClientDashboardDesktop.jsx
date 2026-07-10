@@ -25,6 +25,7 @@ import Fornecedores from '../LojaFeminina/Fornecedores'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
+import AlertaBanner from '../LojaFeminina/AlertaBanner'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -244,7 +245,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -264,6 +265,7 @@ function DesktopInicio({ vendas, metas, theme, setTab }) {
 
   return (
     <div>
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -1329,7 +1331,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} fornecedores={data.fornecedores} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
