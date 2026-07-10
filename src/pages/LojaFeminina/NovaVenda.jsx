@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, Building2 } from 'lucide-react'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 const PGTOS_ATACADO = ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', fornecedor: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -37,7 +37,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [] }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
@@ -52,6 +52,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState('valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState('')
+  const [fornOpen, setFornOpen] = useState(false)
+
+  const fornMatches = fornecedores.filter(f =>
+    form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
+  ).slice(0, 8)
 
   useEffect(() => {
     const sub = calcularTotalVenda(form.produtos, produtosData)
@@ -141,6 +146,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
+      fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
       ...(features?.atacado ? {
         nome_loja: form.nome_loja || null,
@@ -245,6 +251,40 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
             <Field label="Vendedora">
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+            </Field>
+            <Field label="Fornecedor" Icon={Building2}>
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={form.fornecedor}
+                  onChange={e => setForm({ ...form, fornecedor: e.target.value })}
+                  onFocus={e => { setFornOpen(true); focusIn(e) }}
+                  onBlur={e => { setTimeout(() => setFornOpen(false), 160); focusOut(e) }}
+                  placeholder="Selecione ou digite um novo fornecedor"
+                  style={inputBase}
+                  autoComplete="off"
+                />
+                {fornOpen && fornMatches.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                    background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', overflow: 'hidden',
+                  }}>
+                    {fornMatches.map(f => (
+                      <button key={f.id} type="button"
+                        onMouseDown={() => { setForm(prev => ({ ...prev, fornecedor: f.nome })); setFornOpen(false) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)',
+                          borderBottom: '1px solid var(--line)',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                      >{f.nome}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
             {features?.atacado && (<>
               <Field label="Nome da Loja">

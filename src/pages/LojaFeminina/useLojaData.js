@@ -21,6 +21,7 @@ export function useLojaData(lojaId = 'estrada') {
   const [clientes, setClientes] = useState([])
   const [crediario, setCrediario] = useState([])
   const [pedidos, setPedidos] = useState([])
+  const [fornecedores, setFornecedores] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
@@ -69,6 +70,12 @@ export function useLojaData(lojaId = 'estrada') {
         setPedidos(pedidosData || [])
       } catch (_e) {
         setPedidos([])
+      }
+      try {
+        const { data: fornData } = await supabase.from('lf_fornecedores').select('id, nome').eq('loja_id', lojaId).order('nome')
+        setFornecedores(fornData || [])
+      } catch (_e) {
+        setFornecedores([])
       }
       setDbError(null)
     } catch (e) {
@@ -144,6 +151,25 @@ export function useLojaData(lojaId = 'estrada') {
           }
         }
       }
+      // Auto-criação silenciosa de fornecedor em lf_fornecedores
+      const nomeFornecedor = (venda.fornecedor || '').trim()
+      if (nomeFornecedor) {
+        try {
+          const norm = s => s.toLowerCase().replace(/\s+/g, ' ').trim()
+          const { data: fornExist } = await supabase
+            .from('lf_fornecedores')
+            .select('id, nome')
+            .eq('loja_id', lojaId)
+            .ilike('nome', nomeFornecedor)
+          const match = (fornExist || []).find(f => norm(f.nome) === norm(nomeFornecedor))
+          if (!match) {
+            await supabase.from('lf_fornecedores').insert({ loja_id: lojaId, nome: nomeFornecedor })
+          }
+        } catch (e) {
+          console.error('[auto-fornecedor]', e)
+        }
+      }
+
       // Auto-sincronização silenciosa de cliente em lf_clientes (sem gate de plano)
       const nomeVenda = (venda.cliente_nome || '').trim()
       if (nomeVenda) {
@@ -425,5 +451,6 @@ export function useLojaData(lojaId = 'estrada') {
     saveComissaoPercentual,
     pedidos,
     updatePedido,
+    fornecedores,
   }
 }
