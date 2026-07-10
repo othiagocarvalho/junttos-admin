@@ -37,7 +37,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [] }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [] }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
@@ -53,9 +53,18 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [ajusteModo,  setAjusteModo]  = useState('valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState('')
   const [fornOpen, setFornOpen] = useState(false)
+  const [cliNomeOpen, setCliNomeOpen] = useState(false)
+  const [cliTelOpen, setCliTelOpen] = useState(false)
 
+  const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const fornMatches = fornecedores.filter(f =>
     form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
+  ).slice(0, 8)
+  const cliNomeMatches = clientes.filter(c =>
+    form.nome.trim() === '' || c.nome.toLowerCase().includes(form.nome.toLowerCase())
+  ).slice(0, 8)
+  const cliTelMatches = clientes.filter(c =>
+    form.tel.trim() === '' || (c.telefone && normTelFn(c.telefone).includes(normTelFn(form.tel)))
   ).slice(0, 8)
 
   useEffect(() => {
@@ -241,12 +250,76 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Identificação opcional</p>
             </div>
             <Field label="Nome da Cliente" Icon={User}>
-              <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
-                placeholder="Ex: Maria Silva" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={form.nome}
+                  onChange={e => setForm({ ...form, nome: e.target.value })}
+                  onFocus={e => { setCliNomeOpen(true); focusIn(e) }}
+                  onBlur={e => { setTimeout(() => setCliNomeOpen(false), 160); focusOut(e) }}
+                  placeholder="Ex: Maria Silva"
+                  style={inputBase}
+                  autoComplete="off"
+                />
+                {cliNomeOpen && cliNomeMatches.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                    background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', overflow: 'hidden',
+                  }}>
+                    {cliNomeMatches.map(c => (
+                      <button key={c.id} type="button"
+                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel })); setCliNomeOpen(false) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                          borderBottom: '1px solid var(--line)',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                      >
+                        <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{c.nome}</div>
+                        {c.telefone && <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{c.telefone}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
             <Field label="Telefone" Icon={Phone}>
-              <input value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })}
-                placeholder="(85) 99999-0000" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={form.tel}
+                  onChange={e => setForm({ ...form, tel: e.target.value })}
+                  onFocus={e => { setCliTelOpen(true); focusIn(e) }}
+                  onBlur={e => { setTimeout(() => setCliTelOpen(false), 160); focusOut(e) }}
+                  placeholder="(85) 99999-0000"
+                  style={inputBase}
+                  autoComplete="off"
+                />
+                {cliTelOpen && cliTelMatches.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                    background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', overflow: 'hidden',
+                  }}>
+                    {cliTelMatches.map(c => (
+                      <button key={c.id} type="button"
+                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '' })); setCliTelOpen(false) }}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left',
+                          padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                          borderBottom: '1px solid var(--line)',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                      >
+                        <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{c.nome}</div>
+                        {c.telefone && <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{c.telefone}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
             <Field label="Vendedora">
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
