@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck, Building2,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -585,9 +585,9 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', fornecedor: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [] }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(() => ({
     ...EMPTY_VENDA,
@@ -601,6 +601,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')
   const [ajusteModo,  setAjusteModo]  = useState('valor')
   const [ajusteInput, setAjusteInput] = useState('')
+  const [fornOpen, setFornOpen] = useState(false)
+
+  const fornMatches = fornecedores.filter(f =>
+    form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
+  ).slice(0, 8)
 
   useEffect(() => {
     const sub = calcularTotalVenda(form.produtos, produtosData)
@@ -671,6 +676,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
+      fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
       ...(features?.atacado ? {
         nome_loja: form.nome_loja || null,
@@ -736,6 +742,39 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             <div>
               <label style={lbl}>Vendedora</label>
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
+            </div>
+            <div style={{ position: 'relative' }}>
+              <label style={lbl}><Building2 size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Fornecedor</label>
+              <input
+                value={form.fornecedor}
+                onChange={e => setForm({ ...form, fornecedor: e.target.value })}
+                onFocus={e => { setFornOpen(true); fo(e) }}
+                onBlur={e => { setTimeout(() => setFornOpen(false), 160); onB(e) }}
+                placeholder="Selecione ou digite um novo fornecedor"
+                style={inputS}
+                autoComplete="off"
+              />
+              {fornOpen && fornMatches.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                  background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.10)', overflow: 'hidden',
+                }}>
+                  {fornMatches.map(f => (
+                    <button key={f.id} type="button"
+                      onMouseDown={() => { setForm(prev => ({ ...prev, fornecedor: f.nome })); setFornOpen(false) }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)',
+                        borderBottom: '1px solid var(--line)',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                    >{f.nome}</button>
+                  ))}
+                </div>
+              )}
             </div>
             {features?.atacado && (<>
               <div>
