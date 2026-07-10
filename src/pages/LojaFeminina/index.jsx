@@ -28,6 +28,7 @@ import Fornecedores from './Fornecedores'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
+import AlertaBanner from './AlertaBanner'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -53,7 +54,7 @@ const MAIS_ITEMS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab, theme = {} }) {
+function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const todayStr = now.toDateString()
@@ -85,6 +86,7 @@ function Inicio({ vendas, metas, setTab, theme = {} }) {
 
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
       {/* Hero */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{
@@ -519,7 +521,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
-      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} />,
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
