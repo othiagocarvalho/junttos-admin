@@ -42,12 +42,15 @@ const PRODS_DEMO = [
 ]
 const VALORES_VENDA = [89, 127, 98, 145, 161, 210, 76, 139, 185, 220, 95, 170, 115, 240, 88]
 const FORMAS_PGTO   = ['Pix', 'Cartão de Crédito', 'Dinheiro', 'Pix', 'Cartão de Débito']
+// 15 vendas todas no mês corrente — diasAtras(0)=hoje, diasAtras(9)=dia 1 do mês
+const DIAS_AGO = [0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8, 8, 9]
+const HORAS    = [14, 10, 16, 11, 9, 15, 13, 10, 17, 11, 10, 15, 14, 9, 11]
 
 // ── Seed functions (dates evaluated at call time) ─────────────────
 function gerarVendas() {
   return Array.from({ length: 15 }, (_, i) => ({
     loja_id:      DEMO_LOJA_ID,
-    data:         `${diasAtras(i * 2 + 1)}T12:00:00+00:00`,
+    data:         `${diasAtras(DIAS_AGO[i])}T${String(HORAS[i]).padStart(2, '0')}:00:00+00:00`,
     valor:        VALORES_VENDA[i],
     cliente_nome: NOMES_CLI[i % NOMES_CLI.length],
     cliente_tel:  null,
@@ -55,7 +58,6 @@ function gerarVendas() {
     forma_pgto:   JSON.stringify([{ forma: FORMAS_PGTO[i % FORMAS_PGTO.length], valor: '' }]),
     obs:          null,
     vendedora:    i % 4 === 0 ? 'Carla' : null,
-    ajuste_tipo:  null,
     ajuste_valor: null,
   }))
 }
@@ -102,21 +104,29 @@ async function executarReset() {
     supabase.from('lf_contas_receber').delete().eq('loja_id', DEMO_LOJA_ID).not('descricao', 'ilike', '[TESTE-AUTO]%'),
   ])
 
-  await supabase.from('lf_vendas').insert(gerarVendas())
-  await supabase.from('lf_clientes').insert(SEED_CLIENTES)
+  const { error: vErr } = await supabase.from('lf_vendas').insert(gerarVendas())
+  if (vErr) throw new Error(`lf_vendas: ${vErr.message}`)
+
+  const { error: cliErr } = await supabase.from('lf_clientes').insert(SEED_CLIENTES)
+  if (cliErr) throw new Error(`lf_clientes: ${cliErr.message}`)
 
   const { data: fornecedores, error: fErr } = await supabase
     .from('lf_fornecedores').insert(SEED_FORNECEDORES).select()
-  if (fErr) throw new Error(fErr.message)
+  if (fErr) throw new Error(`lf_fornecedores: ${fErr.message}`)
 
   if (fornecedores?.length >= 2) {
-    await supabase.from('lf_compras').insert(gerarCompras(fornecedores))
+    const { error: compErr } = await supabase.from('lf_compras').insert(gerarCompras(fornecedores))
+    if (compErr) throw new Error(`lf_compras: ${compErr.message}`)
   }
 
-  await supabase.from('lf_contas_pagar').insert(gerarContasPagar())
-  await supabase.from('lf_contas_receber').insert(gerarContasReceber())
+  const { error: cpErr } = await supabase.from('lf_contas_pagar').insert(gerarContasPagar())
+  if (cpErr) throw new Error(`lf_contas_pagar: ${cpErr.message}`)
 
-  await supabase.from('lf_config').update({ features: DEMO_FEATURES }).eq('loja_id', DEMO_LOJA_ID)
+  const { error: crErr } = await supabase.from('lf_contas_receber').insert(gerarContasReceber())
+  if (crErr) throw new Error(`lf_contas_receber: ${crErr.message}`)
+
+  const { error: cfgErr } = await supabase.from('lf_config').update({ features: DEMO_FEATURES }).eq('loja_id', DEMO_LOJA_ID)
+  if (cfgErr) throw new Error(`lf_config: ${cfgErr.message}`)
 }
 
 // ── Component ─────────────────────────────────────────────────────
