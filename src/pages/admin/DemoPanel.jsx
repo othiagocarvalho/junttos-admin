@@ -3,8 +3,9 @@ import { supabase } from '../../lib/supabase'
 import { ExternalLink, RotateCcw, Check, AlertCircle, Loader2, Zap, Smartphone, X } from 'lucide-react'
 import { T } from '../../theme/tokens'
 
-const DEMO_LOJA_ID = 'sualoja'
-const DEMO_URL     = 'https://junttos-admin.vercel.app/sualoja/dashboard'
+const DEMO_LOJA_ID    = 'sualoja'
+const DEMO_URL        = 'https://junttos-admin.vercel.app/sualoja/dashboard'
+const DEMO_URL_MOBILE = 'https://junttos-admin.vercel.app/sualoja/dashboard?forceMobile=1'
 const PLANOS       = ['starter', 'pro', 'business']
 const PLANO_LABEL  = { starter: 'Starter', pro: 'Pro', business: 'Business' }
 
@@ -337,7 +338,7 @@ export default function DemoPanel() {
 
       {/* Phone simulator */}
       {showMobile && (
-        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <div style={{ height: 1, background: `${T.purple}18`, width: '100%', marginBottom: 2 }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -377,7 +378,7 @@ export default function DemoPanel() {
             {/* Screen */}
             <div style={{ borderRadius: 40, overflow: 'hidden', width: 375, height: 812, background: '#000' }}>
               <iframe
-                src={DEMO_URL}
+                src={DEMO_URL_MOBILE}
                 width={375}
                 height={812}
                 style={{ border: 'none', display: 'block' }}
