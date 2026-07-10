@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Building2,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Building2, Truck,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -21,6 +21,7 @@ import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 import Clientes from '../LojaFeminina/Clientes'
 import Crediario from '../LojaFeminina/Crediario'
+import Fornecedores from '../LojaFeminina/Fornecedores'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
@@ -79,9 +80,10 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--mut
 const PLANO_NAV_ITEMS = [
   { id: 'clientes',  label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'  },
   { id: 'meta',      label: 'Metas',            Icon: Target,      planoMinimo: 'pro'      },
-  { id: 'crediario', label: 'Crediário',        Icon: Receipt,     planoMinimo: 'pro'      },
-  { id: 'catalogo',  label: 'Catálogo online',  Icon: ShoppingBag, planoMinimo: 'business' },
-  { id: 'financeiro',label: 'Financeiro',       Icon: CreditCard,  planoMinimo: 'business' },
+  { id: 'crediario',   label: 'Crediário',        Icon: Receipt,     planoMinimo: 'pro'      },
+  { id: 'fornecedores',label: 'Fornecedores',    Icon: Truck,       planoMinimo: 'starter'  },
+  { id: 'catalogo',    label: 'Catálogo online', Icon: ShoppingBag, planoMinimo: 'business' },
+  { id: 'financeiro',  label: 'Financeiro',      Icon: CreditCard,  planoMinimo: 'business' },
 ]
 
 const PLANO_BADGE_DESKTOP = {
@@ -174,7 +176,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
         )}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
-          if (legado && ['catalogo', 'financeiro', 'crediario'].includes(id)) return null
+          if (legado && ['catalogo', 'financeiro', 'crediario', 'fornecedores'].includes(id)) return null
           const hasAccess = legado || temAcesso(plano, planoMinimo)
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
@@ -585,7 +587,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', fornecedor: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [] }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [] }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(() => ({
     ...EMPTY_VENDA,
@@ -600,9 +602,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [ajusteModo,  setAjusteModo]  = useState('valor')
   const [ajusteInput, setAjusteInput] = useState('')
   const [fornOpen, setFornOpen] = useState(false)
+  const [cliNomeOpen, setCliNomeOpen] = useState(false)
+  const [cliTelOpen, setCliTelOpen] = useState(false)
 
+  const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const fornMatches = fornecedores.filter(f =>
     form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
+  ).slice(0, 8)
+  const cliNomeMatches = clientes.filter(c =>
+    form.nome.trim() === '' || c.nome.toLowerCase().includes(form.nome.toLowerCase())
+  ).slice(0, 8)
+  const cliTelMatches = clientes.filter(c =>
+    form.tel.trim() === '' || (c.telefone && normTelFn(c.telefone).includes(normTelFn(form.tel)))
   ).slice(0, 8)
 
   useEffect(() => {
@@ -729,13 +740,75 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={lbl}><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</label>
-              <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Maria Silva" style={inputS} onFocus={fo} onBlur={onB} />
+              <input
+                value={form.nome}
+                onChange={e => setForm({ ...form, nome: e.target.value })}
+                onFocus={e => { setCliNomeOpen(true); fo(e) }}
+                onBlur={e => { setTimeout(() => setCliNomeOpen(false), 160); onB(e) }}
+                placeholder="Maria Silva"
+                style={inputS}
+                autoComplete="off"
+              />
+              {cliNomeOpen && cliNomeMatches.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                  background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.10)', overflow: 'hidden',
+                }}>
+                  {cliNomeMatches.map(c => (
+                    <button key={c.id} type="button"
+                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel })); setCliNomeOpen(false) }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                        borderBottom: '1px solid var(--line)',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                    >
+                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{c.nome}</div>
+                      {c.telefone && <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{c.telefone}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={lbl}><Phone size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Telefone</label>
-              <input value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} placeholder="(85) 99999-0000" style={inputS} onFocus={fo} onBlur={onB} />
+              <input
+                value={form.tel}
+                onChange={e => setForm({ ...form, tel: e.target.value })}
+                onFocus={e => { setCliTelOpen(true); fo(e) }}
+                onBlur={e => { setTimeout(() => setCliTelOpen(false), 160); onB(e) }}
+                placeholder="(85) 99999-0000"
+                style={inputS}
+                autoComplete="off"
+              />
+              {cliTelOpen && cliTelMatches.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
+                  background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.10)', overflow: 'hidden',
+                }}>
+                  {cliTelMatches.map(c => (
+                    <button key={c.id} type="button"
+                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '' })); setCliTelOpen(false) }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
+                        borderBottom: '1px solid var(--line)',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                    >
+                      <div style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{c.nome}</div>
+                      {c.telefone && <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>{c.telefone}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label style={lbl}>Vendedora</label>
@@ -1282,6 +1355,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     contas_pagar: data.features?.atacado
       ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
       : null,
+    fornecedores: temAcesso(plano, 'starter')
+      ? <Fornecedores {...data} theme={theme} lojaId={data.LOJA_ID} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="fornecedores" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
       : null,
