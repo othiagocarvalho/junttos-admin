@@ -334,14 +334,26 @@ export default function Fornecedores({
       {confirmRemover && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', padding: 22, maxWidth: 340, width: '100%' }}>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 8 }}>Remover fornecedor?</p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 18 }}>
-              "{confirmRemover.nome}" será removido da lista. O histórico de compras é mantido.
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="secondary" fullWidth onClick={() => setConfirmRemover(null)}>Cancelar</Button>
-              <Button variant="primary" fullWidth style={{ background: '#DD4F3E' }} onClick={handleRemover}>Remover</Button>
-            </div>
+            {comprasDoFornecedor(confirmRemover.id).length > 0 ? (
+              <>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 8 }}>Não é possível remover</p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 18 }}>
+                  Este fornecedor tem {comprasDoFornecedor(confirmRemover.id).length} compra{comprasDoFornecedor(confirmRemover.id).length > 1 ? 's' : ''} registrada{comprasDoFornecedor(confirmRemover.id).length > 1 ? 's' : ''} e não pode ser removido.
+                </p>
+                <Button variant="secondary" fullWidth onClick={() => setConfirmRemover(null)}>Fechar</Button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 8 }}>Remover fornecedor?</p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginBottom: 18 }}>
+                  "{confirmRemover.nome}" será removido da lista.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Button variant="secondary" fullWidth onClick={() => setConfirmRemover(null)}>Cancelar</Button>
+                  <Button variant="primary" fullWidth style={{ background: '#DD4F3E' }} onClick={handleRemover}>Remover</Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

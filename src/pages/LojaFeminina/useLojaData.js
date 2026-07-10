@@ -73,7 +73,7 @@ export function useLojaData(lojaId = 'estrada') {
         setPedidos([])
       }
       try {
-        const { data: fornData } = await supabase.from('lf_fornecedores').select('id, nome').eq('loja_id', lojaId).order('nome')
+        const { data: fornData } = await supabase.from('lf_fornecedores').select('*').eq('loja_id', lojaId).order('nome')
         setFornecedores(fornData || [])
       } catch (_e) {
         setFornecedores([])
