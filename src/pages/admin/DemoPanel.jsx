@@ -73,9 +73,10 @@ function gerarCompras(fornecedores) {
 
 function gerarContasPagar() {
   return [
-    { loja_id: DEMO_LOJA_ID, descricao: 'Aluguel',                   categoria: 'aluguel',    valor: 500,   data_vencimento: diasFrente(20), status: 'pendente', recorrente: true  },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Aluguel',                    categoria: 'aluguel',    valor: 500,   data_vencimento: diasFrente(20), status: 'pendente', recorrente: true  },
     { loja_id: DEMO_LOJA_ID, descricao: 'Fornecedor — Confecções Ana', categoria: 'fornecedor', valor: 320,   data_vencimento: diasFrente(7),  status: 'pendente', recorrente: false },
-    { loja_id: DEMO_LOJA_ID, descricao: 'Internet e telefone',        categoria: 'fixo',       valor: 89.90, data_vencimento: diasAtras(3),   status: 'pago',     data_pagamento: diasAtras(3), recorrente: true },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Maquininha — mensalidade',    categoria: 'fixo',       valor: 149,   data_vencimento: diasFrente(2),  status: 'pendente', recorrente: true  },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Internet e telefone',         categoria: 'fixo',       valor: 89.90, data_vencimento: diasAtras(3),   status: 'pago',     data_pagamento: diasAtras(3), recorrente: true },
   ]
 }
 
@@ -84,6 +85,16 @@ function gerarContasReceber() {
     { loja_id: DEMO_LOJA_ID, descricao: 'Venda parcelada — Fernanda', categoria: 'vendas',  valor: 450, data_vencimento: diasFrente(15), status: 'pendente',                                    origem: 'manual' },
     { loja_id: DEMO_LOJA_ID, descricao: 'Reembolso — devolução',      categoria: 'outros',  valor: 127, data_vencimento: diasAtras(5),   status: 'recebido', data_recebimento: diasAtras(5), origem: 'manual' },
   ]
+}
+
+const SEED_PRODUTO_BAIXO = {
+  loja_id: DEMO_LOJA_ID,
+  nome: 'Body Canelado',
+  preco_custo: 28,
+  preco_venda: 69,
+  variacoes: [{ cor: 'Preto P', quantidade: 2 }, { cor: 'Preto M', quantidade: 1 }],
+  fotos: [],
+  disponivel_catalogo_b2b: false,
 }
 
 const DEMO_FEATURES = {
@@ -125,6 +136,10 @@ async function executarReset() {
 
   const { error: crErr } = await supabase.from('lf_contas_receber').insert(gerarContasReceber())
   if (crErr) throw new Error(`lf_contas_receber: ${crErr.message}`)
+
+  await supabase.from('lf_produtos').delete().eq('loja_id', DEMO_LOJA_ID).eq('nome', SEED_PRODUTO_BAIXO.nome)
+  const { error: prodErr } = await supabase.from('lf_produtos').insert(SEED_PRODUTO_BAIXO)
+  if (prodErr) throw new Error(`lf_produtos: ${prodErr.message}`)
 
   const { error: cfgErr } = await supabase.from('lf_config').update({ features: DEMO_FEATURES }).eq('loja_id', DEMO_LOJA_ID)
   if (cfgErr) throw new Error(`lf_config: ${cfgErr.message}`)
