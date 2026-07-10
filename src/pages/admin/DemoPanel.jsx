@@ -73,17 +73,17 @@ function gerarCompras(fornecedores) {
 
 function gerarContasPagar() {
   return [
-    { loja_id: DEMO_LOJA_ID, descricao: 'Aluguel',                    categoria: 'aluguel',    valor: 500,   data_vencimento: diasFrente(20), status: 'pendente', recorrente: true  },
-    { loja_id: DEMO_LOJA_ID, descricao: 'Fornecedor — Confecções Ana', categoria: 'fornecedor', valor: 320,   data_vencimento: diasFrente(7),  status: 'pendente', recorrente: false },
-    { loja_id: DEMO_LOJA_ID, descricao: 'Maquininha — mensalidade',    categoria: 'fixo',       valor: 149,   data_vencimento: diasFrente(2),  status: 'pendente', recorrente: true  },
-    { loja_id: DEMO_LOJA_ID, descricao: 'Internet e telefone',         categoria: 'fixo',       valor: 89.90, data_vencimento: diasAtras(3),   status: 'pago',     data_pagamento: diasAtras(3), recorrente: true },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Aluguel',                    categoria: 'aluguel',    valor: 500,   data_vencimento: diasFrente(20), status: 'pendente', data_pagamento: null,         recorrente: true  },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Fornecedor — Confecções Ana', categoria: 'fornecedor', valor: 320,   data_vencimento: diasFrente(7),  status: 'pendente', data_pagamento: null,         recorrente: false },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Maquininha — mensalidade',    categoria: 'fixo',       valor: 149,   data_vencimento: diasFrente(2),  status: 'pendente', data_pagamento: null,         recorrente: true  },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Internet e telefone',         categoria: 'fixo',       valor: 89.90, data_vencimento: diasAtras(3),   status: 'pago',     data_pagamento: diasAtras(3), recorrente: true  },
   ]
 }
 
 function gerarContasReceber() {
   return [
-    { loja_id: DEMO_LOJA_ID, descricao: 'Venda parcelada — Fernanda', categoria: 'vendas',  valor: 450, data_vencimento: diasFrente(15), status: 'pendente',                                    origem: 'manual' },
-    { loja_id: DEMO_LOJA_ID, descricao: 'Reembolso — devolução',      categoria: 'outros',  valor: 127, data_vencimento: diasAtras(5),   status: 'recebido', data_recebimento: diasAtras(5), origem: 'manual' },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Venda parcelada — Fernanda', categoria: 'vendas', valor: 450, data_vencimento: diasFrente(15), status: 'pendente',  data_recebimento: null,         origem: 'manual' },
+    { loja_id: DEMO_LOJA_ID, descricao: 'Reembolso — devolução',      categoria: 'outros', valor: 127, data_vencimento: diasAtras(5),   status: 'recebido', data_recebimento: diasAtras(5), origem: 'manual' },
   ]
 }
 
