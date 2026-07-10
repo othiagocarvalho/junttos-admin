@@ -8,6 +8,7 @@ import {
 import StoreCard from '../../components/junttos/StoreCard'
 import EmptyState from '../../components/junttos/EmptyState'
 import { T } from '../../theme/tokens'
+import DemoPanel from './DemoPanel'
 
 const PROD_BASE = 'https://junttos-admin.vercel.app'
 
@@ -487,6 +488,8 @@ export default function CadastroCliente() {
           </button>
         </div>
       </div>
+
+      <DemoPanel />
 
       {/* Content */}
       {fetching ? (

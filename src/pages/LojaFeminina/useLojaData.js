@@ -94,6 +94,21 @@ export function useLojaData(lojaId = 'estrada') {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  useEffect(() => {
+    const channel = supabase
+      .channel(`config-${lojaId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lf_config', filter: `loja_id=eq.${lojaId}` },
+        ({ new: newRow }) => {
+          if (!newRow) return
+          if (typeof newRow.features === 'string') {
+            try { newRow.features = JSON.parse(newRow.features) } catch (_) { newRow.features = {} }
+          }
+          setConfig(newRow)
+        })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [lojaId])
+
   async function ensureDefaults() {
     const { data: cfg } = await supabase
       .from('lf_config')
