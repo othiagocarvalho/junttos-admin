@@ -675,7 +675,7 @@ export default function CatalogoPublico({ lojaId }) {
     const varLabel = getVariacaoLabel(variacaoRaw) || ''
     if (!modoSimples && varLabel) {
       const { data: fresh } = await supabase
-        .from('lf_produtos').select('variacoes').eq('id', produto.id).maybeSingle()
+        .from('lf_produtos').select('variacoes').eq('id', produto.id).eq('loja_id', lojaId).maybeSingle()
       if (fresh) {
         const freshVar = (fresh.variacoes || []).find(v => getVariacaoLabel(v) === varLabel)
         if (freshVar && (freshVar.quantidade || 0) === 0) {
@@ -716,7 +716,7 @@ export default function CatalogoPublico({ lojaId }) {
         const prodIds = [...new Set(carrinho.filter(i => i.variacao).map(i => i.produtoId))]
         if (prodIds.length > 0) {
           const { data: freshProds } = await supabase
-            .from('lf_produtos').select('id, variacoes').in('id', prodIds)
+            .from('lf_produtos').select('id, variacoes').in('id', prodIds).eq('loja_id', lojaId)
           const esgotados = detectarItensEsgotados(carrinho, freshProds || [])
           if (esgotados.length > 0) {
             setItensEsgotados(esgotados)

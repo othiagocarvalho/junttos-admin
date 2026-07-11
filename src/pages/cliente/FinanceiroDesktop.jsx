@@ -85,7 +85,7 @@ function ContasPagarPane({ lojaId, theme }) {
 
   async function handlePagar(id) {
     setPagandoId(id)
-    await supabase.from('lf_contas_pagar').update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) }).eq('id', id)
+    await supabase.from('lf_contas_pagar').update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) }).eq('id', id).eq('loja_id', lojaId)
     setPagandoId(null)
     load()
   }
@@ -219,7 +219,7 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
 
   async function handleReceber(id) {
     setRecebendoId(id)
-    await supabase.from('lf_contas_receber').update({ status: 'recebido', data_recebimento: new Date().toISOString().slice(0, 10) }).eq('id', id)
+    await supabase.from('lf_contas_receber').update({ status: 'recebido', data_recebimento: new Date().toISOString().slice(0, 10) }).eq('id', id).eq('loja_id', lojaId)
     setRecebendoId(null)
     load()
   }

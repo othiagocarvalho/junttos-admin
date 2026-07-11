@@ -79,7 +79,7 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
   }
 
   async function handleDesativar(id) {
-    await supabase.from('lf_usuarios').update({ ativo: false }).eq('id', id)
+    await supabase.from('lf_usuarios').update({ ativo: false }).eq('id', id).eq('loja_id', lojaId)
     await fetchUsuarios()
   }
 
