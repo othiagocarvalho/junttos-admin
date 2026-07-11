@@ -170,6 +170,7 @@ export function useLojaData(lojaId = 'estrada') {
               .from('lf_produtos')
               .update({ variacoes: novasVariacoes })
               .eq('id', prod.id)
+              .eq('loja_id', lojaId)
           }
         }
       }
@@ -222,7 +223,7 @@ export function useLojaData(lojaId = 'estrada') {
               observacoes: null,
             })
           } else if (!match.telefone && telVenda) {
-            await supabase.from('lf_clientes').update({ telefone: telVenda }).eq('id', match.id)
+            await supabase.from('lf_clientes').update({ telefone: telVenda }).eq('id', match.id).eq('loja_id', lojaId)
           }
         } catch (e) {
           console.error('[auto-cliente]', e)
@@ -241,7 +242,7 @@ export function useLojaData(lojaId = 'estrada') {
       .eq('id', id)
       .maybeSingle()
 
-    const { error } = await supabase.from('lf_vendas').delete().eq('id', id)
+    const { error } = await supabase.from('lf_vendas').delete().eq('id', id).eq('loja_id', lojaId)
     if (!error) {
       const itensComVariacao = (venda?.produtos || []).filter(p => p.variacao)
       if (itensComVariacao.length > 0) {
@@ -270,6 +271,7 @@ export function useLojaData(lojaId = 'estrada') {
               .from('lf_produtos')
               .update({ variacoes: novasVariacoes })
               .eq('id', prod.id)
+              .eq('loja_id', lojaId)
           }
         }
       }
@@ -279,7 +281,7 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function updateVenda(id, updates) {
-    const { error } = await supabase.from('lf_vendas').update(updates).eq('id', id)
+    const { error } = await supabase.from('lf_vendas').update(updates).eq('id', id).eq('loja_id', lojaId)
     if (!error) await fetchAll()
     return error
   }
@@ -329,6 +331,7 @@ export function useLojaData(lojaId = 'estrada') {
       .from('lf_produtos')
       .update(updates)
       .eq('id', id)
+      .eq('loja_id', lojaId)
     if (!error) await fetchAll()
     return error
   }
@@ -348,6 +351,7 @@ export function useLojaData(lojaId = 'estrada') {
       .from('lf_produtos')
       .update({ variacoes })
       .eq('id', id)
+      .eq('loja_id', lojaId)
     if (!error) await fetchAll()
     return error
   }
@@ -416,7 +420,7 @@ export function useLojaData(lojaId = 'estrada') {
     if (!item) return
     const novasPagas = item.parcelas_pagas + 1
     const novoStatus = novasPagas >= item.parcelas ? 'quitado' : 'aberto'
-    const { data, error } = await supabase.from('lf_crediario').update({ parcelas_pagas: novasPagas, status: novoStatus }).eq('id', id).select().single()
+    const { data, error } = await supabase.from('lf_crediario').update({ parcelas_pagas: novasPagas, status: novoStatus }).eq('id', id).eq('loja_id', lojaId).select().single()
     if (error) throw error
     setCrediario(prev => prev.map(c => c.id === id ? data : c))
     return data
@@ -429,7 +433,7 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function updatePedido(id, updates) {
-    const { data, error } = await supabase.from('lf_pedidos').update(updates).eq('id', id).select().single()
+    const { data, error } = await supabase.from('lf_pedidos').update(updates).eq('id', id).eq('loja_id', lojaId).select().single()
     if (error) throw error
     setPedidos(prev => prev.map(p => p.id === id ? data : p))
     return data
