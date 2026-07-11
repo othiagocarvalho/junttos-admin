@@ -60,6 +60,16 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
   const [deleteError, setDeleteError] = useState('')
   const [autoFilled, setAutoFilled] = useState(false)
 
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key !== 'Escape') return
+      if (caixaParaExcluir && !deleting) handleDeleteCancel()
+      else if (modalDivergencia) setModalDivergencia(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [caixaParaExcluir, modalDivergencia, deleting])
+
   // Auto-fill payment fields by summing registered sales for the selected date
   useEffect(() => {
     const doDia = vendas.filter(v => {
@@ -392,8 +402,8 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
 
       {/* Modal de confirmação de exclusão */}
       {caixaParaExcluir && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+        <div onClick={() => !deleting && handleDeleteCancel()} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
               Excluir fechamento?
             </p>
@@ -440,8 +450,8 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
 
       {/* Modal de divergência de valores (aviso, não bloqueio) */}
       {modalDivergencia && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+        <div onClick={() => setModalDivergencia(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 400, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 14 }}>
               Atenção — Valores divergentes
             </p>

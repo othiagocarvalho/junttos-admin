@@ -75,6 +75,13 @@ function PagamentoModal({ open, onClose, cobrancas, onSaved }) {
     finally { setSaving(false) }
   }
 
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   const inp = {
@@ -86,8 +93,8 @@ function PagamentoModal({ open, onClose, cobrancas, onSaved }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 440, boxShadow: T.darkCardShadow, fontFamily: T.ui }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 440, boxShadow: T.darkCardShadow, fontFamily: T.ui }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 24px 0' }}>
           <h2 style={{ fontSize: 17, fontWeight: 700, color: T.ink }}>Registrar Pagamento</h2>
           <button onClick={onClose} style={{ background: T.mist, border: 'none', borderRadius: T.rInput, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

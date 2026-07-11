@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check } from 'lucide-react'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -20,6 +20,12 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
   const [form, setForm] = useState(initial || FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    function handleKey(e) { if (e.key === 'Escape') onCancelar() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onCancelar])
 
   function set(field, val) { setForm(f => ({ ...f, [field]: val })) }
 
@@ -43,8 +49,8 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div style={{
+    <div onClick={onCancelar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{
         background: 'var(--surface)', borderRadius: '20px 20px 0 0',
         width: '100%', maxWidth: 520, padding: '24px 20px',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',

@@ -8,7 +8,6 @@ function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {} }) {
   const [contasData, setContasData] = useState(null)
   const [idx, setIdx] = useState(0)
-  const isDark = !!theme.isDark
 
   useEffect(() => {
     if (!lojaId) return
@@ -52,11 +51,10 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
     alerts.push({
       type: 'estoque',
       Icon: AlertTriangle,
-      bg: isDark ? 'rgba(255,152,0,0.12)' : 'rgba(255,152,0,0.08)',
-      border: isDark ? 'rgba(255,152,0,0.35)' : 'rgba(255,152,0,0.45)',
-      color: isDark ? '#FFB74D' : '#BF360C',
-      text: produtosBaixos.length === 1
-        ? `Estoque baixo: ${produtosBaixos[0].nome}`
+      bg: '#D85A30',
+      title: 'Estoque baixo',
+      sub: produtosBaixos.length === 1
+        ? produtosBaixos[0].nome
         : `${produtosBaixos.length} produtos com estoque baixo`,
       tab: 'estoque',
     })
@@ -66,10 +64,9 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
     alerts.push({
       type: 'meta',
       Icon: TrendingUp,
-      bg: isDark ? 'rgba(76,175,80,0.12)' : 'rgba(76,175,80,0.08)',
-      border: isDark ? 'rgba(76,175,80,0.35)' : 'rgba(76,175,80,0.45)',
-      color: isDark ? '#81C784' : '#1B5E20',
-      text: `Meta batida! Você atingiu ${fmtR(totalMes)} este mês`,
+      bg: '#1F8A5B',
+      title: 'Meta batida!',
+      sub: `Você atingiu ${fmtR(totalMes)} este mês`,
       tab: 'meta',
     })
   }
@@ -78,11 +75,10 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
     alerts.push({
       type: 'conta',
       Icon: CreditCard,
-      bg: isDark ? 'rgba(244,67,54,0.12)' : 'rgba(244,67,54,0.08)',
-      border: isDark ? 'rgba(244,67,54,0.35)' : 'rgba(244,67,54,0.45)',
-      color: isDark ? '#EF9A9A' : '#B71C1C',
-      text: contasData.length === 1
-        ? `Conta vence em breve: ${contasData[0].descricao}`
+      bg: '#C0392B',
+      title: 'Conta vence em breve',
+      sub: contasData.length === 1
+        ? contasData[0].descricao
         : `${contasData.length} contas vencem nos próximos 3 dias`,
       tab: 'financeiro',
     })
@@ -109,31 +105,65 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
       onClick={() => setTab(alert.tab)}
       onKeyDown={e => e.key === 'Enter' && setTab(alert.tab)}
       style={{
-        marginBottom: 14, borderRadius: 12, padding: '12px 16px',
-        background: alert.bg, border: `1.5px solid ${alert.border}`,
+        marginBottom: 14,
+        borderRadius: 12,
+        padding: '14px 16px',
+        background: alert.bg,
         cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Icon size={15} color={alert.color} style={{ flexShrink: 0 }} />
-        <span style={{
-          flex: 1, fontFamily: 'Plus Jakarta Sans, sans-serif',
-          fontSize: 13, fontWeight: 600, color: alert.color,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        <div style={{
+          width: 34,
+          height: 34,
+          borderRadius: 99,
+          background: 'rgba(255,255,255,0.22)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
         }}>
-          {alert.text}
-        </span>
-        <ChevronRight size={14} color={alert.color} style={{ flexShrink: 0, opacity: 0.6 }} />
+          <Icon size={16} color="#fff" />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#fff',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {alert.title}
+          </div>
+          {alert.sub && (
+            <div style={{
+              fontFamily: 'Plus Jakarta Sans, sans-serif',
+              fontSize: 11.5,
+              color: 'rgba(255,255,255,0.85)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              marginTop: 1,
+            }}>
+              {alert.sub}
+            </div>
+          )}
+        </div>
+        <ChevronRight size={16} color="rgba(255,255,255,0.65)" style={{ flexShrink: 0 }} />
       </div>
       {alerts.length > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 5, marginTop: 10 }}>
           {alerts.map((_, i) => (
             <div
               key={i}
               style={{
-                height: 5, borderRadius: 99, transition: 'all 0.3s',
-                width: i === idx ? 16 : 5,
-                background: i === idx ? alert.color : `${alert.color}55`,
+                height: 4,
+                borderRadius: 99,
+                transition: 'all 0.3s',
+                width: i === idx ? 16 : 4,
+                background: i === idx ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)',
               }}
             />
           ))}

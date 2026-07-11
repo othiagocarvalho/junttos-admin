@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Plus, X, ChevronDown, ChevronRight, Package } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { HeroCard } from '../../components/studio/Card'
@@ -53,6 +53,17 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [deleteToast, setDeleteToast] = useState('')
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key !== 'Escape') return
+      if (deleteConfirm && !deleting) { setDeleteConfirm(null); setDeleteError(null) }
+      else if (modal) setModal(null)
+      else if (newProdOpen) setNewProdOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [deleteConfirm, deleting, modal, newProdOpen])
 
   // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro
   const estoqueData = produtosData.filter(p => !p.disponivel_catalogo_b2b)
@@ -729,8 +740,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
 
       {/* Modal — Editar/Adicionar variação existente */}
       {modal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
+        <div onClick={() => setModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
@@ -837,8 +848,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       )}
       {/* Modal de confirmação — excluir produto */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+        <div onClick={() => !deleting && (setDeleteConfirm(null), setDeleteError(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
               Excluir produto?
             </p>

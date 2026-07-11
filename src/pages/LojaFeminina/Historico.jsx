@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X } from 'lucide-react'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
@@ -44,6 +44,16 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key !== 'Escape') return
+      if (confirmDel) setConfirmDel(null)
+      else if (editVenda) setEditVenda(null)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [confirmDel, editVenda])
 
   const editTotal = editVenda ? Number(editVenda.valor) : 0
   const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
@@ -249,8 +259,8 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
 
       {/* Delete confirmation */}
       {confirmDel && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
+        <div onClick={() => setConfirmDel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 6 }}>Excluir venda?</p>
             <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 20, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
               Excluir a venda de <span style={{ fontWeight: 700 }}>{fmtR(confirmDel?.valor || 0)}</span>? Esta ação não pode ser desfeita.
@@ -271,8 +281,8 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
 
       {/* Edit payment */}
       {editVenda && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
+        <div onClick={() => setEditVenda(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px 36px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
                 Editar Pagamento — {fmtR(editVenda.valor)}

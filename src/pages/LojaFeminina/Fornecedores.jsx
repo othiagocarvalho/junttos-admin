@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Plus, X, ArrowLeft, Truck, Phone, Calendar, Check, Trash2, Receipt } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -42,6 +42,16 @@ export default function Fornecedores({
   const [compraForm, setCompraForm]     = useState(EMPTY_COMPRA)
   const [compraSaving, setCompraSaving] = useState(false)
   const [confirmRemover, setConfirmRemover] = useState(null)
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key !== 'Escape') return
+      if (confirmRemover) setConfirmRemover(null)
+      else if (compraModal) setCompraModal(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [confirmRemover, compraModal])
 
   const ativos = fornecedores.filter(f => f.ativo !== false)
   const filtrados = ativos.filter(f => f.nome.toLowerCase().includes(search.toLowerCase()))
@@ -224,8 +234,8 @@ export default function Fornecedores({
 
         {/* Modal nova compra */}
         {compraModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-            <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%', maxWidth: 480, boxSizing: 'border-box' }}>
+          <div onClick={() => setCompraModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%', maxWidth: 480, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                 <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>Registrar compra</p>
                 <button onClick={() => setCompraModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={18} /></button>
@@ -332,8 +342,8 @@ export default function Fornecedores({
       )}
 
       {confirmRemover && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', padding: 22, maxWidth: 340, width: '100%' }}>
+        <div onClick={() => setConfirmRemover(null)} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', padding: 22, maxWidth: 340, width: '100%' }}>
             {comprasDoFornecedor(confirmRemover.id).length > 0 ? (
               <>
                 <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 15, color: 'var(--ink)', marginBottom: 8 }}>Não é possível remover</p>
@@ -362,9 +372,15 @@ export default function Fornecedores({
 }
 
 function FornecedorFormModal({ modo, form, setForm, error, saving, onClose, onSave, onRemover }) {
+  useEffect(() => {
+    function handleKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 32px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
             {modo === 'novo' ? 'Novo Fornecedor' : 'Editar Fornecedor'}

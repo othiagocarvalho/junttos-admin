@@ -124,6 +124,13 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   const [successLink, setSuccessLink] = useState('')
   const fileRef = useRef(null)
 
+  useEffect(() => {
+    if (!open) return
+    function handleKey(e) { if (e.key === 'Escape') handleClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [open])
+
   function reset() {
     setForm(EMPTY_FORM); setError(''); setSuccessLink(''); setSaving(false); setExtracting(false)
   }
@@ -228,8 +235,8 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   if (!open) return null
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 540, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui }}>
+    <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 540, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '24px 28px 0' }}>
           <div>

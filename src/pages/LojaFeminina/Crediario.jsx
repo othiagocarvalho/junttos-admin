@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, X, Receipt } from 'lucide-react'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
@@ -10,6 +10,13 @@ function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 export default function Crediario({ crediario = [], addCrediario, pagarParcela, theme }) {
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!showModal) return
+    function handleKey(e) { if (e.key === 'Escape') setShowModal(false) }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [showModal])
   const [pagandoId, setPagandoId] = useState(null)
   const [form, setForm] = useState({
     cliente_nome: '',
@@ -174,8 +181,8 @@ export default function Crediario({ crediario = [], addCrediario, pagarParcela, 
 
       {/* Modal Nova Venda Fiada */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', maxHeight: '90dvh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', maxHeight: '90dvh', overflowY: 'auto', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>Nova venda fiada</p>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}>
