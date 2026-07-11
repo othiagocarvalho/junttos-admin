@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
 
@@ -336,6 +336,18 @@ export default function ProdutosB2BPro({
   const [loteGrade, setLoteGrade]           = useState(EMPTY_GRADE)
   const [loteSaving, setLoteSaving]         = useState(false)
   const [loteError, setLoteError]           = useState('')
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key !== 'Escape') return
+      if (deleteConfirm) setDeleteConfirm(null)
+      else if (loteOpen && !loteSaving) setLoteOpen(false)
+      else if (editModal) setEditModal(null)
+      else if (newProdOpen) setNewProdOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [deleteConfirm, loteOpen, loteSaving, editModal, newProdOpen])
 
   const b2bProdutos = produtosData.filter(p => p.disponivel_catalogo_b2b === true)
   const filtered = b2bProdutos.filter(p =>
@@ -1050,8 +1062,8 @@ export default function ProdutosB2BPro({
 
       {/* Modal — Confirmar Exclusão */}
       {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
+        <div onClick={() => setDeleteConfirm(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 24px 60px rgba(0,0,0,0.25)' }}>
             <p style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 10 }}>
               Excluir produto?
             </p>
