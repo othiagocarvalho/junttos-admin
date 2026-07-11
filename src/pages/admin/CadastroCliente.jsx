@@ -199,8 +199,17 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
       // Create Auth user — rollback lf_config if this fails
       if (form.email_acesso && form.senha_acesso) {
+        const lojaUrl = `${PROD_BASE}/${form.slug}/`
         const { data: fnData, error: fnErr } = await supabase.functions.invoke('create-user', {
-          body: { email: form.email_acesso, password: form.senha_acesso, loja_id: form.slug, nome: form.nome },
+          body: {
+            email: form.email_acesso,
+            password: form.senha_acesso,
+            loja_id: form.slug,
+            nome: form.nome,
+            enviarBV: form.enviarBV,
+            lojaUrl,
+            senhaCleartext: form.enviarBV ? form.senha_acesso : undefined,
+          },
         })
         const authError = fnErr?.message || fnData?.error
         if (authError) {
