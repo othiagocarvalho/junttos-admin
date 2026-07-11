@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import Logo   from '../components/junttos/Logo'
 import Input  from '../components/junttos/Input'
 import Button from '../components/junttos/Button'
@@ -16,10 +17,28 @@ export default function LoginCliente() {
   const { login, error, setError } = useAuth()
   const navigate = useNavigate()
 
-  const [credential, setCredential] = useState('')
-  const [password,   setPassword]   = useState('')
-  const [remember,   setRemember]   = useState(false)
-  const [loading,    setLoading]    = useState(false)
+  const [credential,   setCredential]   = useState('')
+  const [password,     setPassword]     = useState('')
+  const [remember,     setRemember]     = useState(false)
+  const [loading,      setLoading]      = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetMsg,     setResetMsg]     = useState('')
+
+  async function handleForgotPassword() {
+    const email = credential.trim()
+    if (!email || !email.includes('@')) {
+      setError('Preencha o campo de e-mail antes de recuperar a senha.')
+      return
+    }
+    setResetLoading(true)
+    setResetMsg('')
+    setError('')
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+    setResetLoading(false)
+    setResetMsg('Se esse e-mail estiver cadastrado, você receberá o link de recuperação em instantes.')
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -190,20 +209,41 @@ export default function LoginCliente() {
               </label>
               <button
                 type="button"
+                disabled={resetLoading}
+                onClick={handleForgotPassword}
                 style={{
                   background: 'none',
                   border:     'none',
-                  cursor:     'pointer',
+                  cursor:     resetLoading ? 'wait' : 'pointer',
                   fontSize:   13.5,
                   color:      T.purpleText,
                   fontWeight: 600,
                   padding:    '4px 0',
                   fontFamily: T.ui,
+                  opacity:    resetLoading ? 0.6 : 1,
                 }}
               >
-                Esqueci minha senha
+                {resetLoading ? 'Enviando...' : 'Esqueci minha senha'}
               </button>
             </div>
+
+            {/* Reset feedback */}
+            {resetMsg && (
+              <div
+                role="status"
+                style={{
+                  background:   'rgba(94,43,208,0.06)',
+                  border:       '1px solid rgba(94,43,208,0.2)',
+                  borderRadius: T.rChip,
+                  padding:      '11px 16px',
+                  color:        T.purpleText,
+                  fontSize:     13,
+                  lineHeight:   1.5,
+                }}
+              >
+                {resetMsg}
+              </div>
+            )}
 
             {/* Error */}
             {error && (

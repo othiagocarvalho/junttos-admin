@@ -23,7 +23,7 @@ export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidad
   const badgeColors    = BADGE_COLORS[planoAtual] || BADGE_COLORS.starter
   const primary        = theme?.primary || '#6B4FBB'
 
-  const waUrl = `https://wa.me/559XXXXXXXX?text=Ol%C3%A1!%20Tenho%20interesse%20em%20fazer%20upgrade%20do%20meu%20plano%20Junttos.`
+  const waUrl = `https://wa.me/5591992733546?text=Ol%C3%A1!%20Tenho%20interesse%20em%20fazer%20upgrade%20do%20meu%20plano%20Junttos.`
 
   return (
     <div style={{
