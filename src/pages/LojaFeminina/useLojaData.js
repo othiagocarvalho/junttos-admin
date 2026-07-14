@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
+import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 
 const DEFAULT_FEATURES = {
   vendas: true,
@@ -145,12 +146,9 @@ export function useLojaData(lojaId = 'estrada') {
     if (!error) {
       const itensComVariacao = (venda.produtos || []).filter(p => p.variacao)
       if (itensComVariacao.length > 0) {
-        const porProduto = {}
-        itensComVariacao.forEach(item => {
-          if (!porProduto[item.nome]) porProduto[item.nome] = []
-          porProduto[item.nome].push(item.variacao)
-        })
-        for (const [nomeProd, variacoesVendidas] of Object.entries(porProduto)) {
+        const nomesProd = [...new Set(itensComVariacao.map(i => i.nome))]
+        for (const nomeProd of nomesProd) {
+          const itensProd = itensComVariacao.filter(i => i.nome === nomeProd)
           const { data: prod } = await supabase
             .from('lf_produtos')
             .select('id, variacoes')
@@ -158,14 +156,7 @@ export function useLojaData(lojaId = 'estrada') {
             .eq('nome', nomeProd)
             .maybeSingle()
           if (prod) {
-            const novasVariacoes = (prod.variacoes || []).map(v => {
-              const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
-              const labelVal = labelKey ? String(v[labelKey]) : null
-              const vezes = variacoesVendidas.filter(vv => vv === labelVal).length
-              return vezes > 0
-                ? { ...v, quantidade: Math.max(0, Number(v.quantidade || 0) - vezes) }
-                : v
-            })
+            const novasVariacoes = decrementarVariacoes(prod.variacoes, itensProd)
             await supabase
               .from('lf_produtos')
               .update({ variacoes: novasVariacoes })
@@ -246,12 +237,9 @@ export function useLojaData(lojaId = 'estrada') {
     if (!error) {
       const itensComVariacao = (venda?.produtos || []).filter(p => p.variacao)
       if (itensComVariacao.length > 0) {
-        const porProduto = {}
-        itensComVariacao.forEach(item => {
-          if (!porProduto[item.nome]) porProduto[item.nome] = []
-          porProduto[item.nome].push(item.variacao)
-        })
-        for (const [nomeProd, variacoesRestaurar] of Object.entries(porProduto)) {
+        const nomesProd = [...new Set(itensComVariacao.map(i => i.nome))]
+        for (const nomeProd of nomesProd) {
+          const itensProd = itensComVariacao.filter(i => i.nome === nomeProd)
           const { data: prod } = await supabase
             .from('lf_produtos')
             .select('id, variacoes')
@@ -259,14 +247,7 @@ export function useLojaData(lojaId = 'estrada') {
             .eq('nome', nomeProd)
             .maybeSingle()
           if (prod) {
-            const novasVariacoes = (prod.variacoes || []).map(v => {
-              const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
-              const labelVal = labelKey ? String(v[labelKey]) : null
-              const vezes = variacoesRestaurar.filter(vv => vv === labelVal).length
-              return vezes > 0
-                ? { ...v, quantidade: Number(v.quantidade || 0) + vezes }
-                : v
-            })
+            const novasVariacoes = restaurarVariacoes(prod.variacoes, itensProd)
             await supabase
               .from('lf_produtos')
               .update({ variacoes: novasVariacoes })

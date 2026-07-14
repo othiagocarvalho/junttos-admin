@@ -1,3 +1,35 @@
+export function decrementarVariacoes(variacoes, itens) {
+  const qtdPorVariacao = {}
+  itens.forEach(item => {
+    const label = item.variacao
+    qtdPorVariacao[label] = (qtdPorVariacao[label] || 0) + (item.quantidade || 1)
+  })
+  return (variacoes || []).map(v => {
+    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    const labelVal = labelKey ? String(v[labelKey]) : null
+    const qtd = qtdPorVariacao[labelVal] || 0
+    return qtd > 0
+      ? { ...v, quantidade: Math.max(0, Number(v.quantidade || 0) - qtd) }
+      : v
+  })
+}
+
+export function restaurarVariacoes(variacoes, itens) {
+  const qtdPorVariacao = {}
+  itens.forEach(item => {
+    const label = item.variacao
+    qtdPorVariacao[label] = (qtdPorVariacao[label] || 0) + (item.quantidade || 1)
+  })
+  return (variacoes || []).map(v => {
+    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    const labelVal = labelKey ? String(v[labelKey]) : null
+    const qtd = qtdPorVariacao[labelVal] || 0
+    return qtd > 0
+      ? { ...v, quantidade: Number(v.quantidade || 0) + qtd }
+      : v
+  })
+}
+
 export function calcularTotalVenda(itens, produtosData) {
   return itens.reduce((sum, item) => {
     const pd = produtosData.find(p => p.nome === item.nome)
