@@ -10,8 +10,6 @@ import EmptyState from '../../components/junttos/EmptyState'
 import { T } from '../../theme/tokens'
 import DemoPanel from './DemoPanel'
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
-
 // Default features for all new lojas — legado and catalogo_b2b always false on creation
 const DEFAULT_FEATURES = {
   vendas: true, historico: true, metas: true,
@@ -199,7 +197,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
       // Create Auth user — rollback lf_config if this fails
       if (form.email_acesso && form.senha_acesso) {
-        const lojaUrl = `${PROD_BASE}/${form.slug}/`
+        const lojaUrl = `${window.location.origin}/${form.slug}/`
         const { data: fnData, error: fnErr } = await supabase.functions.invoke('create-user', {
           body: {
             email: form.email_acesso,
@@ -228,7 +226,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
         status:     'pendente',
       })
 
-      setSuccessLink(`${PROD_BASE}/${form.slug}/`)
+      setSuccessLink(`${window.location.origin}/${form.slug}/`)
       onCreated()
     } catch (err) { setError(err.message) }
     finally { setSaving(false) }
@@ -280,7 +278,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
             </div>
             {form.slug && (
               <p style={{ fontSize: 11, color: isValidSlug(form.slug) ? T.purpleText : T.coralText, marginTop: 5, fontFamily: T.mono }}>
-                {isValidSlug(form.slug) ? `${PROD_BASE}/${form.slug}/` : 'Slug inválido — use letras, números e hífens'}
+                {isValidSlug(form.slug) ? `${window.location.origin}/${form.slug}/` : 'Slug inválido — use letras, números e hífens'}
               </p>
             )}
           </div>
@@ -538,7 +536,7 @@ export default function CadastroCliente() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
             {clientes.map(c => {
               const slug = c.slug || c.loja_id
-              const link = `${PROD_BASE}/${slug}/`
+              const link = `${window.location.origin}/${slug}/`
               return (
                 <StoreCard
                   key={c.id}

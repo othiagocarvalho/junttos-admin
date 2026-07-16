@@ -4,8 +4,8 @@ import { ExternalLink, RotateCcw, Check, AlertCircle, Loader2, Zap, Smartphone, 
 import { T } from '../../theme/tokens'
 
 const DEMO_LOJA_ID    = 'sualoja'
-const DEMO_URL        = 'https://junttos-admin.vercel.app/sualoja/dashboard'
-const DEMO_URL_MOBILE = 'https://junttos-admin.vercel.app/sualoja/dashboard?forceMobile=1'
+const DEMO_URL        = `${window.location.origin}/sualoja/dashboard`
+const DEMO_URL_MOBILE = `${window.location.origin}/sualoja/dashboard?forceMobile=1`
 const PLANOS       = ['starter', 'pro', 'business']
 const PLANO_LABEL  = { starter: 'Starter', pro: 'Pro', business: 'Business' }
 

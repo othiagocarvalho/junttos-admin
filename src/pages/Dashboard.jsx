@@ -9,8 +9,6 @@ import ListRow from '../components/junttos/ListRow'
 import EmptyState from '../components/junttos/EmptyState'
 import { T } from '../theme/tokens'
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
-
 export default function Dashboard() {
   const { user } = useAuth()
   const { visits } = useData()
@@ -75,7 +73,7 @@ export default function Dashboard() {
           <div>
             {lojas.map((loja) => {
               const slug = loja.slug || loja.loja_id
-              const link = `${PROD_BASE}/${slug}/`
+              const link = `${window.location.origin}/${slug}/`
               return (
                 <ListRow
                   key={loja.id}
