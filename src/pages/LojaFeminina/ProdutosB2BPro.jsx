@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
 const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -367,7 +366,7 @@ export default function ProdutosB2BPro({
   }
 
   function copiarLinkCatalogo() {
-    navigator.clipboard.writeText(`${PROD_BASE}/${LOJA_ID}/catalogo`)
+    navigator.clipboard.writeText(`${window.location.origin}/${LOJA_ID}/catalogo`)
     setLinkCopiado(true)
     setTimeout(() => setLinkCopiado(false), 2000)
   }

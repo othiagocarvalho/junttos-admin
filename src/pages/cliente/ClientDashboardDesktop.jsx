@@ -79,12 +79,11 @@ const onB = (e) => {
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 
 const PLANO_NAV_ITEMS = [
-  { id: 'clientes',    label: 'Clientes',       Icon: Users,       planoMinimo: 'starter'  },
-  { id: 'meta',      label: 'Metas',            Icon: Target,      planoMinimo: 'pro'      },
-  { id: 'crediario',   label: 'Crediário',        Icon: Receipt,     planoMinimo: 'pro'      },
-  { id: 'fornecedores',label: 'Fornecedores',    Icon: Truck,       planoMinimo: 'starter'  },
-  { id: 'catalogo',    label: 'Catálogo online', Icon: ShoppingBag, planoMinimo: 'business' },
-  { id: 'financeiro',  label: 'Financeiro',      Icon: CreditCard,  planoMinimo: 'business' },
+  { id: 'clientes',   label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'                     },
+  { id: 'meta',       label: 'Metas',           Icon: Target,      planoMinimo: 'starter'                     },
+  { id: 'crediario',  label: 'Crediário',       Icon: Receipt,     planoMinimo: 'pro',     apenasPlano: true  },
+  { id: 'catalogo',   label: 'Catálogo online', Icon: ShoppingBag, planoMinimo: 'business', apenasPlano: true },
+  { id: 'financeiro', label: 'Financeiro',      Icon: CreditCard,  planoMinimo: 'business', apenasPlano: true },
 ]
 
 const PLANO_BADGE_DESKTOP = {
@@ -176,9 +175,8 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           </button>
         )}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
-        {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo }) => {
-          if (legado && ['catalogo', 'financeiro', 'crediario', 'fornecedores'].includes(id)) return null
-          const hasAccess = legado || temAcesso(plano, planoMinimo)
+        {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+          const hasAccess = apenasPlano ? temAcesso(plano, planoMinimo) : (legado || temAcesso(plano, planoMinimo))
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
           return (
@@ -202,6 +200,16 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
+        {config?.features?.fornecedores === true && (
+          <button
+            onClick={() => setTab('fornecedores')}
+            className={tab === 'fornecedores' ? '' : 'cds-nav-btn'}
+            style={navItemStyle(tab === 'fornecedores')}
+          >
+            <Truck size={16} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Fornecedores</span>
+          </button>
+        )}
         {config?.features?.catalogo_b2b && (
           <button
             onClick={() => setTab('catalogo_b2b')}
@@ -1346,14 +1354,12 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} fornecedores={data.fornecedores} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
-    crediario: legado
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Funcionalidade não disponível neste plano</div>
-      : (temAcesso(plano, 'pro')
-          ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
-          : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
-    meta: (legado || temAcesso(plano, 'pro'))
+    crediario: temAcesso(plano, 'pro')
+      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
+    meta: (legado || temAcesso(plano, 'starter'))
       ? <Meta {...data} theme={theme} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -1368,9 +1374,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     contas_pagar: data.features?.atacado
       ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
       : null,
-    fornecedores: temAcesso(plano, 'starter')
+    fornecedores: data.features?.fornecedores === true
       ? <Fornecedores {...data} theme={theme} lojaId={data.LOJA_ID} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="fornecedores" theme={theme} onVoltar={() => setTab('inicio')} />,
+      : null,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
       : null,

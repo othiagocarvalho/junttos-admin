@@ -42,14 +42,13 @@ const BOTTOM_TABS = [
 ]
 
 const MAIS_ITEMS = [
-  { id: 'relatorios',   label: 'Relatórios',       Icon: BarChart2, planoMinimo: null      },
-  { id: 'financeiro',   label: 'Financeiro',       Icon: CreditCard, planoMinimo: 'business', semLegado: true },
-  { id: 'clientes',     label: 'Clientes',         Icon: Users,     planoMinimo: 'starter'  },
-  { id: 'meta',         label: 'Metas',            Icon: Target,    planoMinimo: 'pro'      },
-  { id: 'crediario',    label: 'Crediário',        Icon: Receipt,   planoMinimo: 'pro'      },
-  { id: 'fornecedores', label: 'Fornecedores',     Icon: Truck,     planoMinimo: 'starter', semLegado: true },
-  { id: 'conta',        label: 'Fechamento',       Icon: Wallet,    planoMinimo: null      },
-  { id: 'config',       label: 'Configurações',    Icon: Settings,  planoMinimo: null      },
+  { id: 'relatorios',   label: 'Relatórios',    Icon: BarChart2,  planoMinimo: null                              },
+  { id: 'financeiro',   label: 'Financeiro',    Icon: CreditCard, planoMinimo: 'business', apenasPlano: true     },
+  { id: 'clientes',     label: 'Clientes',      Icon: Users,      planoMinimo: 'starter'                         },
+  { id: 'meta',         label: 'Metas',         Icon: Target,     planoMinimo: 'starter'                         },
+  { id: 'crediario',    label: 'Crediário',     Icon: Receipt,    planoMinimo: 'pro',      apenasPlano: true     },
+  { id: 'conta',        label: 'Fechamento',    Icon: Wallet,     planoMinimo: null                              },
+  { id: 'config',       label: 'Configurações', Icon: Settings,   planoMinimo: null                              },
 ]
 
 // ── Sub-views ──────────────────────────────────────────────
@@ -525,20 +524,18 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
-    crediario: legado
-      ? <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Funcionalidade não disponível neste plano</div>
-      : (temAcesso(plano, 'pro')
-          ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
-          : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />),
-    meta: (legado || temAcesso(plano, 'pro'))
+    crediario: temAcesso(plano, 'pro')
+      ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
+      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
+    meta: (legado || temAcesso(plano, 'starter'))
       ? <Meta {...data} theme={theme} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
-    fornecedores: temAcesso(plano, 'starter')
+    fornecedores: features?.fornecedores === true
       ? <Fornecedores {...data} theme={theme} lojaId={lojaId} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="fornecedores" theme={theme} onVoltar={() => setTab('inicio')} />,
+      : null,
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -551,8 +548,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     conta: <Fechamento {...data} theme={theme} />,
     mais: (
       <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo, semLegado }) => {
-          const unlocked = !planoMinimo || (legado && !semLegado) || temAcesso(plano, planoMinimo)
+        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+          const unlocked = apenasPlano
+            ? (!planoMinimo || temAcesso(plano, planoMinimo))
+            : (!planoMinimo || legado || temAcesso(plano, planoMinimo))
           return (
             <button
               key={id}
@@ -584,6 +583,28 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             </button>
           )
         })}
+        {features?.fornecedores === true && (
+          <button
+            onClick={() => setTab('fornecedores')}
+            style={{
+              width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
+              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
+              cursor: 'pointer', minHeight: 44,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 12, color: 'var(--ink)',
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+              background: 'color-mix(in srgb, var(--primary) 12%, white)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Truck size={17} color="var(--primary)" strokeWidth={2} />
+            </div>
+            <span style={{ flex: 1 }}>Fornecedores</span>
+            <ChevronRight size={16} color="var(--muted)" />
+          </button>
+        )}
         {features?.atacado && (
           <button
             onClick={() => setTab('contas_pagar')}

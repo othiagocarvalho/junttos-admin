@@ -25,7 +25,7 @@ export const ACESSO = {
   fechamento:   'starter',
   relatorios:   'starter',
   clientes:     'starter',
-  meta:         'pro',
+  meta:         'starter',
   relatorios_avancados: 'pro',
   catalogo:     'business',
   financeiro:   'business',

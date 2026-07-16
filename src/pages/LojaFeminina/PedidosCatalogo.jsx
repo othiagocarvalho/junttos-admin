@@ -8,7 +8,6 @@ import Input from '../../components/studio/Input'
 import Chip, { ChipRow } from '../../components/studio/Chip'
 import EmptyState from '../../components/studio/EmptyState'
 
-const PROD_BASE = 'https://junttos-admin.vercel.app'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
@@ -40,7 +39,7 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, loj
   const [filtro, setFiltro] = useState('todos')
   const [busca, setBusca] = useState('')
 
-  const linkCatalogo = `${PROD_BASE}/${lojaId}/catalogo`
+  const linkCatalogo = `${window.location.origin}/${lojaId}/catalogo`
 
   const now = new Date()
   const hoje = now.toDateString()
