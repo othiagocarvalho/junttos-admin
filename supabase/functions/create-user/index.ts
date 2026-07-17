@@ -36,6 +36,9 @@ async function sendWelcomeEmail(
           <td style="padding:8px 12px;background:#f7f5fc;border-radius:0 0 8px 0;font-size:13px;color:#3A2470;font-family:monospace">${senha}</td>
         </tr>
       </table>
+      <p style="margin:16px 0;padding:12px 16px;background:#FFF4E5;border-left:3px solid #E8A33D;border-radius:6px;font-size:13px;color:#7A5200;line-height:1.5">
+        🔒 <strong>Por segurança, recomendamos trocar sua senha</strong> assim que acessar o painel pela primeira vez.
+      </p>
       <p style="font-size:12px;color:#999;line-height:1.6">
         Você pode alterar sua senha a qualquer momento nas configurações da loja.<br>
         Qualquer dúvida, nos chame no WhatsApp: <a href="https://wa.me/5591992733546" style="color:#5E2BD0">+55 91 99273-3546</a>

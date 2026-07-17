@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, Building2 } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, Building2, ArrowLeftRight } from 'lucide-react'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
@@ -37,7 +37,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [] }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], initialIsTroca = false }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
@@ -49,6 +49,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [done, setDone] = useState(false)
   const [saving, setSaving] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
+  const [isTroca,      setIsTroca]      = useState(initialIsTroca)
+  const [produtoTroca, setProdutoTroca] = useState([])
+  const [expandedTroca,setExpandedTroca]= useState(null)
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState('valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState('')
@@ -70,7 +73,15 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   useEffect(() => {
     const sub = calcularTotalVenda(form.produtos, produtosData)
     const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-    const total = form.produtos.length === 0 ? 0 : calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
+    let total
+    if (form.produtos.length === 0) {
+      total = 0
+    } else if (isTroca) {
+      const credito = calcularTotalVenda(produtoTroca, produtosData)
+      total = Math.max(0, sub - credito)
+    } else {
+      total = calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
+    }
     const valStr = form.produtos.length === 0 ? '' : total.toFixed(2).replace('.', ',')
     setForm(prev => ({
       ...prev,
@@ -81,7 +92,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     }))
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput])
+  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -136,27 +147,42 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   async function handleSave() {
     setSaving(true)
-    const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-    const sub = calcularTotalVenda(form.produtos, produtosData)
-    const ajusteR = ajNum === 0 ? 0
-      : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
-    const ajusteValor = ajNum === 0 ? 0
-      : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
-    const err = await addVenda({
-      cliente_nome: form.nome || null,
-      cliente_tel: form.tel || null,
-      valor: parseFloat(form.valor.replace(',', '.')) || 0,
-      ajuste_valor: ajusteValor,
-      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+    const valorFinal = parseFloat(form.valor.replace(',', '.')) || 0
+    let ajusteValor
+    let pgtoPayload
+    if (isTroca) {
+      ajusteValor = creditoTroca > 0 ? -creditoTroca : 0
+      pgtoPayload = valorFinal <= 0.005
+        ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
+        : JSON.stringify(form.pagamentos.map(p => ({
+            forma: p.forma,
+            valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+            ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
+          })))
+    } else {
+      const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
+      const sub = calcularTotalVenda(form.produtos, produtosData)
+      const ajusteR = ajNum === 0 ? 0 : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
+      ajusteValor = ajNum === 0 ? 0 : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
+      pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
         ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
-      }))),
+      })))
+    }
+    const err = await addVenda({
+      cliente_nome: form.nome || null,
+      cliente_tel: form.tel || null,
+      valor: valorFinal,
+      ajuste_valor: ajusteValor,
+      forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
       fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
+      tipo_venda: isTroca ? 'troca' : 'venda',
+      produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
       ...(features?.atacado ? {
         nome_loja: form.nome_loja || null,
         cidade_estado: form.cidade_estado || null,
@@ -173,6 +199,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         setAjusteTipo('desconto')
         setAjusteModo('valor')
         setAjusteInput('')
+        setIsTroca(false)
+        setProdutoTroca([])
+        setExpandedTroca(null)
       }, 2200)
     }
   }
@@ -184,6 +213,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
+  const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
+  const diferencaTroca = subtotal - creditoTroca
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
@@ -197,7 +228,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
         </div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>Venda registrada!</p>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
       </div>
     )
@@ -207,37 +238,53 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', overflow: 'hidden' }}>
       {/* Step indicator */}
       <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {STEPS.map((s, i) => {
-            const past = i < step
-            const active = i === step
-            return (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {i > 0 && (
-                  <div style={{ width: 28, height: 1, background: past ? 'var(--rose-deep)' : 'var(--line)' }} />
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: 26, height: 26, borderRadius: '50%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
-                    ...(past
-                      ? { background: isDark ? GOLD : theme.primary, color: isDark ? '#0A0A0A' : '#fff' }
-                      : active
-                        ? { background: 'none', color: 'var(--rose-deep)', border: '2px solid var(--rose-deep)' }
-                        : { background: 'var(--bg)', color: 'var(--muted)' }),
-                  }}>
-                    {past ? <Check size={13} strokeWidth={2.5} /> : i + 1}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {STEPS.map((s, i) => {
+              const past = i < step
+              const active = i === step
+              return (
+                <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {i > 0 && (
+                    <div style={{ width: 28, height: 1, background: past ? 'var(--rose-deep)' : 'var(--line)' }} />
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif',
+                      ...(past
+                        ? { background: isDark ? GOLD : theme.primary, color: isDark ? '#0A0A0A' : '#fff' }
+                        : active
+                          ? { background: 'none', color: 'var(--rose-deep)', border: '2px solid var(--rose-deep)' }
+                          : { background: 'var(--bg)', color: 'var(--muted)' }),
+                    }}>
+                      {past ? <Check size={13} strokeWidth={2.5} /> : i + 1}
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
+                      color: active ? 'var(--ink)' : past ? 'var(--ink-soft)' : 'var(--muted)',
+                      display: window.innerWidth < 360 ? 'none' : 'block',
+                    }}>{s}</span>
                   </div>
-                  <span style={{
-                    fontSize: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
-                    color: active ? 'var(--ink)' : past ? 'var(--ink-soft)' : 'var(--muted)',
-                    display: window.innerWidth < 360 ? 'none' : 'block',
-                  }}>{s}</span>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+          {isTroca && (
+            <button
+              onClick={() => { setIsTroca(false); setProdutoTroca([]); setExpandedTroca(null) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+                padding: '5px 12px', borderRadius: 99, cursor: 'pointer',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
+                border: 'none', background: '#D97706', color: '#fff',
+              }}
+            >
+              <X size={11} />
+              Cancelar troca
+            </button>
+          )}
         </div>
       </div>
 
@@ -386,9 +433,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Produtos Vendidos</p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
+                  {isTroca ? 'Produto Novo' : 'Produtos Vendidos'}
+                </p>
                 <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}
+                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
                 </p>
               </div>
               <button
@@ -414,6 +463,121 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 <button onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 14, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
                   <X size={15} />
                 </button>
+              </div>
+            )}
+
+            {isTroca && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, background: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <ArrowLeftRight size={10} color="#fff" />
+                  </div>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Produto Devolvido</p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {produtos.map(nome => {
+                    const pd = produtosData.find(p => p.nome === nome)
+                    const vars = (pd?.variacoes || []).map(v => {
+                      const label = getVarLabel(v)
+                      return label ? { label, qty: Number(v.quantidade || 0) } : null
+                    }).filter(Boolean)
+                    const isSimples = vars.length === 1 && vars[0].label === 'Único'
+                    const hasVars = vars.length > 0 && !isSimples
+                    const selItems = produtoTroca.filter(p => p.nome === nome)
+                    const selCount = selItems.reduce((sum, p) => sum + (p.quantidade || 1), 0)
+                    const isOpen = expandedTroca === nome
+                    function toggleSimplesT() {
+                      const exists = produtoTroca.find(p => p.nome === nome && p.variacao === 'Único')
+                      setProdutoTroca(f => exists
+                        ? f.filter(p => !(p.nome === nome && p.variacao === 'Único'))
+                        : [...f, { nome, variacao: 'Único', obs: '', quantidade: 1 }])
+                    }
+                    return (
+                      <div key={`troca-${nome}`}>
+                        <div
+                          role="button" tabIndex={0}
+                          onClick={() => isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome) ? f.filter(p => p.nome !== nome) : [...f, { nome, obs: '', quantidade: 1 }])}
+                          onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome) ? f.filter(p => p.nome !== nome) : [...f, { nome, obs: '', quantidade: 1 }]))}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
+                            borderRadius: isOpen ? '14px 14px 0 0' : 14,
+                            border: selCount > 0 ? '1.5px solid #D97706' : (isDark ? '1px solid #3a3a3a' : '1px solid #ddd'),
+                            background: selCount > 0 ? (isDark ? '#1c1400' : '#FEF3C7') : (isDark ? '#1a1a1a' : '#f5f5f5'),
+                            transition: 'background .15s, border-color .15s',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? '#D97706' : 'transparent', border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #ddd'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
+                            </div>
+                            <span style={{ fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', color: selCount > 0 ? '#D97706' : (isDark ? theme.primary : '#1a1a1a'), fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {(isSimples || !hasVars) && selCount > 0 ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706' }}>
+                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao))) : f.map(p => p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                  style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>−</button>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                  style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>+</button>
+                              </div>
+                            ) : selCount > 0 ? (
+                              <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 99, background: '#FEF3C780', color: '#D97706', fontWeight: 700 }}>{selCount}×</span>
+                            ) : null}
+                            {hasVars && !isSimples && (
+                              <ChevronDown size={14} color={isDark ? theme.primary : '#9C8580'}
+                                style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />
+                            )}
+                          </div>
+                        </div>
+                        {hasVars && isOpen && (
+                          <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 14px 14px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {vars.map(({ label, qty }, idx) => {
+                                const isSel = produtoTroca.some(p => p.nome === nome && p.variacao === label)
+                                const selQty = isSel ? (produtoTroca.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                                if (isSel) {
+                                  return (
+                                    <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(p.nome === nome && p.variacao === label)) : f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                        style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>−</button>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
+                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                        style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</button>
+                                    </div>
+                                  )
+                                }
+                                return (
+                                  <div key={idx} role="button" tabIndex={0}
+                                    onClick={() => setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }])}
+                                    onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }]) }}
+                                    style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, userSelect: 'none', border: '1px solid #D97706', background: isDark ? '#1a1000' : '#FFFBEB', color: '#D97706' }}>
+                                    {label} <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: '#D9770680' }}>({qty})</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {produtoTroca.length > 0 && creditoTroca > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: isDark ? '#1c1400' : '#FEF3C7', borderRadius: 10, border: '1px solid #D97706' }}>
+                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: '#D97706' }}>Crédito da troca</span>
+                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: '#D97706' }}>R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+                <div style={{ borderTop: '1.5px dashed #D97706', margin: '4px 0' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 5, background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Plus size={10} color="#fff" />
+                  </div>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Produto Novo</p>
+                </div>
               </div>
             )}
 
@@ -667,34 +831,70 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
             {/* Breakdown: Subtotal / Ajuste / Total */}
             {form.produtos.length > 0 && (
               <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>
-                    R$ {subtotal.toFixed(2).replace('.', ',')}
-                  </span>
-                </div>
-                {ajusteNum > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                      {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
-                      {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
-                    </span>
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                      {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
-                    </span>
-                  </div>
+                {isTroca ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#D97706' }}>Produto devolvido (crédito)</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Produto novo</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                        {diferencaTroca > 0.005 ? 'A cobrar' : diferencaTroca < -0.005 ? 'Saldo a favor' : 'Troca zerada'}
+                      </span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: diferencaTroca > 0.005 ? theme.primary : diferencaTroca < -0.005 ? '#D97706' : '#16a34a' }}>
+                        R$ {(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca)).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    {diferencaTroca <= 0.005 && diferencaTroca >= -0.005 && (
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Sem cobrança — troca zerada</p>
+                    )}
+                    {diferencaTroca < -0.005 && (
+                      <>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', fontWeight: 700 }}>
+                          Saldo a favor: R$ {Math.abs(diferencaTroca).toFixed(2).replace('.', ',')} — não reembolsável em dinheiro
+                        </p>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706' }}>
+                          Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
+                        </p>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>
+                        R$ {subtotal.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    {ajusteNum > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                          {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
+                          {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
+                        </span>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                          {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>
+                        R$ {totalValor.toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                  </>
                 )}
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>
-                    R$ {totalValor.toFixed(2).replace('.', ',')}
-                  </span>
-                </div>
               </div>
             )}
 
-            {/* Ajuste: Desconto ou Acréscimo (opcional) */}
-            {form.produtos.length > 0 && (
+            {/* Ajuste: Desconto ou Acréscimo (opcional) — oculto no modo troca */}
+            {form.produtos.length > 0 && !isTroca && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={labelStyle}>Ajuste (opcional)</label>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -742,7 +942,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             </Field>
 
-            <div>
+            {isTroca && totalValor <= 0.005 && form.produtos.length > 0 && (
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
+                ✓ Troca zerada — sem cobrança
+              </div>
+            )}
+
+            {(!isTroca || totalValor > 0.005) && <div>
               <label style={labelStyle}>
                 <ShoppingBag size={12} /> Formas de Pagamento
               </label>
@@ -837,7 +1043,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   }
                 </div>
               )}
-            </div>
+            </div>}
 
             <Field label="Observações">
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
@@ -872,7 +1078,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   boxShadow: saving || !pgtoOk ? 'none' : (isDark ? '0 4px 16px rgba(212,160,23,0.35)' : 'var(--shadow-btn-primary)'),
                 }}
               >
-                {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
+                {saving ? 'Salvando...' : isTroca ? 'Confirmar Troca' : 'Confirmar Venda'} {!saving && <Check size={16} />}
               </button>
             </div>
           </div>

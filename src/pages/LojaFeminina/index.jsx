@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck, ArrowLeftRight, X } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
@@ -295,7 +295,7 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, primary }) {
+function BottomTabBar({ tab, setTab, onFabClick, primary }) {
   const activeColor = primary || 'var(--primary)'
   return (
     <nav style={{
@@ -314,7 +314,7 @@ function BottomTabBar({ tab, setTab, primary }) {
         {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
           if (isFAB) {
             return (
-              <button key={id} onClick={() => setTab(id)} aria-label="Nova venda" style={{
+              <button key={id} onClick={() => onFabClick ? onFabClick() : setTab(id)} aria-label="Nova venda" style={{
                 width: 52, height: 52, borderRadius: 16,
                 background: activeColor,
                 border: 'none', cursor: 'pointer',
@@ -409,6 +409,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const { viewMode, setViewMode } = useViewMode()
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
+  const [showVendaModal, setShowVendaModal] = useState(false)
+  const [vendaInitTroca, setVendaInitTroca] = useState(false)
 
   const primary = data.config?.cor_primaria || '#5E2BD0'
   const isDark = primary === '#D4A017'
@@ -522,7 +524,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
       : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
-    venda:      <NovaVenda {...data} theme={theme} />,
+    venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
@@ -655,7 +657,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
         {panels[tab]}
       </main>
       {showBottomBar
-        ? <BottomTabBar tab={tab} setTab={setTab} primary={theme.primary} config={data.config} />
+        ? <BottomTabBar tab={tab} setTab={setTab} onFabClick={() => setShowVendaModal(true)} primary={theme.primary} config={data.config} />
         : (
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
@@ -667,6 +669,48 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
           </div>
         )
       }
+
+      {/* Modal: selecionar tipo de venda */}
+      {showVendaModal && (
+        <div
+          onClick={() => setShowVendaModal(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', borderRadius: '20px 20px 0 0', border: '1px solid var(--line)', borderBottom: 'none', padding: '24px 20px', paddingBottom: 'calc(32px + env(safe-area-inset-bottom))' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)', margin: 0 }}>O que deseja registrar?</p>
+              <button onClick={() => setShowVendaModal(false)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', flexShrink: 0 }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => { setVendaInitTroca(false); setTab('venda'); setShowVendaModal(false) }}
+                style={{ flex: 1, padding: '20px 12px', borderRadius: 16, cursor: 'pointer', border: `2px solid ${theme.primary}`, background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={22} color="#fff" />
+                </div>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>Nova Venda</span>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.4 }}>Registrar uma venda normalmente</span>
+              </button>
+              <button
+                onClick={() => { setVendaInitTroca(true); setTab('venda'); setShowVendaModal(false) }}
+                style={{ flex: 1, padding: '20px 12px', borderRadius: 16, cursor: 'pointer', border: '2px solid #D97706', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ArrowLeftRight size={22} color="#fff" />
+                </div>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: '#D97706' }}>Troca</span>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.4 }}>Devolver e escolher outro produto</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

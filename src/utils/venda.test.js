@@ -152,3 +152,68 @@ describe('restaurarVariacoes', () => {
     expect(aposEstorno.find(v => v.cor === 'M').quantidade).toBe(8)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Troca: 3 cenários de comparação entre crédito e produto novo
+// ---------------------------------------------------------------------------
+
+const produtosTrocaData = [
+  { nome: 'Blusa Rosa',    preco_venda: 80 },
+  { nome: 'Calça Branca',  preco_venda: 120 },
+  { nome: 'Vestido Azul',  preco_venda: 80 },
+  { nome: 'Saia Preta',    preco_venda: 60 },
+]
+
+describe('troca: cálculo de diferença (creditoTroca vs subtotalNovos)', () => {
+  it('cenário 1 — troca zerada: produto devolvido = produto novo → diferença = 0', () => {
+    const devolvido = [{ nome: 'Blusa Rosa', variacao: 'M', quantidade: 1 }]
+    const novo      = [{ nome: 'Vestido Azul', variacao: 'P', quantidade: 1 }]
+    const creditoTroca    = calcularTotalVenda(devolvido, produtosTrocaData) // 80
+    const subtotalNovos   = calcularTotalVenda(novo,      produtosTrocaData) // 80
+    const diferenca       = Math.max(0, subtotalNovos - creditoTroca)
+    expect(creditoTroca).toBe(80)
+    expect(subtotalNovos).toBe(80)
+    expect(diferenca).toBe(0)
+  })
+
+  it('cenário 2 — produto novo mais caro: cliente paga a diferença', () => {
+    const devolvido = [{ nome: 'Blusa Rosa',   variacao: 'M', quantidade: 1 }]
+    const novo      = [{ nome: 'Calça Branca', variacao: 'G', quantidade: 1 }]
+    const creditoTroca    = calcularTotalVenda(devolvido, produtosTrocaData) // 80
+    const subtotalNovos   = calcularTotalVenda(novo,      produtosTrocaData) // 120
+    const diferenca       = Math.max(0, subtotalNovos - creditoTroca)
+    expect(creditoTroca).toBe(80)
+    expect(subtotalNovos).toBe(120)
+    expect(diferenca).toBe(40)
+  })
+
+  it('cenário 3 — produto novo mais barato: saldo a favor do cliente (diferença mínima 0)', () => {
+    const devolvido = [{ nome: 'Calça Branca', variacao: 'G', quantidade: 1 }]
+    const novo      = [{ nome: 'Saia Preta',   variacao: 'P', quantidade: 1 }]
+    const creditoTroca    = calcularTotalVenda(devolvido, produtosTrocaData) // 120
+    const subtotalNovos   = calcularTotalVenda(novo,      produtosTrocaData) // 60
+    const diferencaTroca  = subtotalNovos - creditoTroca                     // -60 (signed)
+    const totalCobrado    = Math.max(0, diferencaTroca)                      // 0 (sem cobrança)
+    const saldoExibido    = diferencaTroca > 0.005 ? totalCobrado : Math.abs(diferencaTroca)
+    expect(creditoTroca).toBe(120)
+    expect(subtotalNovos).toBe(60)
+    // cobrança em dinheiro = 0 (não há reembolso)
+    expect(totalCobrado).toBe(0)
+    // valor exibido no card "Saldo a favor" = valor real do saldo, não zero
+    expect(saldoExibido).toBe(60)
+    // diferencaTroca signed = -60
+    expect(diferencaTroca).toBe(-60)
+  })
+
+  it('restaurarVariacoes restaura estoque do produto devolvido na troca', () => {
+    const variacoesProduto = [
+      { cor: 'M', custo: 0, quantidade: 2 },
+      { cor: 'G', custo: 0, quantidade: 5 },
+    ]
+    const itensTroca = [{ variacao: 'M', quantidade: 1 }]
+    const result = restaurarVariacoes(variacoesProduto, itensTroca)
+    // estoque de M volta de 2 → 3, G inalterado
+    expect(result.find(v => v.cor === 'M').quantidade).toBe(3)
+    expect(result.find(v => v.cor === 'G').quantidade).toBe(5)
+  })
+})

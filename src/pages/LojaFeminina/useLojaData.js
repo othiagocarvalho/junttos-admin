@@ -53,7 +53,7 @@ export function useLojaData(lojaId = 'estrada') {
       setMetas(metasMap)
 
       const prods = produtosRes.data || []
-      setProdutos(prods.map(p => p.nome))
+      setProdutos([...new Set(prods.map(p => p.nome))])
       setProdutosData(prods)
       const cfg = configRes.data || null
       if (cfg && typeof cfg.features === 'string') {
@@ -142,8 +142,25 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function addVenda(venda) {
-    const { error } = await supabase.from('lf_vendas').insert({ ...venda, loja_id: lojaId })
+    const { produto_devolvido, ...vendaPayload } = venda
+    const { error } = await supabase.from('lf_vendas').insert({ ...vendaPayload, loja_id: lojaId })
     if (!error) {
+      // Restaura estoque do produto devolvido em troca
+      const itensDevolvidos = (produto_devolvido || []).filter(p => p.variacao)
+      if (itensDevolvidos.length > 0) {
+        const nomesDevolvidos = [...new Set(itensDevolvidos.map(i => i.nome))]
+        for (const nomeProd of nomesDevolvidos) {
+          const itensProd = itensDevolvidos.filter(i => i.nome === nomeProd)
+          const { data: prod } = await supabase
+            .from('lf_produtos').select('id, variacoes')
+            .eq('loja_id', lojaId).eq('nome', nomeProd).maybeSingle()
+          if (prod) {
+            const novasVariacoes = restaurarVariacoes(prod.variacoes, itensProd)
+            await supabase.from('lf_produtos').update({ variacoes: novasVariacoes })
+              .eq('id', prod.id).eq('loja_id', lojaId)
+          }
+        }
+      }
       const itensComVariacao = (venda.produtos || []).filter(p => p.variacao)
       if (itensComVariacao.length > 0) {
         const nomesProd = [...new Set(itensComVariacao.map(i => i.nome))]

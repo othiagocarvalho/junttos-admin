@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Building2, Truck,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Building2, Truck, ArrowLeftRight,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -619,6 +619,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [done,       setDone]       = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [varModal,   setVarModal]   = useState(null)
+  const [isTroca,      setIsTroca]      = useState(false)
+  const [produtoTroca, setProdutoTroca] = useState([])
+  const [varModalTroca,setVarModalTroca]= useState(null)
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')
   const [ajusteModo,  setAjusteModo]  = useState('valor')
   const [ajusteInput, setAjusteInput] = useState('')
@@ -640,7 +643,15 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   useEffect(() => {
     const sub = calcularTotalVenda(form.produtos, produtosData)
     const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-    const total = form.produtos.length === 0 ? 0 : calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
+    let total
+    if (form.produtos.length === 0) {
+      total = 0
+    } else if (isTroca) {
+      const credito = calcularTotalVenda(produtoTroca, produtosData)
+      total = Math.max(0, sub - credito)
+    } else {
+      total = calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
+    }
     const valStr = form.produtos.length === 0 ? '' : total.toFixed(2).replace('.', ',')
     setForm(prev => ({
       ...prev,
@@ -651,7 +662,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }))
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput])
+  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -687,27 +698,42 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   }
   async function handleSave() {
     setSaving(true)
-    const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-    const sub = calcularTotalVenda(form.produtos, produtosData)
-    const ajusteR = ajNum === 0 ? 0
-      : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
-    const ajusteValor = ajNum === 0 ? 0
-      : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
-    const err = await addVenda({
-      cliente_nome: form.nome || null,
-      cliente_tel:  form.tel  || null,
-      valor: parseFloat(form.valor.replace(',', '.')) || 0,
-      ajuste_valor: ajusteValor,
-      forma_pgto: JSON.stringify(form.pagamentos.map(p => ({
+    const valorFinal = parseFloat(form.valor.replace(',', '.')) || 0
+    let ajusteValor
+    let pgtoPayload
+    if (isTroca) {
+      ajusteValor = creditoTroca > 0 ? -creditoTroca : 0
+      pgtoPayload = valorFinal <= 0.005
+        ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
+        : JSON.stringify(form.pagamentos.map(p => ({
+            forma: p.forma,
+            valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
+            ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
+          })))
+    } else {
+      const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
+      const sub = calcularTotalVenda(form.produtos, produtosData)
+      const ajR = ajNum === 0 ? 0 : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
+      ajusteValor = ajNum === 0 ? 0 : ajusteTipo === 'desconto' ? -ajR : ajR
+      pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
         ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
-      }))),
+      })))
+    }
+    const err = await addVenda({
+      cliente_nome: form.nome || null,
+      cliente_tel:  form.tel  || null,
+      valor: valorFinal,
+      ajuste_valor: ajusteValor,
+      forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
       fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
+      tipo_venda: isTroca ? 'troca' : 'venda',
+      produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
       ...(features?.atacado ? {
         nome_loja: form.nome_loja || null,
         cidade_estado: form.cidade_estado || null,
@@ -723,6 +749,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         setAjusteTipo('desconto')
         setAjusteModo('valor')
         setAjusteInput('')
+        setIsTroca(false)
+        setProdutoTroca([])
+        setVarModalTroca(null)
       }, 2200)
     }
   }
@@ -735,6 +764,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
+  const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
+  const diferencaTroca = subtotal - creditoTroca
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
@@ -748,7 +779,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
           <Check size={26} color="#fff" strokeWidth={2.5} />
         </div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>Venda registrada!</p>
+        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
       </div>
     )
@@ -895,30 +926,66 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             {/* Breakdown: Subtotal / Ajuste / Total */}
             {form.produtos.length > 0 && (
               <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
-                </div>
-                {ajusteNum > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                      {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
-                      {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
-                    </span>
-                    <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                      {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
-                    </span>
-                  </div>
+                {isTroca ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#D97706' }}>Produto devolvido (crédito)</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Produto novo</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                        {diferencaTroca > 0.005 ? 'A cobrar' : diferencaTroca < -0.005 ? 'Saldo a favor' : 'Troca zerada'}
+                      </span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: diferencaTroca > 0.005 ? theme.primary : diferencaTroca < -0.005 ? '#16a34a' : '#D97706' }}>
+                        R$ {(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca)).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+                    {diferencaTroca <= 0.005 && diferencaTroca >= -0.005 && (
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600, margin: 0 }}>✓ Sem cobrança — troca zerada</p>
+                    )}
+                    {diferencaTroca < -0.005 && (
+                      <>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 700, margin: 0 }}>
+                          Saldo a favor: R$ {Math.abs(diferencaTroca).toFixed(2).replace('.', ',')} — não reembolsável em dinheiro
+                        </p>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', margin: 0 }}>
+                          Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
+                        </p>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    {ajusteNum > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                          {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
+                          {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
+                        </span>
+                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
+                          {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>R$ {totalValor.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  </>
                 )}
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>R$ {totalValor.toFixed(2).replace('.', ',')}</span>
-                </div>
               </div>
             )}
 
             {/* Ajuste: Desconto ou Acréscimo (opcional) */}
-            {form.produtos.length > 0 && (
+            {form.produtos.length > 0 && !isTroca && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                 <label style={lbl}>Ajuste (opcional)</label>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -954,61 +1021,70 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               </div>
             )}
 
-            <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
-            <div style={{ position: 'relative', marginBottom: 14 }}>
-              <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
-              <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
-                style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
-            </div>
-            <label style={lbl}>Formas de Pagamento</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {form.pagamentos.map((p, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <select value={p.forma}
-                    onChange={e => {
-                      const f = e.target.value
-                      setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
-                    }}
-                    style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
-                    {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                  <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
-                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
-                    <input value={p.valor} onChange={e => setPgto(i, 'valor', e.target.value)} placeholder="0,00"
-                      style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
-                      onFocus={onF(theme.primary)} onBlur={onB} />
-                  </div>
-                  {form.pagamentos.length > 1 && (
-                    <button onClick={() => removePgto(i)} style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <X size={14} />
-                    </button>
-                  )}
-                  </div>
-                  {p.forma === 'Boleto' && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
-                      {[15, 30, 45, 60].map(dias => (
-                        <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
-                          padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
-                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
-                          border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
-                          background: p.vencimento === dias ? theme.primary : 'var(--bg)',
-                          color: p.vencimento === dias ? '#fff' : 'var(--muted)',
-                        }}>{dias} dias</button>
-                      ))}
-                      {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
-                    </div>
-                  )}
+            {(!isTroca || totalValor > 0.005) && (
+              <>
+                <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
+                <div style={{ position: 'relative', marginBottom: 14 }}>
+                  <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
+                  <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
+                    style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
                 </div>
-              ))}
-            </div>
-            <button type="button" onClick={addPgto}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
-              <Plus size={13} /> Adicionar forma
-            </button>
-            {form.valor && (
-              <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
-                {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
+                <label style={lbl}>Formas de Pagamento</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {form.pagamentos.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <select value={p.forma}
+                        onChange={e => {
+                          const f = e.target.value
+                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
+                        }}
+                        style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
+                        {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <input value={p.valor} onChange={e => setPgto(i, 'valor', e.target.value)} placeholder="0,00"
+                          style={{ width: '100%', height: 42, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 10px 0 28px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+                          onFocus={onF(theme.primary)} onBlur={onB} />
+                      </div>
+                      {form.pagamentos.length > 1 && (
+                        <button onClick={() => removePgto(i)} style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <X size={14} />
+                        </button>
+                      )}
+                      </div>
+                      {p.forma === 'Boleto' && (
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
+                          {[15, 30, 45, 60].map(dias => (
+                            <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
+                              padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
+                              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
+                              border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
+                              background: p.vencimento === dias ? theme.primary : 'var(--bg)',
+                              color: p.vencimento === dias ? '#fff' : 'var(--muted)',
+                            }}>{dias} dias</button>
+                          ))}
+                          {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={addPgto}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 12px', borderRadius: 8, border: '1px dashed var(--line)', background: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+                  <Plus size={13} /> Adicionar forma
+                </button>
+                {form.valor && (
+                  <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
+                    {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
+                  </div>
+                )}
+              </>
+            )}
+            {isTroca && totalValor <= 0.005 && (
+              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.3)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check size={14} /> Troca zerada — sem cobrança
               </div>
             )}
           </div>
@@ -1025,7 +1101,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             onMouseEnter={e => { if (!saving && pgtoOk) e.currentTarget.style.filter = 'brightness(0.94)' }}
             onMouseLeave={e => { e.currentTarget.style.filter = 'none' }}
           >
-            {saving ? 'Salvando...' : 'Confirmar Venda'} {!saving && <Check size={16} />}
+            {saving ? 'Salvando...' : isTroca ? 'Confirmar Troca' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
         </div>
       </div>
@@ -1034,13 +1110,33 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>Produtos</p>
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>{form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : 'Selecione os produtos'}</p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
+              {isTroca ? 'Produto Novo' : 'Produtos'}
+            </p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+              {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
+            </p>
           </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => { setIsTroca(v => !v); setProdutoTroca([]); setVarModalTroca(null) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '5px 12px', borderRadius: 99, cursor: 'pointer',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
+                border: isTroca ? 'none' : '1.5px solid #D97706',
+                background: isTroca ? '#D97706' : 'transparent',
+                color: isTroca ? '#fff' : '#D97706',
+              }}
+            >
+              <ArrowLeftRight size={11} />
+              {isTroca ? 'Cancelar troca' : 'Iniciar troca'}
+            </button>
           <button type="button" onClick={() => setAddingProd(v => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink-soft)' }}>
             <ShoppingBag size={13} /> Novo produto
           </button>
+          </div>
         </div>
 
         {addingProd && (
@@ -1049,6 +1145,109 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               placeholder="Nome do produto..." autoFocus style={{ ...inputS, flex: 1 }} onFocus={fo} onBlur={onB} />
             <button type="button" onClick={handleAddProd} style={{ padding: '0 16px', borderRadius: 12, background: theme.primary, border: 'none', color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>OK</button>
             <button type="button" onClick={() => { setAddingProd(false); setNewProd('') }} style={{ padding: '0 12px', borderRadius: 12, border: '1px solid var(--line)', background: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={15} /></button>
+          </div>
+        )}
+
+        {isTroca && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, background: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ArrowLeftRight size={10} color="#fff" />
+              </div>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em' }}>Produto Devolvido</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 240, overflowY: 'auto' }}>
+              {produtos.map(nome => {
+                const pd = produtosData.find(p => p.nome === nome)
+                const vars = (pd?.variacoes || []).map(v => {
+                  const label = getVarLabel(v)
+                  return label ? { label, qty: Number(v.quantidade || 0) } : null
+                }).filter(Boolean)
+                const hasVars = vars.length > 0
+                const selItems = produtoTroca.filter(p => p.nome === nome)
+                const selCount = selItems.reduce((s, p) => s + (p.quantidade || 1), 0)
+                const isOpen = varModalTroca === nome
+                return (
+                  <div key={`td-${nome}`} style={{ marginBottom: 6 }}>
+                    <div
+                      role="button" tabIndex={0}
+                      onClick={() => hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome && !p.variacao) ? f.filter(p => !(p.nome === nome && !p.variacao)) : [...f, { nome, obs: '', quantidade: 1 }])}
+                      onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome && !p.variacao) ? f.filter(p => !(p.nome === nome && !p.variacao)) : [...f, { nome, obs: '', quantidade: 1 }]))}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 14px', borderRadius: isOpen ? '10px 10px 0 0' : 10,
+                        border: selCount > 0 ? '1.5px solid #D97706' : (isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA'),
+                        background: selCount > 0 ? (isDark ? '#1c1400' : '#FEF3C7') : (isDark ? '#1a1a1a' : '#FFFFFF'),
+                        fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', cursor: 'pointer', userSelect: 'none',
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? '#D97706' : 'transparent', border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #EDE2DA'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
+                        </div>
+                        <span style={{ fontWeight: selCount > 0 ? 600 : 400, color: selCount > 0 ? '#D97706' : (isDark ? '#D4A017' : '#1a1a1a') }}>{nome}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {!hasVars && selCount > 0 ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706' }}>
+                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(p.nome === nome && !p.variacao)) : f.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p)) }}
+                              style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>−</button>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
+                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p)) }}
+                              style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>+</button>
+                          </div>
+                        ) : hasVars && selCount > 0 ? (
+                          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 99, background: '#FEF3C780', color: '#D97706', fontWeight: 700 }}>{selCount}×</span>
+                        ) : null}
+                        {hasVars && <ChevronDown size={14} color={isDark ? '#D4A017' : '#9C8580'} style={{ flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .15s' }} />}
+                      </div>
+                    </div>
+                    {hasVars && isOpen && (
+                      <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 10px 10px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {vars.map(({ label, qty }, idx) => {
+                            const isSel = produtoTroca.some(p => p.nome === nome && p.variacao === label)
+                            const selQty = isSel ? (produtoTroca.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                            if (isSel) {
+                              return (
+                                <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(p.nome === nome && p.variacao === label)) : f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                    style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>−</button>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
+                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                    style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</button>
+                                </div>
+                              )
+                            }
+                            return (
+                              <div key={idx} role="button" tabIndex={0}
+                                onClick={() => setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }])}
+                                onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }]) }}
+                                style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, userSelect: 'none', border: '1px solid #D97706', background: isDark ? '#1a1000' : '#FFFBEB', color: '#D97706' }}>
+                                {label} <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: '#D9770680' }}>({qty})</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {produtoTroca.length > 0 && creditoTroca > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: isDark ? '#1c1400' : '#FEF3C7', borderRadius: 10, border: '1px solid #D97706' }}>
+                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: '#D97706' }}>Crédito da troca</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: '#D97706' }}>R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+              </div>
+            )}
+            <div style={{ borderTop: '1.5px dashed #D97706', margin: '4px 0' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Plus size={10} color="#fff" />
+              </div>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: theme.primary, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Produto Novo</p>
+            </div>
           </div>
         )}
 
