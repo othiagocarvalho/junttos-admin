@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, Check } from 'lucide-react'
+import { Copy, ExternalLink, Check, Share2 } from 'lucide-react'
 import StatusPill from './StatusPill'
 import { T } from '../../theme/tokens'
 
-export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link }) {
+export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link, rede }) {
   const [copied, setCopied] = useState(false)
 
   const initials = (nome || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -63,6 +63,12 @@ export default function StoreCard({ nome, slug, status, logoUrl, primary = T.pur
           <p style={{ fontSize: 11.5, color: T.muted2, margin: 0, fontFamily: T.mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             /{slug}
           </p>
+          {rede && (
+            <div style={{ marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, background: T.tintPurple, border: `1px solid ${T.purple}28` }}>
+              <Share2 size={9} color={T.purpleText} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: T.purpleText, fontFamily: T.ui, whiteSpace: 'nowrap' }}>{rede}</span>
+            </div>
+          )}
         </div>
 
         <StatusPill status={status || 'ativo'} />

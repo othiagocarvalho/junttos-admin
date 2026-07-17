@@ -467,15 +467,22 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 // ── Main Page ────────────────────────────────────────────────────
 export default function CadastroCliente() {
   const [clientes, setClientes]     = useState([])
+  const [redesMap, setRedesMap]     = useState({}) // rede_id → rede.nome
   const [fetching, setFetching]     = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [modalOpen, setModalOpen]   = useState(false)
 
   const fetchClientes = useCallback(async () => {
     setFetching(true); setFetchError('')
-    const { data, error } = await supabase.from('lf_config').select('*').order('nome')
-    if (error) setFetchError(error.message)
-    else setClientes(data || [])
+    const [cfgRes, redesRes] = await Promise.all([
+      supabase.from('lf_config').select('*').order('nome'),
+      supabase.from('jt_redes').select('id, nome'),
+    ])
+    if (cfgRes.error) { setFetchError(cfgRes.error.message); setFetching(false); return }
+    setClientes(cfgRes.data || [])
+    const map = {}
+    ;(redesRes.data || []).forEach(r => { map[r.id] = r.nome })
+    setRedesMap(map)
     setFetching(false)
   }, [])
 
@@ -546,6 +553,7 @@ export default function CadastroCliente() {
                   logoUrl={c.logo_url}
                   primary={c.cor_primaria || T.purple}
                   link={link}
+                  rede={c.rede_id ? redesMap[c.rede_id] : undefined}
                 />
               )
             })}
