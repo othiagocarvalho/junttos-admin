@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react'
-import { Target, Lock } from 'lucide-react'
+import { Target } from 'lucide-react'
+import { calcularProgressoMetaProduto } from '../../utils/metas'
 import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
+import UpgradeWall from '../../components/UpgradeWall'
 import { temAcesso } from '../../utils/planos'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -36,26 +38,19 @@ function ProBadge() {
   )
 }
 
-function ProLock() {
+function BusinessBadge() {
   return (
-    <Card>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
-        <Lock size={16} color="var(--muted)" strokeWidth={2} style={{ flexShrink: 0 }} />
-        <div>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
-            Recurso exclusivo Pro
-          </p>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
-            Faça upgrade para o plano Pro para desbloquear.
-          </p>
-        </div>
-      </div>
-    </Card>
+    <span style={{
+      background: '#ede9fe', color: '#6d28d9', fontSize: 9, fontWeight: 700,
+      borderRadius: 99, padding: '2px 7px', textTransform: 'uppercase',
+      letterSpacing: '0.1em', verticalAlign: 'middle', marginLeft: 6,
+    }}>Business</span>
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, plano }) {
-  const temPro = temAcesso(plano, 'pro')
+export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, produtosData = [], plano, theme }) {
+  const temPro      = temAcesso(plano, 'pro')
+  const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
   const currentYM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
 
@@ -118,6 +113,39 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       setSavingVend(false)
     }
   }
+
+  // ── Meta por produto (Business) state ──
+  const [tipoMedicao, setTipoMedicao] = useState('quantidade')
+  const [escopoTipo, setEscopoTipo]   = useState('produto')
+  const [escopoValor, setEscopoValor] = useState('')
+  const [mesProd, setMesProd]         = useState(currentYM)
+  const [valorMetaProd, setValorMetaProd] = useState('')
+  const [savingProd, setSavingProd]   = useState(false)
+  const [prodError, setProdError]     = useState(null)
+
+  const produtosList   = produtosData.map(p => p.nome).sort()
+  const categoriasList = [...new Set(produtosData.map(p => p.categoria || 'Outros').filter(Boolean))].sort()
+
+  async function handleSaveProd() {
+    const v = parseFloat(valorMetaProd.replace(',', '.'))
+    if (!v || v <= 0 || !escopoValor) return
+    setSavingProd(true)
+    setProdError(null)
+    try {
+      const err = await salvarMetaProduto({ mes: mesProd, tipo_medicao: tipoMedicao, escopo_tipo: escopoTipo, escopo_valor: escopoValor, valor_meta: v })
+      if (err) {
+        setProdError(err.message || 'Erro ao salvar. Tente novamente.')
+      } else {
+        setValorMetaProd('')
+      }
+    } catch (e) {
+      setProdError(e?.message || 'Erro inesperado. Tente novamente.')
+    } finally {
+      setSavingProd(false)
+    }
+  }
+
+  const progProd = metaProduto ? calcularProgressoMetaProduto(vendas, produtosData, metaProduto) : null
 
   // ── Comparativo últimos 6 meses ──
   const mesesComp = []
@@ -227,7 +255,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
         <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
           Meta por Vendedor(a)<ProBadge />
         </p>
-        {!temPro ? <ProLock /> : (
+        {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_vendedor" theme={theme} /> : (
           <>
             <Card style={{ marginBottom: 10 }}>
               {vendedoras.length === 0 ? (
@@ -325,12 +353,130 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
         )}
       </div>
 
+      {/* ══ Meta por Produto (Business) ══ */}
+      <div>
+        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+          Meta por Produto<BusinessBadge />
+        </p>
+        {!temBusiness ? <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="meta_produto" theme={theme} /> : (
+          <>
+            <Card style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <Label>Tipo de medição</Label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{ v: 'quantidade', l: 'Quantidade' }, { v: 'faturamento', l: 'Faturamento' }].map(opt => (
+                      <button key={opt.v} type="button" onClick={() => setTipoMedicao(opt.v)} style={{
+                        flex: 1, height: 40, borderRadius: 10,
+                        border: `1.5px solid ${tipoMedicao === opt.v ? 'var(--primary)' : 'var(--line)'}`,
+                        background: tipoMedicao === opt.v ? 'var(--primary)' : 'var(--bg)',
+                        color: tipoMedicao === opt.v ? '#fff' : 'var(--muted)',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', transition: 'all .15s',
+                      }}>{opt.l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>Escopo</Label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[{ v: 'produto', l: 'Produto' }, { v: 'categoria', l: 'Categoria' }].map(opt => (
+                      <button key={opt.v} type="button" onClick={() => { setEscopoTipo(opt.v); setEscopoValor('') }} style={{
+                        flex: 1, height: 40, borderRadius: 10,
+                        border: `1.5px solid ${escopoTipo === opt.v ? 'var(--primary)' : 'var(--line)'}`,
+                        background: escopoTipo === opt.v ? 'var(--primary)' : 'var(--bg)',
+                        color: escopoTipo === opt.v ? '#fff' : 'var(--muted)',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', transition: 'all .15s',
+                      }}>{opt.l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>{escopoTipo === 'produto' ? 'Produto' : 'Categoria'}</Label>
+                  <select value={escopoValor} onChange={e => setEscopoValor(e.target.value)} style={{
+                    width: '100%', height: 44, boxSizing: 'border-box',
+                    background: 'var(--bg)', border: '1.5px solid var(--line)',
+                    borderRadius: 12, padding: '0 14px',
+                    fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,
+                    color: escopoValor ? 'var(--ink)' : 'var(--muted)', outline: 'none',
+                  }}>
+                    <option value="">{escopoTipo === 'produto' ? 'Selecionar produto…' : 'Selecionar categoria…'}</option>
+                    {(escopoTipo === 'produto' ? produtosList : categoriasList).map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Mês / Ano</Label>
+                  <Input type="month" value={mesProd} onChange={e => setMesProd(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Meta ({tipoMedicao === 'quantidade' ? 'unidades' : 'R$'})</Label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      {tipoMedicao === 'faturamento' && (
+                        <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', zIndex: 1 }}>R$</span>
+                      )}
+                      <Input mono value={valorMetaProd} onChange={e => setValorMetaProd(e.target.value)}
+                        placeholder={tipoMedicao === 'quantidade' ? '0' : '0,00'}
+                        inputMode={tipoMedicao === 'quantidade' ? 'numeric' : 'decimal'}
+                        style={tipoMedicao === 'faturamento' ? { paddingLeft: 36 } : {}} />
+                    </div>
+                    <Button variant="primary" onClick={handleSaveProd} disabled={savingProd || !valorMetaProd || !escopoValor}>
+                      {savingProd ? '…' : 'Ativar'}
+                    </Button>
+                  </div>
+                  {prodError && (
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626', marginTop: 4 }}>
+                      {prodError}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {progProd && (
+              <Card padding="20px 18px">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                  <div>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
+                      {metaProduto.escopo_valor}
+                    </p>
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                      {metaProduto.escopo_tipo === 'produto' ? 'Produto' : 'Categoria'} · {metaProduto.tipo_medicao === 'quantidade' ? 'Quantidade' : 'Faturamento'} · {new Date(metaProduto.mes + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: progProd.atingida ? 'var(--accent)' : 'var(--ink)', lineHeight: 1, flexShrink: 0 }}>
+                    {Math.min(progProd.pct, 100).toFixed(0)}%
+                  </p>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <ProgressBar pct={progProd.pct} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { label: 'Realizado', value: metaProduto.tipo_medicao === 'quantidade' ? `${Math.round(progProd.realizado)} un.` : fmtR(progProd.realizado) },
+                    { label: progProd.atingida ? 'Meta batida!' : 'Faltam', value: progProd.atingida ? 'Parabéns' : (metaProduto.tipo_medicao === 'quantidade' ? `${Math.ceil(progProd.faltam)} un.` : fmtR(progProd.faltam)) },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: 'var(--bg)', borderRadius: 'var(--r-input)', padding: '10px 12px', textAlign: 'center' }}>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>{s.label}</p>
+                      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: 'var(--ink)', lineHeight: 1 }}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ══ Comparativo Mês a Mês (Pro) ══ */}
       <div>
         <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
           Comparativo Mês a Mês<ProBadge />
         </p>
-        {!temPro ? <ProLock /> : (
+        {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_comparativo" theme={theme} /> : (
           <Card padding="0">
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>

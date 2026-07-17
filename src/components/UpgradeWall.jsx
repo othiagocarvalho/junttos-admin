@@ -2,12 +2,27 @@ import { Lock } from 'lucide-react'
 import { PLANOS } from '../utils/planos'
 
 const DESCRICOES = {
-  meta:         'Defina metas mensais e acompanhe o progresso da sua loja em tempo real.',
-  clientes:     'Cadastre seus clientes, veja o histórico de compras e fidelize com cartão digital.',
-  catalogo:     'Venda pelo link com Pix integrado. Compartilhe o catálogo e receba pedidos online.',
-  financeiro:   'Controle contas a pagar e a receber, fluxo de caixa e resultado mensal completo.',
-  notificacoes: 'Receba alertas automáticos de estoque baixo, metas atingidas e vendas grandes.',
-  crediario:    'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
+  meta:              'Defina metas mensais e acompanhe o progresso da sua loja em tempo real.',
+  meta_vendedor:     'Defina metas individuais por vendedor(a) e acompanhe o desempenho de cada um.',
+  meta_produto:      'Defina metas por produto ou categoria e acompanhe o desempenho por item.',
+  meta_comparativo:  'Compare o desempenho mês a mês e visualize a evolução das suas vendas ao longo do tempo.',
+  clientes:          'Cadastre seus clientes, veja o histórico de compras e fidelize com cartão digital.',
+  catalogo:          'Venda pelo link com Pix integrado. Compartilhe o catálogo e receba pedidos online.',
+  financeiro:        'Controle contas a pagar e a receber, fluxo de caixa e resultado mensal completo.',
+  notificacoes:      'Receba alertas automáticos de estoque baixo, metas atingidas e vendas grandes.',
+  crediario:         'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
+}
+
+const NOMES = {
+  meta:              'Metas & Resultados',
+  meta_vendedor:     'Meta por Vendedor(a)',
+  meta_produto:      'Meta por Produto',
+  meta_comparativo:  'Comparativo Mês a Mês',
+  clientes:          'Gestão de Clientes',
+  catalogo:          'Catálogo B2B',
+  financeiro:        'Módulo Financeiro',
+  notificacoes:      'Notificações Automáticas',
+  crediario:         'Crediário',
 }
 
 const BADGE_COLORS = {
@@ -16,12 +31,31 @@ const BADGE_COLORS = {
   business: { bg: '#ede9fe', color: '#6d28d9' },
 }
 
+const PRECOS = {
+  starter:  99.90,
+  pro:      149.90,
+  business: 259.90,
+}
+
+function fmtPreco(valor) {
+  return valor.toFixed(2).replace('.', ',')
+}
+
 export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidade, theme, onVoltar }) {
-  const labelAtual     = PLANOS[planoAtual]?.label     || planoAtual
-  const labelNecessario = PLANOS[planoNecessario]?.label || planoNecessario
-  const descricao      = DESCRICOES[funcionalidade] || 'Esta funcionalidade está disponível em um plano superior.'
-  const badgeColors    = BADGE_COLORS[planoAtual] || BADGE_COLORS.starter
-  const primary        = theme?.primary || '#6B4FBB'
+  const labelAtual      = PLANOS[planoAtual]?.label      || planoAtual
+  const labelNecessario = PLANOS[planoNecessario]?.label  || planoNecessario
+  const descricao       = DESCRICOES[funcionalidade] || 'Esta funcionalidade está disponível em um plano superior.'
+  const badgeColors     = BADGE_COLORS[planoAtual]   || BADGE_COLORS.starter
+  const primary         = theme?.primary || '#6B4FBB'
+
+  const nivelAtual      = PLANOS[planoAtual]?.nivel      || 1
+  const nivelNecessario = PLANOS[planoNecessario]?.nivel  || 1
+  const gap             = nivelNecessario - nivelAtual
+
+  const nomeFuncionalidade = NOMES[funcionalidade] || funcionalidade
+  const diff = gap === 1
+    ? fmtPreco((PRECOS[planoNecessario] || 0) - (PRECOS[planoAtual] || 0) - 0.10)
+    : null
 
   const waUrl = `https://wa.me/5591992733546?text=Ol%C3%A1!%20Tenho%20interesse%20em%20fazer%20upgrade%20do%20meu%20plano%20Junttos.`
 
@@ -72,10 +106,34 @@ export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidad
       {/* Descrição */}
       <p style={{
         fontFamily: 'Manrope, sans-serif', fontSize: 14, color: 'var(--muted)',
-        lineHeight: 1.6, maxWidth: 340, marginBottom: 36,
+        lineHeight: 1.6, maxWidth: 340, marginBottom: diff ? 20 : 36,
       }}>
         {descricao}
       </p>
+
+      {/* Chamada de incentivo — só quando o gap é exatamente 1 nível */}
+      {diff && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(109,40,217,0.08), rgba(109,40,217,0.04))',
+          border: '1px solid rgba(109,40,217,0.2)',
+          borderRadius: 14,
+          padding: '14px 20px',
+          marginBottom: 28,
+          maxWidth: 320,
+          width: '100%',
+        }}>
+          <p style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: 14,
+            fontWeight: 700,
+            color: '#6d28d9',
+            lineHeight: 1.5,
+            margin: 0,
+          }}>
+            Por mais R${diff}/mês você libera {nomeFuncionalidade} no plano {labelNecessario}.
+          </p>
+        </div>
+      )}
 
       {/* Botões */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 300 }}>
@@ -94,17 +152,19 @@ export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidad
         >
           Falar sobre upgrade
         </a>
-        <button
-          onClick={onVoltar}
-          style={{
-            height: 50, borderRadius: 14, border: '1.5px solid var(--line)',
-            background: 'transparent', cursor: 'pointer',
-            fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 600,
-            color: 'var(--muted)',
-          }}
-        >
-          Voltar
-        </button>
+        {onVoltar && (
+          <button
+            onClick={onVoltar}
+            style={{
+              height: 50, borderRadius: 14, border: '1.5px solid var(--line)',
+              background: 'transparent', cursor: 'pointer',
+              fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 600,
+              color: 'var(--muted)',
+            }}
+          >
+            Voltar
+          </button>
+        )}
       </div>
     </div>
   )
