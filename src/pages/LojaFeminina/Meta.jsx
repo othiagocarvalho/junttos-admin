@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { Target } from 'lucide-react'
 import { calcularProgressoMetaProduto } from '../../utils/metas'
+import CorridaSection from './CorridaSection'
 import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -48,7 +49,7 @@ function BusinessBadge() {
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, produtosData = [], plano, theme }) {
+export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false }) {
   const temPro      = temAcesso(plano, 'pro')
   const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
@@ -468,6 +469,25 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
               </Card>
             )}
           </>
+        )}
+      </div>
+
+      {/* ══ Corrida (Business) ══ */}
+      <div>
+        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+          Corrida<BusinessBadge />
+        </p>
+        {!temBusiness ? (
+          <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="corrida" theme={theme} />
+        ) : (
+          <CorridaSection
+            vendas={vendas}
+            corridas={corridas}
+            salvarCorrida={salvarCorrida}
+            excluirCorrida={excluirCorrida}
+            produtosData={produtosData}
+            mobile={mobile}
+          />
         )}
       </div>
 

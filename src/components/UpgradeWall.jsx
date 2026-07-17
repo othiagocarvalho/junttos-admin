@@ -11,6 +11,7 @@ const DESCRICOES = {
   financeiro:        'Controle contas a pagar e a receber, fluxo de caixa e resultado mensal completo.',
   notificacoes:      'Receba alertas automáticos de estoque baixo, metas atingidas e vendas grandes.',
   crediario:         'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
+  corrida:           'Crie competições motivacionais entre vendedores com ranking ao vivo, pódio visual e prêmios.',
 }
 
 const NOMES = {
@@ -23,6 +24,7 @@ const NOMES = {
   financeiro:        'Módulo Financeiro',
   notificacoes:      'Notificações Automáticas',
   crediario:         'Crediário',
+  corrida:           'Corrida de Vendas',
 }
 
 const BADGE_COLORS = {

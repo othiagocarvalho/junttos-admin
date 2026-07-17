@@ -533,7 +533,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
     meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} plano={plano} />
+      ? <Meta {...data} theme={theme} plano={plano} mobile />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={lojaId} />
