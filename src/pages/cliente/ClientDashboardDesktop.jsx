@@ -8,6 +8,7 @@ import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
+import { calcularPA } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
@@ -80,7 +81,7 @@ const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--mut
 
 const PLANO_NAV_ITEMS = [
   { id: 'clientes',   label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'                     },
-  { id: 'meta',       label: 'Metas',           Icon: Target,      planoMinimo: 'starter'                     },
+  { id: 'meta',       label: 'Metas & Resultados', Icon: Target,    planoMinimo: 'starter'                     },
   { id: 'crediario',  label: 'Crediário',       Icon: Receipt,     planoMinimo: 'pro',     apenasPlano: true  },
   { id: 'catalogo',   label: 'Catálogo online', Icon: ShoppingBag, planoMinimo: 'business', apenasPlano: true },
   { id: 'financeiro', label: 'Financeiro',      Icon: CreditCard,  planoMinimo: 'business', apenasPlano: true },
@@ -264,6 +265,7 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
   const totalMes   = vendasMes.reduce((s, v) => s + Number(v.valor), 0)
   const totalHoje  = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
   const ticket     = vendasMes.length > 0 ? totalMes / vendasMes.length : 0
+  const pa         = calcularPA(vendasMes)
   const meta       = metas[curYM] || 0
   const pct        = meta > 0 ? Math.min((totalMes / meta) * 100, 100) : 0
 
@@ -296,9 +298,10 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
       {/* KPIs — auto-fit, never cuts values */}
       <StatGrid style={{ marginBottom: 24 }}>
         {[
-          { label: 'Hoje',           value: fmtR(totalHoje),  sub: `${vendasHoje.length} vendas` },
-          { label: 'Ticket Médio',   value: fmtR(ticket),      sub: 'este mês' },
-          { label: 'Vendas no Mês',  value: vendasMes.length,  sub: 'transações' },
+          { label: 'Hoje',             value: fmtR(totalHoje),                       sub: `${vendasHoje.length} vendas` },
+          { label: 'Ticket Médio',     value: fmtR(ticket),                          sub: 'este mês' },
+          { label: 'Vendas no Mês',    value: vendasMes.length,                      sub: 'transações' },
+          { label: 'P.A.',             value: pa > 0 ? pa.toFixed(1) : '—',         sub: 'peças / atendimento' },
         ].map(({ label, value, sub }, i) => (
           <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid var(--accent)' : '1px solid var(--line)'), padding: '22px 20px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
@@ -429,7 +432,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, vendedora, pagamento..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente, vendedor(a), pagamento..."
             style={{ width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 12, paddingLeft: 40, paddingRight: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }} />
         </div>
         {[
@@ -457,7 +460,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
           <thead>
             <tr style={{ background: theme.primary }}>
-              {['Data / Hora', 'Cliente', 'Vendedora', 'Produtos', 'Pagamento', 'Valor', ''].map(h => (
+              {['Data / Hora', 'Cliente', 'Vendedor(a)', 'Produtos', 'Pagamento', 'Valor', ''].map(h => (
                 <th key={h} style={{ padding: '14px 16px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -863,7 +866,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div>
-              <label style={lbl}>Vendedora</label>
+              <label style={lbl}>Vendedor(a)</label>
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
             </div>
             <div style={{ position: 'relative' }}>
@@ -1557,7 +1560,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
     meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} />
+      ? <Meta {...data} theme={theme} plano={plano} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={data.LOJA_ID} />

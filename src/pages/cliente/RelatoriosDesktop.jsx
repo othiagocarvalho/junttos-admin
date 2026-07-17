@@ -115,7 +115,7 @@ function VendasDetalhadas({ vendas, deleteVenda, updateVenda, theme, onBack }) {
         <Input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar cliente, vendedora, pagamento..."
+          placeholder="Buscar cliente, vendedor(a), pagamento..."
           style={{ height: 44, paddingLeft: 40 }}
         />
       </div>

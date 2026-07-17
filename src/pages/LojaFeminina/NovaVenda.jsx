@@ -368,7 +368,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 )}
               </div>
             </Field>
-            <Field label="Vendedora">
+            <Field label="Vendedor(a)">
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>

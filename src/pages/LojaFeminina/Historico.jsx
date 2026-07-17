@@ -106,7 +106,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
         <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por cliente, vendedora..."
+          placeholder="Buscar por cliente, vendedor(a)..."
           style={{
             width: '100%', height: 46, border: '1.5px solid var(--line)', borderRadius: 14,
             padding: '0 14px 0 40px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14,

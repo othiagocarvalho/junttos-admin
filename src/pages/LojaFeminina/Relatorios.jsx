@@ -114,7 +114,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
         <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
         <Input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por cliente, vendedora..."
+          placeholder="Buscar por cliente, vendedor(a)..."
           style={{ height: 46, paddingLeft: 40 }}
         />
       </div>
@@ -359,7 +359,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
     if (!temAcessoPro || filtered.length === 0) return []
     const mapa = {}
     filtered.forEach(v => {
-      const nome = v.vendedora || 'Sem vendedora'
+      const nome = v.vendedora || 'Sem vendedor(a)'
       if (!mapa[nome]) mapa[nome] = { nome, total: 0 }
       mapa[nome].total += Number(v.valor)
     })
@@ -591,7 +591,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
       {temAcessoPro && comissaoVendedoras.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
-            Comissão por vendedora
+            Comissão por vendedor(a)
           </p>
           {comissaoVendedoras[0]?.pct === 0 && (
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#ca8a04', background: 'rgba(202,138,4,0.08)', border: '1px solid rgba(202,138,4,0.2)', borderRadius: 'var(--r-input)', padding: '8px 12px', marginBottom: 12 }}>

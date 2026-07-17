@@ -8,6 +8,7 @@ import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
+import { calcularPA } from '../../utils/metas'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import CatalogoB2BAdmin from './CatalogoB2BAdmin'
@@ -45,7 +46,7 @@ const MAIS_ITEMS = [
   { id: 'relatorios',   label: 'Relatórios',    Icon: BarChart2,  planoMinimo: null                              },
   { id: 'financeiro',   label: 'Financeiro',    Icon: CreditCard, planoMinimo: 'business', apenasPlano: true     },
   { id: 'clientes',     label: 'Clientes',      Icon: Users,      planoMinimo: 'starter'                         },
-  { id: 'meta',         label: 'Metas',         Icon: Target,     planoMinimo: 'starter'                         },
+  { id: 'meta',         label: 'Metas & Resultados', Icon: Target, planoMinimo: 'starter'                   },
   { id: 'crediario',    label: 'Crediário',     Icon: Receipt,    planoMinimo: 'pro',      apenasPlano: true     },
   { id: 'conta',        label: 'Fechamento',    Icon: Wallet,     planoMinimo: null                              },
   { id: 'config',       label: 'Configurações', Icon: Settings,   planoMinimo: null                              },
@@ -66,6 +67,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
   const totalMes = vendasMes.reduce((s, v) => s + Number(v.valor), 0)
   const totalHoje = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
   const ticketMedio = vendasMes.length > 0 ? totalMes / vendasMes.length : 0
+  const pa = calcularPA(vendasMes)
   const meta = metas[currentYM] || 0
   const pctMeta = meta > 0 ? Math.min((totalMes / meta) * 100, 100) : 0
 
@@ -81,6 +83,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
     { label: 'Hoje', value: fmtR(totalHoje), sub: `${vendasHoje.length} venda${vendasHoje.length !== 1 ? 's' : ''}` },
     { label: 'Ticket médio', value: fmtR(ticketMedio), sub: 'este mês' },
     { label: 'Vendas no mês', value: vendasMes.length, sub: 'transações' },
+    { label: 'P.A.', value: pa > 0 ? pa.toFixed(1) : '—', sub: 'peças / atendimento' },
   ]
 
   return (
@@ -118,7 +121,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
           <div key={label} style={{
             background: 'var(--surface)', borderRadius: 'var(--r-card)',
             border: '1px solid var(--line)', padding: '16px 14px',
-            gridColumn: i === 2 ? '1 / -1' : 'auto',
+            gridColumn: 'auto',
             minWidth: 0, boxSizing: 'border-box', overflow: 'hidden',
           }}>
             <p style={{
@@ -530,7 +533,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
     meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} />
+      ? <Meta {...data} theme={theme} plano={plano} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
     clientes: (legado || temAcesso(plano, 'starter'))
       ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={lojaId} />

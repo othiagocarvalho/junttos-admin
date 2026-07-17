@@ -16,6 +16,7 @@ export function useLojaData(lojaId = 'estrada') {
   const [vendas, setVendas] = useState([])
   const [caixas, setCaixas] = useState([])
   const [metas, setMetas] = useState({})
+  const [metasVendedora, setMetasVendedora] = useState([])
   const [produtos, setProdutos]         = useState([])
   const [produtosData, setProdutosData] = useState([])
   const [config, setConfig] = useState(null)
@@ -30,13 +31,14 @@ export function useLojaData(lojaId = 'estrada') {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [vendasRes, caixasRes, metasRes, produtosRes, configRes, clientesRes] = await Promise.all([
+      const [vendasRes, caixasRes, metasRes, produtosRes, configRes, clientesRes, metasVendRes] = await Promise.all([
         supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_caixas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
         supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
         supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
         supabase.from('lf_clientes').select('*').eq('loja_id', lojaId).order('nome'),
+        supabase.from('lf_metas_vendedora').select('*').eq('loja_id', lojaId),
       ])
 
       if (vendasRes.error) throw vendasRes.error
@@ -44,6 +46,7 @@ export function useLojaData(lojaId = 'estrada') {
       if (metasRes.error) throw metasRes.error
       if (produtosRes.error) throw produtosRes.error
       if (clientesRes.error) throw clientesRes.error
+      if (metasVendRes.error) throw metasVendRes.error
 
       setVendas(vendasRes.data || [])
       setCaixas(caixasRes.data || [])
@@ -51,6 +54,7 @@ export function useLojaData(lojaId = 'estrada') {
       const metasMap = {}
       ;(metasRes.data || []).forEach(m => { metasMap[m.mes] = m.valor })
       setMetas(metasMap)
+      setMetasVendedora(metasVendRes.data || [])
 
       const prods = produtosRes.data || []
       setProdutos([...new Set(prods.map(p => p.nome))])
@@ -304,6 +308,14 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  async function salvarMetaVendedora(mes, vendedora, valor) {
+    const { error } = await supabase
+      .from('lf_metas_vendedora')
+      .upsert({ loja_id: lojaId, mes, vendedora, valor }, { onConflict: 'loja_id,mes,vendedora' })
+    if (!error) await fetchAll()
+    return error
+  }
+
   async function addProduto(nome, extras = {}) {
     const { error } = await supabase.from('lf_produtos').insert({
       loja_id: lojaId,
@@ -513,6 +525,7 @@ export function useLojaData(lojaId = 'estrada') {
     vendas,
     caixas,
     metas,
+    metasVendedora,
     produtos,
     produtosData,
     config,
@@ -527,6 +540,7 @@ export function useLojaData(lojaId = 'estrada') {
     fecharCaixa,
     deleteCaixa,
     salvarMeta,
+    salvarMetaVendedora,
     addProduto,
     updateProduto,
     removeProduto,
