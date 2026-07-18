@@ -609,7 +609,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], vendas = [] }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, features = {}, theme, fornecedores = [], clientes = [], vendas = [] }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(() => ({
     ...EMPTY_VENDA,
@@ -742,6 +742,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
+      fetchAll?.()
     }
   }
 

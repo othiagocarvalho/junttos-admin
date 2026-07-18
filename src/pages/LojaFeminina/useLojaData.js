@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 
@@ -31,9 +31,10 @@ export function useLojaData(lojaId = 'estrada') {
   const [dispensados, setDispensados] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
+  const hasLoaded = useRef(false)
 
   const fetchAll = useCallback(async () => {
-    setLoading(true)
+    if (!hasLoaded.current) setLoading(true)
     try {
       const [vendasRes, caixasRes, metasRes, produtosRes, configRes, clientesRes, metasVendRes, metaProdRes, corridasRes] = await Promise.all([
         supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
@@ -116,6 +117,7 @@ export function useLojaData(lojaId = 'estrada') {
       setDbError(e.message)
     } finally {
       setLoading(false)
+      hasLoaded.current = true
     }
   }, [lojaId])
 
@@ -272,7 +274,6 @@ export function useLojaData(lojaId = 'estrada') {
         }
       }
 
-    await fetchAll()
     return { error: null, venda: novaVenda || null }
   }
 

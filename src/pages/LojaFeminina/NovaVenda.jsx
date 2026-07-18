@@ -38,7 +38,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], vendas = [], initialIsTroca = false }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, features = {}, theme, fornecedores = [], clientes = [], vendas = [], initialIsTroca = false }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
@@ -191,6 +191,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
+      fetchAll?.()
     }
   }
 
