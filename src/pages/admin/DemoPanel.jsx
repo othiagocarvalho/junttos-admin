@@ -18,13 +18,33 @@ function diasFrente(n) {
 }
 
 // ── Seed constants ────────────────────────────────────────────────
-const SEED_CLIENTES = [
-  { loja_id: DEMO_LOJA_ID, nome: 'Ana Carolina Silva',   telefone: '(85) 99821-4530' },
-  { loja_id: DEMO_LOJA_ID, nome: 'Fernanda Rocha',       telefone: '(85) 98765-3210' },
-  { loja_id: DEMO_LOJA_ID, nome: 'Juliana Matos',        telefone: '(85) 99234-5678' },
-  { loja_id: DEMO_LOJA_ID, nome: 'Beatriz Oliveira',     telefone: '(85) 99876-1122' },
-  { loja_id: DEMO_LOJA_ID, nome: 'Larissa Mendes',       telefone: '(85) 98901-6677' },
-]
+// gerarClientes(): birthdays are relative to today so birthday/follow-up demo works on any run date.
+function gerarClientes() {
+  function nascimento(offsetDias, anoNasc) {
+    const d = new Date()
+    d.setDate(d.getDate() + offsetDias)
+    return `${anoNasc}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  return [
+    { loja_id: DEMO_LOJA_ID, nome: 'Ana Carolina Silva', telefone: '(85) 99821-4530', data_nascimento: nascimento(0, 1995) }, // aniversário hoje
+    { loja_id: DEMO_LOJA_ID, nome: 'Fernanda Rocha',     telefone: '(85) 98765-3210', data_nascimento: nascimento(3, 1993) }, // aniversário em 3 dias
+    { loja_id: DEMO_LOJA_ID, nome: 'Mariana Costa',      telefone: '(85) 99123-4567', data_nascimento: nascimento(6, 1991) }, // aniversário em 6 dias
+    { loja_id: DEMO_LOJA_ID, nome: 'Juliana Matos',      telefone: '(85) 99234-5678', data_nascimento: '1990-03-22' },
+    { loja_id: DEMO_LOJA_ID, nome: 'Beatriz Oliveira',   telefone: '(85) 99876-1122', data_nascimento: '1988-11-15' },
+    { loja_id: DEMO_LOJA_ID, nome: 'Larissa Mendes',     telefone: '(85) 98901-6677', data_nascimento: '1996-08-07' },
+    { loja_id: DEMO_LOJA_ID, nome: 'Rafaela Souza',      telefone: '(85) 97654-3210', data_nascimento: '1994-05-30' }, // VIP (vendas abaixo)
+    { loja_id: DEMO_LOJA_ID, nome: 'Camila Torres',      telefone: '(85) 99345-7890', data_nascimento: '1992-09-18' }, // inativo (vendas abaixo)
+  ]
+}
+
+function gerarLembretes() {
+  return [
+    { loja_id: DEMO_LOJA_ID, cliente_nome: 'Fernanda Rocha',   nota: 'Ligar sobre encomenda do vestido florido',   data_lembrete: diasFrente(1), concluido: false },
+    { loja_id: DEMO_LOJA_ID, cliente_nome: 'Beatriz Oliveira', nota: 'Avisar que chegou o tamanho M da blusa',     data_lembrete: diasFrente(2), concluido: false },
+    { loja_id: DEMO_LOJA_ID, cliente_nome: 'Juliana Matos',    nota: 'Confirmar pedido de calça jeans azul',       data_lembrete: diasAtras(1),  concluido: false },
+    { loja_id: DEMO_LOJA_ID, cliente_nome: 'Larissa Mendes',   nota: 'Apresentar nova coleção de verão',           data_lembrete: diasFrente(5), concluido: false },
+  ]
+}
 
 const SEED_FORNECEDORES = [
   { loja_id: DEMO_LOJA_ID, nome: 'Confecções Ana Ltda',    contato: '(11) 98000-1234', prazo_pagamento_dias: 30, observacoes: 'Entrega em até 7 dias úteis.', ativo: true },
@@ -32,7 +52,7 @@ const SEED_FORNECEDORES = [
   { loja_id: DEMO_LOJA_ID, nome: 'Studio Moda Atacado',    contato: '(21) 97654-3210', prazo_pagamento_dias: 45, observacoes: 'Mínimo 10 peças por pedido.', ativo: true },
 ]
 
-const NOMES_CLI = ['Ana Carolina', 'Fernanda R.', 'Juliana M.', 'Beatriz O.', 'Larissa M.', null, null]
+const NOMES_CLI = ['Ana Carolina Silva', 'Fernanda Rocha', 'Juliana Matos', 'Beatriz Oliveira', 'Larissa Mendes', null, null]
 const PRODS_DEMO = [
   [{ nome: 'Vestido Floral',   quantidade: 1 }],
   [{ nome: 'Blusa Listrada',   quantidade: 1 }],
@@ -49,7 +69,7 @@ const HORAS    = [14, 10, 16, 11, 9, 15, 13, 10, 17, 11, 10, 15, 14, 9, 11]
 
 // ── Seed functions (dates evaluated at call time) ─────────────────
 function gerarVendas() {
-  return Array.from({ length: 15 }, (_, i) => ({
+  const base = Array.from({ length: 15 }, (_, i) => ({
     loja_id:      DEMO_LOJA_ID,
     data:         `${diasAtras(DIAS_AGO[i])}T${String(HORAS[i]).padStart(2, '0')}:00:00+00:00`,
     valor:        VALORES_VENDA[i],
@@ -61,6 +81,23 @@ function gerarVendas() {
     vendedora:    i % 4 === 0 ? 'Carla' : null,
     ajuste_valor: null,
   }))
+
+  // Rafaela Souza — VIP: 5 compras totalizando R$1540 (>= 10× ticket médio ~R$143)
+  // Última compra 38 dias atrás → aparece no feed VIP (>= 30 dias)
+  const vip = [
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(38)}T11:00:00+00:00`,  valor: 290, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Calça Skinny', quantidade: 1 }], forma_pgto: JSON.stringify([{ forma: 'Pix', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(55)}T14:00:00+00:00`,  valor: 280, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Vestido Floral', quantidade: 1 }], forma_pgto: JSON.stringify([{ forma: 'Cartão de Crédito', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(62)}T10:00:00+00:00`,  valor: 320, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Conjunto Tie Dye', quantidade: 2 }], forma_pgto: JSON.stringify([{ forma: 'Cartão de Crédito', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(70)}T15:30:00+00:00`,  valor: 350, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Saia Midi', quantidade: 1 }, { nome: 'Blusa Listrada', quantidade: 2 }], forma_pgto: JSON.stringify([{ forma: 'Pix', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(80)}T09:00:00+00:00`,  valor: 300, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Cropped Básico', quantidade: 3 }], forma_pgto: JSON.stringify([{ forma: 'Cartão de Crédito', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+  ]
+
+  // Camila Torres — inativo: última compra 55 dias atrás → aparece no feed inativo (>= 45 dias)
+  const inativo = [
+    { loja_id: DEMO_LOJA_ID, data: `${diasAtras(55)}T09:00:00+00:00`, valor: 120, cliente_nome: 'Camila Torres', cliente_tel: null, produtos: [{ nome: 'Blusa Listrada', quantidade: 1 }], forma_pgto: JSON.stringify([{ forma: 'Dinheiro', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },
+  ]
+
+  return [...base, ...vip, ...inativo]
 }
 
 function gerarCompras(fornecedores) {
@@ -112,6 +149,8 @@ async function executarReset() {
     supabase.from('lf_fornecedores').delete().eq('loja_id', DEMO_LOJA_ID),
     supabase.from('lf_vendas').delete().eq('loja_id', DEMO_LOJA_ID),
     supabase.from('lf_clientes').delete().eq('loja_id', DEMO_LOJA_ID),
+    supabase.from('lf_lembretes').delete().eq('loja_id', DEMO_LOJA_ID),
+    supabase.from('lf_followup_dispensado').delete().eq('loja_id', DEMO_LOJA_ID),
     supabase.from('lf_contas_pagar').delete().eq('loja_id', DEMO_LOJA_ID).not('descricao', 'ilike', '[TESTE-AUTO]%'),
     supabase.from('lf_contas_receber').delete().eq('loja_id', DEMO_LOJA_ID).not('descricao', 'ilike', '[TESTE-AUTO]%'),
   ])
@@ -119,8 +158,11 @@ async function executarReset() {
   const { error: vErr } = await supabase.from('lf_vendas').insert(gerarVendas())
   if (vErr) throw new Error(`lf_vendas: ${vErr.message}`)
 
-  const { error: cliErr } = await supabase.from('lf_clientes').insert(SEED_CLIENTES)
+  const { error: cliErr } = await supabase.from('lf_clientes').insert(gerarClientes())
   if (cliErr) throw new Error(`lf_clientes: ${cliErr.message}`)
+
+  const { error: lemErr } = await supabase.from('lf_lembretes').insert(gerarLembretes())
+  if (lemErr) throw new Error(`lf_lembretes: ${lemErr.message}`)
 
   const { data: fornecedores, error: fErr } = await supabase
     .from('lf_fornecedores').insert(SEED_FORNECEDORES).select()

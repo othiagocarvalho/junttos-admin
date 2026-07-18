@@ -23,7 +23,7 @@ import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
 import ContasPagar from './ContasPagar'
 import WelcomeOnboarding from './WelcomeOnboarding'
-import Clientes from './Clientes'
+import CRM from './CRM'
 import Crediario from './Crediario'
 import Fornecedores from './Fornecedores'
 import PedidosCatalogo from './PedidosCatalogo'
@@ -45,7 +45,7 @@ const BOTTOM_TABS = [
 const MAIS_ITEMS = [
   { id: 'relatorios',   label: 'Relatórios',    Icon: BarChart2,  planoMinimo: null                              },
   { id: 'financeiro',   label: 'Financeiro',    Icon: CreditCard, planoMinimo: 'business', apenasPlano: true     },
-  { id: 'clientes',     label: 'Clientes',      Icon: Users,      planoMinimo: 'starter'                         },
+  { id: 'crm',          label: 'CRM',           Icon: Users,      planoMinimo: 'starter'                         },
   { id: 'meta',         label: 'Metas & Resultados', Icon: Target, planoMinimo: 'starter'                   },
   { id: 'crediario',    label: 'Crediário',     Icon: Receipt,    planoMinimo: 'pro',      apenasPlano: true     },
   { id: 'conta',        label: 'Fechamento',    Icon: Wallet,     planoMinimo: null                              },
@@ -535,8 +535,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     meta: (legado || temAcesso(plano, 'starter'))
       ? <Meta {...data} theme={theme} plano={plano} mobile />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
-    clientes: (legado || temAcesso(plano, 'starter'))
-      ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={lojaId} />
+    crm: (legado || temAcesso(plano, 'starter'))
+      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     fornecedores: features?.fornecedores === true
       ? <Fornecedores {...data} theme={theme} lojaId={lojaId} />
@@ -651,7 +651,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'clientes', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'fornecedores'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'fornecedores'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

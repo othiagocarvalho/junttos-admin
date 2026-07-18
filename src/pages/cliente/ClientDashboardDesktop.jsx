@@ -20,7 +20,7 @@ import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
 import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
-import Clientes from '../LojaFeminina/Clientes'
+import CRM from '../LojaFeminina/CRM'
 import Crediario from '../LojaFeminina/Crediario'
 import Fornecedores from '../LojaFeminina/Fornecedores'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
@@ -53,7 +53,6 @@ const NAV = [
   { id: 'venda',      label: 'Nova Venda',    Icon: Plus      },
   { id: 'estoque',    label: 'Estoque',       Icon: Package   },
   { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
-  { id: 'crm',        label: 'CRM',           Icon: Users,    locked: true },
   { id: 'conta',      label: 'Fechamento',    Icon: Wallet    },
 ]
 
@@ -80,7 +79,7 @@ const onB = (e) => {
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 
 const PLANO_NAV_ITEMS = [
-  { id: 'clientes',   label: 'Clientes',        Icon: Users,       planoMinimo: 'starter'                     },
+  { id: 'crm',        label: 'CRM',             Icon: Users,       planoMinimo: 'starter'                     },
   { id: 'meta',       label: 'Metas & Resultados', Icon: Target,    planoMinimo: 'starter'                     },
   { id: 'crediario',  label: 'Crediário',       Icon: Receipt,     planoMinimo: 'pro',     apenasPlano: true  },
   { id: 'catalogo',   label: 'Catálogo online', Icon: ShoppingBag, planoMinimo: 'business', apenasPlano: true },
@@ -151,17 +150,15 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
       <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
         {NAV.map((item, i) => {
           if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
-          const { id, label, Icon, locked: lockedProp } = item
-          const isLocked = lockedProp && !config?.features?.crm
+          const { id, label, Icon } = item
           const active = tab === id
           return (
             <button key={id}
-              onClick={isLocked ? undefined : () => setTab(id)}
-              className={isLocked || active ? '' : 'cds-nav-btn'}
-              style={{ ...navItemStyle(active), cursor: isLocked ? 'default' : 'pointer', opacity: isLocked ? 0.5 : 1 }}>
+              onClick={() => setTab(id)}
+              className={active ? '' : 'cds-nav-btn'}
+              style={{ ...navItemStyle(active) }}>
               <Icon size={16} style={{ flexShrink: 0 }} />
               <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>
-              {isLocked && <Lock size={12} style={{ flexShrink: 0 }} />}
             </button>
           )
         })}
@@ -1562,8 +1559,8 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     meta: (legado || temAcesso(plano, 'starter'))
       ? <Meta {...data} theme={theme} plano={plano} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
-    clientes: (legado || temAcesso(plano, 'starter'))
-      ? <Clientes clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} theme={theme} lojaId={data.LOJA_ID} />
+    crm: (legado || temAcesso(plano, 'starter'))
+      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={data.LOJA_ID} produtosData={data.produtosData} plano={plano} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={data.LOJA_ID} />

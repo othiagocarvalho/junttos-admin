@@ -1,8 +1,21 @@
-import { useState, useEffect } from 'react'
-import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check, MessageCircle } from 'lucide-react'
+import UpgradeWall from '../../components/UpgradeWall'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
+import { temAcesso } from '../../utils/planos'
+import {
+  diasDesdeUltima,
+  isInativo,
+  ticketMedioLoja,
+  isVip,
+  badgeAniversario,
+  tamanhoPreferido,
+  categoriaFavorita,
+  ticketMedioCliente,
+  normalizeWaPhone,
+} from '../../utils/crm'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtData(iso) {
@@ -16,6 +29,7 @@ function fmtDataHora(iso) {
 
 const FORM_VAZIO = { nome: '', telefone: '', email: '', data_nascimento: '', observacoes: '' }
 
+// ── Modal ──────────────────────────────────────────────────────
 function Modal({ initial, onSalvar, onCancelar, theme }) {
   const [form, setForm] = useState(initial || FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
@@ -119,7 +133,24 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
   )
 }
 
-function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
+// ── Segment badge pill ─────────────────────────────────────────
+function Pill({ children, bg, color }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      padding: '2px 7px', borderRadius: 99,
+      fontSize: 10, fontWeight: 700, letterSpacing: '0.02em',
+      fontFamily: 'Plus Jakarta Sans, sans-serif',
+      background: bg, color, flexShrink: 0,
+    }}>{children}</span>
+  )
+}
+
+// ── ClienteCard ────────────────────────────────────────────────
+function ClienteCard({
+  cliente, vendas, produtosData, theme, onEditar, onExcluir,
+  proMode, diasUltima, vip, badgeAniv, inativo,
+}) {
   const [aberto, setAberto] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
@@ -127,16 +158,28 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
     v.cliente_nome && v.cliente_nome.trim().toLowerCase() === cliente.nome.trim().toLowerCase()
   )
   const totalGasto = vendasCliente.reduce((s, v) => s + Number(v.valor || 0), 0)
-  const ultimas5 = [...vendasCliente].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 5)
+  const ultimas = [...vendasCliente].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 5)
   const inicial = (cliente.nome || '?')[0].toUpperCase()
+
+  const proDetails = useMemo(() => {
+    if (!proMode || !aberto) return null
+    return {
+      tamanho: tamanhoPreferido(vendas, cliente.nome),
+      catFav:  categoriaFavorita(vendas, cliente.nome, produtosData),
+      ticket:  ticketMedioCliente(vendas, cliente.nome),
+    }
+  }, [proMode, aberto, vendas, cliente.nome, produtosData])
+
+  const waPhone = normalizeWaPhone(cliente.telefone)
 
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', overflow: 'hidden', marginBottom: 10 }}>
-      {/* Cabeçalho clicável — vira um "card" empilhado em telas estreitas */}
+      {/* Header */}
       <div
         onClick={() => setAberto(v => !v)}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', cursor: 'pointer' }}
       >
+        {/* Avatar */}
         <div style={{
           width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
           background: `color-mix(in srgb, ${theme.primary} 12%, white)`,
@@ -145,18 +188,35 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
         }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{inicial}</span>
         </div>
+
+        {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{cliente.nome}</p>
+          {/* Name + Pro badges */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 2 }}>
+            <p style={{
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{cliente.nome}</p>
+            {proMode && badgeAniv === 'hoje' && <Pill bg="#dcfce7" color="#16a34a">Hoje</Pill>}
+            {proMode && badgeAniv === 'mes'  && <Pill bg="#ede9fe" color="#7c3aed">Aniversário</Pill>}
+            {proMode && vip                  && <Pill bg="#fef9c3" color="#a16207">VIP</Pill>}
+            {proMode && inativo              && <Pill bg="#fef3c7" color="#d97706">Inativo {diasUltima}d</Pill>}
+          </div>
+
           {cliente.telefone && (
-            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: 'var(--muted)' }}>{cliente.telefone}</p>
+            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: 'var(--muted)', marginBottom: 2 }}>{cliente.telefone}</p>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--muted)' }}>
-              {vendasCliente.length} compra{vendasCliente.length !== 1 ? 's' : ''}
-            </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {proMode ? (
+              diasUltima !== null
+                ? <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--muted)' }}>Última: {diasUltima}d atrás</span>
+                : <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--muted)' }}>Sem compras</span>
+            ) : (
+              <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--muted)' }}>
+                {vendasCliente.length} compra{vendasCliente.length !== 1 ? 's' : ''}
+              </span>
+            )}
             {totalGasto > 0 && (
               <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700, color: theme.primary }}>
                 {fmtR(totalGasto)}
@@ -164,13 +224,85 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
             )}
           </div>
         </div>
-        {aberto ? <ChevronUp size={16} color="var(--muted)" style={{ flexShrink: 0 }} /> : <ChevronDown size={16} color="var(--muted)" style={{ flexShrink: 0 }} />}
+
+        {/* WhatsApp button (Pro + has phone) */}
+        {proMode && waPhone && (
+          <a
+            href={`https://wa.me/${waPhone}?text=${encodeURIComponent('Olá, ' + cliente.nome + '!')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+              background: '#25D366',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              textDecoration: 'none',
+            }}
+          >
+            <MessageCircle size={16} color="#fff" />
+          </a>
+        )}
+
+        {aberto
+          ? <ChevronUp  size={16} color="var(--muted)" style={{ flexShrink: 0 }} />
+          : <ChevronDown size={16} color="var(--muted)" style={{ flexShrink: 0 }} />}
       </div>
 
-      {/* Detalhes expandidos */}
+      {/* Expanded */}
       {aberto && (
         <div style={{ borderTop: '1px solid var(--line)', padding: '16px 16px 14px' }}>
-          {/* Dados extras */}
+
+          {/* Pro: preference tags */}
+          {proMode && proDetails && (proDetails.tamanho || proDetails.catFav) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {proDetails.tamanho && (
+                <span style={{
+                  padding: '4px 12px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                  background: `color-mix(in srgb, ${theme.primary} 10%, white)`,
+                  border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)`,
+                  color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif',
+                }}>
+                  Tamanho: {proDetails.tamanho}
+                </span>
+              )}
+              {proDetails.catFav && (
+                <span style={{
+                  padding: '4px 12px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                  background: `color-mix(in srgb, ${theme.primary} 10%, white)`,
+                  border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)`,
+                  color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif',
+                }}>
+                  {proDetails.catFav}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Pro: client stats mini-row */}
+          {proMode && proDetails && (
+            <div style={{
+              display: 'flex', gap: 0, marginBottom: 14,
+              background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--line)',
+              overflow: 'hidden',
+            }}>
+              {[
+                { label: 'Ticket médio', value: fmtR(proDetails.ticket) },
+                { label: 'Compras',      value: String(vendasCliente.length) },
+                { label: 'Total gasto',  value: fmtR(totalGasto) },
+              ].map((stat, i) => (
+                <div key={i} style={{ flex: 1, padding: '10px 12px', borderRight: i < 2 ? '1px solid var(--line)' : 'none', minWidth: 0 }}>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Plus Jakarta Sans, sans-serif', marginBottom: 3 }}>
+                    {stat.label}
+                  </p>
+                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: i === 2 ? theme.primary : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Basic data (always shown) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
             {cliente.email && (
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', overflowWrap: 'anywhere' }}>
@@ -189,20 +321,20 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
             )}
           </div>
 
-          {/* Histórico de compras */}
-          {ultimas5.length > 0 && (
+          {/* Purchase history */}
+          {ultimas.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 10 }}>
                 Últimas compras
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {ultimas5.map(v => (
+                {ultimas.map(v => (
                   <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, padding: '8px 10px', background: 'var(--bg)', borderRadius: 'var(--r-chip)', border: '1px solid var(--line)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtDataHora(v.data)}</p>
                       {(v.produtos || []).length > 0 && (
                         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--ink-soft)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {v.produtos.map(p => p.nome).join(', ')}
+                          {v.produtos.map(p => p.nome + (p.variacao && p.variacao !== 'Único' ? ` (${p.variacao})` : '')).join(', ')}
                         </p>
                       )}
                     </div>
@@ -215,7 +347,7 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
             </div>
           )}
 
-          {/* Botões de ação */}
+          {/* Actions */}
           {!confirmDel ? (
             <div style={{ display: 'flex', gap: 8 }}>
               <Button
@@ -251,33 +383,75 @@ function ClienteCard({ cliente, vendas, theme, onEditar, onExcluir }) {
   )
 }
 
-export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme }) {
-  const [busca, setBusca] = useState('')
-  const [modal, setModal] = useState(null) // null | 'novo' | { cliente }
 
-  const filtrados = clientes.filter(c => {
+// ── Main export ────────────────────────────────────────────────
+export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme, produtosData = [], plano = 'starter' }) {
+  const [busca, setBusca] = useState('')
+  const [modal, setModal] = useState(null)
+  const [filtro, setFiltro] = useState('todos')
+
+  const isPro = temAcesso(plano, 'pro')
+  const hoje = new Date().toISOString().slice(0, 10)
+
+  const ticket = useMemo(() => ticketMedioLoja(vendas, hoje), [vendas, hoje])
+
+  const enriched = useMemo(() => clientes.map(c => {
+    const norm = s => (s || '').trim().toLowerCase()
+    const vendasC = vendas.filter(v => norm(v.cliente_nome) === norm(c.nome))
+    const totalGasto = vendasC.reduce((s, v) => s + Number(v.valor || 0), 0)
+    return {
+      ...c,
+      _diasUltima: diasDesdeUltima(vendas, c.nome, hoje),
+      _vip:        isVip(totalGasto, ticket),
+      _inativo:    isInativo(vendas, c.nome, hoje),
+      _badgeAniv:  badgeAniversario(c.data_nascimento, hoje),
+    }
+  }), [clientes, vendas, hoje, ticket])
+
+  const counts = useMemo(() => ({
+    aniversariantes: enriched.filter(c => c._badgeAniv !== null).length,
+    inativos:        enriched.filter(c => c._inativo).length,
+    vip:             enriched.filter(c => c._vip).length,
+  }), [enriched])
+
+  const filtrados = useMemo(() => {
     const q = busca.toLowerCase()
-    return (c.nome || '').toLowerCase().includes(q) || (c.telefone || '').toLowerCase().includes(q)
-  })
+    let result = q
+      ? enriched.filter(c => (c.nome || '').toLowerCase().includes(q) || (c.telefone || '').toLowerCase().includes(q))
+      : enriched
+    if (isPro) {
+      if (filtro === 'aniversariantes') return result.filter(c => c._badgeAniv !== null)
+      if (filtro === 'inativos')        return result.filter(c => c._inativo)
+      if (filtro === 'vip')             return result.filter(c => c._vip)
+    }
+    return result
+  }, [enriched, busca, filtro, isPro])
+
+  if (!isPro) {
+    return <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crm_avancado" theme={theme} />
+  }
 
   async function handleSalvar(form) {
     if (modal === 'novo') {
       await addCliente(form)
     } else {
       await updateCliente(modal.id, {
-        nome: form.nome?.trim(),
-        telefone: form.telefone?.trim() || null,
-        email: form.email?.trim() || null,
-        data_nascimento: form.data_nascimento || null,
-        observacoes: form.observacoes?.trim() || null,
+        nome:             form.nome?.trim(),
+        telefone:         form.telefone?.trim() || null,
+        email:            form.email?.trim()    || null,
+        data_nascimento:  form.data_nascimento  || null,
+        observacoes:      form.observacoes?.trim() || null,
       })
     }
     setModal(null)
   }
 
-  async function handleExcluir(id) {
-    await deleteCliente(id)
-  }
+  const FILTROS = [
+    { id: 'todos',           label: 'Todos' },
+    { id: 'aniversariantes', label: `Aniversários${counts.aniversariantes > 0 ? ` (${counts.aniversariantes})` : ''}` },
+    { id: 'inativos',        label: `Inativos${counts.inativos > 0 ? ` (${counts.inativos})` : ''}` },
+    { id: 'vip',             label: `VIP${counts.vip > 0 ? ` (${counts.vip})` : ''}` },
+  ]
 
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box' }}>
@@ -294,7 +468,28 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
         </Button>
       </div>
 
-      {/* Busca */}
+      {/* Pro filter tabs */}
+      {isPro && clientes.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
+          {FILTROS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFiltro(f.id)}
+              style={{
+                padding: '7px 14px', borderRadius: 99, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
+                border:      filtro === f.id ? 'none'             : '1px solid var(--line)',
+                background:  filtro === f.id ? theme.primary      : 'var(--surface)',
+                color:       filtro === f.id ? '#fff'             : 'var(--muted)',
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Search */}
       {clientes.length > 0 && (
         <div style={{ position: 'relative', marginBottom: 16 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }} />
@@ -307,7 +502,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
         </div>
       )}
 
-      {/* Estado vazio */}
+      {/* Empty state — no clients at all */}
       {clientes.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
           <EmptyState
@@ -320,39 +515,45 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
         </div>
       )}
 
-      {/* Lista */}
-      {filtrados.length > 0 && filtrados.map(c => (
-        <ClienteCard
-          key={c.id}
-          cliente={c}
-          vendas={vendas}
-          theme={theme}
-          onEditar={c => setModal(c)}
-          onExcluir={handleExcluir}
-        />
-      ))}
-
-      {/* Sem resultados de busca */}
+      {/* Empty state — no results in current filter */}
       {clientes.length > 0 && filtrados.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
           <EmptyState
             icon={Search}
-            title={`Nada encontrado para "${busca}"`}
-            actionLabel="Limpar busca"
-            onAction={() => setBusca('')}
+            title={busca ? `Nada encontrado para "${busca}"` : `Nenhum cliente neste filtro`}
+            actionLabel={busca ? 'Limpar busca' : 'Ver todos'}
+            onAction={() => { setBusca(''); setFiltro('todos') }}
           />
         </div>
       )}
+
+      {/* Client list */}
+      {filtrados.map(c => (
+        <ClienteCard
+          key={c.id}
+          cliente={c}
+          vendas={vendas}
+          produtosData={produtosData}
+          theme={theme}
+          onEditar={cl => setModal(cl)}
+          onExcluir={id => deleteCliente(id)}
+          proMode={isPro}
+          diasUltima={c._diasUltima}
+          vip={c._vip}
+          badgeAniv={c._badgeAniv}
+          inativo={c._inativo}
+        />
+      ))}
 
       {/* Modal */}
       {modal && (
         <Modal
           initial={modal === 'novo' ? null : {
-            nome: modal.nome || '',
-            telefone: modal.telefone || '',
-            email: modal.email || '',
+            nome:            modal.nome            || '',
+            telefone:        modal.telefone        || '',
+            email:           modal.email           || '',
             data_nascimento: modal.data_nascimento || '',
-            observacoes: modal.observacoes || '',
+            observacoes:     modal.observacoes     || '',
           }}
           onSalvar={handleSalvar}
           onCancelar={() => setModal(null)}

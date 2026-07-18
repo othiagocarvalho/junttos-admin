@@ -27,6 +27,8 @@ export function useLojaData(lojaId = 'estrada') {
   const [pedidos, setPedidos] = useState([])
   const [fornecedores, setFornecedores] = useState([])
   const [compras, setCompras] = useState([])
+  const [lembretes, setLembretes] = useState([])
+  const [dispensados, setDispensados] = useState([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(null)
 
@@ -96,6 +98,18 @@ export function useLojaData(lojaId = 'estrada') {
         setCompras(comprasData || [])
       } catch (_e) {
         setCompras([])
+      }
+      try {
+        const { data: lembretesData } = await supabase.from('lf_lembretes').select('*').eq('loja_id', lojaId).order('data_lembrete')
+        setLembretes(lembretesData || [])
+      } catch (_e) {
+        setLembretes([])
+      }
+      try {
+        const { data: dispData } = await supabase.from('lf_followup_dispensado').select('*').eq('loja_id', lojaId)
+        setDispensados(dispData || [])
+      } catch (_e) {
+        setDispensados([])
       }
       setDbError(null)
     } catch (e) {
@@ -557,6 +571,49 @@ export function useLojaData(lojaId = 'estrada') {
     setCompras(prev => prev.filter(c => c.id !== id))
   }
 
+  async function addLembrete(dados) {
+    const novo = {
+      loja_id: lojaId,
+      cliente_nome: (dados.cliente_nome || '').trim(),
+      nota: (dados.nota || '').trim() || null,
+      data_lembrete: dados.data_lembrete,
+      concluido: false,
+    }
+    const { data, error } = await supabase.from('lf_lembretes').insert(novo).select().single()
+    if (error) throw error
+    setLembretes(prev => [...prev, data].sort((a, b) => a.data_lembrete.localeCompare(b.data_lembrete)))
+    return data
+  }
+
+  async function concluirLembrete(id) {
+    const { data, error } = await supabase
+      .from('lf_lembretes').update({ concluido: true })
+      .eq('id', id).eq('loja_id', lojaId).select().single()
+    if (error) throw error
+    setLembretes(prev => prev.map(l => l.id === id ? data : l))
+    return data
+  }
+
+  async function deleteLembrete(id) {
+    const { error } = await supabase.from('lf_lembretes').delete().eq('id', id).eq('loja_id', lojaId)
+    if (error) throw error
+    setLembretes(prev => prev.filter(l => l.id !== id))
+  }
+
+  async function dispensarFollowup(clienteNome, tipo, dataReferencia) {
+    const { data, error } = await supabase.from('lf_followup_dispensado').insert({
+      loja_id: lojaId,
+      cliente_nome: clienteNome,
+      tipo,
+      data_referencia: dataReferencia,
+    }).select().single()
+    if (error) {
+      if (error.code === '23505') return
+      throw error
+    }
+    if (data) setDispensados(prev => [...prev, data])
+  }
+
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   return {
@@ -596,6 +653,12 @@ export function useLojaData(lojaId = 'estrada') {
     addCliente,
     updateCliente,
     deleteCliente,
+    lembretes,
+    dispensados,
+    addLembrete,
+    concluirLembrete,
+    deleteLembrete,
+    dispensarFollowup,
     crediario,
     addCrediario,
     pagarParcela,

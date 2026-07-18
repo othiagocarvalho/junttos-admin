@@ -12,6 +12,7 @@ const DESCRICOES = {
   notificacoes:      'Receba alertas automáticos de estoque baixo, metas atingidas e vendas grandes.',
   crediario:         'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
   corrida:           'Crie competições motivacionais entre vendedores com ranking ao vivo, pódio visual e prêmios.',
+  crm_avancado:      'Segmente clientes por VIP, inativos e aniversariantes. Tags de preferência, histórico completo e WhatsApp direto do card.',
 }
 
 const NOMES = {
@@ -25,6 +26,7 @@ const NOMES = {
   notificacoes:      'Notificações Automáticas',
   crediario:         'Crediário',
   corrida:           'Corrida de Vendas',
+  crm_avancado:      'CRM Avançado',
 }
 
 const BADGE_COLORS = {
