@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle } from 'lucide-react'
+import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
@@ -57,15 +58,23 @@ function Modal({ title, onClose, children }) {
 // ── Aba Contas a Pagar ────────────────────────────────────────────
 function ContasPagarPane({ lojaId, theme }) {
   const [contas, setContas] = useState([])
+  const [regras, setRegras] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todas')
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pagandoId, setPagandoId] = useState(null)
-  const [form, setForm] = useState({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '' })
+  const [form, setForm] = useState({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '', recorrente: false, frequencia: 'mensal' })
 
   const load = useCallback(async () => {
     setLoading(true)
+    const [{ data: todasRegras }, { data: lancRec }] = await Promise.all([
+      supabase.from('lf_recorrencias').select('*').eq('loja_id', lojaId).order('created_at'),
+      supabase.from('lf_contas_pagar').select('id, data_vencimento, status, recorrencia_id').eq('loja_id', lojaId).not('recorrencia_id', 'is', null),
+    ])
+    setRegras(todasRegras || [])
+    const novos = (todasRegras || []).filter(r => r.ativa).flatMap(r => gerarLancamentosFaltantes(r, lancRec || []))
+    if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
     const { data } = await supabase.from('lf_contas_pagar').select('*').eq('loja_id', lojaId).order('data_vencimento')
     setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
     setLoading(false)
@@ -76,8 +85,20 @@ function ContasPagarPane({ lojaId, theme }) {
   async function handleSalvar() {
     if (!form.descricao.trim() || !form.valor || !form.data_vencimento) return
     setSaving(true)
-    await supabase.from('lf_contas_pagar').insert({ loja_id: lojaId, descricao: form.descricao.trim(), categoria: form.categoria, valor: parseFloat(form.valor.replace(',', '.')) || 0, data_vencimento: form.data_vencimento, status: 'pendente', observacoes: form.observacoes || null })
-    setForm({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '' })
+    if (form.recorrente) {
+      const { data: regra } = await supabase.from('lf_recorrencias').insert({
+        loja_id: lojaId, descricao: form.descricao.trim(), categoria: form.categoria,
+        valor: parseFloat(form.valor.replace(',', '.')) || 0, frequencia: form.frequencia,
+        data_inicio: form.data_vencimento, ativa: true, observacoes: form.observacoes || null,
+      }).select().single()
+      if (regra) {
+        const novos = gerarLancamentosFaltantes(regra, [])
+        if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
+      }
+    } else {
+      await supabase.from('lf_contas_pagar').insert({ loja_id: lojaId, descricao: form.descricao.trim(), categoria: form.categoria, valor: parseFloat(form.valor.replace(',', '.')) || 0, data_vencimento: form.data_vencimento, status: 'pendente', observacoes: form.observacoes || null })
+    }
+    setForm({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '', recorrente: false, frequencia: 'mensal' })
     setShowModal(false)
     setSaving(false)
     load()
@@ -87,6 +108,11 @@ function ContasPagarPane({ lojaId, theme }) {
     setPagandoId(id)
     await supabase.from('lf_contas_pagar').update({ status: 'pago', data_pagamento: new Date().toISOString().slice(0, 10) }).eq('id', id).eq('loja_id', lojaId)
     setPagandoId(null)
+    load()
+  }
+
+  async function handleToggleRegra(id, ativa) {
+    await supabase.from('lf_recorrencias').update({ ativa: !ativa }).eq('id', id).eq('loja_id', lojaId)
     load()
   }
 
@@ -112,6 +138,26 @@ function ContasPagarPane({ lojaId, theme }) {
         <KpiCard label="Atrasado" value={fmtR(totalAtrasado)} color="var(--negative)" />
         <KpiCard label="Pago (total)" value={fmtR(totalPago)} color="var(--positive)" />
       </StatGrid>
+
+      {regras.length > 0 && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '16px 20px', marginBottom: 20 }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>Recorrências</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {regras.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <RefreshCw size={13} color={r.ativa ? theme.primary : 'var(--muted)'} style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: r.ativa ? 'var(--ink)' : 'var(--muted)' }}>{r.descricao}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>{FREQ_LABEL[r.frequencia]} · {fmtR(r.valor)}</span>
+                </div>
+                <button onClick={() => handleToggleRegra(r.id, r.ativa)} style={{ padding: '5px 12px', borderRadius: 'var(--r-input)', border: `1px solid ${r.ativa ? 'var(--negative)' : 'var(--positive)'}`, background: 'transparent', color: r.ativa ? 'var(--negative)' : 'var(--positive)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                  {r.ativa ? 'Pausar recorrência' : 'Retomar recorrência'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {['todas', 'pendente', 'atrasado', 'pago'].map(f => (
@@ -141,6 +187,7 @@ function ContasPagarPane({ lojaId, theme }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                     <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
                     <StatusPill tone={sm.tone} label={sm.label} />
+                    {c.recorrencia_id && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 'var(--r-pill)', background: 'color-mix(in srgb, var(--primary) 12%, white)', color: 'var(--primary)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, flexShrink: 0 }}>↺ Recorrente</span>}
                   </div>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
                     {c.categoria} · Vence {fmtDate(c.data_vencimento)}{c.data_pagamento ? ` · Pago ${fmtDate(c.data_pagamento)}` : ''}
@@ -164,8 +211,21 @@ function ContasPagarPane({ lojaId, theme }) {
             <div><label style={lbl}>Descrição *</label><input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Aluguel março" style={inp} /></div>
             <div><label style={lbl}>Categoria</label><select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>{CATEGORIAS_PAGAR.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}</select></div>
             <div><label style={lbl}>Valor *</label><input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inp} /></div>
-            <div><label style={lbl}>Vencimento *</label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
+            <div><label style={lbl}>{form.recorrente ? 'Data de início *' : 'Vencimento *'}</label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Observações</label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                <input type="checkbox" checked={form.recorrente} onChange={e => setForm(f => ({ ...f, recorrente: e.target.checked }))} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: theme.primary }} />
+                Esta conta é recorrente?
+              </label>
+            </div>
+            {form.recorrente && (
+              <div><label style={lbl}>Frequência</label><select value={form.frequencia} onChange={e => setForm(f => ({ ...f, frequencia: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
+                <option value="mensal">Mensal</option>
+                <option value="semanal">Semanal</option>
+                <option value="anual">Anual</option>
+              </select></div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>

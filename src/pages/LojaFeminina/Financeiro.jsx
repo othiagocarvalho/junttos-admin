@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle } from 'lucide-react'
+import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle, RefreshCw } from 'lucide-react'
 import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
@@ -33,6 +34,7 @@ const inputStyle = {
 // ── Contas a Pagar ───────────────────────────────────────────────
 function ContasPagarTab({ lojaId, theme }) {
   const [contas, setContas] = useState([])
+  const [regras, setRegras] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('todas')
   const [showModal, setShowModal] = useState(false)
@@ -40,6 +42,7 @@ function ContasPagarTab({ lojaId, theme }) {
   const [pagandoId, setPagandoId] = useState(null)
   const [form, setForm] = useState({
     descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '',
+    recorrente: false, frequencia: 'mensal',
   })
 
   useEffect(() => {
@@ -51,6 +54,13 @@ function ContasPagarTab({ lojaId, theme }) {
 
   const fetch = useCallback(async () => {
     setLoading(true)
+    const [{ data: todasRegras }, { data: lancRec }] = await Promise.all([
+      supabase.from('lf_recorrencias').select('*').eq('loja_id', lojaId).order('created_at'),
+      supabase.from('lf_contas_pagar').select('id, data_vencimento, status, recorrencia_id').eq('loja_id', lojaId).not('recorrencia_id', 'is', null),
+    ])
+    setRegras(todasRegras || [])
+    const novos = (todasRegras || []).filter(r => r.ativa).flatMap(r => gerarLancamentosFaltantes(r, lancRec || []))
+    if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
     const { data } = await supabase.from('lf_contas_pagar').select('*').eq('loja_id', lojaId).order('data_vencimento')
     setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
     setLoading(false)
@@ -61,16 +71,24 @@ function ContasPagarTab({ lojaId, theme }) {
   async function handleSalvar() {
     if (!form.descricao.trim() || !form.valor || !form.data_vencimento) return
     setSaving(true)
-    await supabase.from('lf_contas_pagar').insert({
-      loja_id: lojaId,
-      descricao: form.descricao.trim(),
-      categoria: form.categoria,
-      valor: parseFloat(form.valor.replace(',', '.')) || 0,
-      data_vencimento: form.data_vencimento,
-      status: 'pendente',
-      observacoes: form.observacoes || null,
-    })
-    setForm({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '' })
+    if (form.recorrente) {
+      const { data: regra } = await supabase.from('lf_recorrencias').insert({
+        loja_id: lojaId, descricao: form.descricao.trim(), categoria: form.categoria,
+        valor: parseFloat(form.valor.replace(',', '.')) || 0, frequencia: form.frequencia,
+        data_inicio: form.data_vencimento, ativa: true, observacoes: form.observacoes || null,
+      }).select().single()
+      if (regra) {
+        const novos = gerarLancamentosFaltantes(regra, [])
+        if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
+      }
+    } else {
+      await supabase.from('lf_contas_pagar').insert({
+        loja_id: lojaId, descricao: form.descricao.trim(), categoria: form.categoria,
+        valor: parseFloat(form.valor.replace(',', '.')) || 0,
+        data_vencimento: form.data_vencimento, status: 'pendente', observacoes: form.observacoes || null,
+      })
+    }
+    setForm({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '', recorrente: false, frequencia: 'mensal' })
     setShowModal(false)
     setSaving(false)
     fetch()
@@ -83,6 +101,11 @@ function ContasPagarTab({ lojaId, theme }) {
       data_pagamento: new Date().toISOString().slice(0, 10),
     }).eq('id', id).eq('loja_id', lojaId)
     setPagandoId(null)
+    fetch()
+  }
+
+  async function handleToggleRegra(id, ativa) {
+    await supabase.from('lf_recorrencias').update({ ativa: !ativa }).eq('id', id).eq('loja_id', lojaId)
     fetch()
   }
 
@@ -105,6 +128,26 @@ function ContasPagarTab({ lojaId, theme }) {
         <StatCard label="Atrasado" value={fmtR(totalAtrasado)} style={{ borderLeft: '3px solid var(--negative)' }} />
         <StatCard label="Pago" value={fmtR(totalPago)} style={{ borderLeft: '3px solid var(--positive)' }} />
       </StatGrid>
+
+      {regras.length > 0 && (
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '10px 14px' }}>
+          <p style={{ ...labelStyle, marginBottom: 6 }}>Recorrências</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {regras.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                <RefreshCw size={11} color={r.ativa ? theme.primary : 'var(--muted)'} style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: r.ativa ? 'var(--ink)' : 'var(--muted)' }}>{r.descricao}</span>
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>{FREQ_LABEL[r.frequencia]} · {fmtR(r.valor)}</span>
+                </div>
+                <button onClick={() => handleToggleRegra(r.id, r.ativa)} style={{ padding: '3px 9px', borderRadius: 'var(--r-pill)', border: `1px solid ${r.ativa ? 'var(--negative)' : 'var(--positive)'}`, background: 'transparent', color: r.ativa ? 'var(--negative)' : 'var(--positive)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                  {r.ativa ? 'Pausar' : 'Retomar'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {['todas', 'pendente', 'atrasado', 'pago'].map(f => (
@@ -132,7 +175,10 @@ function ContasPagarTab({ lojaId, theme }) {
               <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '14px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.descricao}</p>
+                      {c.recorrencia_id && <span style={{ fontSize: 9, padding: '2px 5px', borderRadius: 'var(--r-pill)', background: 'color-mix(in srgb, var(--primary) 12%, white)', color: 'var(--primary)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, flexShrink: 0 }}>↺ Recorrente</span>}
+                    </div>
                     <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                       {c.categoria} · Vence {fmtDate(c.data_vencimento)}
                     </p>
@@ -179,13 +225,29 @@ function ContasPagarTab({ lojaId, theme }) {
                 <input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Vencimento *</label>
+                <label style={labelStyle}>{form.recorrente ? 'Data de início *' : 'Vencimento *'}</label>
                 <input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Observações</label>
                 <input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inputStyle} />
               </div>
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                  <input type="checkbox" checked={form.recorrente} onChange={e => setForm(f => ({ ...f, recorrente: e.target.checked }))} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: theme.primary }} />
+                  Esta conta é recorrente?
+                </label>
+              </div>
+              {form.recorrente && (
+                <div>
+                  <label style={labelStyle}>Frequência</label>
+                  <select value={form.frequencia} onChange={e => setForm(f => ({ ...f, frequencia: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="mensal">Mensal</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: 'none', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)' }}>Cancelar</button>
