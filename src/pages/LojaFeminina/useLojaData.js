@@ -169,9 +169,17 @@ export function useLojaData(lojaId = 'estrada') {
 
   async function addVenda(venda) {
     const { produto_devolvido, ...vendaPayload } = venda
-    const { error } = await supabase.from('lf_vendas').insert({ ...vendaPayload, loja_id: lojaId })
-    if (!error) {
-      // Restaura estoque do produto devolvido em troca
+    const { data: novaVenda, error } = await supabase
+      .from('lf_vendas')
+      .insert({ ...vendaPayload, loja_id: lojaId })
+      .select()
+      .single()
+    // PGRST116 = select-after-insert retornou 0 linhas (insert OK, RLS edge case).
+    // Outros erros = insert falhou de verdade — retorna sem executar side-effects.
+    if (error && error.code !== 'PGRST116') {
+      return { error, venda: null }
+    }
+    // Restaura estoque do produto devolvido em troca
       const itensDevolvidos = (produto_devolvido || []).filter(p => p.variacao)
       if (itensDevolvidos.length > 0) {
         const nomesDevolvidos = [...new Set(itensDevolvidos.map(i => i.nome))]
@@ -264,9 +272,8 @@ export function useLojaData(lojaId = 'estrada') {
         }
       }
 
-      await fetchAll()
-    }
-    return error
+    await fetchAll()
+    return { error: null, venda: novaVenda || null }
   }
 
   async function deleteVenda(id) {

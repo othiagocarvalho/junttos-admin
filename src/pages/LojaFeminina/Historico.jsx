@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X } from 'lucide-react'
+import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X, Receipt } from 'lucide-react'
+import ReciboVenda from '../../components/ReciboVenda'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
@@ -44,6 +45,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
+  const [reciboVenda, setReciboVenda] = useState(null)
 
   useEffect(() => {
     function handleKey(e) {
@@ -232,6 +234,15 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
                       </span>
                       <div style={{ display: 'flex', gap: 2 }}>
                         <button
+                          onClick={() => setReciboVenda(v)}
+                          title="Recibo"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-deep)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}
+                        >
+                          <Receipt size={13} />
+                        </button>
+                        <button
                           onClick={() => openEdit(v)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-deep)'}
@@ -375,6 +386,9 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
             </div>
           </div>
         </div>
+      )}
+      {reciboVenda && (
+        <ReciboVenda venda={reciboVenda} vendas={vendas} theme={theme} onFechar={() => setReciboVenda(null)} />
       )}
     </div>
   )

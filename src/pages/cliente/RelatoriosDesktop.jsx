@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Search, ArrowLeft, Pencil, Trash2, X, Plus, BarChart2 } from 'lucide-react'
+import { Search, ArrowLeft, Pencil, Trash2, X, Plus, BarChart2, Receipt } from 'lucide-react'
+import ReciboVenda from '../../components/ReciboVenda'
 import { StatGrid } from '../../components/studio/StatCard'
 import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
@@ -36,12 +37,13 @@ function fmtDayLabel(dateStr) {
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
-function VendasDetalhadas({ vendas, deleteVenda, updateVenda, theme, onBack }) {
+function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
+  const [reciboVenda, setReciboVenda] = useState(null)
 
   useEffect(() => {
     function handleKey(e) {
@@ -174,6 +176,15 @@ function VendasDetalhadas({ vendas, deleteVenda, updateVenda, theme, onBack }) {
 
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                   <button
+                    onClick={() => setReciboVenda(v)}
+                    title="Recibo"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = theme.primary}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+                  >
+                    <Receipt size={14} />
+                  </button>
+                  <button
                     onClick={() => openEdit(v)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
                     onMouseEnter={e => e.currentTarget.style.color = theme.primary}
@@ -295,6 +306,9 @@ function VendasDetalhadas({ vendas, deleteVenda, updateVenda, theme, onBack }) {
           </div>
         </div>
       )}
+      {reciboVenda && (
+        <ReciboVenda venda={reciboVenda} vendas={allVendas.length > 0 ? allVendas : vendas} theme={theme} onFechar={() => setReciboVenda(null)} />
+      )}
     </div>
   )
 }
@@ -354,6 +368,7 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
     return (
       <VendasDetalhadas
         vendas={filtered}
+        allVendas={vendas}
         deleteVenda={deleteVenda}
         updateVenda={updateVenda}
         theme={theme}

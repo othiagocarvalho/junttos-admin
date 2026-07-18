@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, Building2, ArrowLeftRight } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt } from 'lucide-react'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
+import ReciboVenda from '../../components/ReciboVenda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 const PGTOS_ATACADO = ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', fornecedor: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -37,7 +38,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], initialIsTroca = false }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], vendas = [], initialIsTroca = false }) {
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
@@ -48,6 +49,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [addingProd, setAddingProd] = useState(false)
   const [done, setDone] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savedVenda, setSavedVenda] = useState(null)
+  const [reciboAberto, setReciboAberto] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
   const [isTroca,      setIsTroca]      = useState(initialIsTroca)
   const [produtoTroca, setProdutoTroca] = useState([])
@@ -55,14 +58,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState('valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState('')
-  const [fornOpen, setFornOpen] = useState(false)
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
-  const fornMatches = fornecedores.filter(f =>
-    form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
-  ).slice(0, 8)
   const cliNomeMatches = clientes.filter(c =>
     form.nome.trim() === '' || c.nome.toLowerCase().includes(form.nome.toLowerCase())
   ).slice(0, 8)
@@ -170,7 +169,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       })))
     }
-    const err = await addVenda({
+    const { error: err, venda: novaVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel: form.tel || null,
       valor: valorFinal,
@@ -179,7 +178,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
-      fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -191,19 +189,22 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     })
     setSaving(false)
     if (!err) {
+      setSavedVenda(novaVenda)
       setDone(true)
-      setTimeout(() => {
-        setDone(false)
-        setForm({ ...EMPTY, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
-        setStep(0)
-        setAjusteTipo('desconto')
-        setAjusteModo('valor')
-        setAjusteInput('')
-        setIsTroca(false)
-        setProdutoTroca([])
-        setExpandedTroca(null)
-      }, 2200)
     }
+  }
+
+  function resetForm() {
+    setDone(false)
+    setSavedVenda(null)
+    setForm({ ...EMPTY, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
+    setStep(0)
+    setAjusteTipo('desconto')
+    setAjusteModo('valor')
+    setAjusteInput('')
+    setIsTroca(false)
+    setProdutoTroca([])
+    setExpandedTroca(null)
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -221,16 +222,36 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   if (done) {
     return (
-      <div style={{
-        background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)',
-        padding: '64px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-      }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
+      <>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)',
+          padding: '48px 24px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+        }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: isDark ? GOLD : theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Check size={26} color={isDark ? '#0A0A0A' : '#fff'} strokeWidth={2.5} />
+          </div>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
+          <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 320, marginTop: 8 }}>
+            <button
+              onClick={() => setReciboAberto(true)}
+              style={{ flex: 1, height: 44, borderRadius: 12, border: '1.5px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}
+            >
+              <Receipt size={15} />
+              Recibo
+            </button>
+            <button
+              onClick={resetForm}
+              style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: isDark ? GOLD : theme.primary, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: isDark ? '#0A0A0A' : '#fff' }}
+            >
+              Nova Venda
+            </button>
+          </div>
         </div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
-      </div>
+        {reciboAberto && savedVenda && (
+          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} />
+        )}
+      </>
     )
   }
 
@@ -371,40 +392,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
             <Field label="Vendedor(a)">
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
-            </Field>
-            <Field label="Fornecedor" Icon={Building2}>
-              <div style={{ position: 'relative' }}>
-                <input
-                  value={form.fornecedor}
-                  onChange={e => setForm({ ...form, fornecedor: e.target.value })}
-                  onFocus={e => { setFornOpen(true); focusIn(e) }}
-                  onBlur={e => { setTimeout(() => setFornOpen(false), 160); focusOut(e) }}
-                  placeholder="Selecione ou digite um novo fornecedor"
-                  style={inputBase}
-                  autoComplete="off"
-                />
-                {fornOpen && fornMatches.length > 0 && (
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
-                    background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)', overflow: 'hidden',
-                  }}>
-                    {fornMatches.map(f => (
-                      <button key={f.id} type="button"
-                        onMouseDown={() => { setForm(prev => ({ ...prev, fornecedor: f.nome })); setFornOpen(false) }}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left',
-                          padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)',
-                          borderBottom: '1px solid var(--line)',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
-                      >{f.nome}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </Field>
             {features?.atacado && (<>
               <Field label="Nome da Loja">

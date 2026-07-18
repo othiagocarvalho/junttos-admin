@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Building2, Truck, ArrowLeftRight,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck, ArrowLeftRight,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -27,6 +27,7 @@ import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
 import AlertaBanner from '../LojaFeminina/AlertaBanner'
+import ReciboVenda from '../../components/ReciboVenda'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
@@ -606,9 +607,9 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', fornecedor: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [] }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, features = {}, theme, fornecedores = [], clientes = [], vendas = [] }) {
   const isDark = theme.primary === '#D4A017'
   const [form,       setForm]       = useState(() => ({
     ...EMPTY_VENDA,
@@ -616,8 +617,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   }))
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
-  const [done,       setDone]       = useState(false)
-  const [saving,     setSaving]     = useState(false)
+  const [done,        setDone]        = useState(false)
+  const [saving,      setSaving]      = useState(false)
+  const [savedVenda,  setSavedVenda]  = useState(null)
+  const [reciboAberto,setReciboAberto]= useState(false)
   const [varModal,   setVarModal]   = useState(null)
   const [isTroca,      setIsTroca]      = useState(false)
   const [produtoTroca, setProdutoTroca] = useState([])
@@ -625,14 +628,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [ajusteTipo,  setAjusteTipo]  = useState('desconto')
   const [ajusteModo,  setAjusteModo]  = useState('valor')
   const [ajusteInput, setAjusteInput] = useState('')
-  const [fornOpen, setFornOpen] = useState(false)
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
-  const fornMatches = fornecedores.filter(f =>
-    form.fornecedor.trim() === '' || f.nome.toLowerCase().includes(form.fornecedor.toLowerCase())
-  ).slice(0, 8)
   const cliNomeMatches = clientes.filter(c =>
     form.nome.trim() === '' || c.nome.toLowerCase().includes(form.nome.toLowerCase())
   ).slice(0, 8)
@@ -721,7 +720,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       })))
     }
-    const err = await addVenda({
+    const { error: err, venda: novaVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
       valor: valorFinal,
@@ -730,7 +729,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       obs: form.obs || null,
       produtos: form.produtos,
       vendedora: form.vendedora || null,
-      fornecedor: form.fornecedor.trim() || null,
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -742,19 +740,23 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     })
     setSaving(false)
     if (!err) {
+      setSavedVenda(novaVenda)
       setDone(true)
-      setTimeout(() => {
-        setDone(false)
-        setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
-        setAjusteTipo('desconto')
-        setAjusteModo('valor')
-        setAjusteInput('')
-        setIsTroca(false)
-        setProdutoTroca([])
-        setVarModalTroca(null)
-      }, 2200)
     }
   }
+
+  function resetForm() {
+    setDone(false)
+    setSavedVenda(null)
+    setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
+    setAjusteTipo('desconto')
+    setAjusteModo('valor')
+    setAjusteInput('')
+    setIsTroca(false)
+    setProdutoTroca([])
+    setVarModalTroca(null)
+  }
+
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
   const pgtoOpts = features?.atacado
@@ -775,13 +777,33 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
   if (done) {
     return (
-      <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', padding: '64px 24px', textAlign: 'center' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-          <Check size={26} color="#fff" strokeWidth={2.5} />
+      <>
+        <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1px solid var(--line)', padding: '48px 24px 36px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: theme.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Check size={26} color="#fff" strokeWidth={2.5} />
+          </div>
+          <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)', marginBottom: 28 }}>Salva com sucesso no histórico.</p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button
+              onClick={() => setReciboAberto(true)}
+              style={{ height: 46, padding: '0 24px', borderRadius: 12, border: '1.5px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}
+            >
+              <Receipt size={16} />
+              Recibo
+            </button>
+            <button
+              onClick={resetForm}
+              style={{ height: 46, padding: '0 28px', borderRadius: 12, border: 'none', background: theme.primary, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: '#fff', boxShadow: `0 4px 16px ${theme.primary}40` }}
+            >
+              Nova Venda
+            </button>
+          </div>
         </div>
-        <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
-      </div>
+        {reciboAberto && savedVenda && (
+          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} />
+        )}
+      </>
     )
   }
 
@@ -865,39 +887,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             <div>
               <label style={lbl}>Vendedor(a)</label>
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
-            </div>
-            <div style={{ position: 'relative' }}>
-              <label style={lbl}><Building2 size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Fornecedor</label>
-              <input
-                value={form.fornecedor}
-                onChange={e => setForm({ ...form, fornecedor: e.target.value })}
-                onFocus={e => { setFornOpen(true); fo(e) }}
-                onBlur={e => { setTimeout(() => setFornOpen(false), 160); onB(e) }}
-                placeholder="Selecione ou digite um novo fornecedor"
-                style={inputS}
-                autoComplete="off"
-              />
-              {fornOpen && fornMatches.length > 0 && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: 4,
-                  background: 'var(--surface)', border: '1.5px solid var(--line)', borderRadius: 12,
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.10)', overflow: 'hidden',
-                }}>
-                  {fornMatches.map(f => (
-                    <button key={f.id} type="button"
-                      onMouseDown={() => { setForm(prev => ({ ...prev, fornecedor: f.nome })); setFornOpen(false) }}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left',
-                        padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)',
-                        borderBottom: '1px solid var(--line)',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = `${theme.primary}14` }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
-                    >{f.nome}</button>
-                  ))}
-                </div>
-              )}
             </div>
             {features?.atacado && (<>
               <div>
