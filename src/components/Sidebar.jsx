@@ -5,7 +5,7 @@ import Logo from './junttos/Logo'
 import {
   LayoutDashboard, Users, UserCheck, DollarSign, MapPin,
   Settings, LogOut, BarChart2, Network, CreditCard,
-  ChevronsRight, ChevronsLeft, Sparkles, Share2,
+  ChevronsRight, ChevronsLeft, Sparkles, Share2, ClipboardList,
 } from 'lucide-react'
 import { T } from '../theme/tokens'
 
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/visits',      icon: MapPin,          label: 'Visitas e Rotas' },
   { to: '/finance',     icon: DollarSign,      label: 'Faturamento' },
   { to: '/reports',     icon: BarChart2,       label: 'Relatórios' },
+  { to: '/balanco',     icon: ClipboardList,   label: 'Balanço de Est.',    gestor: true },
   { to: '/arquitetura', icon: Network,         label: 'Arquitetura' },
   { to: '/simulador',   icon: Sparkles,        label: 'Simulador de Plano' },
   { to: '/settings',    icon: Settings,        label: 'Configurações' },
@@ -150,7 +151,11 @@ export default function Sidebar({ navOpen, onClose }) {
           overflowY:     'auto',
           overflowX:     'hidden',
         }}>
-          {NAV.filter(item => !item.superAdmin || user?.role === 'Super Admin').map(({ to, icon: Icon, label }) => (
+          {NAV.filter(item => {
+            if (item.superAdmin && user?.role !== 'Super Admin') return false
+            if (item.gestor && user?.role !== 'Super Admin' && user?.role !== 'Gestor') return false
+            return true
+          }).map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

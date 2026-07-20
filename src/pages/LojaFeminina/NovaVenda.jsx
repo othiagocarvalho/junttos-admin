@@ -51,6 +51,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [saving, setSaving] = useState(false)
   const [savedVenda, setSavedVenda] = useState(null)
   const [reciboAberto, setReciboAberto] = useState(false)
+  const [travaAviso, setTravaAviso] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
   const [isTroca,      setIsTroca]      = useState(initialIsTroca)
   const [produtoTroca, setProdutoTroca] = useState([])
@@ -188,6 +189,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       } : {}),
     })
     setSaving(false)
+    if (err?.code === 'BAL_TRAVA') {
+      setTravaAviso(true)
+      return
+    }
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
@@ -1052,6 +1057,16 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             )}
 
+            {travaAviso && (
+              <div style={{ padding: '12px 14px', borderRadius: 12, background: '#fef3c7', border: '1.5px solid #f59e0b', marginBottom: 4 }}>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#92400e' }}>
+                  ⚠️ Balanço em andamento
+                </p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#92400e', marginTop: 3 }}>
+                  Vendas estão travadas enquanto o balanço de estoque desta loja estiver ativo. Aguarde a finalização da contagem.
+                </p>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(1)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
               <button

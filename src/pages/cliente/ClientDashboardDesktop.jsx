@@ -630,6 +630,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [ajusteInput, setAjusteInput] = useState('')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
+  const [travaAviso, setTravaAviso] = useState(false)
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -739,6 +740,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       } : {}),
     })
     setSaving(false)
+    if (err?.code === 'BAL_TRAVA') {
+      setTravaAviso(true)
+      return
+    }
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
@@ -1078,6 +1083,16 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               </div>
             )}
           </div>
+          {travaAviso && (
+            <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 12, background: '#fef3c7', border: '1.5px solid #f59e0b' }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#92400e' }}>
+                ⚠️ Balanço em andamento
+              </p>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#92400e', marginTop: 3 }}>
+                Vendas estão travadas enquanto o balanço de estoque desta loja estiver ativo. Aguarde a finalização da contagem.
+              </p>
+            </div>
+          )}
           <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
             style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 'var(--r-input)',
               cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',

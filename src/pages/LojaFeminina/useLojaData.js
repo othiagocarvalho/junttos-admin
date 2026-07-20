@@ -170,6 +170,18 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function addVenda(venda) {
+    // Verificar trava de balanço de estoque
+    const { data: balLock } = await supabase
+      .from('bal_sessoes')
+      .select('id')
+      .eq('loja_id', lojaId)
+      .eq('status', 'aberta')
+      .eq('travar_vendas', true)
+      .maybeSingle()
+    if (balLock) {
+      return { error: { code: 'BAL_TRAVA', message: 'Vendas travadas: há um balanço de estoque em andamento para esta loja.' }, venda: null }
+    }
+
     const { produto_devolvido, ...vendaPayload } = venda
     const { data: novaVenda, error } = await supabase
       .from('lf_vendas')

@@ -5,6 +5,7 @@ import { DataProvider } from './context/DataContext'
 import { ClientAuthProvider, ClientPrivateRoute } from './context/ClientAuthContext'
 import PrivateRoute from './components/PrivateRoute'
 import SuperAdminRoute from './components/SuperAdminRoute'
+import BalancoRoute from './components/BalancoRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import LoginCliente from './pages/LoginCliente'
@@ -21,6 +22,7 @@ import CadastroCliente from './pages/admin/CadastroCliente'
 import Cobrancas from './pages/admin/Cobrancas'
 import Redes from './pages/admin/Redes'
 import SimuladorPlano from './pages/SimuladorPlano'
+import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
 import CatalogoPublico from './pages/catalogo/CatalogoPublico'
 
@@ -76,6 +78,7 @@ function AdminApp() {
             <Route path="/redes"    element={<ProtectedLayout><SuperAdminRoute><Redes /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/cobrancas" element={<ProtectedLayout><Cobrancas /></ProtectedLayout>} />
             <Route path="/simulador" element={<ProtectedLayout><SimuladorPlano /></ProtectedLayout>} />
+            <Route path="/balanco" element={<PrivateRoute><BalancoRoute><BalancoApp /></BalancoRoute></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
