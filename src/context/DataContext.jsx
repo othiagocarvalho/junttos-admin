@@ -15,15 +15,13 @@ const STATUS_MAP = {
 
 function mapConfig(c) {
   return {
-    id:          c.loja_id,
-    name:        c.nome || c.loja_id,
-    company:     c.nome || c.loja_id,
-    polo:        c.polo || '',
-    product:     c.product || 'Sistema de Gestão',
-    value:       Number(c.valor_mensal || 0),
-    closedDate:  c.created_at?.slice(0, 10) || c.updated_at?.slice(0, 10) || '',
-    status:      STATUS_MAP[c.status] || 'Ativo',
-    consultantId: c.consultant_id || null,
+    id:         c.loja_id,
+    name:       c.nome || c.loja_id,
+    company:    c.nome || c.loja_id,
+    product:    'Sistema de Gestão',
+    value:      0,
+    closedDate: c.created_at?.slice(0, 10) || c.updated_at?.slice(0, 10) || '',
+    status:     STATUS_MAP[c.status] || 'Ativo',
   }
 }
 
@@ -49,7 +47,7 @@ export function DataProvider({ children }) {
   useEffect(() => {
     supabase
       .from('lf_config')
-      .select('loja_id, nome, status, plano, polo, product, valor_mensal, consultant_id, created_at, updated_at')
+      .select('loja_id, nome, status, plano, created_at, updated_at')
       .then(({ data }) => {
         if (data) setClients(data.map(mapConfig))
       })

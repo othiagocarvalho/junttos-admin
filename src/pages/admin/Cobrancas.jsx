@@ -160,7 +160,7 @@ export default function Cobrancas() {
     setLoading(true); setError('')
     try {
       const [cfgRes, cobRes] = await Promise.all([
-        supabase.from('lf_config').select('loja_id, nome, status, valor_mensal'),
+        supabase.from('lf_config').select('loja_id, nome, status'),
         supabase.from('jt_cobrancas').select('*, lf_config(nome)').order('vencimento', { ascending: false }),
       ])
       if (cfgRes.error) throw new Error(cfgRes.error.message)
@@ -174,7 +174,14 @@ export default function Cobrancas() {
   useEffect(() => { fetchData() }, [fetchData])
 
   const ativos = configs.filter(c => c.status === 'Ativo')
-  const mrr = ativos.reduce((s, c) => s + Number(c.valor_mensal || 0), 0)
+  const ativoIds = new Set(ativos.map(c => c.loja_id))
+  const mrrByLoja = new Map()
+  for (const c of cobrancas) {
+    if (ativoIds.has(c.loja_id) && !mrrByLoja.has(c.loja_id)) {
+      mrrByLoja.set(c.loja_id, Number(c.valor || 0))
+    }
+  }
+  const mrr = [...mrrByLoja.values()].reduce((s, v) => s + v, 0)
 
   const [selY, selM] = selectedMonth.split('-').map(Number)
   const filtered = cobrancas.filter(c => {
