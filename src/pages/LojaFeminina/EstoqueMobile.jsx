@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Plus, X, ChevronDown, ChevronRight, Package } from 'lucide-react'
+import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { HeroCard } from '../../components/studio/Card'
 import StatusPill from '../../components/studio/StatusPill'
@@ -40,6 +40,39 @@ function productStatus(variacoes) {
 
 const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', fornecedor_id: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
+// Inicializa o form "Editar Produto" a partir do objeto produto do banco.
+export function initProdForm(produto) {
+  return {
+    nome:            produto.nome            || '',
+    preco_custo:     produto.preco_custo  != null ? String(produto.preco_custo)  : '',
+    preco_venda:     produto.preco_venda  != null ? String(produto.preco_venda)  : '',
+    referencia:      produto.referencia      || '',
+    fornecedor:      produto.fornecedor      || '',
+    valor_lote:      produto.valor_lote   != null ? String(produto.valor_lote)   : '',
+    data_vencimento: produto.data_vencimento || '',
+    status_pgto:     produto.status_pgto     || 'a_pagar',
+  }
+}
+
+// Monta o payload para updateProduto a partir do form state.
+// atacado: boolean derivado de features?.atacado.
+export function buildProdPayload(form, atacado = false) {
+  const base = {
+    nome:        form.nome.trim(),
+    preco_custo: parseFloat((form.preco_custo || '').replace(',', '.')) || 0,
+    preco_venda: parseFloat((form.preco_venda || '').replace(',', '.')) || 0,
+    referencia:  (form.referencia || '').trim() || null,
+    fornecedor:  (form.fornecedor || '').trim() || null,
+  }
+  if (!atacado) return base
+  return {
+    ...base,
+    valor_lote:      parseFloat(form.valor_lote) || null,
+    data_vencimento: form.data_vencimento || null,
+    status_pgto:     form.status_pgto || 'a_pagar',
+  }
+}
+
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll, fornecedores = [] }) {
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
@@ -53,17 +86,21 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [deleteToast, setDeleteToast] = useState('')
+  const [editProdModal, setEditProdModal] = useState(null) // { produto }
+  const [prodForm, setProdForm]           = useState(initProdForm({}))
+  const [prodSaving, setProdSaving]       = useState(false)
 
   useEffect(() => {
     function handleKey(e) {
       if (e.key !== 'Escape') return
       if (deleteConfirm && !deleting) { setDeleteConfirm(null); setDeleteError(null) }
+      else if (editProdModal && !prodSaving) setEditProdModal(null)
       else if (modal) setModal(null)
       else if (newProdOpen) setNewProdOpen(false)
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [deleteConfirm, deleting, modal, newProdOpen])
+  }, [deleteConfirm, deleting, editProdModal, prodSaving, modal, newProdOpen])
 
   // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro
   const estoqueData = produtosData.filter(p => !p.disponivel_catalogo_b2b)
@@ -155,6 +192,19 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     setDeleteToast('Produto excluído.')
     setTimeout(() => setDeleteToast(''), 2500)
     if (fetchAll) fetchAll()
+  }
+
+  function openEditProd(produto) {
+    setProdForm(initProdForm(produto))
+    setEditProdModal({ produto })
+  }
+
+  async function handleSaveProd() {
+    if (!prodForm.nome.trim() || prodSaving) return
+    setProdSaving(true)
+    await updateProduto(editProdModal.produto.id, buildProdPayload(prodForm, !!features?.atacado))
+    setProdSaving(false)
+    setEditProdModal(null)
   }
 
   const canSave = form.cor.trim() && !saving
@@ -322,7 +372,20 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     return (
                       <tr key={`${produto.id}-${idx}`} style={{ background: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
                         <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{produto.referencia || '—'}</td>
-                        <td style={{ ...tdBase, fontWeight: 600 }}>{produto.nome}</td>
+                        <td style={{ ...tdBase, fontWeight: 600 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {produto.nome}
+                            {isFirst && (
+                              <button
+                                onClick={() => openEditProd(produto)}
+                                aria-label="Editar produto"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', padding: 2, borderRadius: 4, flexShrink: 0 }}
+                              >
+                                <Pencil size={11} />
+                              </button>
+                            )}
+                          </span>
+                        </td>
                         <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.fornecedor || '—') : ''}</td>
                         <td style={tdBase}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -355,9 +418,12 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden' }}>
 
               {/* Cabeçalho colapsável */}
-              <button
+              <div
                 onClick={() => toggleExpand(produto.id)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && toggleExpand(produto.id)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', cursor: 'pointer', userSelect: 'none' }}
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: 12, flexShrink: 0,
@@ -378,11 +444,18 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>
                   {fmtR(produto.preco_venda)}
                 </span>
+                <button
+                  onClick={e => { e.stopPropagation(); openEditProd(produto) }}
+                  aria-label="Editar produto"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 6, borderRadius: 8, flexShrink: 0 }}
+                >
+                  <Pencil size={14} />
+                </button>
                 {isOpen
                   ? <ChevronDown size={16} color="var(--muted)" />
                   : <ChevronRight size={16} color="var(--muted)" />
                 }
-              </button>
+              </div>
 
               {/* Variações expandidas */}
               {isOpen && (
@@ -846,6 +919,180 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           </div>
         </div>
       )}
+      {/* Modal — Editar Produto */}
+      {editProdModal && (
+        <div
+          onClick={() => !prodSaving && setEditProdModal(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px', width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+                Editar Produto
+              </p>
+              <button
+                onClick={() => setEditProdModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* Nome */}
+              <div>
+                <label style={{ ...labelStyle, color: theme.primary }}>Nome do Produto *</label>
+                <input
+                  value={prodForm.nome}
+                  onChange={e => setProdForm(p => ({ ...p, nome: e.target.value }))}
+                  placeholder="Ex: Vestido Floral..."
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+
+              {/* Preços */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={{ ...labelStyle, color: theme.primary }}>Preço de Custo</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={prodForm.preco_custo}
+                      onChange={e => setProdForm(p => ({ ...p, preco_custo: e.target.value }))}
+                      placeholder="0,00"
+                      style={{ ...inputStyle, paddingLeft: 36 }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ ...labelStyle, color: theme.primary }}>Preço de Venda</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={prodForm.preco_venda}
+                      onChange={e => setProdForm(p => ({ ...p, preco_venda: e.target.value }))}
+                      placeholder="0,00"
+                      style={{ ...inputStyle, paddingLeft: 36 }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Atacado: Referência + Fornecedor */}
+              {features?.atacado && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ ...labelStyle, color: theme.primary }}>Referência</label>
+                    <input
+                      value={prodForm.referencia}
+                      onChange={e => setProdForm(p => ({ ...p, referencia: e.target.value }))}
+                      placeholder="Ex: DC-001"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, color: theme.primary }}>Fornecedor</label>
+                    <input
+                      value={prodForm.fornecedor}
+                      onChange={e => setProdForm(p => ({ ...p, fornecedor: e.target.value }))}
+                      placeholder="Nome do fornecedor"
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Atacado: Pagamento ao fornecedor */}
+              {features?.atacado && (
+                <div>
+                  <div style={{ borderTop: '1px dashed var(--line)', margin: '4px 0 12px' }} />
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
+                    Pagamento ao fornecedor
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ ...labelStyle, color: theme.primary }}>Valor total do lote</label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={prodForm.valor_lote}
+                          onChange={e => setProdForm(p => ({ ...p, valor_lote: e.target.value }))}
+                          placeholder="0,00"
+                          style={{ ...inputStyle, paddingLeft: 36 }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ ...labelStyle, color: theme.primary }}>Vencimento</label>
+                      <input
+                        type="date"
+                        value={prodForm.data_vencimento}
+                        onChange={e => setProdForm(p => ({ ...p, data_vencimento: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  <label style={{ ...labelStyle, color: theme.primary, marginBottom: 8 }}>Status do pagamento</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[
+                      { val: 'pago',    label: 'Pago',    bg: '#E6F6EE', border: '#9ED8B8', color: '#1F8A5B' },
+                      { val: 'a_pagar', label: 'A pagar', bg: '#FFF4E0', border: '#F0C870', color: '#B7791F' },
+                    ].map(opt => (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        onClick={() => setProdForm(p => ({ ...p, status_pgto: opt.val }))}
+                        style={{
+                          flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
+                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                          background: prodForm.status_pgto === opt.val ? opt.bg : 'var(--bg)',
+                          border: prodForm.status_pgto === opt.val ? `2px solid ${opt.border}` : '1px solid var(--line)',
+                          color: prodForm.status_pgto === opt.val ? opt.color : 'var(--muted)',
+                          transition: 'all .15s',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Botões */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+              <button
+                onClick={() => setEditProdModal(null)}
+                style={{ flex: 1, height: 48, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--ink)', fontSize: 14 }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveProd}
+                disabled={!prodForm.nome.trim() || prodSaving}
+                style={{
+                  flex: 2, height: 48, borderRadius: 14, border: 'none',
+                  background: prodForm.nome.trim() && !prodSaving ? theme.primary : 'var(--line)',
+                  cursor: prodForm.nome.trim() && !prodSaving ? 'pointer' : 'not-allowed',
+                  fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700,
+                  color: prodForm.nome.trim() && !prodSaving ? '#fff' : 'var(--muted)', fontSize: 14,
+                }}
+              >
+                {prodSaving ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de confirmação — excluir produto */}
       {deleteConfirm && (
         <div onClick={() => !deleting && (setDeleteConfirm(null), setDeleteError(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
