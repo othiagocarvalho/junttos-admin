@@ -178,7 +178,7 @@ export default function Cobrancas() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const ativos = configs.filter(c => c.status === 'Ativo')
+  const ativos = configs.filter(c => c.status?.toLowerCase() === 'ativo')
   const ativoIds = new Set(ativos.map(c => c.loja_id))
   const mrrByLoja = new Map()
   for (const c of cobrancas) {
