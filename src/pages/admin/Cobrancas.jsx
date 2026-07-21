@@ -16,13 +16,18 @@ function fmtDate(str) {
 function getMonthOptions() {
   const opts = []
   const now = new Date()
-  for (let i = 0; i < 12; i++) {
+  for (let i = -6; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     opts.push({ val, label: label.charAt(0).toUpperCase() + label.slice(1) })
   }
   return opts
+}
+
+function currentMonthVal() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 function effectiveStatus(row) {
@@ -154,7 +159,7 @@ export default function Cobrancas() {
   const [error, setError]           = useState('')
   const [modalOpen, setModalOpen]   = useState(false)
   const monthOptions = getMonthOptions()
-  const [selectedMonth, setSelectedMonth] = useState(monthOptions[0].val)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthVal)
 
   const fetchData = useCallback(async () => {
     setLoading(true); setError('')
