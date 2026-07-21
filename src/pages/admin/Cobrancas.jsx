@@ -49,7 +49,7 @@ function Avatar({ nome }) {
 }
 
 // ── Registrar Pagamento Modal ────────────────────────────────────
-function PagamentoModal({ open, onClose, cobrancas, onSaved }) {
+function PagamentoModal({ open, onClose, cobrancas, onSaved, nomeMap }) {
   const [cobrancaId, setCobrancaId] = useState('')
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
@@ -108,7 +108,7 @@ function PagamentoModal({ open, onClose, cobrancas, onSaved }) {
             <option value="">Selecione...</option>
             {pending.map(c => (
               <option key={c.id} value={c.id}>
-                {c.lf_config?.nome || c.loja_id} — {fmtR(c.valor)} · venc. {fmtDate(c.vencimento)}
+                {nomeMap?.[c.loja_id] || c.loja_id} — {fmtR(c.valor)} · venc. {fmtDate(c.vencimento)}
               </option>
             ))}
           </select>
@@ -161,7 +161,7 @@ export default function Cobrancas() {
     try {
       const [cfgRes, cobRes] = await Promise.all([
         supabase.from('lf_config').select('loja_id, nome, status'),
-        supabase.from('jt_cobrancas').select('*, lf_config(nome)').order('vencimento', { ascending: false }),
+        supabase.from('jt_cobrancas').select('*').order('vencimento', { ascending: false }),
       ])
       if (cfgRes.error) throw new Error(cfgRes.error.message)
       if (cobRes.error) throw new Error(cobRes.error.message)
@@ -182,6 +182,7 @@ export default function Cobrancas() {
     }
   }
   const mrr = [...mrrByLoja.values()].reduce((s, v) => s + v, 0)
+  const nomeMap = Object.fromEntries(configs.map(c => [c.loja_id, c.nome]))
 
   const [selY, selM] = selectedMonth.split('-').map(Number)
   const filtered = cobrancas.filter(c => {
@@ -273,7 +274,7 @@ export default function Cobrancas() {
           {filtered.map((row, i) => {
             const st = effectiveStatus(row)
             const { bg, color, label } = STATUS_STYLE[st]
-            const nome = row.lf_config?.nome || row.loja_id
+            const nome = nomeMap[row.loja_id] || row.loja_id
             return (
               <div key={row.id} style={{
                 display: 'grid', gridTemplateColumns: '1fr 120px 130px 110px',
@@ -307,6 +308,7 @@ export default function Cobrancas() {
         onClose={() => setModalOpen(false)}
         cobrancas={filtered}
         onSaved={fetchData}
+        nomeMap={nomeMap}
       />
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
