@@ -7,12 +7,45 @@ import {
   calcularDivergencia,
   compararConferencia,
   somarSetores,
+  temTravaBal,
 } from './balanco'
 
 const UUID_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const UUID_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const SUB1 = 'sub1-uuid'
 const SUB2 = 'sub2-uuid'
+
+// ── temTravaBal ──────────────────────────────────────────────────────────────
+
+describe('temTravaBal', () => {
+  it('trava quando há uma sessão ativa', () => {
+    expect(temTravaBal({ data: [{ id: 'uuid1' }], error: null })).toBe(true)
+  })
+
+  it('trava quando há múltiplas sessões no resultado', () => {
+    // .limit(1) retorna no máx 1 linha, mas a função tolera arrays maiores
+    expect(temTravaBal({ data: [{ id: 'uuid1' }, { id: 'uuid2' }], error: null })).toBe(true)
+  })
+
+  it('libera quando não há sessão ativa', () => {
+    expect(temTravaBal({ data: [], error: null })).toBe(false)
+  })
+
+  it('falha segura: trava quando query retorna erro — cenário que quebrou em produção', () => {
+    // .maybeSingle() com múltiplas sessões abertas para a mesma loja_id retornava
+    // { data: null, error: PGRST116 }. O código antigo só desestruturava { data },
+    // lia balLock = null e liberava a venda. temTravaBal trata erro como trava.
+    expect(temTravaBal({ data: null, error: { code: 'PGRST116' } })).toBe(true)
+  })
+
+  it('falha segura: trava quando resultado é undefined', () => {
+    expect(temTravaBal(undefined)).toBe(true)
+  })
+
+  it('falha segura: trava com qualquer erro de query', () => {
+    expect(temTravaBal({ data: null, error: { code: 'CONNECTION_ERROR' } })).toBe(true)
+  })
+})
 
 // ── getVarLabel ──────────────────────────────────────────────────────────────
 

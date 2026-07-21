@@ -75,6 +75,15 @@ export function compararConferencia(itens) {
   })
 }
 
+// Determines whether a Supabase query result indicates an active stock-count lock.
+// Must be used with .limit(1), never .maybeSingle(): .maybeSingle() returns
+// { data: null, error: PGRST116 } when multiple rows match, causing the check
+// to silently pass. Errors are treated as locked (fail-safe).
+export function temTravaBal(result) {
+  if (!result || result.error) return true
+  return Array.isArray(result.data) && result.data.length > 0
+}
+
 // For Setores mode: sums quantities across all sectors (each covers a different area).
 export function somarSetores(itens) {
   const mapa = agruparItensPorProduto(itens)

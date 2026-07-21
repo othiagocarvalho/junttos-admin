@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
+import { temTravaBal } from '../../utils/balanco'
 
 const DEFAULT_FEATURES = {
   vendas: true,
@@ -170,15 +171,21 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function addVenda(venda) {
-    // Verificar trava de balanço de estoque
-    const { data: balLock } = await supabase
+    // Verificar trava de balanço de estoque.
+    // .limit(1) em vez de .maybeSingle(): com múltiplas sessões abertas,
+    // .maybeSingle() retornava { data: null, error: PGRST116 } e o erro
+    // era silenciosamente ignorado, liberando a venda indevidamente.
+    const balResult = await supabase
       .from('bal_sessoes')
       .select('id')
       .eq('loja_id', lojaId)
       .eq('status', 'aberta')
       .eq('travar_vendas', true)
-      .maybeSingle()
-    if (balLock) {
+      .limit(1)
+    if (balResult.error) {
+      console.error('[addVenda] erro ao checar trava de balanço:', balResult.error)
+    }
+    if (temTravaBal(balResult)) {
       return { error: { code: 'BAL_TRAVA', message: 'Vendas travadas: há um balanço de estoque em andamento para esta loja.' }, venda: null }
     }
 
