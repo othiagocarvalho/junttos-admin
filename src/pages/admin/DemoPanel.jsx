@@ -8,6 +8,9 @@ const DEMO_URL        = `${window.location.origin}/sualoja/dashboard`
 const DEMO_URL_MOBILE = `${window.location.origin}/sualoja/dashboard?forceMobile=1`
 const PLANOS       = ['starter', 'pro', 'business']
 const PLANO_LABEL  = { starter: 'Starter', pro: 'Pro', business: 'Business' }
+const NIVEIS_B2B      = ['nenhum', 'simples', 'pro']
+const NIVEL_B2B_LABEL = { nenhum: 'Nenhum', simples: 'Simples', pro: 'Pro' }
+const NIVEL_B2B_VALUE = { nenhum: false, simples: 'simples', pro: 'pro' }
 
 // ── Date helpers ──────────────────────────────────────────────────
 function diasAtras(n) {
@@ -137,7 +140,7 @@ const SEED_PRODUTO_BAIXO = {
 const DEMO_FEATURES = {
   vendas: true, historico: true, metas: true, fechamento_caixa: true,
   relatorios: true, clientes: true, estoque: true,
-  legado: false, catalogo_b2b: true, atacado: false, crm: false,
+  legado: false, catalogo_b2b: false, atacado: false, crm: false,
 }
 
 // ── Reset logic ───────────────────────────────────────────────────
@@ -189,21 +192,31 @@ async function executarReset() {
 
 // ── Component ─────────────────────────────────────────────────────
 export default function DemoPanel() {
-  const [planoAtual,    setPlanoAtual]    = useState(null)
-  const [trocando,      setTrocando]      = useState(null)
-  const [resetando,     setResetando]     = useState(false)
-  const [confirmReset,  setConfirmReset]  = useState(false)
-  const [feedbackPlano, setFeedbackPlano] = useState(null) // 'ok' | 'erro'
-  const [feedbackReset, setFeedbackReset] = useState(null) // 'ok' | 'erro'
-  const [showMobile,    setShowMobile]    = useState(false)
+  const [planoAtual,     setPlanoAtual]     = useState(null)
+  const [featuresAtuais, setFeaturesAtuais] = useState({})
+  const [nivelB2BAtual,  setNivelB2BAtual]  = useState(null)
+  const [trocando,       setTrocando]       = useState(null)
+  const [trocandoNivel,  setTrocandoNivel]  = useState(null)
+  const [resetando,      setResetando]      = useState(false)
+  const [confirmReset,   setConfirmReset]   = useState(false)
+  const [feedbackPlano,  setFeedbackPlano]  = useState(null) // 'ok' | 'erro'
+  const [feedbackNivel,  setFeedbackNivel]  = useState(null) // 'ok' | 'erro'
+  const [feedbackReset,  setFeedbackReset]  = useState(null) // 'ok' | 'erro'
+  const [showMobile,     setShowMobile]     = useState(false)
 
-  const fetchPlano = useCallback(async () => {
+  const fetchConfig = useCallback(async () => {
     const { data } = await supabase
-      .from('lf_config').select('plano').eq('loja_id', DEMO_LOJA_ID).single()
-    if (data) setPlanoAtual(data.plano)
+      .from('lf_config').select('plano, features').eq('loja_id', DEMO_LOJA_ID).single()
+    if (data) {
+      setPlanoAtual(data.plano)
+      const f = (typeof data.features === 'string' ? JSON.parse(data.features) : data.features) ?? {}
+      setFeaturesAtuais(f)
+      const b2b = f.catalogo_b2b
+      setNivelB2BAtual(b2b === 'simples' ? 'simples' : b2b === 'pro' ? 'pro' : 'nenhum')
+    }
   }, [])
 
-  useEffect(() => { fetchPlano() }, [fetchPlano])
+  useEffect(() => { fetchConfig() }, [fetchConfig])
 
   async function trocarPlano(novoPlano) {
     if (trocando || resetando || novoPlano === planoAtual) return
@@ -216,10 +229,26 @@ export default function DemoPanel() {
     setTimeout(() => setFeedbackPlano(null), 3000)
   }
 
+  async function trocarNivelB2B(nivel) {
+    if (trocandoNivel || resetando || nivel === nivelB2BAtual) return
+    setTrocandoNivel(nivel); setFeedbackNivel(null)
+    const novasFeatures = { ...featuresAtuais, catalogo_b2b: NIVEL_B2B_VALUE[nivel] }
+    const { error } = await supabase
+      .from('lf_config').update({ features: novasFeatures }).eq('loja_id', DEMO_LOJA_ID)
+    if (!error) {
+      setFeaturesAtuais(novasFeatures)
+      setNivelB2BAtual(nivel)
+      setFeedbackNivel('ok')
+    } else setFeedbackNivel('erro')
+    setTrocandoNivel(null)
+    setTimeout(() => setFeedbackNivel(null), 3000)
+  }
+
   async function handleReset() {
     setResetando(true); setConfirmReset(false); setFeedbackReset(null)
     try {
       await executarReset()
+      await fetchConfig()
       setFeedbackReset('ok')
     } catch {
       setFeedbackReset('erro')
@@ -229,7 +258,7 @@ export default function DemoPanel() {
     }
   }
 
-  const busy = !!trocando || resetando
+  const busy = !!trocando || resetando || !!trocandoNivel
 
   return (
     <div style={{
@@ -325,6 +354,50 @@ export default function DemoPanel() {
         )}
         {feedbackPlano === 'erro' && (
           <span style={{ fontSize: 12, color: T.coralText, fontWeight: 600 }}>Erro ao atualizar plano</span>
+        )}
+      </div>
+
+      {/* Catálogo B2B nivel switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginRight: 2 }}>
+          Catálogo B2B
+        </p>
+        {NIVEIS_B2B.map(n => {
+          const isAtivo    = nivelB2BAtual === n
+          const carregando = trocandoNivel === n
+          return (
+            <button
+              key={n}
+              onClick={() => trocarNivelB2B(n)}
+              disabled={busy}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 34, padding: '0 16px', borderRadius: T.rPill,
+                border:     isAtivo ? `2px solid ${T.purple}` : `1.5px solid ${T.line}`,
+                background: isAtivo ? T.purple : T.white,
+                color:      isAtivo ? '#fff' : T.ink,
+                fontFamily: T.ui, fontSize: 13, fontWeight: 700,
+                cursor:  busy ? 'not-allowed' : 'pointer',
+                opacity: busy && !carregando ? 0.5 : 1,
+                boxShadow: isAtivo ? '0 2px 8px rgba(94,43,208,.22)' : 'none',
+                transition: 'all .15s',
+              }}
+            >
+              {carregando
+                ? <Loader2 size={11} style={{ animation: 'spin .9s linear infinite' }} />
+                : isAtivo && <Check size={11} />
+              }
+              {NIVEL_B2B_LABEL[n]}
+            </button>
+          )
+        })}
+        {feedbackNivel === 'ok' && (
+          <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+            ✓ Atualizado — recarregue a aba da demo
+          </span>
+        )}
+        {feedbackNivel === 'erro' && (
+          <span style={{ fontSize: 12, color: T.coralText, fontWeight: 600 }}>Erro ao atualizar nível B2B</span>
         )}
       </div>
 
