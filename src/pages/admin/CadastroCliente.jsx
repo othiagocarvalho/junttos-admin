@@ -3,7 +3,7 @@ import { getPalette } from 'colorthief'
 import { supabase } from '../../lib/supabase'
 import {
   Building2, Upload, Check, ExternalLink, Plus,
-  AlertCircle, X, RefreshCw, Copy, Loader2,
+  AlertCircle, X, RefreshCw, Copy, Loader2, Trash2,
 } from 'lucide-react'
 import StoreCard from '../../components/junttos/StoreCard'
 import EmptyState from '../../components/junttos/EmptyState'
@@ -392,16 +392,17 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
 // ── Main Page ────────────────────────────────────────────────────
 export default function CadastroCliente() {
-  const [clientes, setClientes]     = useState([])
-  const [redesMap, setRedesMap]     = useState({}) // rede_id → rede.nome
-  const [fetching, setFetching]     = useState(true)
-  const [fetchError, setFetchError] = useState('')
-  const [modalOpen, setModalOpen]   = useState(false)
+  const [clientes, setClientes]           = useState([])
+  const [redesMap, setRedesMap]           = useState({}) // rede_id → rede.nome
+  const [fetching, setFetching]           = useState(true)
+  const [fetchError, setFetchError]       = useState('')
+  const [modalOpen, setModalOpen]         = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null) // { nome, slug }
 
   const fetchClientes = useCallback(async () => {
     setFetching(true); setFetchError('')
     const [cfgRes, redesRes] = await Promise.all([
-      supabase.from('lf_config').select('*').order('nome'),
+      supabase.from('lf_config').select('*').neq('status', 'excluida').order('nome'),
       supabase.from('jt_redes').select('id, nome'),
     ])
     if (cfgRes.error) { setFetchError(cfgRes.error.message); setFetching(false); return }
@@ -413,6 +414,13 @@ export default function CadastroCliente() {
   }, [])
 
   useEffect(() => { fetchClientes() }, [fetchClientes])
+
+  async function handleDelete(slug) {
+    const { error } = await supabase.from('lf_config').update({ status: 'excluida' }).eq('loja_id', slug)
+    if (error) { alert('Erro ao excluir: ' + error.message); return }
+    setConfirmDelete(null)
+    fetchClientes()
+  }
 
   return (
     <div style={{ maxWidth: 1200, fontFamily: T.ui }}>
@@ -471,16 +479,34 @@ export default function CadastroCliente() {
               const slug = c.slug || c.loja_id
               const link = `${window.location.origin}/${slug}/`
               return (
-                <StoreCard
-                  key={c.id}
-                  nome={c.nome}
-                  slug={slug}
-                  status={c.status || 'ativo'}
-                  logoUrl={c.logo_url}
-                  primary={c.cor_primaria || T.purple}
-                  link={link}
-                  rede={c.rede_id ? redesMap[c.rede_id] : undefined}
-                />
+                <div key={c.id} style={{ position: 'relative' }}>
+                  <StoreCard
+                    nome={c.nome}
+                    slug={slug}
+                    status={c.status || 'ativo'}
+                    logoUrl={c.logo_url}
+                    primary={c.cor_primaria || T.purple}
+                    link={link}
+                    rede={c.rede_id ? redesMap[c.rede_id] : undefined}
+                  />
+                  <button
+                    onClick={() => setConfirmDelete({ nome: c.nome, slug })}
+                    title="Excluir loja"
+                    style={{
+                      position: 'absolute', top: 12, right: 12, zIndex: 2,
+                      width: 30, height: 30, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: T.white, border: `1px solid ${T.line}`,
+                      borderRadius: 8, cursor: 'pointer',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                      transition: 'border-color .15s, background .15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.coral; e.currentTarget.style.background = T.tintCoral }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.line; e.currentTarget.style.background = T.white }}
+                  >
+                    <Trash2 size={13} color={T.coralText} />
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -488,6 +514,42 @@ export default function CadastroCliente() {
       )}
 
       <NovoClienteModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={fetchClientes} />
+
+      {confirmDelete && (
+        <div
+          onClick={() => setConfirmDelete(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 400, boxShadow: T.darkCardShadow, padding: '28px 28px 24px', fontFamily: T.ui }}
+          >
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: T.ink, marginBottom: 8 }}>Excluir loja?</h2>
+            <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.6, marginBottom: 24 }}>
+              A loja <strong style={{ color: T.ink }}>{confirmDelete.nome}</strong> será marcada como excluída e não aparecerá mais na listagem. Os dados não são apagados e podem ser restaurados manualmente.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setConfirmDelete(null)}
+                style={{ flex: 1, height: 42, borderRadius: T.rInput, border: `1.5px solid ${T.line}`, background: T.mist, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: T.ink, transition: 'border-color .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.purple }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.line }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDelete.slug)}
+                style={{ flex: 1, height: 42, borderRadius: T.rInput, border: 'none', background: T.coral, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: T.white, boxShadow: '0 4px 12px rgba(255,111,94,0.28)', transition: 'background .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = T.coralText }}
+                onMouseLeave={e => { e.currentTarget.style.background = T.coral }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
   )
