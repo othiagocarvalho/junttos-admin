@@ -26,8 +26,8 @@ const inputStyle = {
 
 function statusOf(qty) {
   const q = Number(qty || 0)
-  if (q <= 2) return 'critico'
-  if (q <= 5) return 'atencao'
+  if (q <= 3) return 'critico'
+  if (q <= 6) return 'atencao'
   return null
 }
 

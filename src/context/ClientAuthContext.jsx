@@ -53,9 +53,10 @@ export function ClientPrivateRoute({ children, lojaId }) {
   if (loading) return <Spinner />
   if (!session) return <Navigate to="/" replace />
 
-  const userLojaId = session.user?.app_metadata?.loja_id
+  const userLojaId    = session.user?.app_metadata?.loja_id
+  const isConsultor   = !!session.user?.app_metadata?.consultant_id
   if (!userLojaId || userLojaId !== lojaId) {
-    supabase.auth.signOut()
+    if (!isConsultor) supabase.auth.signOut()
     return <Navigate to="/" replace />
   }
 

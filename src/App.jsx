@@ -25,6 +25,7 @@ import SimuladorPlano from './pages/SimuladorPlano'
 import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
 import CatalogoPublico from './pages/catalogo/CatalogoPublico'
+import ConsultorApp from './pages/consultor/ConsultorApp'
 
 function ProtectedLayout({ children }) {
   return (
@@ -90,11 +91,14 @@ function AdminApp() {
 export default function App() {
   const [lojaSegment, setLojaSegment] = useState(null) // URL path segment (basename do router)
   const [lojaId,      setLojaId]      = useState(null) // loja_id real do banco (para queries)
+  const [consultor,   setConsultor]   = useState(false) // área do consultor (/c/...)
   const [ready,       setReady]       = useState(false)
 
   useEffect(() => {
     const segment = window.location.pathname.split('/').filter(Boolean)[0] ?? ''
     if (!segment) { setReady(true); return }
+    // Segmento reservado para o portal do consultor
+    if (segment === 'c') { setConsultor(true); setReady(true); return }
     supabase
       .from('lf_config')
       .select('loja_id')
@@ -122,6 +126,7 @@ export default function App() {
     )
   }
 
+  if (consultor)   return <ConsultorApp />
   if (lojaSegment) return <LojaClientApp segment={lojaSegment} lojaId={lojaId} />
   return <AdminApp />
 }

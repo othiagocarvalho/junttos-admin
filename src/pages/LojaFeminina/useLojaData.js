@@ -2,6 +2,54 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 import { temTravaBal } from '../../utils/balanco'
+// ── Demo auto-top-up helpers ──────────────────────────────────────
+// DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
+const _DEMO_MULT_DIA = [
+  0.70, 1.20, 0.80, 1.40, 0.90,
+  0.60, 1.50, 1.10, 0.75, 1.30,
+  0.90, 1.05, 0.80, 1.20, 1.40,
+  0.65, 1.30, 1.00, 0.60, 1.20,
+  0.90, 1.40, 0.80, 1.15, 0.70,
+  1.30, 0.95, 1.50, 1.20, 0.80,
+  1.00,
+]
+const _DEMO_NOMES = ['Ana Carolina Silva', 'Fernanda Rocha', 'Juliana Matos', 'Beatriz Oliveira', 'Larissa Mendes', null, null]
+const _DEMO_PRODS = [
+  [{ nome: 'Vestido Floral', quantidade: 1 }],
+  [{ nome: 'Blusa Listrada', quantidade: 1 }],
+  [{ nome: 'Calça Skinny', quantidade: 1 }],
+  [{ nome: 'Cropped Básico', quantidade: 2 }],
+  [{ nome: 'Saia Midi', quantidade: 1 }],
+  [{ nome: 'Conjunto Tie Dye', quantidade: 1 }],
+]
+const _DEMO_FORMAS = ['Pix', 'Cartão de Crédito', 'Dinheiro', 'Pix', 'Cartão de Débito']
+
+function _vendasHojeDemo(lojaId) {
+  const hoje = new Date()
+  const dia = hoje.getDate()
+  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate()
+  const mult = _DEMO_MULT_DIA[Math.min(dia - 1, _DEMO_MULT_DIA.length - 1)]
+  const valorDia = (30000 / diasNoMes) * mult
+  const nVendas = mult < 0.80 ? 2 : mult < 1.20 ? 3 : 4
+  return Array.from({ length: nVendas }, (_, i) => {
+    const varFactor = 0.87 + ((dia * 7 + i * 13) % 26) / 100
+    const valor = Math.round((valorDia / nVendas) * varFactor)
+    const hora = 9 + ((dia * 3 + i * 5) % 9)
+    const min = (dia * 11 + i * 17) % 60
+    return {
+      loja_id: lojaId,
+      data: new Date(hoje.getFullYear(), hoje.getMonth(), dia, hora, min).toISOString(),
+      valor,
+      cliente_nome: _DEMO_NOMES[(dia * 3 + i) % _DEMO_NOMES.length],
+      cliente_tel: null,
+      produtos: _DEMO_PRODS[(dia + i) % _DEMO_PRODS.length],
+      forma_pgto: JSON.stringify([{ forma: _DEMO_FORMAS[(dia + i * 2) % _DEMO_FORMAS.length], valor: '' }]),
+      obs: null,
+      vendedora: (dia + i) % 5 === 0 ? 'Carla' : null,
+      ajuste_valor: null,
+    }
+  })
+}
 
 const DEFAULT_FEATURES = {
   vendas: true,
@@ -113,6 +161,20 @@ export function useLojaData(lojaId = 'estrada') {
       } catch (_e) {
         setDispensados([])
       }
+
+      // Auto-top-up para a loja demo: se não há vendas de hoje, insere silenciosamente.
+      // Garante que "Vendas hoje" e % da meta fiquem sempre atualizados sem reset manual.
+      if (lojaId === 'sualoja') {
+        const hojeStr = new Date().toISOString().slice(0, 10)
+        const hasToday = (vendasRes.data || []).some(v => (v.data || '').startsWith(hojeStr))
+        if (!hasToday) {
+          await supabase.from('lf_vendas').insert(_vendasHojeDemo(lojaId))
+          const { data: vendasNow } = await supabase
+            .from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false })
+          setVendas(vendasNow || [])
+        }
+      }
+
       setDbError(null)
     } catch (e) {
       setDbError(e.message)

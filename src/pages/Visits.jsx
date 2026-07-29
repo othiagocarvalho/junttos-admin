@@ -6,6 +6,7 @@ import StatCard from '../components/junttos/StatCard'
 import Toolbar from '../components/junttos/Toolbar'
 import EmptyState from '../components/junttos/EmptyState'
 import { T } from '../theme/tokens'
+import { fmtHora } from '../utils/consultor'
 
 const RESULT_OPTIONS = [
   { value: 'fechamento',    label: 'Fechamento' },
@@ -21,13 +22,23 @@ const RESULT_CONFIG = {
   pendente:      { bg: T.tintPurple,    text: T.purpleText,    dot: T.purple,          label: 'Pendente'     },
 }
 
+const PLANOS_FECHADO = ['starter', 'pro', 'business']
+const FORMAS_PGTO    = ['pix', 'cartao', 'boleto', 'parcelado']
+
 const emptyForm = {
-  consultor_id: '',
-  empresa:      '',
-  polo:         'Fortaleza',
-  resultado:    'retornar',
-  data_visita:  new Date().toISOString().split('T')[0],
-  observacoes:  '',
+  consultor_id:         '',
+  empresa:              '',
+  cliente_nome:         '',
+  telefone:             '',
+  bairro:               '',
+  polo:                 'Fortaleza',
+  resultado:            'retornar',
+  plano_fechado:        '',
+  forma_pagamento_impl: '',
+  data_visita:          new Date().toISOString().split('T')[0],
+  hora_inicio:          '',
+  hora_fim:             '',
+  observacoes:          '',
 }
 
 export default function Visits() {
@@ -70,14 +81,28 @@ export default function Visits() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const { error } = await supabase.from('jt_visits').insert(form)
+    // fechou_negocio é coluna gerada — não enviar explicitamente
+    const {
+      plano_fechado, forma_pagamento_impl, ...baseData
+    } = form
+    const insertData = {
+      ...baseData,
+      plano_fechado:        form.resultado === 'fechamento' ? (plano_fechado || null) : null,
+      forma_pagamento_impl: form.resultado === 'fechamento' ? (forma_pagamento_impl || null) : null,
+      hora_inicio:          form.hora_inicio || null,
+      hora_fim:             form.hora_fim    || null,
+      cliente_nome:         form.cliente_nome.trim() || null,
+      telefone:             form.telefone.trim()     || null,
+      bairro:               form.bairro.trim()       || null,
+    }
+    const { error } = await supabase.from('jt_visits').insert(insertData)
     if (error) { console.error('Erro ao registrar visita:', error); return }
     setModalOpen(false)
     fetchAll()
   }
 
   const filtered = visits.filter(v => {
-    const empresa   = v.empresa || ''
+    const empresa   = v.empresa || v.cliente_nome || ''
     const consNome  = v.jt_consultants?.nome || ''
     const matchSearch     = empresa.toLowerCase().includes(search.toLowerCase()) || consNome.toLowerCase().includes(search.toLowerCase())
     const matchConsultant = !filterConsultant || v.consultor_id === filterConsultant
@@ -137,7 +162,7 @@ export default function Visits() {
         <Toolbar
           search={search}
           onSearch={setSearch}
-          placeholder="Buscar empresa ou consultor…"
+          placeholder="Buscar cliente, empresa ou consultor…"
           filters={[
             {
               label: 'Consultor', value: filterConsultant, onChange: setFilterConsultant,
@@ -170,6 +195,9 @@ export default function Visits() {
           filtered.map(visit => {
             const rc       = RESULT_CONFIG[visit.resultado] || RESULT_CONFIG.pendente
             const consNome = visit.jt_consultants?.nome || '—'
+            const horario  = [fmtHora(visit.hora_inicio), fmtHora(visit.hora_fim)].filter(Boolean).join(' → ')
+            const titulo   = visit.cliente_nome || visit.empresa || '—'
+            const sub      = visit.cliente_nome && visit.empresa ? visit.empresa : null
             return (
               <div key={visit.id}
                 style={{ background: T.white, borderRadius: T.rCard, boxShadow: T.cardShadow, border: `1px solid ${T.line}`, padding: '18px 20px', transition: 'border-color .15s, box-shadow .15s' }}
@@ -183,25 +211,39 @@ export default function Visits() {
                       {consNome.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: T.ink, margin: '0 0 3px' }}>{visit.empresa}</p>
-                      <span style={{ fontSize: 12, color: T.muted }}>{consNome}</span>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: T.ink, margin: '0 0 2px' }}>{titulo}</p>
+                      {sub && <p style={{ fontSize: 12, color: T.ink, margin: '0 0 2px' }}>{sub}</p>}
+                      <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>{consNome}</p>
                     </div>
                   </div>
 
                   {/* Middle */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+                    {visit.bairro && (
+                      <div>
+                        <p style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>Bairro</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, margin: 0 }}>{visit.bairro}</p>
+                      </div>
+                    )}
                     {visit.polo && (
                       <div>
                         <p style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>Polo</p>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: T.ink, margin: 0 }}>{visit.polo}</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, margin: 0 }}>{visit.polo}</p>
                       </div>
                     )}
                     <div>
                       <p style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>Data</p>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: T.ink, margin: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: T.ink, margin: 0 }}>
                         {new Date(visit.data_visita + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        {horario && <span style={{ fontWeight: 400, color: T.muted }}> · {horario}</span>}
                       </p>
                     </div>
+                    {visit.plano_fechado && (
+                      <div>
+                        <p style={{ fontSize: 11, color: T.muted, marginBottom: 2 }}>Plano</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: T.purpleText, margin: 0 }}>{visit.plano_fechado}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Result pill */}
@@ -211,9 +253,14 @@ export default function Visits() {
                   </span>
                 </div>
 
-                {visit.observacoes && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
-                    <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.55, margin: 0 }}>{visit.observacoes}</p>
+                {(visit.observacoes || visit.telefone) && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${T.line}`, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    {visit.telefone && (
+                      <p style={{ fontSize: 13, color: T.muted, margin: 0 }}>📞 {visit.telefone}</p>
+                    )}
+                    {visit.observacoes && (
+                      <p style={{ fontSize: 13.5, color: T.muted, lineHeight: 1.55, margin: 0 }}>{visit.observacoes}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -225,6 +272,7 @@ export default function Visits() {
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Registrar Visita" size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Consultor</label>
@@ -242,9 +290,26 @@ export default function Visits() {
             </div>
           </div>
 
-          <div>
-            <label className={labelClass}>Empresa / Prospect</label>
-            <input required value={form.empresa} onChange={e => setForm({ ...form, empresa: e.target.value })} placeholder="Ex: Supermercado Estrela" className={inputClass} />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Nome do cliente</label>
+              <input value={form.cliente_nome} onChange={e => setForm({ ...form, cliente_nome: e.target.value })} placeholder="Ex: Maria das Graças" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Empresa / Prospect</label>
+              <input value={form.empresa} onChange={e => setForm({ ...form, empresa: e.target.value })} placeholder="Ex: Boutique da Maria" className={inputClass} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Telefone</label>
+              <input type="tel" value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} placeholder="(00) 9 0000-0000" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Bairro</label>
+              <input value={form.bairro} onChange={e => setForm({ ...form, bairro: e.target.value })} placeholder="Ex: Aldeota" className={inputClass} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -259,6 +324,37 @@ export default function Visits() {
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Hora início</label>
+              <input type="time" value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Hora fim</label>
+              <input type="time" value={form.hora_fim} onChange={e => setForm({ ...form, hora_fim: e.target.value })} className={inputClass} />
+            </div>
+          </div>
+
+          {/* Campos condicionais: plano e pagamento só se fechamento */}
+          {form.resultado === 'fechamento' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Plano fechado</label>
+                <select value={form.plano_fechado} onChange={e => setForm({ ...form, plano_fechado: e.target.value })} className={inputClass}>
+                  <option value="">Selecione...</option>
+                  {PLANOS_FECHADO.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Forma pgto. implantação</label>
+                <select value={form.forma_pagamento_impl} onChange={e => setForm({ ...form, forma_pagamento_impl: e.target.value })} className={inputClass}>
+                  <option value="">Selecione...</option>
+                  {FORMAS_PGTO.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className={labelClass}>Observações</label>

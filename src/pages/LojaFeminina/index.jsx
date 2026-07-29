@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck, ArrowLeftRight, X } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck, ArrowLeftRight, X, Sparkles } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
@@ -30,6 +30,7 @@ import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
 import AlertaBanner from './AlertaBanner'
+import SocioDigital from './SocioDigital'
 
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -522,6 +523,19 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const plano = data.config?.plano || 'starter'
   const legado = isLegado(data.config?.features)
 
+  // Sócio Digital bypassa o <main> com padding lateral — renderiza diretamente sob o AppHeader
+  if (tab === 'socio_digital' && lojaId === 'sualoja') {
+    return (
+      <div style={{ background: '#F6F6F9', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', ...themeVars }}>
+        <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} legado={legado} onSwitchToDesktop={() => setViewMode('desktop')} />
+        <SocioDigital mobile />
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
+          <button onClick={() => setTab('mais')} style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}>← Voltar</button>
+        </div>
+      </div>
+    )
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
@@ -642,6 +656,28 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <ChevronRight size={16} color="var(--muted)" />
           </button>
         )}
+        {lojaId === 'sualoja' && (
+          <button
+            onClick={() => setTab('socio_digital')}
+            style={{
+              width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
+              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
+              cursor: 'pointer', minHeight: 44,
+              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 12, color: 'var(--ink)',
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+              background: 'color-mix(in srgb, var(--primary) 12%, white)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Sparkles size={17} color="var(--primary)" strokeWidth={2} />
+            </div>
+            <span style={{ flex: 1 }}>Sócio Digital</span>
+            <ChevronRight size={16} color="var(--muted)" />
+          </button>
+        )}
       </div>
     ),
     faturamento:   <Faturamento {...data} theme={theme} />,
@@ -649,9 +685,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     contas_pagar:  features?.atacado
       ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={lojaId} />
       : null,
+    socio_digital: lojaId === 'sualoja' ? <SocioDigital mobile /> : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'fornecedores'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'fornecedores', 'socio_digital'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

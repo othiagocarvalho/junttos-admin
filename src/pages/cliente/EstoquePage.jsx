@@ -17,17 +17,19 @@ function totalQty(item) {
   return Number(item.quantidade || 0)
 }
 
-function hasLow(item) {
+function itemStatus(item) {
   const vars = item.variacoes || []
-  if (vars.length > 0) return vars.some(v => Number(v.quantidade || 0) <= 5)
-  return Number(item.quantidade || 0) <= 5
+  const qtds = vars.length > 0 ? vars.map(v => Number(v.quantidade || 0)) : [Number(item.quantidade || 0)]
+  if (qtds.some(q => q <= 3)) return 'critico'
+  if (qtds.some(q => q <= 6)) return 'atencao'
+  return null
 }
 
 function QtyBadge({ qty }) {
   const n = Number(qty ?? 0)
-  const s = n <= 5
+  const s = n <= 3
     ? { bg: '#fef2f2', br: '#fca5a5', c: '#dc2626' }
-    : n <= 10
+    : n <= 6
       ? { bg: '#fefce8', br: '#fde047', c: '#854d0e' }
       : { bg: '#f0fdf4', br: '#86efac', c: '#166534' }
   return (
@@ -154,7 +156,7 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
 
   const totalCost   = estoque.reduce((s, i) => s + (totalQty(i) * Number(i.preco_custo || 0)), 0)
   const totalValue  = estoque.reduce((s, i) => s + (totalQty(i) * Number(i.preco_venda || 0)), 0)
-  const criticalCnt = estoque.filter(hasLow).length
+  const criticalCnt = estoque.filter(i => itemStatus(i) === 'critico').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
@@ -212,12 +214,14 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
             const isOpen = !!expanded[item.id]
             const vars   = item.variacoes || []
             const qty    = totalQty(item)
-            const low    = hasLow(item)
+            const st     = itemStatus(item)
+
+            const borderColor = st === 'critico' ? 'rgba(220,38,38,0.3)' : st === 'atencao' ? 'rgba(217,119,6,0.25)' : 'var(--line)'
 
             return (
               <div key={item.id} style={{
                 background: 'var(--surface)',
-                border: `1px solid ${low ? 'rgba(220,38,38,0.3)' : 'var(--line)'}`,
+                border: `1px solid ${borderColor}`,
                 borderRadius: 14, overflow: 'hidden',
               }}>
                 {/* Product header */}
@@ -230,9 +234,14 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
                         {item.nome}
                       </span>
-                      {low && (
+                      {st === 'critico' && (
                         <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', flexShrink: 0 }}>
                           crítico
+                        </span>
+                      )}
+                      {st === 'atencao' && (
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 99, background: '#fef9c3', border: '1px solid #fde68a', color: '#b45309', fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif', flexShrink: 0 }}>
+                          atenção
                         </span>
                       )}
                     </div>

@@ -67,7 +67,11 @@ serve(async (req) => {
   }
 
   try {
-    const { email, password, loja_id, nome, enviarBV, lojaUrl, senhaCleartext } = await req.json()
+    const {
+      email, password,
+      loja_id, consultant_id,
+      nome, enviarBV, lojaUrl, senhaCleartext,
+    } = await req.json()
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -75,11 +79,16 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
+    // Build app_metadata with whatever identifiers are provided
+    const appMetadata: Record<string, unknown> = {}
+    if (loja_id)       appMetadata.loja_id       = loja_id
+    if (consultant_id) appMetadata.consultant_id = consultant_id
+
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      app_metadata: { loja_id },
+      app_metadata: appMetadata,
     })
 
     if (error) {
@@ -89,6 +98,7 @@ serve(async (req) => {
       })
     }
 
+    // Link auth user to loja's usuarios table
     if (loja_id && data.user) {
       await supabaseAdmin.from('lf_usuarios').insert({
         loja_id,
@@ -97,6 +107,14 @@ serve(async (req) => {
         nome: nome || email,
         ativo: true,
       })
+    }
+
+    // Link auth user back to jt_consultants record
+    if (consultant_id && data.user) {
+      await supabaseAdmin
+        .from('jt_consultants')
+        .update({ auth_user_id: data.user.id })
+        .eq('id', consultant_id)
     }
 
     if (enviarBV) {

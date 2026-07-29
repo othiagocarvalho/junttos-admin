@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck, ArrowLeftRight,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck, ArrowLeftRight, Sparkles,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -27,6 +27,7 @@ import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
 import AlertaBanner from '../LojaFeminina/AlertaBanner'
+import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
@@ -93,8 +94,9 @@ const PLANO_BADGE_DESKTOP = {
 }
 
 // ── Sidebar (fixo 250px) ──────────────────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile }) {
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile, lojaId }) {
   const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
+  const [imgErr, setImgErr] = useState(false)
 
   function navItemStyle(active) {
     return {
@@ -127,9 +129,17 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
         display: 'flex', alignItems: 'center', gap: 10,
         minHeight: 64, flexShrink: 0,
       }}>
-        {logoUrl
-          ? <img src={logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0, border: '1px solid var(--line)', background: '#fff' }} />
-          : <Logo variant="light" size={26} showWordmark={false} />
+        {(logoUrl && !imgErr)
+          ? <img src={logoUrl} alt="" onError={() => setImgErr(true)} style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0, border: '1px solid var(--line)', background: '#fff' }} />
+          : (
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: '#F1ECFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="24" height="24" viewBox="18 21 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0" />
+                <circle cx="40" cy="37" r="14" fill="#341780" />
+                <circle cx="64" cy="39" r="14" fill="#FF6F5E" />
+              </svg>
+            </div>
+          )
         }
         <div style={{ minWidth: 0, flex: 1 }}>
           <p style={{
@@ -217,6 +227,16 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           >
             <ShoppingBag size={16} style={{ flexShrink: 0 }} />
             <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Catálogo B2B</span>
+          </button>
+        )}
+        {lojaId === 'sualoja' && (
+          <button
+            onClick={() => setTab('socio_digital')}
+            className={tab === 'socio_digital' ? '' : 'cds-nav-btn'}
+            style={navItemStyle(tab === 'socio_digital')}
+          >
+            <Sparkles size={16} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Sócio Digital</span>
           </button>
         )}
         <button
@@ -1584,11 +1604,20 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
       : null,
+    socio_digital: null,
+  }
+
+  if (tab === 'socio_digital' && data.LOJA_ID === 'sualoja') {
+    return (
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 100, display: 'flex', ...contentVars }}>
+        <SocioDigital onVoltar={() => setTab('inicio')} />
+      </div>
+    )
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
-      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} />
+      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} />
       <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100dvh', boxSizing: 'border-box', minWidth: 0 }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tab]}

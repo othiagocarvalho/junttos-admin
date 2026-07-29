@@ -45,7 +45,7 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
 
   const produtosBaixos = produtosData.filter(p => {
     const qtd = (p.variacoes || []).reduce((s, v) => s + Number(v.quantidade || 0), 0)
-    return qtd >= 1 && qtd <= 5
+    return qtd >= 1 && qtd <= 6
   })
   if (produtosBaixos.length > 0) {
     alerts.push({

@@ -55,8 +55,8 @@ const SEED_FORNECEDORES = [
   { loja_id: DEMO_LOJA_ID, nome: 'Studio Moda Atacado',    contato: '(21) 97654-3210', prazo_pagamento_dias: 45, observacoes: 'Mínimo 10 peças por pedido.', ativo: true },
 ]
 
-const NOMES_CLI = ['Ana Carolina Silva', 'Fernanda Rocha', 'Juliana Matos', 'Beatriz Oliveira', 'Larissa Mendes', null, null]
-const PRODS_DEMO = [
+const NOMES_CLI   = ['Ana Carolina Silva', 'Fernanda Rocha', 'Juliana Matos', 'Beatriz Oliveira', 'Larissa Mendes', null, null]
+const PRODS_DEMO  = [
   [{ nome: 'Vestido Floral',   quantidade: 1 }],
   [{ nome: 'Blusa Listrada',   quantidade: 1 }],
   [{ nome: 'Calça Skinny',     quantidade: 1 }],
@@ -64,28 +64,56 @@ const PRODS_DEMO = [
   [{ nome: 'Saia Midi',        quantidade: 1 }],
   [{ nome: 'Conjunto Tie Dye', quantidade: 1 }],
 ]
-const VALORES_VENDA = [89, 127, 98, 145, 161, 210, 76, 139, 185, 220, 95, 170, 115, 240, 88]
-const FORMAS_PGTO   = ['Pix', 'Cartão de Crédito', 'Dinheiro', 'Pix', 'Cartão de Débito']
-// 15 vendas todas no mês corrente — diasAtras(0)=hoje, diasAtras(9)=dia 1 do mês
-const DIAS_AGO = [0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8, 8, 9]
-const HORAS    = [14, 10, 16, 11, 9, 15, 13, 10, 17, 11, 10, 15, 14, 9, 11]
+const FORMAS_PGTO = ['Pix', 'Cartão de Crédito', 'Dinheiro', 'Pix', 'Cartão de Débito']
+
+// Multiplicadores por dia-do-mês (índice 0 = dia 1, índice 30 = dia 31).
+// Média ≈ 1.0 → mês completo atinge ~100% da meta.
+// Espelhado em useLojaData.js (_DEMO_MULT_DIA) — manter em sync ao editar.
+const DEMO_MULT_DIA = [
+  0.70, 1.20, 0.80, 1.40, 0.90,
+  0.60, 1.50, 1.10, 0.75, 1.30,
+  0.90, 1.05, 0.80, 1.20, 1.40,
+  0.65, 1.30, 1.00, 0.60, 1.20,
+  0.90, 1.40, 0.80, 1.15, 0.70,
+  1.30, 0.95, 1.50, 1.20, 0.80,
+  1.00,
+]
 
 // ── Seed functions (dates evaluated at call time) ─────────────────
 function gerarVendas() {
-  const base = Array.from({ length: 15 }, (_, i) => ({
-    loja_id:      DEMO_LOJA_ID,
-    data:         `${diasAtras(DIAS_AGO[i])}T${String(HORAS[i]).padStart(2, '0')}:00:00+00:00`,
-    valor:        VALORES_VENDA[i],
-    cliente_nome: NOMES_CLI[i % NOMES_CLI.length],
-    cliente_tel:  null,
-    produtos:     PRODS_DEMO[i % PRODS_DEMO.length],
-    forma_pgto:   JSON.stringify([{ forma: FORMAS_PGTO[i % FORMAS_PGTO.length], valor: '' }]),
-    obs:          null,
-    vendedora:    i % 4 === 0 ? 'Carla' : null,
-    ajuste_valor: null,
-  }))
+  const hoje      = new Date()
+  const diaHoje   = hoje.getDate()
+  const mesAtual  = hoje.getMonth()
+  const anoAtual  = hoje.getFullYear()
+  const diasNoMes = new Date(anoAtual, mesAtual + 1, 0).getDate()
+  const baseValorDia = 30000 / diasNoMes
 
-  // Rafaela Souza — VIP: 5 compras totalizando R$1540 (>= 10× ticket médio ~R$143)
+  const base = []
+  for (let dia = 1; dia <= diaHoje; dia++) {
+    const mult     = DEMO_MULT_DIA[Math.min(dia - 1, DEMO_MULT_DIA.length - 1)]
+    const valorDia = baseValorDia * mult
+    const nVendas  = mult < 0.80 ? 2 : mult < 1.20 ? 3 : 4
+    for (let i = 0; i < nVendas; i++) {
+      const varFactor = 0.87 + ((dia * 7 + i * 13) % 26) / 100
+      const valor     = Math.round((valorDia / nVendas) * varFactor)
+      const hora      = 9 + ((dia * 3 + i * 5) % 9)
+      const min       = (dia * 11 + i * 17) % 60
+      base.push({
+        loja_id:      DEMO_LOJA_ID,
+        data:         new Date(anoAtual, mesAtual, dia, hora, min).toISOString(),
+        valor,
+        cliente_nome: NOMES_CLI[(dia * 3 + i) % NOMES_CLI.length],
+        cliente_tel:  null,
+        produtos:     PRODS_DEMO[(dia + i) % PRODS_DEMO.length],
+        forma_pgto:   JSON.stringify([{ forma: FORMAS_PGTO[(dia + i * 2) % FORMAS_PGTO.length], valor: '' }]),
+        obs:          null,
+        vendedora:    (dia + i) % 5 === 0 ? 'Carla' : null,
+        ajuste_valor: null,
+      })
+    }
+  }
+
+  // Rafaela Souza — VIP: 5 compras totalizando R$1540 (>= 10× ticket médio)
   // Última compra 38 dias atrás → aparece no feed VIP (>= 30 dias)
   const vip = [
     { loja_id: DEMO_LOJA_ID, data: `${diasAtras(38)}T11:00:00+00:00`,  valor: 290, cliente_nome: 'Rafaela Souza', cliente_tel: null, produtos: [{ nome: 'Calça Skinny', quantidade: 1 }], forma_pgto: JSON.stringify([{ forma: 'Pix', valor: '' }]), obs: null, vendedora: null, ajuste_valor: null },

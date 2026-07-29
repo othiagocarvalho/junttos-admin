@@ -9,34 +9,12 @@ import StoreCard from '../../components/junttos/StoreCard'
 import EmptyState from '../../components/junttos/EmptyState'
 import { T } from '../../theme/tokens'
 import DemoPanel from './DemoPanel'
-
-// Default features for all new lojas — legado and catalogo_b2b always false on creation
-const DEFAULT_FEATURES = {
-  vendas: true, historico: true, metas: true,
-  fechamento_caixa: true, relatorios: true,
-  clientes: false, estoque: false,
-  legado: false,
-  catalogo_b2b: false,
-}
+import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
 
 const PLANOS_VALORES = {
   starter:  { label: 'Starter',  valor: 99.90  },
   pro:      { label: 'Pro',      valor: 149.90 },
   business: { label: 'Business', valor: 259.90 },
-}
-
-// Allows a-z, 0-9 and hyphens; collapses spaces to hyphens; strips leading/trailing hyphens
-function toSlug(s) {
-  return s.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]+/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-function isValidSlug(s) {
-  return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(s) && s.length >= 2 && s.length <= 40
 }
 
 function rgbToHex([r, g, b]) {
@@ -115,12 +93,14 @@ function Section({ title }) {
 
 // ── Modal ────────────────────────────────────────────────────────
 function NovoClienteModal({ open, onClose, onCreated }) {
-  const [form, setForm]               = useState(EMPTY_FORM)
-  const [extracting, setExtracting]   = useState(false)
-  const [saving, setSaving]           = useState(false)
-  const [error, setError]             = useState('')
-  const [successLink, setSuccessLink] = useState('')
+  const [form, setForm]             = useState(EMPTY_FORM)
+  const [extracting, setExtracting] = useState(false)
+  const [logoError, setLogoError]   = useState('')
   const fileRef = useRef(null)
+
+  const { save, saving, error: hookError, successLink, reset: hookReset } = useCreateLoja()
+
+  const error = logoError || hookError
 
   useEffect(() => {
     if (!open) return
@@ -130,7 +110,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   }, [open])
 
   function reset() {
-    setForm(EMPTY_FORM); setError(''); setSuccessLink(''); setSaving(false); setExtracting(false)
+    setForm(EMPTY_FORM); setLogoError(''); setExtracting(false); hookReset()
   }
   function handleClose() { reset(); onClose() }
   function handleNome(nome) { setForm(prev => ({ ...prev, nome, slug: toSlug(nome) })) }
@@ -153,83 +133,29 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
   async function handleSave(e) {
     e.preventDefault()
+    setLogoError('')
 
-    // Basic validation
-    if (!form.nome.trim() || !form.slug.trim()) { setError('Nome e slug são obrigatórios.'); return }
-    if (!isValidSlug(form.slug)) {
-      setError('Slug inválido. Use apenas letras minúsculas, números e hífens (2–40 caracteres, não pode começar ou terminar com hífen).')
-      return
+    let logoUrl = null
+    if (form.logoFile) {
+      try { logoUrl = await uploadLogo(form.slug, form.logoFile) }
+      catch (err) { setLogoError(`Upload da logo falhou: ${err.message}`); return }
     }
 
-    setSaving(true); setError(''); setSuccessLink('')
-    try {
-      // Check slug uniqueness before touching anything
-      const { data: existing } = await supabase
-        .from('lf_config')
-        .select('nome')
-        .or(`loja_id.eq.${form.slug},slug.eq.${form.slug}`)
-        .maybeSingle()
-      if (existing) throw new Error(`O slug "${form.slug}" já está em uso pela loja "${existing.nome}".`)
-
-      let logoUrl = null
-      if (form.logoFile) logoUrl = await uploadLogo(form.slug, form.logoFile)
-
-      const features = {
-        ...DEFAULT_FEATURES,
-        atacado: form.features.atacado,
-        crm: form.features.crm,
-      }
-
-      // Insert only valid lf_config columns (no valor_mensal, email_acesso, senha_acesso)
-      const { error: cfgErr } = await supabase.from('lf_config').insert({
-        loja_id:        form.slug,
-        slug:           form.slug,
-        nome:           form.nome,
-        status:         form.status,
-        plano:          form.plano,
-        cor_primaria:   form.cor_primaria,
-        cor_secundaria: form.cor_secundaria,
-        features,
-        logo_url:       logoUrl,
-        updated_at:     new Date().toISOString(),
-      })
-      if (cfgErr) throw new Error(cfgErr.message)
-
-      // Create Auth user — rollback lf_config if this fails
-      if (form.email_acesso && form.senha_acesso) {
-        const lojaUrl = `${window.location.origin}/${form.slug}/`
-        const { data: fnData, error: fnErr } = await supabase.functions.invoke('create-user', {
-          body: {
-            email: form.email_acesso,
-            password: form.senha_acesso,
-            loja_id: form.slug,
-            nome: form.nome,
-            enviarBV: form.enviarBV,
-            lojaUrl,
-            senhaCleartext: form.enviarBV ? form.senha_acesso : undefined,
-          },
-        })
-        const authError = fnErr?.message || fnData?.error
-        if (authError) {
-          await supabase.from('lf_config').delete().eq('loja_id', form.slug)
-          throw new Error(`Erro ao criar usuário: ${authError} — config da loja removida (rollback).`)
-        }
-      }
-
-      // Create first billing record
-      const venc = new Date()
-      venc.setDate(venc.getDate() + 30)
-      await supabase.from('jt_cobrancas').insert({
-        loja_id:    form.slug,
-        valor:      parseFloat(form.valor_mensal) || 0,
-        vencimento: venc.toISOString().split('T')[0],
-        status:     'pendente',
-      })
-
-      setSuccessLink(`${window.location.origin}/${form.slug}/`)
-      onCreated()
-    } catch (err) { setError(err.message) }
-    finally { setSaving(false) }
+    const link = await save({
+      nome:           form.nome,
+      slug:           form.slug,
+      status:         form.status,
+      plano:          form.plano,
+      cor_primaria:   form.cor_primaria,
+      cor_secundaria: form.cor_secundaria,
+      features:       form.features,
+      logoUrl,
+      email_acesso:   form.email_acesso,
+      senha_acesso:   form.senha_acesso,
+      valor_mensal:   form.valor_mensal,
+      enviarBV:       form.enviarBV,
+    })
+    if (link) onCreated()
   }
 
   const inp = {
