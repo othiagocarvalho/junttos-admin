@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useConsultorAuth } from '../../context/ConsultorAuthContext'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { T } from '../../theme/tokens'
+import Logo from '../../components/junttos/Logo'
 
 export default function ConsultorLogin() {
   const { login } = useConsultorAuth()
@@ -33,8 +34,8 @@ export default function ConsultorLogin() {
       <div style={{ width: '100%', maxWidth: 380 }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(150deg,#6E3DF0,#4A1FB0)`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <span style={{ color: '#fff', fontSize: 22, fontWeight: 800 }}>J</span>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: T.tintPurple, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Logo variant="light" size={44} showWordmark={false} />
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>Portal do Consultor</h1>
           <p style={{ fontSize: 14, color: T.muted }}>Acesse com suas credenciais Junttos</p>
