@@ -18,6 +18,7 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
+import LojaMercado from './pages/LojaMercado'
 import CadastroCliente from './pages/admin/CadastroCliente'
 import Cobrancas from './pages/admin/Cobrancas'
 import Redes from './pages/admin/Redes'
@@ -35,11 +36,12 @@ function ProtectedLayout({ children }) {
   )
 }
 
-function ClientDashboard({ lojaId }) {
+function ClientDashboard({ lojaId, segmento }) {
+  if (segmento === 'mercado') return <LojaMercado lojaId={lojaId} />
   return <LojaFeminina lojaId={lojaId} />
 }
 
-function LojaClientApp({ segment, lojaId }) {
+function LojaClientApp({ segment, lojaId, segmento }) {
   return (
     <ClientAuthProvider>
       <BrowserRouter basename={`/${segment}`}>
@@ -47,7 +49,7 @@ function LojaClientApp({ segment, lojaId }) {
           <Route path="/" element={<ClientLogin />} />
           <Route path="/dashboard" element={
             <ClientPrivateRoute lojaId={lojaId}>
-              <ClientDashboard lojaId={lojaId} />
+              <ClientDashboard lojaId={lojaId} segmento={segmento} />
             </ClientPrivateRoute>
           } />
           <Route path="/catalogo" element={<CatalogoPublico lojaId={lojaId} />} />
@@ -91,6 +93,7 @@ function AdminApp() {
 export default function App() {
   const [lojaSegment, setLojaSegment] = useState(null) // URL path segment (basename do router)
   const [lojaId,      setLojaId]      = useState(null) // loja_id real do banco (para queries)
+  const [segmentoLoja,setSegmentoLoja]= useState('moda')
   const [consultor,   setConsultor]   = useState(false) // área do consultor (/c/...)
   const [ready,       setReady]       = useState(false)
 
@@ -101,13 +104,14 @@ export default function App() {
     if (segment === 'c') { setConsultor(true); setReady(true); return }
     supabase
       .from('lf_config')
-      .select('loja_id')
+      .select('loja_id, segmento')
       .or(`loja_id.eq.${segment},slug.eq.${segment}`)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
           setLojaSegment(segment)
           setLojaId(data.loja_id)
+          setSegmentoLoja(data.segmento ?? 'moda')
         }
         setReady(true)
       })
@@ -127,6 +131,6 @@ export default function App() {
   }
 
   if (consultor)   return <ConsultorApp />
-  if (lojaSegment) return <LojaClientApp segment={lojaSegment} lojaId={lojaId} />
+  if (lojaSegment) return <LojaClientApp segment={lojaSegment} lojaId={lojaId} segmento={segmentoLoja} />
   return <AdminApp />
 }
