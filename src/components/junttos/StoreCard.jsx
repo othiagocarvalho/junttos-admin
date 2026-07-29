@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, Check, Share2 } from 'lucide-react'
+import { Copy, ExternalLink, Check, Share2, Trash2 } from 'lucide-react'
 import StatusPill from './StatusPill'
 import { T } from '../../theme/tokens'
 
-export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link, rede }) {
+export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link, rede, onDelete }) {
   const [copied, setCopied] = useState(false)
 
   const initials = (nome || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -88,6 +88,24 @@ export default function StoreCard({ nome, slug, status, logoUrl, primary = T.pur
         }}>
           {link}
         </span>
+
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            title="Excluir loja"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, minWidth: 32, minHeight: 44,
+              background: T.white, border: `1px solid ${T.line}`,
+              borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+              transition: 'border-color .15s, background .15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = T.coral; e.currentTarget.style.background = T.tintCoral }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.line; e.currentTarget.style.background = T.white }}
+          >
+            <Trash2 size={13} color={T.coralText} />
+          </button>
+        )}
 
         <button
           onClick={handleCopy}

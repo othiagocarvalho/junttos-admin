@@ -3,7 +3,7 @@ import { getPalette } from 'colorthief'
 import { supabase } from '../../lib/supabase'
 import {
   Building2, Upload, Check, ExternalLink, Plus,
-  AlertCircle, X, RefreshCw, Copy, Loader2, Trash2,
+  AlertCircle, X, RefreshCw, Copy, Loader2,
 } from 'lucide-react'
 import StoreCard from '../../components/junttos/StoreCard'
 import EmptyState from '../../components/junttos/EmptyState'
@@ -479,34 +479,17 @@ export default function CadastroCliente() {
               const slug = c.slug || c.loja_id
               const link = `${window.location.origin}/${slug}/`
               return (
-                <div key={c.id} style={{ position: 'relative' }}>
-                  <StoreCard
-                    nome={c.nome}
-                    slug={slug}
-                    status={c.status || 'ativo'}
-                    logoUrl={c.logo_url}
-                    primary={c.cor_primaria || T.purple}
-                    link={link}
-                    rede={c.rede_id ? redesMap[c.rede_id] : undefined}
-                  />
-                  <button
-                    onClick={() => setConfirmDelete({ nome: c.nome, slug })}
-                    title="Excluir loja"
-                    style={{
-                      position: 'absolute', top: 12, right: 12, zIndex: 2,
-                      width: 30, height: 30, flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: T.white, border: `1px solid ${T.line}`,
-                      borderRadius: 8, cursor: 'pointer',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
-                      transition: 'border-color .15s, background .15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.coral; e.currentTarget.style.background = T.tintCoral }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.line; e.currentTarget.style.background = T.white }}
-                  >
-                    <Trash2 size={13} color={T.coralText} />
-                  </button>
-                </div>
+                <StoreCard
+                  key={c.id}
+                  nome={c.nome}
+                  slug={slug}
+                  status={c.status || 'ativo'}
+                  logoUrl={c.logo_url}
+                  primary={c.cor_primaria || T.purple}
+                  link={link}
+                  rede={c.rede_id ? redesMap[c.rede_id] : undefined}
+                  onDelete={() => setConfirmDelete({ nome: c.nome, slug })}
+                />
               )
             })}
           </div>
