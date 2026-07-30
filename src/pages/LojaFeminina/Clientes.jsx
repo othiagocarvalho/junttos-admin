@@ -27,10 +27,32 @@ function fmtDataHora(iso) {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const FORM_VAZIO = { nome: '', telefone: '', email: '', data_nascimento: '', observacoes: '' }
+// Campos do cadastro completo (CPF/CNPJ + endereço). Só aparecem na tela quando
+// a loja tem features.cadastro_completo_cliente — planos Pro e Business.
+// No Starter os campos ficam ocultos, mas o dado que já existe no banco (ex.:
+// o import do histórico da Audaz Wear) é preservado: quando a flag está off o
+// formulário não envia estas colunas, então nada é sobrescrito.
+// Colunas criadas em supabase/migration_clientes_endereco.sql.
+const CAMPOS_CADASTRO_COMPLETO = [
+  { campo: 'cpf_cnpj',    label: 'CPF / CNPJ',  placeholder: '000.000.000-00', mono: true },
+  { campo: 'endereco',    label: 'Endereço',    placeholder: 'Rua, avenida...' },
+  { campo: 'numero',      label: 'Número',      placeholder: '123' },
+  { campo: 'complemento', label: 'Complemento', placeholder: 'Apto, bloco...' },
+  { campo: 'bairro',      label: 'Bairro',      placeholder: 'Bairro' },
+  { campo: 'cidade',      label: 'Cidade',      placeholder: 'Cidade' },
+  { campo: 'estado',      label: 'Estado',      placeholder: 'UF' },
+  { campo: 'cep',         label: 'CEP',         placeholder: '00000-000', mono: true },
+]
+
+const FORM_COMPLETO_VAZIO = Object.fromEntries(CAMPOS_CADASTRO_COMPLETO.map(c => [c.campo, '']))
+
+const FORM_VAZIO = {
+  nome: '', telefone: '', email: '', data_nascimento: '', observacoes: '',
+  ...FORM_COMPLETO_VAZIO,
+}
 
 // ── Modal ──────────────────────────────────────────────────────
-function Modal({ initial, onSalvar, onCancelar, theme }) {
+function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
   const [form, setForm] = useState(initial || FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -100,6 +122,16 @@ function Modal({ initial, onSalvar, onCancelar, theme }) {
             <Input value={form.data_nascimento} onChange={e => set('data_nascimento', e.target.value)}
               type="date" />
           </div>
+
+          {/* Cadastro completo — Pro e Business */}
+          {cadastroCompleto && CAMPOS_CADASTRO_COMPLETO.map(({ campo, label, placeholder, mono }) => (
+            <div key={campo}>
+              <Label>{label}</Label>
+              <Input value={form[campo] || ''} onChange={e => set(campo, e.target.value)}
+                placeholder={placeholder} mono={mono} />
+            </div>
+          ))}
+
           <div>
             <Label>Observações</Label>
             <textarea value={form.observacoes} onChange={e => set('observacoes', e.target.value)}
@@ -149,7 +181,7 @@ function Pill({ children, bg, color }) {
 // ── ClienteCard ────────────────────────────────────────────────
 function ClienteCard({
   cliente, vendas, produtosData, theme, onEditar, onExcluir,
-  proMode, diasUltima, vip, badgeAniv, inativo,
+  proMode, diasUltima, vip, badgeAniv, inativo, cadastroCompleto,
 }) {
   const [aberto, setAberto] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
@@ -171,6 +203,16 @@ function ClienteCard({
   }, [proMode, aberto, vendas, cliente.nome, produtosData])
 
   const waPhone = normalizeWaPhone(cliente.telefone)
+
+  // "Rua X, 123 - Centro, Belém/PA - CEP 66000-000" — omite o que estiver vazio
+  const enderecoLinha = useMemo(() => {
+    if (!cadastroCompleto) return null
+    const rua    = [cliente.endereco, cliente.numero].filter(Boolean).join(', ')
+    const local  = [cliente.bairro, [cliente.cidade, cliente.estado].filter(Boolean).join('/')].filter(Boolean).join(', ')
+    const partes = [rua, cliente.complemento, local].filter(Boolean)
+    if (cliente.cep) partes.push(`CEP ${cliente.cep}`)
+    return partes.join(' - ') || null
+  }, [cadastroCompleto, cliente.endereco, cliente.numero, cliente.complemento, cliente.bairro, cliente.cidade, cliente.estado, cliente.cep])
 
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', overflow: 'hidden', marginBottom: 10 }}>
@@ -314,6 +356,16 @@ function ClienteCard({
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Nascimento: </span>{fmtData(cliente.data_nascimento)}
               </p>
             )}
+            {cadastroCompleto && cliente.cpf_cnpj && (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
+                <span style={{ color: 'var(--muted)', fontWeight: 600 }}>CPF/CNPJ: </span>{cliente.cpf_cnpj}
+              </p>
+            )}
+            {cadastroCompleto && enderecoLinha && (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', overflowWrap: 'anywhere' }}>
+                <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Endereço: </span>{enderecoLinha}
+              </p>
+            )}
             {cliente.observacoes && (
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)' }}>
                 <span style={{ color: 'var(--muted)', fontWeight: 600 }}>Obs: </span>{cliente.observacoes}
@@ -385,12 +437,14 @@ function ClienteCard({
 
 
 // ── Main export ────────────────────────────────────────────────
-export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme, produtosData = [], plano = 'starter' }) {
+export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme, produtosData = [], plano = 'starter', features = null }) {
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(null)
   const [filtro, setFiltro] = useState('todos')
 
   const isPro = temAcesso(plano, 'pro')
+  // Mesmo padrão do features.catalogo_b2b: a flag em lf_config.features manda.
+  const cadastroCompleto = !!features?.cadastro_completo_cliente
   const hoje = new Date().toISOString().slice(0, 10)
 
   const ticket = useMemo(() => ticketMedioLoja(vendas, hoje), [vendas, hoje])
@@ -435,13 +489,22 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
     if (modal === 'novo') {
       await addCliente(form)
     } else {
-      await updateCliente(modal.id, {
+      const dados = {
         nome:             form.nome?.trim(),
         telefone:         form.telefone?.trim() || null,
         email:            form.email?.trim()    || null,
         data_nascimento:  form.data_nascimento  || null,
         observacoes:      form.observacoes?.trim() || null,
-      })
+      }
+      // Com a flag off estas colunas ficam FORA do update — assim o CPF e o
+      // endereço já gravados (import do Linx) não são apagados por uma loja
+      // que não enxerga os campos na tela.
+      if (cadastroCompleto) {
+        for (const { campo } of CAMPOS_CADASTRO_COMPLETO) {
+          dados[campo] = form[campo]?.trim() || null
+        }
+      }
+      await updateCliente(modal.id, dados)
     }
     setModal(null)
   }
@@ -542,6 +605,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
           vip={c._vip}
           badgeAniv={c._badgeAniv}
           inativo={c._inativo}
+          cadastroCompleto={cadastroCompleto}
         />
       ))}
 
@@ -554,10 +618,12 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
             email:           modal.email           || '',
             data_nascimento: modal.data_nascimento || '',
             observacoes:     modal.observacoes     || '',
+            ...Object.fromEntries(CAMPOS_CADASTRO_COMPLETO.map(c => [c.campo, modal[c.campo] || ''])),
           }}
           onSalvar={handleSalvar}
           onCancelar={() => setModal(null)}
           theme={theme}
+          cadastroCompleto={cadastroCompleto}
         />
       )}
     </div>

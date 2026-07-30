@@ -521,6 +521,13 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
+  // Campos do cadastro completo (features.cadastro_completo_cliente). Só entram
+  // no insert quando o formulário mandou algum deles — no Starter a tela nem os
+  // exibe, e aí o insert continua exatamente como era antes.
+  const CAMPOS_CADASTRO_COMPLETO = [
+    'cpf_cnpj', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
+  ]
+
   async function addCliente(dados) {
     const novo = {
       loja_id: lojaId,
@@ -529,6 +536,9 @@ export function useLojaData(lojaId = 'estrada') {
       email: dados.email?.trim() || null,
       data_nascimento: dados.data_nascimento || null,
       observacoes: dados.observacoes?.trim() || null,
+    }
+    for (const campo of CAMPOS_CADASTRO_COMPLETO) {
+      if (dados[campo] !== undefined) novo[campo] = dados[campo]?.trim() || null
     }
     const { data, error } = await supabase.from('lf_clientes').insert(novo).select().single()
     if (error) throw error

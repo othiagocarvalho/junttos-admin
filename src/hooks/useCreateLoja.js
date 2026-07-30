@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { temAcesso } from '../utils/planos'
 
 export function toSlug(s) {
   return s.toLowerCase()
@@ -19,6 +20,9 @@ const DEFAULT_FEATURES = {
   fechamento_caixa: true, relatorios: true,
   clientes: false, estoque: false,
   legado: false, catalogo_b2b: false,
+  // CPF/CNPJ + endereço na tela de cliente. Ligado por padrão em Pro e
+  // Business (ver buildLojaPayload); no Starter fica off.
+  cadastro_completo_cliente: false,
 }
 
 /**
@@ -41,7 +45,11 @@ export function buildLojaPayload({
     plano,
     cor_primaria,
     cor_secundaria,
-    features:       { ...DEFAULT_FEATURES, ...features },
+    features:       {
+      ...DEFAULT_FEATURES,
+      cadastro_completo_cliente: temAcesso(plano, 'pro'),
+      ...features,
+    },
     logo_url:       logoUrl,
     updated_at:     new Date().toISOString(),
   }

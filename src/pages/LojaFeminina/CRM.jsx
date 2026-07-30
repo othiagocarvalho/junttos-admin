@@ -402,6 +402,7 @@ export default function CRM({
   produtosData = [],
   plano = 'starter',
   lojaId,
+  features = null,
 }) {
   const primary = theme?.primary || '#5E2BD0'
   const [aba, setAba] = useState('followups')
@@ -467,6 +468,7 @@ export default function CRM({
           theme={theme}
           produtosData={produtosData}
           plano={plano}
+          features={features}
         />
       )}
     </div>
