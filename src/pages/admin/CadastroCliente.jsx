@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { getPalette } from 'colorthief'
 import { supabase } from '../../lib/supabase'
 import {
   Building2, Upload, Check, ExternalLink, Plus,
-  AlertCircle, X, RefreshCw, Copy, Loader2,
+  AlertCircle, X, RefreshCw, Copy, Loader2, ChevronDown,
 } from 'lucide-react'
 import StoreCard from '../../components/junttos/StoreCard'
 import EmptyState from '../../components/junttos/EmptyState'
@@ -390,10 +390,149 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   )
 }
 
+// ── Constants ────────────────────────────────────────────────────
+const PLANOS_ORDER = ['starter', 'pro', 'business']
+const PLANO_LABELS = { starter: 'Starter', pro: 'Pro', business: 'Business' }
+
+// ── GruposConsultor ───────────────────────────────────────────────
+function GruposConsultor({ clientes, consultoresMap, redesMap, onDelete }) {
+  // agrupar por consultor_id (null → "Admin")
+  const grupos = useMemo(() => {
+    const map = new Map()
+    clientes.forEach(c => {
+      const key = c.cadastrado_por_consultor_id ?? '__admin__'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(c)
+    })
+
+    const entries = []
+    map.forEach((lojas, key) => {
+      const nome = key === '__admin__' ? 'Admin' : (consultoresMap[key] || 'Consultor desconhecido')
+      entries.push({ key, nome, lojas })
+    })
+
+    // Admin sempre primeiro, demais em ordem alfabética
+    entries.sort((a, b) => {
+      if (a.key === '__admin__') return -1
+      if (b.key === '__admin__') return 1
+      return a.nome.localeCompare(b.nome, 'pt-BR')
+    })
+
+    return entries
+  }, [clientes, consultoresMap])
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: T.muted, marginBottom: 20 }}>
+        {clientes.length} {clientes.length === 1 ? 'loja' : 'lojas'} · {grupos.length} {grupos.length === 1 ? 'consultor' : 'consultores'}
+      </p>
+      {grupos.map(({ key, nome, lojas }) => (
+        <ConsultorAccordion
+          key={key}
+          nomeConsultor={nome}
+          lojas={lojas}
+          redesMap={redesMap}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  )
+}
+
+// ── ConsultorAccordion ────────────────────────────────────────────
+function ConsultorAccordion({ nomeConsultor, lojas, redesMap, onDelete }) {
+  const [open, setOpen] = useState(true)
+
+  // subgrupar por plano: starter → pro → business → Outros
+  const grupos = useMemo(() => {
+    const buckets = { starter: [], pro: [], business: [], outros: [] }
+    lojas.forEach(c => {
+      const p = (c.plano || '').toLowerCase()
+      if (PLANOS_ORDER.includes(p)) buckets[p].push(c)
+      else buckets.outros.push(c)
+    })
+    return [
+      ...PLANOS_ORDER.filter(p => buckets[p].length > 0).map(p => ({ key: p, label: PLANO_LABELS[p], items: buckets[p] })),
+      ...(buckets.outros.length > 0 ? [{ key: 'outros', label: 'Outros', items: buckets.outros }] : []),
+    ]
+  }, [lojas])
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      {/* Accordion header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+          padding: '10px 0', marginBottom: open ? 14 : 0,
+          textAlign: 'left',
+        }}
+      >
+        <ChevronDown
+          size={16}
+          color={T.muted}
+          style={{ flexShrink: 0, transition: 'transform .2s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+        />
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em' }}>
+          {nomeConsultor}
+        </span>
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: T.muted,
+          background: T.mist, border: `1px solid ${T.line}`,
+          borderRadius: T.rPill, padding: '2px 8px', flexShrink: 0,
+        }}>
+          {lojas.length} {lojas.length === 1 ? 'loja' : 'lojas'}
+        </span>
+        <div style={{ flex: 1, height: 1, background: T.line }} />
+      </button>
+
+      {open && (
+        <div>
+          {grupos.map(({ key, label, items }) => (
+            <div key={key} style={{ marginBottom: 20 }}>
+              {/* Plano sub-header — só exibe se houver mais de um grupo */}
+              {grupos.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, color: T.muted2,
+                    textTransform: 'uppercase', letterSpacing: '0.12em', whiteSpace: 'nowrap',
+                  }}>{label}</span>
+                  <div style={{ flex: 1, height: 1, background: T.line }} />
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
+                {items.map(c => {
+                  const slug = c.slug || c.loja_id
+                  const link = `${window.location.origin}/${slug}/`
+                  return (
+                    <StoreCard
+                      key={c.id}
+                      nome={c.nome}
+                      slug={slug}
+                      status={c.status || 'ativo'}
+                      logoUrl={c.logo_url}
+                      primary={c.cor_primaria || T.purple}
+                      link={link}
+                      rede={c.rede_id ? redesMap[c.rede_id] : undefined}
+                      onDelete={() => onDelete({ nome: c.nome, slug })}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ────────────────────────────────────────────────────
 export default function CadastroCliente() {
   const [clientes, setClientes]           = useState([])
   const [redesMap, setRedesMap]           = useState({}) // rede_id → rede.nome
+  const [consultoresMap, setConsultoresMap] = useState({}) // id → nome
   const [fetching, setFetching]           = useState(true)
   const [fetchError, setFetchError]       = useState('')
   const [modalOpen, setModalOpen]         = useState(false)
@@ -401,15 +540,19 @@ export default function CadastroCliente() {
 
   const fetchClientes = useCallback(async () => {
     setFetching(true); setFetchError('')
-    const [cfgRes, redesRes] = await Promise.all([
+    const [cfgRes, redesRes, consultoresRes] = await Promise.all([
       supabase.from('lf_config').select('*').neq('status', 'excluida').order('nome'),
       supabase.from('jt_redes').select('id, nome'),
+      supabase.from('jt_consultants').select('id, nome'),
     ])
     if (cfgRes.error) { setFetchError(cfgRes.error.message); setFetching(false); return }
     setClientes(cfgRes.data || [])
-    const map = {}
-    ;(redesRes.data || []).forEach(r => { map[r.id] = r.nome })
-    setRedesMap(map)
+    const redesM = {}
+    ;(redesRes.data || []).forEach(r => { redesM[r.id] = r.nome })
+    setRedesMap(redesM)
+    const consM = {}
+    ;(consultoresRes.data || []).forEach(c => { consM[c.id] = c.nome })
+    setConsultoresMap(consM)
     setFetching(false)
   }, [])
 
@@ -470,30 +613,12 @@ export default function CadastroCliente() {
           />
         </div>
       ) : (
-        <>
-          <p style={{ fontSize: 13, color: T.muted, marginBottom: 16 }}>
-            {clientes.length} {clientes.length === 1 ? 'loja' : 'lojas'}
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-            {clientes.map(c => {
-              const slug = c.slug || c.loja_id
-              const link = `${window.location.origin}/${slug}/`
-              return (
-                <StoreCard
-                  key={c.id}
-                  nome={c.nome}
-                  slug={slug}
-                  status={c.status || 'ativo'}
-                  logoUrl={c.logo_url}
-                  primary={c.cor_primaria || T.purple}
-                  link={link}
-                  rede={c.rede_id ? redesMap[c.rede_id] : undefined}
-                  onDelete={() => setConfirmDelete({ nome: c.nome, slug })}
-                />
-              )
-            })}
-          </div>
-        </>
+        <GruposConsultor
+          clientes={clientes}
+          consultoresMap={consultoresMap}
+          redesMap={redesMap}
+          onDelete={setConfirmDelete}
+        />
       )}
 
       <NovoClienteModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={fetchClientes} />
