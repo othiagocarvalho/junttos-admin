@@ -1,6 +1,8 @@
 import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet } from 'lucide-react'
 import Logo from '../../components/junttos/Logo'
 import { parsePgtosRecibo } from '../../utils/recibo'
+import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
+import { agruparPorValidade } from '../../utils/validade'
 
 function fmtK(v) {
   if (v === 0) return 'R$ 0'
@@ -8,11 +10,9 @@ function fmtK(v) {
   return 'R$ ' + Math.round(v)
 }
 
-// Contadores ainda fixos (placeholders herdados da Fase 1 — não vêm do banco).
-// Ficam em constantes só para o badge e a linha de contexto do desktop não
-// saírem de sincronia quando forem ligados nos dados de verdade.
-const QTD_ESTOQUE_BAIXO = 6
-const QTD_VENCENDO      = 4
+// Os contadores dos blocos eram fixos (6 e 4, placeholders da Fase 1). Agora
+// que Estoque e Validade têm tela própria, vêm da mesma lógica que elas usam —
+// senão o Menu anunciaria um número e a tela mostraria outro.
 
 // Soma o valor de uma forma de pagamento específica dentro das vendas do dia.
 // O PDV grava forma_pgto como JSON [{forma, valor}] com Dinheiro/Pix/Cartão/Fiado
@@ -51,13 +51,21 @@ function Metrica({ label, valor, cor = '#18181B' }) {
   )
 }
 
-export default function Menu({ vendas = [], config = {}, setTab }) {
+export default function Menu({ vendas = [], produtosData = [], config = {}, setTab }) {
   const now = new Date()
   const todayStr = now.toDateString()
   const vendasHoje = vendas.filter(v => new Date(v.data).toDateString() === todayStr)
   const totalHoje = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
   const noCaixa   = somaPorForma(vendasHoje, 'Dinheiro')  // dinheiro físico do dia
   const fiadoHoje = somaPorForma(vendasHoje, 'Fiado')     // vendas sem baixa financeira
+  const medias = mediaDiariaPorNome(vendas)
+  const qtdEstoqueBaixo = (produtosData || [])
+    .filter(p => p?.ativo !== false)
+    .filter(p => nivelDoProduto(p, medias[p.nome] || 0).estado !== 'ok').length
+
+  const grupos = agruparPorValidade(produtosData)
+  const qtdVencendo = grupos.urgente.length + grupos.atencao.length
+
   const nomeLoja = config?.nome || 'Mercado'
   const dayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   const dayCapitalized = dayStr.charAt(0).toUpperCase() + dayStr.slice(1)
@@ -248,28 +256,28 @@ export default function Menu({ vendas = [], config = {}, setTab }) {
             position: 'relative', cursor: 'pointer',
           }}>
             <div style={{ position: 'absolute', top: 14, right: 14 }}>
-              <span style={{ background: '#FFF', color: '#1E63C8', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{QTD_ESTOQUE_BAIXO}</span>
+              <span style={{ background: '#FFF', color: '#1E63C8', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{qtdEstoqueBaixo}</span>
             </div>
             <IconBox><Package size={24} color="#FFF" strokeWidth={2.2} /></IconBox>
             <div>
               <p className="mkt-titulo" style={{ fontSize: 22, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>Estoque</p>
-              <Ctx>{QTD_ESTOQUE_BAIXO} produtos acabando</Ctx>
+              <Ctx>{qtdEstoqueBaixo} produtos acabando</Ctx>
             </div>
           </div>
 
           {/* Validade */}
-          <div className="mkt-bloco" style={{
+          <div className="mkt-bloco" onClick={() => setTab('validade')} style={{
             background: '#E07A0C', borderRadius: 24, padding: '20px 18px',
             display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            position: 'relative', cursor: 'default',
+            position: 'relative', cursor: 'pointer',
           }}>
             <div style={{ position: 'absolute', top: 14, right: 14 }}>
-              <span style={{ background: '#FFF', color: '#E07A0C', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{QTD_VENCENDO}</span>
+              <span style={{ background: '#FFF', color: '#E07A0C', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{qtdVencendo}</span>
             </div>
             <IconBox><CalendarClock size={24} color="#FFF" strokeWidth={2.2} /></IconBox>
             <div>
               <p className="mkt-titulo" style={{ fontSize: 22, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>Validade</p>
-              <Ctx>{QTD_VENCENDO} itens vencendo em breve</Ctx>
+              <Ctx>{qtdVencendo} itens vencendo em breve</Ctx>
             </div>
           </div>
 
