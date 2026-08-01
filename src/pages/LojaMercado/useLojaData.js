@@ -51,6 +51,38 @@ export function useLojaData(lojaId) {
   const addFiadoCompra    = args => addFiadoLancamento({ ...args, tipo: 'compra' })
   const addFiadoPagamento = args => addFiadoLancamento({ ...args, tipo: 'pagamento' })
 
+  // ── Saídas de caixa (merc_saidas) e contas a pagar ──────────
+  // Uma linha por saída. lf_caixas.despesas continua sendo o total agregado
+  // gravado no fechamento; as linhas individuais ficam como histórico.
+  const [saidas, setSaidas] = useState([])
+  const [contas, setContas] = useState([])
+
+  const fetchCaixaExtras = useCallback(async () => {
+    if (!lojaId) return
+    const [sd, ct] = await Promise.all([
+      supabase.from('merc_saidas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
+      supabase.from('lf_contas_pagar').select('*').eq('loja_id', lojaId).order('data_vencimento'),
+    ])
+    if (!sd.error) setSaidas(sd.data || [])
+    if (!ct.error) setContas(ct.data || [])
+  }, [lojaId])
+
+  useEffect(() => { fetchCaixaExtras() }, [fetchCaixaExtras])
+
+  async function addSaida({ valor, descricao = null, categoria = 'outro' }) {
+    const v = Number(valor)
+    if (!Number.isFinite(v) || v <= 0) return { error: { message: 'Informe um valor válido.' } }
+    const { error } = await supabase.from('merc_saidas').insert({
+      loja_id:   lojaId,
+      valor:     v,
+      descricao: descricao?.trim() || null,
+      categoria,
+      data:      hojeISO(),
+    })
+    if (!error) await fetchCaixaExtras()
+    return { error }
+  }
+
   // Override: inserts ean column + returns { error } instead of bare error
   async function addProduto(nome, extras = {}) {
     const { error } = await supabase.from('lf_produtos').insert({
@@ -145,6 +177,10 @@ export function useLojaData(lojaId) {
     buscarPorEan,
     fiado,
     fiadoLoading,
+    saidas,
+    contas,
+    addSaida,
+    fetchCaixaExtras,
     fetchFiado,
     addFiadoCompra,
     addFiadoPagamento,

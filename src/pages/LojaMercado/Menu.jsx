@@ -305,10 +305,10 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
           </div>
 
           {/* Caixa — 6ª célula, só no desktop (no mobile continua no rodapé) */}
-          <div className="mkt-bloco mkt-bloco-caixa" style={{
+          <div className="mkt-bloco mkt-bloco-caixa" onClick={() => setTab('caixa')} style={{
             background: '#3A3A44', borderRadius: 24, padding: '20px 18px',
             flexDirection: 'column', justifyContent: 'space-between',
-            cursor: 'default',
+            cursor: 'pointer',
           }}>
             <IconBox><Wallet size={24} color="#FFF" strokeWidth={2.2} /></IconBox>
             <div>
@@ -320,9 +320,9 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
 
         {/* Rodapé — mobile: Caixa + Ajuda · desktop: só Ajuda */}
         <div className="mkt-rodape" style={{ padding: '0 22px 28px', display: 'flex', gap: 12, flexShrink: 0 }}>
-          <button className="mkt-rodape-caixa" style={{
+          <button className="mkt-rodape-caixa" onClick={() => setTab('caixa')} style={{
             flex: 1, height: 62, borderRadius: 18, border: 'none', minHeight: 56,
-            background: '#3A3A44', color: '#FFFFFF', cursor: 'default',
+            background: '#3A3A44', color: '#FFFFFF', cursor: 'pointer',
             fontSize: 18, fontWeight: 800,
           }}>Caixa</button>
           <button style={{
