@@ -104,7 +104,7 @@ function Lista({ contas, totais, onAbrir, onNovo, setTab }) {
           </div>
           <div>
             <p className="fia-met-label" style={{ fontSize: 15, color: '#FFFFFF', opacity: .9, margin: 0 }}>Atrasado</p>
-            <p className="fia-met-valor" style={{ fontSize: 32, fontWeight: 800, color: '#FFC9BC', margin: '2px 0 0' }}>
+            <p className="fia-met-valor fia-met-atrasado" style={{ fontSize: 32, fontWeight: 800, color: '#FFC9BC', margin: '2px 0 0' }}>
               {fmtR(totais.atrasado)}
             </p>
           </div>
@@ -579,6 +579,10 @@ export default function Fiado({ fiado = [], clientes = [], config = {}, setTab, 
           .fia-titulo     { font-size: 34px !important; color: #18181B !important; }
           .fia-met-label  { color: #71717A !important; opacity: 1 !important; }
           .fia-met-valor  { color: #18181B !important; }
+          /* #FFC9BC só funciona sobre o roxo do mobile; no fundo claro do
+             desktop sumiria. O vermelho mantém a distinção do valor atrasado,
+             que é justamente um dos elementos-chave que devem ter cor. */
+          .fia-met-atrasado { color: #C4321F !important; }
           .fia-metricas {
             gap: 26px !important;
             background: #F4F4F7;
