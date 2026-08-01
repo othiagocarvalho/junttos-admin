@@ -9,19 +9,10 @@ export const COR_VALIDADE = {
   atencao: '#E07A0C',
 }
 
-/**
- * Converte o valor do banco em Date local sem sofrer shift de fuso.
- * Um timestamptz gravado à meia-noite UTC viraria o dia anterior se passasse
- * por `new Date(...)` direto, então a parte da data é lida como texto.
- */
-export function paraDataLocal(valor) {
-  if (!valor) return null
-  if (valor instanceof Date) return Number.isNaN(valor.getTime()) ? null : valor
-  const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  const d = new Date(valor)
-  return Number.isNaN(d.getTime()) ? null : d
-}
+// Compartilhado com a tela de Fiado — a regra de não deixar o fuso mudar o dia
+// vale para as duas. Reexportado para não quebrar quem já importava daqui.
+export { paraDataLocal } from './datas'
+import { paraDataLocal } from './datas'
 
 /** Dias corridos até vencer: 0 = hoje, negativo = já vencido, null = sem data. */
 export function diasAteVencimento(dataVenc, hoje = new Date()) {

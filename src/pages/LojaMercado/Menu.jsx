@@ -3,6 +3,7 @@ import Logo from '../../components/junttos/Logo'
 import { parsePgtosRecibo } from '../../utils/recibo'
 import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
 import { agruparPorValidade } from '../../utils/validade'
+import { agruparPorCliente, totaisFiado } from '../../utils/fiado'
 
 function fmtK(v) {
   if (v === 0) return 'R$ 0'
@@ -51,7 +52,7 @@ function Metrica({ label, valor, cor = '#18181B' }) {
   )
 }
 
-export default function Menu({ vendas = [], produtosData = [], config = {}, setTab }) {
+export default function Menu({ vendas = [], produtosData = [], fiado = [], config = {}, setTab }) {
   const now = new Date()
   const todayStr = now.toDateString()
   const vendasHoje = vendas.filter(v => new Date(v.data).toDateString() === todayStr)
@@ -65,6 +66,10 @@ export default function Menu({ vendas = [], produtosData = [], config = {}, setT
 
   const grupos = agruparPorValidade(produtosData)
   const qtdVencendo = grupos.urgente.length + grupos.atencao.length
+
+  const contasFiado = agruparPorCliente(fiado)
+  const qtdDevendo  = contasFiado.filter(c => c.devendo).length
+  const totalFiado  = totaisFiado(contasFiado).aReceber
 
   const nomeLoja = config?.nome || 'Mercado'
   const dayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -282,15 +287,20 @@ export default function Menu({ vendas = [], produtosData = [], config = {}, setT
           </div>
 
           {/* Fiado */}
-          <div className="mkt-bloco" style={{
+          <div className="mkt-bloco" onClick={() => setTab('fiado')} style={{
             background: '#5E2BD0', borderRadius: 24, padding: '20px 18px',
             display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            cursor: 'default',
+            position: 'relative', cursor: 'pointer',
           }}>
+            {qtdDevendo > 0 && (
+              <div style={{ position: 'absolute', top: 14, right: 14 }}>
+                <span style={{ background: '#FFF', color: '#5E2BD0', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{qtdDevendo}</span>
+              </div>
+            )}
             <IconBox><Receipt size={24} color="#FFF" strokeWidth={2.2} /></IconBox>
             <div>
               <p className="mkt-titulo" style={{ fontSize: 22, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>Fiado</p>
-              <Ctx>Controle de vendas a prazo</Ctx>
+              <Ctx>{fmtK(totalFiado)} a receber</Ctx>
             </div>
           </div>
 
