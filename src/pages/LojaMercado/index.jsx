@@ -6,6 +6,7 @@ import CadastrarProduto from './CadastrarProduto'
 import Estoque from './Estoque'
 import Validade from './Validade'
 import Fiado from './Fiado'
+import ImportarProdutos from './ImportarProdutos'
 import NovaVenda from './NovaVenda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 
@@ -35,6 +36,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
     validade:  <Validade produtosData={data.produtosData} setTab={setTab} />,
     fiado:     <Fiado fiado={data.fiado} clientes={data.clientes} config={data.config} setTab={setTab} addFiadoCompra={data.addFiadoCompra} addFiadoPagamento={data.addFiadoPagamento} />,
+    importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
     mais:      <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
   }
 

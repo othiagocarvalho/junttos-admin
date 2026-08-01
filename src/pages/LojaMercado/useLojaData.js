@@ -69,6 +69,63 @@ export function useLojaData(lojaId) {
     return { error }
   }
 
+  /**
+   * Importação em lote do Mercado.
+   *
+   * Override do importarProdutos do hook base, que não mapeia `ean` nem
+   * `data_vencimento` — os dois campos que a planilha do Mercado traz. Feito
+   * aqui em vez de alterar o hook da Moda, pelo mesmo motivo do addProduto.
+   *
+   * Difere do base também no retorno: em vez de um erro único, devolve
+   * { inseridos, erros[] } para a tela poder dizer o que falhou em cada linha.
+   * Linhas com problema são puladas — o resto é importado do mesmo jeito.
+   */
+  async function importarProdutos(lista) {
+    const comEan = (lista || []).map(p => p.ean).filter(Boolean)
+
+    // EANs que já existem na loja: importar de novo criaria produto duplicado
+    let jaCadastrados = new Set()
+    if (comEan.length) {
+      const { data } = await supabase
+        .from('lf_produtos').select('ean').eq('loja_id', lojaId).in('ean', comEan)
+      jaCadastrados = new Set((data || []).map(r => r.ean))
+    }
+
+    const vistos  = new Set()
+    const validos = []
+    const erros   = []
+
+    for (const p of (lista || [])) {
+      const ref = { linha: p.linha, nome: p.nome }
+      if (!p.nome)                              { erros.push({ ...ref, motivo: 'sem nome' }); continue }
+      if (p.ean && vistos.has(p.ean))           { erros.push({ ...ref, motivo: 'EAN repetido na planilha' }); continue }
+      if (p.ean && jaCadastrados.has(p.ean))    { erros.push({ ...ref, motivo: 'EAN já cadastrado na loja' }); continue }
+      if (p.ean) vistos.add(p.ean)
+
+      validos.push({
+        loja_id:         lojaId,
+        nome:            p.nome,
+        ean:             p.ean || null,
+        preco_custo:     0,
+        preco_venda:     p.precoVenda || 0,
+        quantidade:      0,
+        variacoes:       p.variacoes || [],
+        // Único lugar onde a validade é gravada — é daqui que a tela de
+        // Validade (T7) lê. Não é duplicada dentro de variacoes.
+        data_vencimento: p.validade || null,
+        ativo:           true,
+        disponivel_catalogo_b2b: false,
+      })
+    }
+
+    if (validos.length) {
+      const { error } = await supabase.from('lf_produtos').insert(validos)
+      if (error) return { inseridos: 0, erros, error }
+      await base.fetchAll()
+    }
+    return { inseridos: validos.length, erros, error: null }
+  }
+
   async function buscarPorEan(ean) {
     if (!ean?.trim() || !lojaId) return null
     const { data } = await supabase
@@ -84,6 +141,7 @@ export function useLojaData(lojaId) {
   return {
     ...base,
     addProduto,
+    importarProdutos,
     buscarPorEan,
     fiado,
     fiadoLoading,

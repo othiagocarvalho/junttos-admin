@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, Search, PackageSearch } from 'lucide-react'
+import { ChevronLeft, Search, PackageSearch, FileSpreadsheet } from 'lucide-react'
 import { mediaDiariaPorNome, nivelDoProduto, COR_NIVEL } from '../../utils/estoque'
 
 const AZUL = '#1E63C8'
@@ -108,6 +108,12 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
           .est-busca input        { color: #18181B !important; }
           .est-busca input::placeholder { color: #8A8A93 !important; opacity: 1 !important; }
           .est-busca svg          { stroke: #8A8A93 !important; }
+          .est-importar {
+            border: 1.5px solid #E4E4E8 !important;
+            background: #F4F4F7 !important;
+            color: #3F3F46 !important;
+          }
+          .est-importar svg { stroke: #3F3F46 !important; }
 
           /* Alerta deixa de ser barra cheia e vira cartão contido */
           .est-alerta {
@@ -171,6 +177,23 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
               }}
             />
           </div>
+
+          {/* Ação secundária: importar em lote. Fica aqui, e não no rodapé,
+              porque o rodapé é definido pela spec T6 (Contar estoque / Lista
+              de compras) e não deve ganhar um terceiro botão. */}
+          <button
+            className="est-importar"
+            onClick={() => setTab('importar')}
+            style={{
+              marginTop: 12, height: 44, borderRadius: 12, cursor: 'pointer',
+              border: '1.5px solid rgba(255,255,255,.35)', background: 'rgba(255,255,255,.12)',
+              color: '#FFFFFF', fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 16px',
+            }}
+          >
+            <FileSpreadsheet size={17} strokeWidth={2.3} />
+            Importar planilha
+          </button>
         </div>
 
         {/* Barra de alerta — só quando há algo acabando */}
