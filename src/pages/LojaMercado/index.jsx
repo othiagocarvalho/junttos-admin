@@ -3,6 +3,7 @@ import { useLojaData } from './useLojaData'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
 import Menu from './Menu'
 import CadastrarProduto from './CadastrarProduto'
+import Estoque from './Estoque'
 import NovaVenda from './NovaVenda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 
@@ -26,10 +27,11 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
   }
 
   const panels = {
-    inicio:  <Menu vendas={data.vendas} config={data.config} setTab={setTab} />,
-    venda:   <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} fetchAll={data.fetchAll} config={data.config} setTab={setTab} />,
-    estoque: <CadastrarProduto addProduto={data.addProduto} setTab={setTab} />,
-    mais:    <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
+    inicio:    <Menu vendas={data.vendas} config={data.config} setTab={setTab} />,
+    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} fetchAll={data.fetchAll} config={data.config} setTab={setTab} />,
+    cadastrar: <CadastrarProduto addProduto={data.addProduto} setTab={setTab} />,
+    estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
+    mais:      <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
   }
 
   return (

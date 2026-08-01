@@ -220,7 +220,7 @@ export default function Menu({ vendas = [], config = {}, setTab }) {
           {/* Cadastrar produto */}
           <div
             className="mkt-bloco"
-            onClick={() => setTab('estoque')}
+            onClick={() => setTab('cadastrar')}
             style={{
               background: '#0E7C86', borderRadius: 24, padding: '20px 18px',
               cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
@@ -242,10 +242,10 @@ export default function Menu({ vendas = [], config = {}, setTab }) {
           </div>
 
           {/* Estoque */}
-          <div className="mkt-bloco" style={{
+          <div className="mkt-bloco" onClick={() => setTab('estoque')} style={{
             background: '#1E63C8', borderRadius: 24, padding: '20px 18px',
             display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            position: 'relative', cursor: 'default',
+            position: 'relative', cursor: 'pointer',
           }}>
             <div style={{ position: 'absolute', top: 14, right: 14 }}>
               <span style={{ background: '#FFF', color: '#1E63C8', fontSize: 15, fontWeight: 800, padding: '3px 12px', borderRadius: 999 }}>{QTD_ESTOQUE_BAIXO}</span>
