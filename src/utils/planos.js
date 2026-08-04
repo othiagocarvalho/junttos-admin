@@ -30,4 +30,5 @@ export const ACESSO = {
   catalogo:     'business',
   financeiro:   'business',
   notificacoes: 'business',
+  rede:         'business',
 }

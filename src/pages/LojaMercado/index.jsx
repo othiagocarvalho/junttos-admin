@@ -11,6 +11,7 @@ import Caixa from './Caixa'
 import NovaVenda from './NovaVenda'
 import Ajuda from './Ajuda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import UpgradeWall from '../../components/UpgradeWall'
 
 export default function LojaMercado({ lojaId = 'mercadodemo' }) {
   const data = useLojaData(lojaId)
@@ -41,6 +42,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
     caixa:     <Caixa vendas={data.vendas} saidas={data.saidas} caixas={data.caixas} contas={data.contas} config={data.config} setTab={setTab} addSaida={data.addSaida} fecharCaixa={data.fecharCaixa} />,
     ajuda:     <Ajuda setTab={setTab} />,
+    rede:      <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="rede" theme={{ primary: '#18181B' }} onVoltar={() => setTab('inicio')} />,
     mais:      <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
   }
 

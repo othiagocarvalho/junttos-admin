@@ -13,6 +13,7 @@ const DESCRICOES = {
   crediario:         'Venda fiado com controle de parcelas. Acompanhe quem deve, quanto e quando vence.',
   corrida:           'Crie competições motivacionais entre vendedores com ranking ao vivo, pódio visual e prêmios.',
   crm_avancado:      'Segmente clientes por VIP, inativos e aniversariantes. Tags de preferência, histórico completo e WhatsApp direto do card.',
+  rede:              'Acompanhe o faturamento de todas as suas lojas juntas, compare o desempenho entre elas e use ferramentas de rede: catálogo compartilhado, ranking de produtos mais vendidos e balança conectada.',
 }
 
 const NOMES = {
@@ -27,6 +28,7 @@ const NOMES = {
   crediario:         'Crediário',
   corrida:           'Corrida de Vendas',
   crm_avancado:      'CRM Avançado',
+  rede:              'Rede de Lojas',
 }
 
 const BADGE_COLORS = {

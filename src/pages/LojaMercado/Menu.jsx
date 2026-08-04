@@ -1,9 +1,10 @@
-import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet } from 'lucide-react'
+import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet, Store, Lock } from 'lucide-react'
 import Logo from '../../components/junttos/Logo'
 import { parsePgtosRecibo } from '../../utils/recibo'
 import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
 import { agruparPorValidade } from '../../utils/validade'
 import { agruparPorCliente, totaisFiado } from '../../utils/fiado'
+import { temAcesso } from '../../utils/planos'
 
 function fmtK(v) {
   if (v === 0) return 'R$ 0'
@@ -70,6 +71,8 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
   const contasFiado = agruparPorCliente(fiado)
   const qtdDevendo  = contasFiado.filter(c => c.devendo).length
   const totalFiado  = totaisFiado(contasFiado).aReceber
+
+  const podeRede = temAcesso(config?.plano, 'business')
 
   const nomeLoja = config?.nome || 'Mercado'
   const dayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -330,6 +333,19 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
             background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',
             fontSize: 18, fontWeight: 800,
           }}>Ajuda</button>
+          {/* Rede é exclusiva do plano Business — sempre visível, nunca escondida
+              (seção 7 do documento). O toque leva pro UpgradeWall; o cadeado aqui
+              é só a pista visual de que é uma funcionalidade travada. */}
+          <button onClick={() => setTab('rede')} style={{
+            width: 120, height: 62, borderRadius: 18, border: 'none', minHeight: 56,
+            background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',
+            fontSize: 18, fontWeight: 800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            <Store size={18} strokeWidth={2.2} />
+            Rede
+            {!podeRede && <Lock size={13} strokeWidth={2.5} style={{ marginLeft: -2 }} />}
+          </button>
         </div>
       </div>
     </div>
