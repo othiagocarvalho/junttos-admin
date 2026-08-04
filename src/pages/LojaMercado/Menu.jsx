@@ -325,9 +325,9 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
             background: '#3A3A44', color: '#FFFFFF', cursor: 'pointer',
             fontSize: 18, fontWeight: 800,
           }}>Caixa</button>
-          <button style={{
+          <button onClick={() => setTab('ajuda')} style={{
             width: 120, height: 62, borderRadius: 18, border: 'none', minHeight: 56,
-            background: '#F4F4F7', color: '#3F3F46', cursor: 'default',
+            background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',
             fontSize: 18, fontWeight: 800,
           }}>Ajuda</button>
         </div>

@@ -9,6 +9,7 @@ import Fiado from './Fiado'
 import ImportarProdutos from './ImportarProdutos'
 import Caixa from './Caixa'
 import NovaVenda from './NovaVenda'
+import Ajuda from './Ajuda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 
 export default function LojaMercado({ lojaId = 'mercadodemo' }) {
@@ -39,6 +40,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     fiado:     <Fiado fiado={data.fiado} clientes={data.clientes} config={data.config} setTab={setTab} addFiadoCompra={data.addFiadoCompra} addFiadoPagamento={data.addFiadoPagamento} />,
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
     caixa:     <Caixa vendas={data.vendas} saidas={data.saidas} caixas={data.caixas} contas={data.contas} config={data.config} setTab={setTab} addSaida={data.addSaida} fecharCaixa={data.fecharCaixa} />,
+    ajuda:     <Ajuda setTab={setTab} />,
     mais:      <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
   }
 
