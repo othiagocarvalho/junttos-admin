@@ -32,8 +32,8 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
 
   const panels = {
     inicio:    <Menu vendas={data.vendas} produtosData={data.produtosData} fiado={data.fiado} config={data.config} setTab={setTab} />,
-    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} fetchAll={data.fetchAll} config={data.config} setTab={setTab} />,
-    cadastrar: <CadastrarProduto addProduto={data.addProduto} setTab={setTab} />,
+    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} precosFaixas={data.precosFaixas} fetchAll={data.fetchAll} config={data.config} setTab={setTab} />,
+    cadastrar: <CadastrarProduto addProduto={data.addProduto} addPrecosFaixas={data.addPrecosFaixas} setTab={setTab} />,
     estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
     validade:  <Validade produtosData={data.produtosData} setTab={setTab} />,
     fiado:     <Fiado fiado={data.fiado} clientes={data.clientes} config={data.config} setTab={setTab} addFiadoCompra={data.addFiadoCompra} addFiadoPagamento={data.addFiadoPagamento} />,

@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
+import { precoEfetivo } from '../../utils/precosFaixas'
 
 const GREEN = '#17864F'
 const DARK  = '#0C3A24'
 
 function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+
+function TagAtacado() {
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 800, color: GREEN, background: '#E8F5EE',
+      borderRadius: 999, padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
+    }}>atacado</span>
+  )
+}
 
 function StepPills({ step }) {
   const labels = ['Produtos', 'Pagamento', 'Recibo']
@@ -27,7 +37,7 @@ function StepPills({ step }) {
 
 const PGTO_ICONS = { Dinheiro: DollarSign, Pix: Smartphone, Cartão: CreditCard, Fiado: Receipt }
 
-export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, vendas = [], fetchAll, config = {}, setTab }) {
+export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, vendas = [], precosFaixas = [], fetchAll, config = {}, setTab }) {
   const [cart, setCart]           = useState([])
   const [step, setStep]           = useState(0)    // 0=bipar 1=pagamento 2=recibo
   const [pgto, setPgto]           = useState('Dinheiro')
@@ -47,7 +57,9 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
   const lastDetectedRef  = useRef(0)
   const handleEanRef     = useRef()
 
-  const total  = cart.reduce((s, i) => s + i.preco_venda * i.quantidade, 0)
+  // Preço de cada item já considerando a faixa de atacado aplicável (se houver).
+  const cartPrecificado = cart.map(i => ({ ...i, ...precoEfetivo(i, precosFaixas) }))
+  const total  = cartPrecificado.reduce((s, i) => s + i.preco * i.quantidade, 0)
   const bill1  = Math.max(Math.ceil(total / 10) * 10, 10)
   const BILLS  = [10, 20, 50, 100, 200]
   const bill2  = BILLS.find(c => c > bill1) || 200
@@ -145,7 +157,7 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
     setBusca(''); setResultados([]); setErr(''); setEanNotFound(''); setPermErr(false)
   }
 
-  const recentItems = [...cart].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 2)
+  const recentItems = [...cartPrecificado].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 2)
 
   // ── T4 RECIBO ──────────────────────────────────────────────────────────────
   if (step === 2) {
@@ -158,7 +170,9 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
         `*Recibo · ${nomeLoja}*`,
         `Data: ${dataStr}`,
         `_______________________`,
-        ...cart.map(i => `${i.nome}   ${i.quantidade}×  ${fmtR(i.preco_venda)}`),
+        ...cartPrecificado.map(i => i.comDesconto
+          ? `${i.nome}   ${i.quantidade}×  ~${fmtR(i.preco_venda)}~ ${fmtR(i.preco)} (atacado)`
+          : `${i.nome}   ${i.quantidade}×  ${fmtR(i.preco)}`),
         `_______________________`,
         `Total:  *${fmtR(total)}*`,
         troco > 0 ? `Troco: ${fmtR(troco)}` : '',
@@ -198,14 +212,24 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
               {nomeLoja} · {dataStr}
             </p>
             <div style={{ height: 1, background: '#E4E4E7', marginBottom: 14 }} />
-            {cart.map(item => (
+            {cartPrecificado.map(item => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: '#18181B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</p>
-                  <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>{item.quantidade}×  {fmtR(item.preco_venda)}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#18181B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</p>
+                    {item.comDesconto && <TagAtacado />}
+                  </div>
+                  {item.comDesconto ? (
+                    <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>
+                      {item.quantidade}× <span style={{ textDecoration: 'line-through' }}>{fmtR(item.preco_venda)}</span>{' '}
+                      <span style={{ color: GREEN, fontWeight: 700 }}>{fmtR(item.preco)}</span>
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>{item.quantidade}×  {fmtR(item.preco)}</p>
+                  )}
                 </div>
                 <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 15, fontWeight: 700, color: '#18181B', flexShrink: 0, marginLeft: 12, margin: 0 }}>
-                  {fmtR(item.preco_venda * item.quantidade)}
+                  {fmtR(item.preco * item.quantidade)}
                 </p>
               </div>
             ))}
@@ -506,13 +530,23 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
                   <Check size={18} color="#FFF" strokeWidth={2.5} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 16, fontWeight: 800, color: '#18181B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</p>
-                  <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>
-                    {item.quantidade} unidade{item.quantidade !== 1 ? 's' : ''} · {i === 0 ? 'acabou de entrar' : 'na conta'}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <p style={{ fontSize: 16, fontWeight: 800, color: '#18181B', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nome}</p>
+                    {item.comDesconto && <TagAtacado />}
+                  </div>
+                  {item.comDesconto ? (
+                    <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>
+                      {item.quantidade}× <span style={{ textDecoration: 'line-through' }}>{fmtR(item.preco_venda)}</span>{' '}
+                      <span style={{ color: GREEN, fontWeight: 700 }}>{fmtR(item.preco)}</span>
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>
+                      {item.quantidade} unidade{item.quantidade !== 1 ? 's' : ''} · {i === 0 ? 'acabou de entrar' : 'na conta'}
+                    </p>
+                  )}
                 </div>
                 <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: '#18181B', margin: 0, flexShrink: 0 }}>
-                  {fmtR(item.preco_venda * item.quantidade)}
+                  {fmtR(item.preco * item.quantidade)}
                 </p>
               </div>
             ))}

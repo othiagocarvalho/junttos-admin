@@ -42,13 +42,20 @@ function ModuleHeader({ onBack, backLabel, step }) {
   )
 }
 
-export default function CadastrarProduto({ addProduto, setTab }) {
+const FAIXAS_VAZIAS = [{ qtd_minima: '6', preco_faixa: '' }, { qtd_minima: '12', preco_faixa: '' }]
+
+export default function CadastrarProduto({ addProduto, addPrecosFaixas, setTab }) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
   const [scanner, setScanner] = useState(false)
   const [atacarejo, setAtacarejo] = useState(false)
+  const [faixas, setFaixas] = useState(FAIXAS_VAZIAS)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+
+  function setFaixa(i, field, val) {
+    setFaixas(prev => prev.map((f, n) => n === i ? { ...f, [field]: val } : f))
+  }
 
   function setF(field, val) { setForm(prev => ({ ...prev, [field]: val })) }
 
@@ -63,21 +70,53 @@ export default function CadastrarProduto({ addProduto, setTab }) {
     const preco = parseFloat(String(form.preco_venda).replace(',', '.')) || 0
     if (preco <= 0) { setErr('Informe um preço de venda válido.'); return }
     if (form.quantidade <= 0) { setErr('Informe a quantidade inicial.'); return }
+
+    let faixasValidas = []
+    if (atacarejo) {
+      faixasValidas = faixas.map(f => ({
+        qtd_minima:  parseInt(f.qtd_minima, 10) || 0,
+        preco_faixa: parseFloat(String(f.preco_faixa).replace(',', '.')) || 0,
+      }))
+      if (faixasValidas.some(f => f.qtd_minima <= 0 || f.preco_faixa <= 0)) {
+        setErr('Preencha a quantidade e o preço das duas faixas de atacado.')
+        return
+      }
+      if (faixasValidas[1].qtd_minima <= faixasValidas[0].qtd_minima) {
+        setErr('A segunda faixa precisa de uma quantidade maior que a primeira.')
+        return
+      }
+    }
+
     setErr('')
     setSaving(true)
-    const { error } = await addProduto(form.nome.trim(), {
+    const { error, produto } = await addProduto(form.nome.trim(), {
       ean: form.ean.trim() || null,
       preco_venda: preco,
       variacoes: [{ cor: 'Único', quantidade: form.quantidade }],
     })
+    if (error) {
+      setSaving(false)
+      setErr('Erro ao salvar: ' + (error.message || JSON.stringify(error)))
+      return
+    }
+
+    if (atacarejo && produto?.id) {
+      const { error: errFaixas } = await addPrecosFaixas(produto.id, faixasValidas)
+      if (errFaixas) {
+        setSaving(false)
+        setErr('Produto salvo, mas as faixas de atacado falharam: ' + (errFaixas.message || JSON.stringify(errFaixas)))
+        return
+      }
+    }
+
     setSaving(false)
-    if (error) { setErr('Erro ao salvar: ' + (error.message || JSON.stringify(error))); return }
     setStep(2)
   }
 
   function reset() {
     setForm(EMPTY)
     setAtacarejo(false)
+    setFaixas(FAIXAS_VAZIAS)
     setErr('')
     setStep(0)
   }
@@ -225,30 +264,66 @@ export default function CadastrarProduto({ addProduto, setTab }) {
 
           {/* Atacarejo toggle */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: '#F4F4F7', borderRadius: 16, padding: '16px 18px', marginBottom: 24,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14,
+            background: '#F4F4F7', borderRadius: 16, padding: '16px 18px', marginBottom: atacarejo ? 14 : 24,
           }}>
-            <div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#18181B', margin: 0 }}>Venda por atacado</p>
-              <p style={{ fontSize: 13, color: '#71717A', margin: 0 }}>Disponível para compras em quantidade</p>
-            </div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#18181B', margin: 0 }}>
+              Quero preço mais barato pra quem leva mais (atacarejo)
+            </p>
             <button
               onClick={() => setAtacarejo(a => !a)}
               style={{
-                width: 50, height: 28, borderRadius: 999, border: 'none',
-                background: atacarejo ? TEAL : '#D4D4D8',
+                width: 56, height: 32, borderRadius: 999, border: 'none',
+                background: atacarejo ? TEAL : '#D4D4DA',
                 cursor: 'pointer', position: 'relative', flexShrink: 0,
                 transition: 'background 200ms',
               }}
             >
               <span style={{
                 position: 'absolute', top: 4,
-                left: atacarejo ? 26 : 4,
-                width: 20, height: 20, borderRadius: '50%', background: '#FFF',
+                left: atacarejo ? 28 : 4,
+                width: 24, height: 24, borderRadius: '50%', background: '#FFF',
                 display: 'block', transition: 'left 200ms',
               }} />
             </button>
           </div>
+
+          {/* Faixas de preço por quantidade */}
+          {atacarejo && (
+            <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+              {faixas.map((f, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 0, background: '#F6F4F0', borderRadius: 14, padding: '14px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#71717A' }}>A partir de</span>
+                    <input
+                      value={f.qtd_minima}
+                      onChange={e => setFaixa(i, 'qtd_minima', e.target.value.replace(/\D/g, ''))}
+                      inputMode="numeric"
+                      style={{
+                        width: 34, border: 'none', borderBottom: '2px solid #D9D5CB', background: 'transparent',
+                        fontSize: 15, fontWeight: 800, color: '#18181B', outline: 'none', textAlign: 'center', padding: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#71717A' }}>un.</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#52525B' }}>R$</span>
+                    <input
+                      value={f.preco_faixa}
+                      onChange={e => setFaixa(i, 'preco_faixa', e.target.value)}
+                      placeholder="0,00"
+                      inputMode="decimal"
+                      style={{
+                        width: '100%', minWidth: 0, border: 'none', background: 'transparent',
+                        fontSize: 20, fontWeight: 800, color: '#18181B', outline: 'none', padding: 0,
+                        fontFamily: "'Space Mono', monospace",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {err && (
             <div style={{

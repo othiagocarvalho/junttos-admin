@@ -69,6 +69,34 @@ export function useLojaData(lojaId) {
 
   useEffect(() => { fetchCaixaExtras() }, [fetchCaixaExtras])
 
+  // ── Preços por faixa (merc_precos_faixas) — atacarejo ───────
+  const [precosFaixas, setPrecosFaixas] = useState([])
+
+  const fetchPrecosFaixas = useCallback(async () => {
+    if (!lojaId) return
+    const { data, error } = await supabase
+      .from('merc_precos_faixas').select('*').eq('loja_id', lojaId)
+    if (!error) setPrecosFaixas(data || [])
+  }, [lojaId])
+
+  useEffect(() => { fetchPrecosFaixas() }, [fetchPrecosFaixas])
+
+  /** Grava as faixas de um produto recém-cadastrado. */
+  async function addPrecosFaixas(produtoId, faixas) {
+    const linhas = (faixas || [])
+      .filter(f => Number(f.qtd_minima) > 0 && Number(f.preco_faixa) > 0)
+      .map(f => ({
+        loja_id:     lojaId,
+        produto_id:  produtoId,
+        qtd_minima:  Number(f.qtd_minima),
+        preco_faixa: Number(f.preco_faixa),
+      }))
+    if (!linhas.length) return { error: null }
+    const { error } = await supabase.from('merc_precos_faixas').insert(linhas)
+    if (!error) await fetchPrecosFaixas()
+    return { error }
+  }
+
   async function addSaida({ valor, descricao = null, categoria = 'outro' }) {
     const v = Number(valor)
     if (!Number.isFinite(v) || v <= 0) return { error: { message: 'Informe um valor válido.' } }
@@ -83,9 +111,9 @@ export function useLojaData(lojaId) {
     return { error }
   }
 
-  // Override: inserts ean column + returns { error } instead of bare error
+  // Override: inserts ean column + returns { error, produto } instead of bare error
   async function addProduto(nome, extras = {}) {
-    const { error } = await supabase.from('lf_produtos').insert({
+    const { data, error } = await supabase.from('lf_produtos').insert({
       loja_id:        lojaId,
       nome,
       ean:            extras.ean            || null,
@@ -96,9 +124,9 @@ export function useLojaData(lojaId) {
       referencia:     extras.referencia     || null,
       fotos:          extras.fotos          || [],
       disponivel_catalogo_b2b: extras.disponivel_catalogo_b2b ?? false,
-    })
+    }).select().single()
     if (!error) await base.fetchAll()
-    return { error }
+    return { error, produto: data || null }
   }
 
   /**
@@ -184,5 +212,8 @@ export function useLojaData(lojaId) {
     fetchFiado,
     addFiadoCompra,
     addFiadoPagamento,
+    precosFaixas,
+    addPrecosFaixas,
+    fetchPrecosFaixas,
   }
 }
