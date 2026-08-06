@@ -40,6 +40,7 @@ async function uploadLogo(slug, file) {
 
 const EMPTY_FORM = {
   nome: '', slug: '',
+  segmento: 'moda',
   cor_primaria: T.purple,
   cor_secundaria: T.coral,
   logoFile: null,
@@ -146,6 +147,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
       slug:           form.slug,
       status:         form.status,
       plano:          form.plano,
+      segmento:       form.segmento,
       cor_primaria:   form.cor_primaria,
       cor_secundaria: form.cor_secundaria,
       features:       form.features,
@@ -207,6 +209,32 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                 {isValidSlug(form.slug) ? `${window.location.origin}/${form.slug}/` : 'Slug inválido — use letras, números e hífens'}
               </p>
             )}
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Segmento</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[{ key: 'moda', label: 'Moda' }, { key: 'mercado', label: 'Mercado' }].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, segmento: key }))}
+                  style={{
+                    flex: 1, height: 44, borderRadius: T.rInput, cursor: 'pointer',
+                    border: `1.5px solid ${form.segmento === key ? T.purple : T.line}`,
+                    background: form.segmento === key ? T.tintPurple : T.mist,
+                    color: form.segmento === key ? T.purpleText : T.muted,
+                    fontFamily: T.ui, fontSize: 13, fontWeight: 700,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: T.muted, marginTop: 6 }}>
+              Define qual painel a loja usa: Moda (moda feminina) ou Mercado (mercearia/atacarejo).
+            </p>
           </div>
 
           {/* ── Logo ── */}

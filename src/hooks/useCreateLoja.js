@@ -32,6 +32,7 @@ const DEFAULT_FEATURES = {
 export function buildLojaPayload({
   nome, slug,
   status = 'Trial', plano = 'starter',
+  segmento = 'moda',
   cor_primaria, cor_secundaria,
   features = {},
   logoUrl = null,
@@ -43,6 +44,7 @@ export function buildLojaPayload({
     nome,
     status,
     plano,
+    segmento,
     cor_primaria,
     cor_secundaria,
     features:       {
@@ -76,6 +78,7 @@ export function useCreateLoja() {
   async function save({
     nome, slug,
     status = 'Trial', plano = 'starter',
+    segmento = 'moda',
     cor_primaria, cor_secundaria,
     features = {},
     logoUrl = null,
@@ -104,7 +107,7 @@ export function useCreateLoja() {
 
       const { error: cfgErr } = await supabase
         .from('lf_config')
-        .insert(buildLojaPayload({ nome, slug, status, plano, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id }))
+        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id }))
       if (cfgErr) throw new Error(cfgErr.message)
 
       if (email_acesso && senha_acesso) {
