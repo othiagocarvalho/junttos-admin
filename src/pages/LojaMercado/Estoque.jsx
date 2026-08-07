@@ -246,9 +246,9 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
           padding: '14px 22px calc(20px + env(safe-area-inset-bottom))', display: 'flex', gap: 12,
           flexShrink: 0, borderTop: '1px solid #F1F1F4', background: '#FFFFFF',
         }}>
-          <button style={{
+          <button onClick={() => setTab('contar-estoque')} style={{
             flex: 1, height: 68, minHeight: 68, borderRadius: 18, border: 'none',
-            background: '#F4F4F7', color: '#3F3F46', cursor: 'default',
+            background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',
             fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap',
           }}>
             Contar estoque

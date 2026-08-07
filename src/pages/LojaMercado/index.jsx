@@ -4,6 +4,7 @@ import { useLojaTheme } from '../../hooks/useLojaTheme'
 import Menu from './Menu'
 import CadastrarProduto from './CadastrarProduto'
 import Estoque from './Estoque'
+import ContarEstoque from './ContarEstoque'
 import Validade from './Validade'
 import Fiado from './Fiado'
 import ImportarProdutos from './ImportarProdutos'
@@ -34,9 +35,10 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
 
   const panels = {
     inicio:    <Menu vendas={data.vendas} produtosData={data.produtosData} fiado={data.fiado} config={data.config} setTab={setTab} />,
-    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} precosFaixas={data.precosFaixas} fetchAll={data.fetchAll} config={data.config} setTab={setTab} />,
-    cadastrar: <CadastrarProduto addProduto={data.addProduto} addPrecosFaixas={data.addPrecosFaixas} setTab={setTab} />,
+    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} precosFaixas={data.precosFaixas} fetchAll={data.fetchAll} config={data.config} features={data.features} setTab={setTab} />,
+    cadastrar: <CadastrarProduto addProduto={data.addProduto} addPrecosFaixas={data.addPrecosFaixas} features={data.features} setTab={setTab} />,
     estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
+    'contar-estoque': <ContarEstoque lojaId={lojaId} config={data.config} fetchAll={data.fetchAll} buscarPorEan={data.buscarPorEan} setTab={setTab} />,
     validade:  <Validade produtosData={data.produtosData} setTab={setTab} />,
     fiado:     <Fiado fiado={data.fiado} clientes={data.clientes} config={data.config} setTab={setTab} addFiadoCompra={data.addFiadoCompra} addFiadoPagamento={data.addFiadoPagamento} />,
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
