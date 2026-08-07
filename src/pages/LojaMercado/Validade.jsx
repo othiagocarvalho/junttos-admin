@@ -179,14 +179,14 @@ export default function Validade({ produtosData = [], setTab }) {
           )}
         </div>
 
-        {/* Rodapé — fluxo ainda não implementado (Fase 2) */}
+        {/* Rodapé */}
         <div className="val-rodape" style={{
           padding: '14px 22px calc(20px + env(safe-area-inset-bottom))', display: 'flex',
           flexShrink: 0, borderTop: '1px solid #F1F1F4', background: '#FFFFFF',
         }}>
-          <button style={{
+          <button onClick={() => setTab('promocao')} style={{
             flex: 1, height: 72, minHeight: 72, borderRadius: 18, border: 'none',
-            background: LARANJA, color: '#FFFFFF', cursor: 'default',
+            background: LARANJA, color: '#FFFFFF', cursor: 'pointer',
             fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap',
           }}>
             Colocar em promoção
