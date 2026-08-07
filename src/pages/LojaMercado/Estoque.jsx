@@ -241,7 +241,7 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
           )}
         </div>
 
-        {/* Rodapé — fluxos ainda não implementados (Fase 2) */}
+        {/* Rodapé */}
         <div className="est-rodape" style={{
           padding: '14px 22px calc(20px + env(safe-area-inset-bottom))', display: 'flex', gap: 12,
           flexShrink: 0, borderTop: '1px solid #F1F1F4', background: '#FFFFFF',
@@ -253,9 +253,9 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
           }}>
             Contar estoque
           </button>
-          <button style={{
+          <button onClick={() => setTab('lista-compras')} style={{
             flex: 1, height: 68, minHeight: 68, borderRadius: 18, border: 'none',
-            background: AZUL, color: '#FFFFFF', cursor: 'default',
+            background: AZUL, color: '#FFFFFF', cursor: 'pointer',
             fontSize: 18, fontWeight: 800, whiteSpace: 'nowrap',
           }}>
             Lista de compras

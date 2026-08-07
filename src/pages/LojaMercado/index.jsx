@@ -5,6 +5,7 @@ import Menu from './Menu'
 import CadastrarProduto from './CadastrarProduto'
 import Estoque from './Estoque'
 import ContarEstoque from './ContarEstoque'
+import ListaCompras from './ListaCompras'
 import Validade from './Validade'
 import Fiado from './Fiado'
 import ImportarProdutos from './ImportarProdutos'
@@ -39,6 +40,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     cadastrar: <CadastrarProduto addProduto={data.addProduto} addPrecosFaixas={data.addPrecosFaixas} features={data.features} setTab={setTab} />,
     estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
     'contar-estoque': <ContarEstoque lojaId={lojaId} config={data.config} fetchAll={data.fetchAll} buscarPorEan={data.buscarPorEan} setTab={setTab} />,
+    'lista-compras': <ListaCompras produtosData={data.produtosData} vendas={data.vendas} config={data.config} setTab={setTab} />,
     validade:  <Validade produtosData={data.produtosData} setTab={setTab} />,
     fiado:     <Fiado fiado={data.fiado} clientes={data.clientes} config={data.config} setTab={setTab} addFiadoCompra={data.addFiadoCompra} addFiadoPagamento={data.addFiadoPagamento} />,
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
