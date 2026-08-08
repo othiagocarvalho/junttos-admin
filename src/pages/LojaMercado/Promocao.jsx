@@ -101,7 +101,7 @@ export default function Promocao({ produtosData = [], config = {}, setTab }) {
         .pr-root  { height: 100dvh; }
         .pr-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .pr-root { height: auto; min-height: 100dvh; }
 
           .pr-shell {

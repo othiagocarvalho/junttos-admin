@@ -93,7 +93,7 @@ export default function ContarEstoqueResumo({ sessao, config, fetchAll, setTab }
         .rsm-root  { height: 100dvh; }
         .rsm-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .rsm-root { height: auto; min-height: 100dvh; }
 
           .rsm-shell {

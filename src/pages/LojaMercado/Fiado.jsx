@@ -554,7 +554,7 @@ export default function Fiado({ fiado = [], clientes = [], config = {}, setTab, 
         .fia-shell { display: contents; }
 
         /* --- Desktop --- */
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .fia-root { height: auto; min-height: 100dvh; }
 
           .fia-shell {

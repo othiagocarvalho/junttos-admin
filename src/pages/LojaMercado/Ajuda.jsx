@@ -116,7 +116,7 @@ export default function Ajuda({ setTab }) {
         .ajd-root  { height: 100dvh; }
         .ajd-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .ajd-root { height: auto; min-height: 100dvh; }
           .ajd-shell {
             display: flex; flex-direction: column; flex: 1; min-height: 0;

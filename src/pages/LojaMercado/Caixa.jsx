@@ -586,7 +586,7 @@ export default function Caixa({
         .cx-root  { height: 100dvh; }
         .cx-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .cx-root { height: auto; min-height: 100dvh; }
           .cx-shell {
             display: flex; flex-direction: column; flex: 1; min-height: 0;

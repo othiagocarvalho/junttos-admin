@@ -25,7 +25,7 @@ const FEATURE_LABELS = {
   estoque:          'Estoque',
 }
 
-export default function LojaConfig({ config, features, saveConfig, theme }) {
+export default function LojaConfig({ config, features, saveConfig, theme, hideFeatureToggles = false }) {
   const { user } = useClientAuth()
 
   const [nome,   setNome]   = useState(config?.nome            || '')
@@ -122,37 +122,43 @@ export default function LojaConfig({ config, features, saveConfig, theme }) {
         />
       </Card>
 
-      {/* Funcionalidades */}
-      <Card>
-        <p style={{ ...sectionTitle, marginBottom: 4 }}>
-          <ToggleRight size={16} style={{ color: theme.primary }} />
-          Funcionalidades Habilitadas
-        </p>
-        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-          Controle quais abas e módulos ficam visíveis para esta loja.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {Object.entries(FEATURE_LABELS).map(([key, label]) => {
-            const on = feats[key] ?? false
-            return (
-              <div
-                key={key}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', borderRadius: 'var(--r-input)',
-                  border: '1px solid var(--line)',
-                  background: 'var(--bg)',
-                }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                  {label}
-                </span>
-                <Toggle on={on} onClick={() => toggleFeat(key)} />
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+      {/* Funcionalidades — hideFeatureToggles: as 7 chaves de FEATURE_LABELS
+          não têm nenhum efeito no Mercado hoje (nenhuma tela do módulo lê
+          essas flags), então o Mercado esconde essa seção pra não confundir
+          o lojista com toggles que não fazem nada. Lógica da Moda intacta —
+          só a leitura da prop muda aqui. */}
+      {!hideFeatureToggles && (
+        <Card>
+          <p style={{ ...sectionTitle, marginBottom: 4 }}>
+            <ToggleRight size={16} style={{ color: theme.primary }} />
+            Funcionalidades Habilitadas
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            Controle quais abas e módulos ficam visíveis para esta loja.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Object.entries(FEATURE_LABELS).map(([key, label]) => {
+              const on = feats[key] ?? false
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 16px', borderRadius: 'var(--r-input)',
+                    border: '1px solid var(--line)',
+                    background: 'var(--bg)',
+                  }}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                    {label}
+                  </span>
+                  <Toggle on={on} onClick={() => toggleFeat(key)} />
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Notificações */}
       <Card>

@@ -59,7 +59,7 @@ export default function ListaCompras({ produtosData = [], vendas = [], config = 
         .lc-root  { height: 100dvh; }
         .lc-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .lc-root { height: auto; min-height: 100dvh; }
 
           .lc-shell {

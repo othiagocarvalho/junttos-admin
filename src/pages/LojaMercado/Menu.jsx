@@ -1,4 +1,4 @@
-import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet, Store, Lock } from 'lucide-react'
+import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet, Store, Lock, Settings } from 'lucide-react'
 import Logo from '../../components/junttos/Logo'
 import { parsePgtosRecibo } from '../../utils/recibo'
 import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
@@ -98,7 +98,7 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
         .mkt-bloco-caixa { display: none; }
 
         /* --- D1 · Menu desktop --- */
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .mkt-shell {
             display: flex;
             flex-direction: column;
@@ -184,6 +184,24 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
             <div style={{ width: 1, alignSelf: 'stretch', background: '#E3E3E9' }} />
             <Metrica label="Fiado" valor={fmtK(fiadoHoje)} cor="#5E2BD0" />
           </div>
+
+          {/* Configurações — único caminho até a tela "Mais" (tema, senha,
+              funcionalidades, modo de visualização). Sem métricas no mobile,
+              margin-left:auto sozinho já empurra pro canto; no desktop fica
+              logo depois do cartão de métricas, que também usa auto-margin. */}
+          <button
+            onClick={() => setTab('mais')}
+            title="Configurações"
+            aria-label="Configurações"
+            style={{
+              marginLeft: 'auto', flexShrink: 0,
+              width: 40, height: 40, borderRadius: 12, border: 'none',
+              background: '#F4F4F7', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Settings size={19} color="#3F3F46" strokeWidth={2.2} />
+          </button>
         </div>
 
         {/* Grade 2×3 (mobile) / 3×2 (desktop) */}

@@ -74,7 +74,7 @@ export default function Estoque({ produtosData = [], vendas = [], setTab }) {
         .est-shell { display: contents; }
 
         /* --- Desktop --- */
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           /* No desktop a página rola inteira: a lista em grade cresce e o
              rodapé vem depois dela, sem scroll interno. */
           .est-root { height: auto; min-height: 100dvh; }

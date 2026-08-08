@@ -82,7 +82,7 @@ export default function Validade({ produtosData = [], setTab }) {
         .val-shell { display: contents; }
 
         /* --- Desktop --- */
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .val-root { height: auto; min-height: 100dvh; }
 
           .val-shell {

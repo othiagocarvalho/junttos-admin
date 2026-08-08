@@ -150,7 +150,7 @@ export default function ImportarProdutos({ importarProdutos, setTab }) {
         .imp-root  { height: 100dvh; }
         .imp-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .imp-root { height: auto; min-height: 100dvh; }
           .imp-shell {
             display: flex; flex-direction: column; flex: 1; min-height: 0;

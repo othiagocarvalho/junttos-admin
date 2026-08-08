@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { useLojaData } from './useLojaData'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
+import { useViewMode } from '../../hooks/useViewMode'
 import Menu from './Menu'
 import CadastrarProduto from './CadastrarProduto'
 import Estoque from './Estoque'
@@ -14,11 +16,13 @@ import Caixa from './Caixa'
 import NovaVenda from './NovaVenda'
 import Ajuda from './Ajuda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import ModoVisualizacao from './ModoVisualizacao'
 import UpgradeWall from '../../components/UpgradeWall'
 
 export default function LojaMercado({ lojaId = 'mercadodemo' }) {
   const data = useLojaData(lojaId)
   useLojaTheme(data.config)
+  const { viewMode, setViewMode } = useViewMode()
   const [tab, setTab] = useState('inicio')
 
   useEffect(() => {
@@ -49,15 +53,60 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     caixa:     <Caixa vendas={data.vendas} saidas={data.saidas} caixas={data.caixas} contas={data.contas} config={data.config} setTab={setTab} addSaida={data.addSaida} fecharCaixa={data.fecharCaixa} />,
     ajuda:     <Ajuda setTab={setTab} />,
     rede:      <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="rede" theme={{ primary: '#18181B' }} onVoltar={() => setTab('inicio')} />,
-    mais:      <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} />,
+    mais: (
+      <>
+        {/* LojaConfig.jsx (compartilhado com a Moda) não tem cabeçalho próprio
+            nem botão de voltar — sem isso o usuário ficava preso na tela.
+            Adicionado aqui, fora do arquivo compartilhado, mesmo padrão
+            "← Menu" já usado nas outras telas do Mercado. */}
+        <div style={{ background: 'var(--bg, #FFFFFF)', padding: '18px 22px 6px' }}>
+          <button onClick={() => setTab('inicio')} style={{
+            display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+            cursor: 'pointer', padding: 0, color: '#3F3F46',
+            fontSize: 17, fontWeight: 800, fontFamily: 'Plus Jakarta Sans, sans-serif',
+          }}>
+            <ChevronLeft size={24} strokeWidth={2.5} />
+            Menu
+          </button>
+        </div>
+        <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} hideFeatureToggles />
+        <div style={{ background: 'var(--bg)', padding: '0 16px 32px' }}>
+          <ModoVisualizacao viewMode={viewMode} setViewMode={setViewMode} theme={{ primary: '#5E2BD0' }} />
+        </div>
+      </>
+    ),
   }
+
+  // "Celular" no toggle de Modo de visualização (Login.jsx, compartilhado com
+  // a Moda) força largura de telefone mesmo em tela grande. Diferente da
+  // Moda, não trocamos de componente — o Mercado já é responsivo desde a
+  // Fase 1, mas cada tela decide mobile-vs-desktop via @media (min-width:
+  // 1024px), que olha pro VIEWPORT real do navegador, não pra largura deste
+  // container. Por isso só encolher a largura aqui não bastava (telas
+  // continuavam recebendo o CSS de desktop). A correção: containerType
+  // abaixo estabelece este <div> como contexto de Container Query, e cada
+  // tela do Mercado usa @container (min-width: 1024px) em vez de @media —
+  // aí a decisão passa a olhar pra largura DESTE elemento, não do viewport.
+  //
+  // useViewMode() cai em 'mobile' por padrão quando nada foi escolhido
+  // (localStorage.getItem(KEY) || 'mobile') — faz sentido pra Moda, onde
+  // 'mobile' já É o comportamento padrão dela. Pro Mercado isso inverteria
+  // o requisito ("nada escolhido = comportamento atual"): todo usuário
+  // novo forçaria 480px sem nunca ter tocado no toggle. Por isso só força
+  // quando existe de fato uma escolha salva no localStorage.
+  const escolhaSalva = typeof window !== 'undefined' && localStorage.getItem('junttos_viewMode') !== null
+  const forcarMobile = escolhaSalva && viewMode === 'mobile'
 
   return (
     <div style={{
       minHeight: '100dvh', background: '#FFFFFF',
       fontFamily: 'Plus Jakarta Sans, sans-serif',
-      overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box',
+      overflowX: 'hidden', boxSizing: 'border-box',
       WebkitFontSmoothing: 'antialiased',
+      containerType: 'inline-size',
+      ...(forcarMobile
+        ? { maxWidth: 480, margin: '0 auto' }
+        : { maxWidth: '100vw' }),
     }}>
       {panels[tab] || panels.inicio}
     </div>

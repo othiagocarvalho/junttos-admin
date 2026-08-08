@@ -242,7 +242,7 @@ export default function ContarEstoque({ lojaId, config, fetchAll, buscarPorEan, 
         .ctg-root  { height: 100dvh; }
         .ctg-shell { display: contents; }
 
-        @media (min-width: 1024px) {
+        @container (min-width: 1024px) {
           .ctg-root { height: auto; min-height: 100dvh; }
 
           .ctg-shell {
