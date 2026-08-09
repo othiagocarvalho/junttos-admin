@@ -1,10 +1,10 @@
 {
   "redirects": [
-    { "source": "/", "destination": "/site", "permanent": false }
+    { "source": "/", "destination": "/site/", "permanent": false }
   ],
   "rewrites": [
     { "source": "/site/:path*", "destination": "/site/:path*" },
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/((?!.*\\.[^/]+$).*)", "destination": "/" }
   ],
   "env": {
     "VERCEL_PREVIEW_FEEDBACK_ENABLED": "0"
