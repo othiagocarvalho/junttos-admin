@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Junttos — Sistema para lojas de moda</title>
+<title>Junttos — Site e sistema de gestão para o seu negócio</title>
+<meta name="description" content="A Junttos cria o site que apresenta o seu negócio e entrega o sistema que organiza vendas, estoque, financeiro e clientes.">
+
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -357,6 +359,60 @@
     .phone,.wa-fab,header.hero::after{animation:none !important;}
   }
 
+  /* ===== PRODUTO 2: SITE / LANDING PAGE ===== */
+  .btn-outline{
+    background:#fff; color:var(--ink); border:1.5px solid var(--ink);
+    padding:15px 28px; border-radius:12px; font-weight:700; font-size:1rem;
+    text-decoration:none; display:inline-flex; align-items:center; gap:10px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .btn-outline:hover{background:var(--ink); color:#fff;}
+
+  .site-band{background:var(--paper-dim); border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .site-grid{display:grid; grid-template-columns:1.02fr .98fr; gap:52px; align-items:center;}
+  .site-copy h3{font-size:1.6rem; font-weight:800; letter-spacing:-.02em; margin-bottom:14px;}
+  .site-copy > p{color:var(--muted); line-height:1.6; margin-bottom:22px;}
+  .site-points{list-style:none; margin-bottom:24px;}
+  .site-points li{
+    display:flex; gap:10px; align-items:flex-start; font-size:.94rem;
+    padding:9px 0; border-top:1px solid var(--line); line-height:1.45;
+  }
+  .site-points li:first-child{border-top:none;}
+  .site-points svg{flex-shrink:0; margin-top:3px;}
+  .site-note{font-size:.85rem; color:var(--muted); margin-top:14px; line-height:1.5;}
+
+  .browser{
+    background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden;
+    box-shadow:0 30px 60px -30px rgba(26,21,35,.22);
+  }
+  .browser-bar{display:flex; align-items:center; gap:7px; padding:12px 14px; background:var(--paper-dim); border-bottom:1px solid var(--line);}
+  .browser-bar i{width:9px; height:9px; border-radius:50%; background:#D8CFEA; flex-shrink:0;}
+  .browser-url{
+    flex:1; margin-left:8px; background:#fff; border:1px solid var(--line); border-radius:999px;
+    padding:5px 12px; font-family:'Space Mono', monospace; font-size:.68rem; color:var(--muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .browser-body{padding:24px 22px 26px; background:linear-gradient(180deg,#FFFFFF 0%, #FBF9F5 100%);}
+  .bw-nav{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
+  .bw-logo{font-weight:800; font-size:.95rem; letter-spacing:-.02em; color:var(--purple);}
+  .bw-pill{background:#25D366; color:#fff; font-size:.66rem; font-weight:700; padding:5px 11px; border-radius:999px;}
+  .bw-h1{font-size:1.28rem; font-weight:800; letter-spacing:-.02em; line-height:1.15; margin-bottom:9px;}
+  .bw-sub{font-size:.82rem; color:var(--muted); line-height:1.5; margin-bottom:16px;}
+  .bw-cta{
+    display:inline-block; background:var(--ink); color:#fff; font-size:.75rem; font-weight:700;
+    padding:10px 18px; border-radius:9px; margin-bottom:22px;
+  }
+  .bw-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .bw-cards div{
+    height:64px; border-radius:10px; border:1px solid var(--line);
+    background:linear-gradient(135deg,#EFE7FB,#FFF0EC);
+  }
+  .bw-cards div:nth-child(2){background:linear-gradient(135deg,#FFF0EC,#EFE7FB);}
+
+  @media (max-width:860px){
+    .site-grid{grid-template-columns:1fr; gap:38px;}
+  }
+
 </style>
 </head>
 <body class="opt-b">
@@ -375,19 +431,22 @@
 <header class="hero">
   <div class="wrap">
     <span class="eyebrow"><span class="dot"></span>feito por quem vive de gestão e varejo há mais de 15 anos</span>
-    <h1>O sistema de gestão que a <em>sua loja</em> merecia ter desde o primeiro dia.</h1>
-    <p class="hero-sub">Vendas, estoque, financeiro e clientes num só lugar — sem a complicação dos sistemas grandes e sem a fragilidade das planilhas.</p>
+    <h1><em>Site</em> e <em>sistema</em> pro seu negócio crescer.</h1>
+    <p class="hero-sub">Duas frentes, uma parceira só. A gente cria a sua página na internet e entrega o sistema que controla vendas, estoque, financeiro e clientes — sem planilha paralela.</p>
     <div class="hero-actions">
       <a href="#planos" class="btn-primary">
-        Ver planos e preços
+        Ver planos do sistema
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
-      <a href="https://wa.me/5591992733546?text=Oi!%20Quero%20falar%20com%20um%20especialista%20da%20Junttos." class="btn-ghost" target="_blank" rel="noopener">Falar com especialista →</a>
+      <a href="#site" class="btn-outline">
+        Quero um site pro meu negócio
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
     </div>
     <div class="trust-badges">
       <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> +15 anos de varejo e gestão</span>
-      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Implantação em 1h</span>
-      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Vendas, estoque, financeiro e clientes num só lugar</span>
+      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Site profissional pronto pro celular</span>
+      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Sistema implantado em 1h</span>
       <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Suporte de quem entende de loja</span>
     </div>
     <div class="hero-founder">
@@ -414,10 +473,10 @@
     <div class="phone-wrap" data-reveal>
       <div class="phone">
         <div class="phone-screen">
-          <img class="on" data-screen="0" loading="eager" src="screens/app-inicio.png" alt="Tela de início do app Junttos">
-          <img data-screen="1" loading="eager" src="screens/app-estoque.png" alt="Tela de estoque do app Junttos">
-          <img data-screen="2" loading="eager" src="screens/app-mais.png" alt="Menu completo do app Junttos">
-          <img data-screen="3" loading="eager" src="screens/app-login.png" alt="Tela de login do app Junttos">
+          <img class="on" data-screen="0" loading="eager" src="/site/screens/app-inicio.png" alt="Tela de início do app Junttos">
+          <img data-screen="1" loading="eager" src="/site/screens/app-estoque.png" alt="Tela de estoque do app Junttos">
+          <img data-screen="2" loading="eager" src="/site/screens/app-mais.png" alt="Menu completo do app Junttos">
+          <img data-screen="3" loading="eager" src="/site/screens/app-login.png" alt="Tela de login do app Junttos">
         </div>
       </div>
       <span class="phone-caption">Início · seu dia em 1 tela</span>
@@ -519,6 +578,50 @@
         <div class="b2b-row"><span>Estoque</span><span class="mono">integrado</span></div>
         <div class="b2b-row"><span>Catálogo</span><span class="mono">link próprio</span></div>
         <div class="b2b-row"><span>Cobrança</span><span class="mono">no seu ritmo</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="site-band" id="site">
+  <div class="section wrap">
+    <div class="site-grid">
+      <div class="site-copy">
+        <span class="section-tag">Presença online</span>
+        <h3>Site e landing page pro seu negócio</h3>
+        <p>Nem todo negócio precisa de sistema hoje — mas todo negócio precisa ser encontrado. A gente cria a página que apresenta a sua marca, mostra o que você vende e joga o cliente direto no seu WhatsApp.</p>
+        <ul class="site-points">
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Página própria, com o seu domínio ou um link pronto pra divulgar</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Feita pensando no celular primeiro — abre rápido em qualquer conexão</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Botão de WhatsApp em todo lugar, pra nenhum contato escapar</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Textos, fotos e identidade visual ajustados junto com você</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Publicação e ajustes por nossa conta — você não mexe em código</span></li>
+        </ul>
+        <div class="b2b-price-tag">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="#5E2BD0" stroke-width="1.4"/><path d="M9 5v4l2.5 2.5" stroke="#5E2BD0" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Orçamento sob medida — depende do tamanho do site
+        </div>
+        <div>
+          <a class="tag-cta" style="display:inline-flex; padding:13px 26px;" href="https://wa.me/5591992733546?text=Oi!%20Quero%20um%20or%C3%A7amento%20de%20site%2Flanding%20page%20com%20a%20Junttos." target="_blank" rel="noopener">Pedir orçamento no WhatsApp</a>
+        </div>
+        <p class="site-note">Serviço independente do sistema: dá pra contratar só o site, só o sistema, ou os dois juntos.</p>
+      </div>
+
+      <div class="browser">
+        <div class="browser-bar">
+          <i></i><i></i><i></i>
+          <div class="browser-url">https://www.suamarca.com.br</div>
+        </div>
+        <div class="browser-body">
+          <div class="bw-nav">
+            <span class="bw-logo">sua marca</span>
+            <span class="bw-pill">WhatsApp</span>
+          </div>
+          <div class="bw-h1">Sua loja, do jeito que ela merece ser vista.</div>
+          <div class="bw-sub">Uma página só sua, feita pra vender e pronta pro celular.</div>
+          <div class="bw-cta">Chamar no WhatsApp</div>
+          <div class="bw-cards"><div></div><div></div><div></div></div>
+        </div>
       </div>
     </div>
   </div>
@@ -686,7 +789,7 @@
 (function(){
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var io = new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('revealed');io.unobserve(e.target);}});},{threshold:.14});
-  document.querySelectorAll('.section-head, .tag-card, .b2b-card, .balanco-grid, .showcase-copy, .phone-wrap, .stat-band .stat-grid > div, .guarantee .wrap > *, .final-cta .wrap').forEach(function(el,i){
+  document.querySelectorAll('.section-head, .tag-card, .b2b-card, .site-grid, .balanco-grid, .showcase-copy, .phone-wrap, .stat-band .stat-grid > div, .guarantee .wrap > *, .final-cta .wrap').forEach(function(el,i){
     el.setAttribute('data-reveal','');
     el.style.transitionDelay = ((i%3)*0.08)+'s';
     io.observe(el);
