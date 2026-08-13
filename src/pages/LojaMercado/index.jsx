@@ -52,7 +52,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
     caixa:     <Caixa vendas={data.vendas} saidas={data.saidas} caixas={data.caixas} contas={data.contas} config={data.config} setTab={setTab} addSaida={data.addSaida} fecharCaixa={data.fecharCaixa} />,
     ajuda:     <Ajuda setTab={setTab} />,
-    rede:      <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="rede" theme={{ primary: '#18181B' }} onVoltar={() => setTab('inicio')} />,
+    rede:      <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="rede" theme={{ primary: '#18181B' }} onVoltar={() => setTab('inicio')} segmento={data.config?.segmento || 'mercado'} />,
     mais: (
       <>
         {/* LojaConfig.jsx (compartilhado com a Moda) não tem cabeçalho próprio

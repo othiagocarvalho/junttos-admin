@@ -6,12 +6,12 @@ import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
 import { Check, Copy, ExternalLink, Loader2, AlertCircle, Building2, Upload } from 'lucide-react'
 import { T } from '../../theme/tokens'
 import ConsultorLayout from './ConsultorLayout'
+import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../../utils/planos'
 
-const PLANOS_VALORES = {
-  starter:  { label: 'Starter',  valor: 99.90  },
-  pro:      { label: 'Pro',      valor: 149.90 },
-  business: { label: 'Business', valor: 259.90 },
-}
+// Este formulário não tem seletor de segmento: o consultor só cadastra loja de
+// moda (useCreateLoja usa 'moda' por padrão). Fica explícito aqui para não
+// pegar a tabela errada se um seletor for adicionado depois.
+const SEGMENTO_CONSULTOR = SEGMENTO_PADRAO
 
 function rgbToHex([r, g, b]) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
@@ -119,7 +119,7 @@ export default function ConsultorNovaLoja() {
       logoUrl,
       email_acesso:   form.email_acesso,
       senha_acesso:   form.senha_acesso,
-      valor_mensal:   String(PLANOS_VALORES[form.plano].valor),
+      valor_mensal:   String(valorPlano(SEGMENTO_CONSULTOR, form.plano)),
       enviarBV:       true,
       cadastrado_por_consultor_id: consultorId,
     })
@@ -259,8 +259,8 @@ export default function ConsultorNovaLoja() {
                 onChange={e => setForm(f => ({ ...f, plano: e.target.value }))}
                 style={{ ...inp, cursor: 'pointer', appearance: 'none' }}
               >
-                {Object.entries(PLANOS_VALORES).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label} — R$ {v.valor.toFixed(2).replace('.', ',')}/mês</option>
+                {Object.entries(PLANOS).map(([k, { label }]) => (
+                  <option key={k} value={k}>{label} — R$ {fmtValorPlano(valorPlano(SEGMENTO_CONSULTOR, k))}/mês</option>
                 ))}
               </select>
             </div>

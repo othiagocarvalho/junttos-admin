@@ -10,12 +10,7 @@ import EmptyState from '../../components/junttos/EmptyState'
 import { T } from '../../theme/tokens'
 import DemoPanel from './DemoPanel'
 import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
-
-const PLANOS_VALORES = {
-  starter:  { label: 'Starter',  valor: 99.90  },
-  pro:      { label: 'Pro',      valor: 149.90 },
-  business: { label: 'Business', valor: 259.90 },
-}
+import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../../utils/planos'
 
 function rgbToHex([r, g, b]) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
@@ -40,7 +35,7 @@ async function uploadLogo(slug, file) {
 
 const EMPTY_FORM = {
   nome: '', slug: '',
-  segmento: 'moda',
+  segmento: SEGMENTO_PADRAO,
   cor_primaria: T.purple,
   cor_secundaria: T.coral,
   logoFile: null,
@@ -49,7 +44,7 @@ const EMPTY_FORM = {
   senha_acesso: '',
   status: 'Trial',
   plano: 'starter',
-  valor_mensal: String(PLANOS_VALORES.starter.valor),
+  valor_mensal: String(valorPlano(SEGMENTO_PADRAO, 'starter')),
   features: { atacado: false, crm: false },
   enviarBV: true,
 }
@@ -116,7 +111,11 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   function handleClose() { reset(); onClose() }
   function handleNome(nome) { setForm(prev => ({ ...prev, nome, slug: toSlug(nome) })) }
   function handlePlanoChange(novoPlano) {
-    setForm(p => ({ ...p, plano: novoPlano, valor_mensal: String(PLANOS_VALORES[novoPlano].valor) }))
+    setForm(p => ({ ...p, plano: novoPlano, valor_mensal: String(valorPlano(p.segmento, novoPlano)) }))
+  }
+  // Trocar o segmento precisa recalcular o valor: Mercado tem tabela própria.
+  function handleSegmentoChange(novoSegmento) {
+    setForm(p => ({ ...p, segmento: novoSegmento, valor_mensal: String(valorPlano(novoSegmento, p.plano)) }))
   }
 
   async function handleFile(e) {
@@ -218,7 +217,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setForm(p => ({ ...p, segmento: key }))}
+                  onClick={() => handleSegmentoChange(key)}
                   style={{
                     flex: 1, height: 44, borderRadius: T.rInput, cursor: 'pointer',
                     border: `1.5px solid ${form.segmento === key ? T.purple : T.line}`,
@@ -286,9 +285,11 @@ function NovoClienteModal({ open, onClose, onCreated }) {
               onChange={e => handlePlanoChange(e.target.value)}
               style={{ ...inp, cursor: 'pointer', appearance: 'none', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%237B7390' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center' }}
             >
-              <option value="starter">Starter — R$ 99,90/mês</option>
-              <option value="pro">Pro — R$ 149,90/mês</option>
-              <option value="business">Business — R$ 259,90/mês</option>
+              {Object.entries(PLANOS).map(([key, { label }]) => (
+                <option key={key} value={key}>
+                  {label} — R$ {fmtValorPlano(valorPlano(form.segmento, key))}/mês
+                </option>
+              ))}
             </select>
           </div>
 

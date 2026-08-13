@@ -4,6 +4,27 @@ export const PLANOS = {
   business:{ label: 'Business',nivel: 3 },
 }
 
+// Valor mensal por segmento. Moda e Mercado têm tabelas de preço diferentes —
+// antes existia só a de Moda duplicada em CadastroCliente e ConsultorNovaLoja,
+// o que gravava R$ 99,90 em jt_cobrancas ao cadastrar um Mercado no Starter.
+export const VALORES_PLANO = {
+  moda:    { starter:  99.90, pro: 149.90, business: 259.90 },
+  mercado: { starter:  79.90, pro: 109.90, business: 159.90 },
+}
+
+export const SEGMENTO_PADRAO = 'moda'
+
+/** Valor mensal do plano no segmento. Segmento desconhecido cai em Moda. */
+export function valorPlano(segmento, plano) {
+  const tabela = VALORES_PLANO[segmento] || VALORES_PLANO[SEGMENTO_PADRAO]
+  return tabela[plano] ?? VALORES_PLANO[SEGMENTO_PADRAO][plano] ?? 0
+}
+
+/** 99.9 → "99,90" */
+export function fmtValorPlano(valor) {
+  return Number(valor).toFixed(2).replace('.', ',')
+}
+
 export function temAcesso(planoAtual, planoMinimo) {
   const nivelAtual  = PLANOS[planoAtual]?.nivel  || 1
   const nivelMinimo = PLANOS[planoMinimo]?.nivel || 1

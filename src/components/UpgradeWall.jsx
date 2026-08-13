@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react'
-import { PLANOS } from '../utils/planos'
+import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../utils/planos'
 
 const DESCRICOES = {
   meta:              'Defina metas mensais e acompanhe o progresso da sua loja em tempo real.',
@@ -37,17 +37,13 @@ const BADGE_COLORS = {
   business: { bg: '#ede9fe', color: '#6d28d9' },
 }
 
-const PRECOS = {
-  starter:  99.90,
-  pro:      149.90,
-  business: 259.90,
-}
-
-function fmtPreco(valor) {
-  return valor.toFixed(2).replace('.', ',')
-}
-
-export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidade, theme, onVoltar }) {
+/**
+ * `segmento` define a tabela de preço do upsell — Mercado é mais barato que
+ * Moda. O padrão é 'moda' porque App.jsx só manda pro painel LojaMercado quando
+ * segmento === 'mercado'; todo o resto (LojaFeminina e o desktop dela) é moda.
+ * Só o painel do Mercado precisa passar a prop.
+ */
+export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidade, theme, onVoltar, segmento = SEGMENTO_PADRAO }) {
   const labelAtual      = PLANOS[planoAtual]?.label      || planoAtual
   const labelNecessario = PLANOS[planoNecessario]?.label  || planoNecessario
   const descricao       = DESCRICOES[funcionalidade] || 'Esta funcionalidade está disponível em um plano superior.'
@@ -60,7 +56,7 @@ export default function UpgradeWall({ planoAtual, planoNecessario, funcionalidad
 
   const nomeFuncionalidade = NOMES[funcionalidade] || funcionalidade
   const diff = gap === 1
-    ? fmtPreco((PRECOS[planoNecessario] || 0) - (PRECOS[planoAtual] || 0) - 0.10)
+    ? fmtValorPlano(valorPlano(segmento, planoNecessario) - valorPlano(segmento, planoAtual) - 0.10)
     : null
 
   const waUrl = `https://wa.me/5591992733546?text=Ol%C3%A1!%20Tenho%20interesse%20em%20fazer%20upgrade%20do%20meu%20plano%20Junttos.`
