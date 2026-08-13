@@ -413,6 +413,70 @@
     .site-grid{grid-template-columns:1fr; gap:38px;}
   }
 
+  /* ===== SELETOR DE SOLUÇÃO (abas) ===== */
+  .chooser{padding:40px 0 4px; position:sticky; top:72px; z-index:40; background:var(--paper);}
+  .seg{
+    display:inline-flex; gap:6px; padding:6px;
+    background:#fff; border:1.5px solid var(--line); border-radius:999px;
+    box-shadow:0 10px 26px -18px rgba(26,21,35,.5);
+  }
+  .seg button{
+    font-family:inherit; font-size:.98rem; font-weight:700; color:var(--muted);
+    background:none; border:none; cursor:pointer;
+    padding:13px 30px; border-radius:999px; white-space:nowrap;
+    transition:background .18s ease, color .18s ease;
+  }
+  .seg button:hover{color:var(--ink);}
+  .seg button[aria-selected="true"]{
+    background:var(--purple); color:#fff;
+    box-shadow:0 8px 20px -8px rgba(94,43,208,.7);
+  }
+  .seg button:focus-visible, .subseg button:focus-visible{outline:2px solid var(--purple); outline-offset:2px;}
+
+  .pane{display:none;}
+  .pane.on{display:block;}
+  .sub-pane{display:none;}
+  .sub-pane.on{display:block;}
+
+  .subchooser{padding:56px 0 0;}
+  .subchooser-title{font-size:clamp(1.5rem,2.8vw,2rem); font-weight:800; letter-spacing:-.02em; margin-bottom:24px;}
+  .subseg{display:flex; gap:14px; flex-wrap:wrap;}
+  .subseg button{
+    font-family:inherit; text-align:left; cursor:pointer;
+    background:#fff; border:1.5px solid var(--line); border-radius:14px;
+    padding:16px 24px; min-width:230px; flex:1 1 230px; max-width:340px;
+    transition:border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .subseg button:hover{border-color:var(--purple); transform:translateY(-2px);}
+  .subseg button strong{display:block; font-size:1.05rem; font-weight:800; color:var(--ink); letter-spacing:-.01em;}
+  .subseg button small{display:block; margin-top:3px; font-size:.82rem; color:var(--muted);}
+  .subseg button[aria-selected="true"]{background:var(--ink); border-color:var(--ink);}
+  .subseg button[aria-selected="true"] strong{color:#fff;}
+  .subseg button[aria-selected="true"] small{color:#9891AB;}
+  .subseg-hint{margin-top:18px; font-size:.9rem; color:var(--muted);}
+  .subseg-hint.hidden{display:none;}
+
+  .mercado-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:48px; align-items:center;}
+  .mercado-copy h3{font-size:1.6rem; font-weight:800; letter-spacing:-.02em; margin-bottom:14px;}
+  .mercado-copy > p{color:var(--muted); line-height:1.6; margin-bottom:22px;}
+  .mercado-visual{background:var(--ink); border-radius:20px; padding:32px; color:#fff; position:relative; overflow:hidden;}
+  .mercado-visual::before{
+    content:""; position:absolute; width:220px; height:220px; border-radius:50%;
+    background:radial-gradient(circle, rgba(94,43,208,.55), transparent 70%);
+    top:-60px; right:-60px;
+  }
+
+  @media (max-width:860px){
+    .mercado-grid{grid-template-columns:1fr; gap:38px;}
+  }
+  @media (max-width:600px){
+    .chooser{padding:28px 0 4px;}
+    .seg{display:flex; width:100%; gap:4px; padding:5px;}
+    .seg button{flex:1 1 0; padding:12px 6px; font-size:.88rem;}
+    .subchooser{padding:40px 0 0;}
+    .subseg button{min-width:0; flex:1 1 100%; max-width:none;}
+  }
+
 </style>
 </head>
 <body class="opt-b">
@@ -422,8 +486,8 @@
 <nav>
   <div class="wrap">
     <div class="logo"><svg class="logo-mark" viewBox="18 21 64 64" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0"></rect><circle cx="40" cy="37" r="14" fill="#341780"></circle><circle cx="64" cy="39" r="14" fill="#FF6F5E"></circle></svg><span>junttos</span></div>
-    <a class="nav-cta" href="#planos">
-      Falar no WhatsApp
+    <a class="nav-cta" href="#solucoes">
+      Ver soluções
     </a>
   </div>
 </nav>
@@ -431,22 +495,10 @@
 <header class="hero">
   <div class="wrap">
     <span class="eyebrow"><span class="dot"></span>feito por quem vive de gestão e varejo há mais de 15 anos</span>
-    <h1><em>Site</em> e <em>sistema</em> pro seu negócio crescer.</h1>
-    <p class="hero-sub">Duas frentes, uma parceira só. A gente cria a sua página na internet e entrega o sistema que controla vendas, estoque, financeiro e clientes — sem planilha paralela.</p>
-    <div class="hero-actions">
-      <a href="#planos" class="btn-primary">
-        Ver planos do sistema
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a href="#site" class="btn-outline">
-        Quero um site pro meu negócio
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-    </div>
+    <h1>Qual <em>solução</em> você precisa agora?</h1>
+    <p class="hero-sub">Escolha por onde começar. Você contrata só o que faz sentido pro seu momento.</p>
     <div class="trust-badges">
       <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> +15 anos de varejo e gestão</span>
-      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Site profissional pronto pro celular</span>
-      <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Sistema implantado em 1h</span>
       <span><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> Suporte de quem entende de loja</span>
     </div>
     <div class="hero-founder">
@@ -456,6 +508,37 @@
   </div>
   <div class="hero-stitch"></div>
 </header>
+
+<section class="chooser" id="solucoes">
+  <div class="wrap">
+    <div class="seg" role="tablist" aria-label="Escolha a solução">
+      <button type="button" role="tab" id="tab-site" aria-controls="pane-site" aria-selected="true" data-tab="site">Site</button>
+      <button type="button" role="tab" id="tab-sistemas" aria-controls="pane-sistemas" aria-selected="false" data-tab="sistemas">Sistemas</button>
+      <button type="button" role="tab" id="tab-balanco" aria-controls="pane-balanco" aria-selected="false" data-tab="balanco">Balanço</button>
+    </div>
+  </div>
+</section>
+
+<div class="pane" id="pane-sistemas" role="tabpanel" aria-labelledby="tab-sistemas">
+  <section class="subchooser">
+    <div class="wrap">
+      <span class="section-tag">Sistemas de gestão</span>
+      <h2 class="subchooser-title">Qual é o seu tipo de negócio?</h2>
+      <div class="subseg" role="tablist" aria-label="Escolha o segmento">
+        <button type="button" role="tab" id="sub-tab-moda" aria-controls="sub-moda" aria-selected="false" data-sub="moda">
+          <strong>Junttos Moda</strong>
+          <small>loja de roupa</small>
+        </button>
+        <button type="button" role="tab" id="sub-tab-mercado" aria-controls="sub-mercado" aria-selected="false" data-sub="mercado">
+          <strong>Junttos Mercado</strong>
+          <small>mercado, padaria, conveniência</small>
+        </button>
+      </div>
+      <p class="subseg-hint" id="subsegHint">Escolha um segmento acima pra ver o que o sistema faz e os planos.</p>
+    </div>
+  </section>
+
+  <div class="sub-pane" id="sub-moda" role="tabpanel" aria-labelledby="sub-tab-moda">
 
 <section class="showcase" id="veja">
   <div class="wrap showcase-inner">
@@ -583,7 +666,109 @@
   </div>
 </section>
 
-<section class="site-band" id="site">
+  </div><!-- /sub-moda -->
+
+  <div class="sub-pane" id="sub-mercado" role="tabpanel" aria-labelledby="sub-tab-mercado">
+    <section class="section wrap">
+      <div class="mercado-grid">
+        <div class="mercado-copy">
+          <span class="section-tag">Junttos Mercado</span>
+          <h3>Pra mercado, padaria e conveniência</h3>
+          <p>O balcão não pode parar. O Junttos Mercado é feito pro ritmo de quem passa muita compra por dia, controla fiado de cliente conhecido e precisa saber o que está acabando na prateleira.</p>
+          <ul class="site-points">
+            <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Caixa rápido: passa item por item e fecha a venda sem travar a fila</span></li>
+            <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fiado organizado, com saldo por cliente — sem caderninho perdido</span></li>
+            <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Cadastro por código de barras e importação da sua lista de produtos</span></li>
+            <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Promoção por produto, sem perder o preço original de referência</span></li>
+            <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Fechamento de caixa no fim do dia, pra bater o que entrou</span></li>
+          </ul>
+        </div>
+        <div class="mercado-visual">
+          <div class="b2b-row"><span>Caixa</span><span class="mono">item por item</span></div>
+          <div class="b2b-row"><span>Fiado</span><span class="mono">saldo por cliente</span></div>
+          <div class="b2b-row"><span>Produtos</span><span class="mono">código de barras</span></div>
+          <div class="b2b-row"><span>Promoção</span><span class="mono">por produto</span></div>
+          <div class="b2b-row"><span>Caixa do dia</span><span class="mono">fechamento</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="planos-mercado">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-tag">Sistema completo</span>
+          <h2>Um plano para cada fase do seu mercado</h2>
+          <p class="section-desc">Comece simples e evolua quando fizer sentido — todo plano superior inclui tudo do anterior.</p>
+        </div>
+
+        <div class="plans">
+
+          <div class="tag-card">
+            <div>
+              <div class="tier-name">Starter</div>
+              <div class="tier-note">pra quem está começando a organizar o balcão</div>
+            </div>
+            <div class="tag-card-price">
+              <span class="amount mono">R$ 79,90</span>
+              <small>por mês</small>
+            </div>
+            <ul>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Código de barras (EAN) com bipagem</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>PDV rápido</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Estoque com baixa automática</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Alerta de estoque baixo</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Fiado</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Recibo via WhatsApp</li>
+            </ul>
+            <a class="tag-cta" href="https://wa.me/5591992733546?text=Oi!%20Quero%20saber%20mais%20sobre%20o%20plano%20Starter%20do%20Junttos%20Mercado." target="_blank" rel="noopener">Quero o Starter</a>
+          </div>
+
+          <div class="tag-card featured">
+            <div>
+              <div class="tier-name">Pro</div>
+              <div class="tier-note">pra quem já controla validade e financeiro</div>
+            </div>
+            <div class="tag-card-price">
+              <span class="amount mono">R$ 109,90</span>
+              <small>por mês</small>
+            </div>
+            <ul>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#FF6F5E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Tudo do Starter</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#FF6F5E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Controle de validade com alerta</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#FF6F5E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Financeiro completo</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#FF6F5E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Balanço de estoque</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#FF6F5E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Preço progressivo (atacarejo)</li>
+            </ul>
+            <a class="tag-cta" href="https://wa.me/5591992733546?text=Oi!%20Quero%20saber%20mais%20sobre%20o%20plano%20Pro%20do%20Junttos%20Mercado." target="_blank" rel="noopener">Quero o Pro</a>
+          </div>
+
+          <div class="tag-card">
+            <div>
+              <div class="tier-name">Business</div>
+              <div class="tier-note">pra quem tem mais de uma loja</div>
+            </div>
+            <div class="tag-card-price">
+              <span class="amount mono">R$ 159,90</span>
+              <small>por mês</small>
+            </div>
+            <ul>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Tudo do Pro</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Multi-loja (Rede)</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Importação de catálogo em massa</li>
+              <li><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3 3 7-7" stroke="#5E2BD0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Relatórios avançados</li>
+            </ul>
+            <a class="tag-cta" href="https://wa.me/5591992733546?text=Oi!%20Quero%20saber%20mais%20sobre%20o%20plano%20Business%20do%20Junttos%20Mercado." target="_blank" rel="noopener">Quero o Business</a>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </div><!-- /sub-mercado -->
+</div><!-- /pane-sistemas -->
+
+<div class="pane on" id="pane-site" role="tabpanel" aria-labelledby="tab-site">
+
+<section class="site-band">
   <div class="section wrap">
     <div class="site-grid">
       <div class="site-copy">
@@ -625,6 +810,10 @@
     </div>
   </div>
 </section>
+
+</div><!-- /pane-site -->
+
+<div class="pane" id="pane-balanco" role="tabpanel" aria-labelledby="tab-balanco">
 
 <section class="section balanco" id="balanco">
   <div class="wrap">
@@ -690,6 +879,8 @@
     </div>
   </div>
 </section>
+
+</div><!-- /pane-balanco -->
 
 
 <section class="stat-band">
@@ -806,6 +997,118 @@
     var counted=false;
     var cio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!counted){counted=true;document.querySelectorAll('.num[data-count]').forEach(function(n){var t=+n.dataset.count,s=0,step=Math.max(1,Math.ceil(t/40));var iv=setInterval(function(){s+=step;if(s>=t){s=t;clearInterval(iv);}n.textContent=s+(n.dataset.suffix||'');},30);});}});},{threshold:.4});
     var sb=document.querySelector('.stat-band'); if(sb)cio.observe(sb);
+  }
+})();
+</script>
+
+<script>
+(function(){
+  var panes = {
+    site: document.getElementById('pane-site'),
+    sistemas: document.getElementById('pane-sistemas'),
+    balanco: document.getElementById('pane-balanco')
+  };
+  var subPanes = {
+    moda: document.getElementById('sub-moda'),
+    mercado: document.getElementById('sub-mercado')
+  };
+  var tabs = [].slice.call(document.querySelectorAll('.seg [data-tab]'));
+  var subTabs = [].slice.call(document.querySelectorAll('.subseg [data-sub]'));
+  var hint = document.getElementById('subsegHint');
+  var chooser = document.getElementById('solucoes');
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Painel escondido nunca dispara o IntersectionObserver do reveal:
+  // ao abrir, revela o conteúdo na mão pra não ficar invisível.
+  function reveal(root){
+    if(!root) return;
+    [].forEach.call(root.querySelectorAll('[data-reveal]'), function(el){
+      el.style.transitionDelay = '0s';
+      el.classList.add('revealed');
+    });
+  }
+
+  function openTab(name){
+    if(!panes[name]) name = 'site';
+    Object.keys(panes).forEach(function(k){
+      if(panes[k]) panes[k].classList.toggle('on', k === name);
+    });
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.tab === name)); });
+    reveal(panes[name]);
+    return name;
+  }
+
+  function openSub(name){
+    if(!subPanes[name]) return;
+    Object.keys(subPanes).forEach(function(k){
+      if(subPanes[k]) subPanes[k].classList.toggle('on', k === name);
+    });
+    subTabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.sub === name)); });
+    if(hint) hint.classList.add('hidden');
+    reveal(subPanes[name]);
+  }
+
+  function scrollToEl(el){
+    if(!el) return;
+    var navH = 72, segH = chooser ? chooser.offsetHeight : 0;
+    var y = el.getBoundingClientRect().top + window.pageYOffset - navH - segH - 12;
+    window.scrollTo({top: Math.max(0, y), behavior: reduce ? 'auto' : 'smooth'});
+  }
+
+  // Trocar de aba mantendo o scroll jogava o visitante no meio do conteudo novo.
+  // Com o seletor sticky ja grudado, tanto offsetTop quanto getBoundingClientRect
+  // devolvem a posicao GRUDADA (scroll + 72), o que daria deslocamento zero.
+  // Por isso medimos a posicao real em fluxo com position:static por um instante.
+  function scrollToChooser(){
+    if(!chooser) return;
+    var prev = chooser.style.position;
+    chooser.style.position = 'static';
+    var y = chooser.offsetTop;
+    chooser.style.position = prev;
+    window.scrollTo({top: Math.max(0, y - 72), behavior: reduce ? 'auto' : 'smooth'});
+  }
+
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      var n = openTab(t.dataset.tab);
+      if(history.replaceState) history.replaceState(null, '', '#' + n);
+      scrollToChooser();
+    });
+  });
+
+  subTabs.forEach(function(t){
+    t.addEventListener('click', function(){ openSub(t.dataset.sub); });
+  });
+
+  // Navegação por teclado entre as abas (setas), padrão de tablist.
+  function arrows(list, attr){
+    list.forEach(function(t, i){
+      t.addEventListener('keydown', function(e){
+        var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if(!d) return;
+        e.preventDefault();
+        var next = list[(i + d + list.length) % list.length];
+        next.focus(); next.click();
+      });
+    });
+  }
+  arrows(tabs, 'tab'); arrows(subTabs, 'sub');
+
+  // Links antigos pros planos abrem Sistemas > Moda antes de rolar.
+  [].forEach.call(document.querySelectorAll('a[href="#planos"]'), function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      openTab('sistemas'); openSub('moda');
+      setTimeout(function(){ scrollToEl(document.getElementById('planos')); }, 30);
+    });
+  });
+
+  var start = (location.hash || '').replace('#', '');
+  if(start === 'planos'){
+    openTab('sistemas'); openSub('moda');
+  } else if(panes[start]){
+    openTab(start);
+    setTimeout(scrollToChooser, 30);
   }
 })();
 </script>
