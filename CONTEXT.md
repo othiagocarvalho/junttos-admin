@@ -10,8 +10,10 @@ SPA React que serve dois apps em uma única implantação Vercel:
 
 | App | URL | Acesso |
 |-----|-----|--------|
-| **AdminApp** | `junttos-admin.vercel.app/` | Equipe Junttos (login interno) |
-| **LojaClientApp** | `junttos-admin.vercel.app/<slug>/` | Loja específica (login da lojista) |
+| **AdminApp** | `usejunttos.vercel.app/` | Equipe Junttos (login interno) |
+| **LojaClientApp** | `usejunttos.vercel.app/<slug>/` | Loja específica (login da lojista) |
+
+> O domínio antigo `junttos-admin.vercel.app` ainda responde, mas só como redirect 307 para `usejunttos.vercel.app`. Use o canônico em links novos.
 
 `src/App.jsx` decide qual app servir: lê o primeiro segmento da URL, consulta `lf_config` pelo par `loja_id = <seg> OR slug = <seg>`. Se encontrar, monta `LojaClientApp`; caso contrário, monta `AdminApp`.
 
@@ -37,16 +39,25 @@ Fontes carregadas no `index.html`: Manrope, DM Sans, Quicksand, Playfair Display
 
 ## 3. Infra e deploy
 
-- **Hospedagem:** Vercel (projeto `junttos`, org `junttos-projetos`)
+- **Hospedagem:** Vercel (projeto `usejunttos`, time `junttos-projetos`)
 - **Banco:** Supabase (PostgreSQL + Auth + Edge Functions)
 - **SPA rewrite:** `vercel.json` redireciona tudo para `/` — React Router cuida das rotas
-- **Deploy:**
+- **Deploy: automático pela integração Git da Vercel.** Não existe passo manual de deploy.
+  - push em `master` → build de **Production** (fica pronto em ~10s)
+  - push em `staging` → build de **Preview**
+
   ```sh
-  git push origin staging
-  git checkout master && git merge staging && git push origin master
-  npx vercel --prod --yes
+  git push origin staging                                   # gera Preview
+  git checkout master && git merge staging --ff-only
+  git push origin master                                    # PRODUÇÃO SAI AQUI
   git checkout staging
   ```
+
+  Confira o resultado com `npx vercel ls usejunttos --scope junttos-projetos`.
+
+> **Não rode `npx vercel --prod`.** Além de redundante, ele hoje falha com `Not authorized` — `.vercel/repo.json` aponta para um projeto `junttos` que não existe mais no time. E, se voltasse a funcionar, seria perigoso: a CLI envia o **working tree local**, e como não há `.vercelignore`, qualquer alteração não commitada iria para produção junto. O deploy via Git sempre publica exatamente o commit que está no GitHub.
+
+> **Push exige a conta `othiagocarvalho`.** A conta `audazwear-afk` tem apenas permissão de leitura no repo; com ela o push falha com 403. Alterne antes com `gh auth switch --user othiagocarvalho`.
 
 ---
 
@@ -573,4 +584,4 @@ Os seguintes arquivos têm alterações no working tree que **ainda não foram c
 4. **ContasPagar.jsx é exclusivo da Du Charme** — não reutilizar, não sobrescrever.
 5. **Não deletar usuário do Supabase Auth** ao revogar acesso — apenas `ativo: false` em `lf_usuarios`.
 6. **Ler o arquivo completo antes de editar** — nunca assumir o estado; se incerto, marcar como `verificar`.
-7. **Deploy sempre via:** `push staging → merge master → vercel --prod → checkout staging`.
+7. **Deploy sempre via:** `push staging → merge master → push master → checkout staging`. O push no `master` já publica em produção sozinho (integração Git da Vercel) — nunca rodar `vercel --prod`, que subiria o working tree local, WIP não commitado incluído. Ver seção 3.
