@@ -945,18 +945,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#D97706' }}>Produto devolvido (crédito)</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− {fmtR(creditoTroca)}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Produto novo</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>{fmtR(subtotal)}</span>
                     </div>
                     <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                         {diferencaTroca > 0.005 ? 'A cobrar' : diferencaTroca < -0.005 ? 'Saldo a favor' : 'Troca zerada'}
                       </span>
                       <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: diferencaTroca > 0.005 ? theme.primary : diferencaTroca < -0.005 ? '#16a34a' : '#D97706' }}>
-                        R$ {(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca)).toFixed(2).replace('.', ',')}
+                        {fmtR(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca))}
                       </span>
                     </div>
                     {diferencaTroca <= 0.005 && diferencaTroca >= -0.005 && (
@@ -965,7 +965,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     {diferencaTroca < -0.005 && (
                       <>
                         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 700, margin: 0 }}>
-                          Saldo a favor: R$ {Math.abs(diferencaTroca).toFixed(2).replace('.', ',')} — não reembolsável em dinheiro
+                          Saldo a favor: {fmtR(Math.abs(diferencaTroca))} — não reembolsável em dinheiro
                         </p>
                         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', margin: 0 }}>
                           Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
@@ -977,7 +977,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>{fmtR(subtotal)}</span>
                     </div>
                     {ajusteNum > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -986,13 +986,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                           {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
                         </span>
                         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                          {ajusteTipo === 'desconto' ? '−' : '+'} R$ {ajusteR.toFixed(2).replace('.', ',')}
+                          {ajusteTipo === 'desconto' ? '−' : '+'} {fmtR(ajusteR)}
                         </span>
                       </div>
                     )}
                     <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>R$ {totalValor.toFixed(2).replace('.', ',')}</span>
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(totalValor)}</span>
                     </div>
                   </>
                 )}
@@ -1092,7 +1092,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 </button>
                 {form.valor && (
                   <div style={{ marginTop: 10, padding: '7px 12px', borderRadius: 10, background: pgtoOk ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)', border: `1px solid ${pgtoOk ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: pgtoOk ? '#16a34a' : '#dc2626' }}>
-                    {pgtoOk ? '✓ Pagamento completo' : `Alocado: R$ ${alocado.toFixed(2).replace('.', ',')} · Total: R$ ${totalValor.toFixed(2).replace('.', ',')}`}
+                    {pgtoOk ? '✓ Pagamento completo' : `Alocado: ${fmtR(alocado)} · Total: ${fmtR(totalValor)}`}
                   </div>
                 )}
               </>
@@ -1263,7 +1263,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             {produtoTroca.length > 0 && creditoTroca > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: isDark ? '#1c1400' : '#FEF3C7', borderRadius: 10, border: '1px solid #D97706' }}>
                 <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: '#D97706' }}>Crédito da troca</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: '#D97706' }}>R$ {creditoTroca.toFixed(2).replace('.', ',')}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700, color: '#D97706' }}>{fmtR(creditoTroca)}</span>
               </div>
             )}
             <div style={{ borderTop: '1.5px dashed #D97706', margin: '4px 0' }} />
