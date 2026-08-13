@@ -25,6 +25,31 @@ const DEFAULT_FEATURES = {
   cadastro_completo_cliente: false,
 }
 
+// Colunas de contrato em lf_config (ver supabase/migration_contrato.sql).
+// Preenchidas hoje só pelo cadastro do admin; o Portal do Consultor não envia.
+const CONTRATO_FIELDS = [
+  'razao_social', 'cpf_cnpj',
+  'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
+  'responsavel_nome', 'responsavel_email', 'responsavel_telefone',
+  'contrato_inicio', 'vencimento_dia',
+]
+
+/**
+ * Só entram no payload os campos de contrato realmente preenchidos. Assim quem
+ * não passa `contratante` — o Portal do Consultor — segue gerando exatamente o
+ * mesmo INSERT de antes, sem chaves novas nem nulls extras.
+ */
+function pickContratante(contratante) {
+  if (!contratante) return {}
+  const out = {}
+  CONTRATO_FIELDS.forEach(k => {
+    const v = contratante[k]
+    if (v === undefined || v === null || v === '') return
+    out[k] = k === 'vencimento_dia' ? Number(v) : v
+  })
+  return out
+}
+
 /**
  * Monta o objeto a ser inserido em lf_config.
  * Exportado para facilitar testes unitários.
@@ -37,6 +62,7 @@ export function buildLojaPayload({
   features = {},
   logoUrl = null,
   cadastrado_por_consultor_id = null,
+  contratante = null,
 }) {
   const payload = {
     loja_id:        slug,
@@ -54,6 +80,7 @@ export function buildLojaPayload({
     },
     logo_url:       logoUrl,
     updated_at:     new Date().toISOString(),
+    ...pickContratante(contratante),
   }
   if (cadastrado_por_consultor_id) {
     payload.cadastrado_por_consultor_id = cadastrado_por_consultor_id
@@ -86,6 +113,7 @@ export function useCreateLoja() {
     valor_mensal = '0',
     enviarBV = true,
     cadastrado_por_consultor_id = null,
+    contratante = null,
   }) {
     if (!nome?.trim() || !slug?.trim()) {
       setError('Nome e slug são obrigatórios.')
@@ -107,7 +135,7 @@ export function useCreateLoja() {
 
       const { error: cfgErr } = await supabase
         .from('lf_config')
-        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id }))
+        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id, contratante }))
       if (cfgErr) throw new Error(cfgErr.message)
 
       if (email_acesso && senha_acesso) {
