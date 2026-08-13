@@ -4,8 +4,7 @@ import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
 import Button from '../../components/studio/Button'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 export default function Crediario({ crediario = [], addCrediario, pagarParcela, theme }) {
   const [showModal, setShowModal] = useState(false)

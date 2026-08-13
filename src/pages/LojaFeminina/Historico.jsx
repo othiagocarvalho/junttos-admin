@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X, Receipt } from 'lucide-react'
 import ReciboVenda from '../../components/ReciboVenda'
+import { fmtR } from '../../utils/formatters'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 function fmtTime(s) {
   return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })

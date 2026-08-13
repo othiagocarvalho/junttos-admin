@@ -5,11 +5,10 @@ import {
   contasDeAmanha, urgenciaConta, COR_URGENCIA,
 } from '../../utils/caixa'
 import { fmtDiaMes } from '../../utils/datas'
+import { fmtR } from '../../utils/formatters'
 
 const GRAFITE = '#3A3A44'
 const VERDE   = '#17864F'
-
-const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 
 // Cada opção vira o texto salvo em lf_caixas.motivo_diferenca.
 const MOTIVOS = [

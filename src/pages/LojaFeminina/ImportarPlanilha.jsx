@@ -5,8 +5,7 @@ import Card from '../../components/studio/Card'
 import Button from '../../components/studio/Button'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
   const [preview, setPreview]   = useState(null)

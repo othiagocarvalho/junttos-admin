@@ -7,9 +7,7 @@ import Button from '../../components/studio/Button'
 import Input from '../../components/studio/Input'
 import Chip, { ChipRow } from '../../components/studio/Chip'
 import EmptyState from '../../components/studio/EmptyState'
-
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })

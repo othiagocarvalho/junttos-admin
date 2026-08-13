@@ -1,7 +1,7 @@
 import { X, MessageCircle, Printer } from 'lucide-react'
 import { parsePgtosRecibo, numeracaoRecibo, formatarReciboTexto } from '../utils/recibo'
+import { fmtR } from '../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
   const d = new Date(s)
   return d.toLocaleDateString('pt-BR') + ' · ' +

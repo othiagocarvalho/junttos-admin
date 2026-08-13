@@ -1,4 +1,4 @@
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from './formatters'
 
 export function parsePgtosRecibo(venda) {
   try { const arr = JSON.parse(venda.forma_pgto); if (Array.isArray(arr)) return arr } catch {}

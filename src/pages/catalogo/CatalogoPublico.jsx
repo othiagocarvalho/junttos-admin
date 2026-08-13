@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { detectarItensEsgotados } from '../../utils/catalogo'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 function getVariacaoLabel(v) {
   const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')

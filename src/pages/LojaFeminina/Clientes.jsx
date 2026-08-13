@@ -16,8 +16,8 @@ import {
   ticketMedioCliente,
   normalizeWaPhone,
 } from '../../utils/crm'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtData(iso) {
   if (!iso) return null
   const [y, m, d] = iso.split('-')

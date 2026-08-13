@@ -4,8 +4,8 @@ import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
 function parsePgtos(v) {

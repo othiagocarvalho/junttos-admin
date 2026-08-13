@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Edit2, Trash2, Package, ChevronDown, ChevronUp, Minus, X } from 'lucide-react'
 import Modal from '../../components/Modal'
+import { fmtR } from '../../utils/formatters'
 
 const CATEGORIAS = [
   'Vestido', 'Blusa', 'Cropped', 'Short', 'Conjunto',
@@ -8,8 +9,6 @@ const CATEGORIAS = [
 ]
 const EMPTY_FORM = { nome: '', categoria: 'Vestido', preco_custo: '', preco_venda: '' }
 const EMPTY_VAR  = { cor: '', quantidade: '1' }
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 function totalQty(item) {
   const vars = item.variacoes || []

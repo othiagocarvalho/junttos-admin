@@ -3,8 +3,7 @@ import { Package, Wallet } from 'lucide-react'
 import Card, { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 function consolidar(pedidos, filtroStatus) {
   const filtrados = pedidos.filter(p => {

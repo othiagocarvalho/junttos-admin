@@ -8,8 +8,7 @@ import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import UpgradeWall from '../../components/UpgradeWall'
 import { temAcesso } from '../../utils/planos'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 const sectionLabelStyle = {
   fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,

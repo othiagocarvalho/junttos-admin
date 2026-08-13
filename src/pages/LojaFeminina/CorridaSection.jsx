@@ -5,8 +5,8 @@ import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtData(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }

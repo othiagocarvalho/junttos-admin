@@ -4,8 +4,8 @@ import Card, { HeroCard } from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 // Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
 function toLocalISO(d = new Date()) {

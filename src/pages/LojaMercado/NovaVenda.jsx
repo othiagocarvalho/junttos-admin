@@ -2,11 +2,10 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { precoEfetivo } from '../../utils/precosFaixas'
+import { fmtR } from '../../utils/formatters'
 
 const GREEN = '#17864F'
 const DARK  = '#0C3A24'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 
 function TagAtacado() {
   return (

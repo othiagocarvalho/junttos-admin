@@ -29,8 +29,8 @@ import FinanceiroDesktop from './FinanceiroDesktop'
 import AlertaBanner from '../LojaFeminina/AlertaBanner'
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: '2-digit',

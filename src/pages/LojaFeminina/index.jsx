@@ -31,9 +31,7 @@ import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
 import AlertaBanner from './AlertaBanner'
 import SocioDigital from './SocioDigital'
-
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 const BOTTOM_TABS = [
   { id: 'inicio',   label: 'Início',   Icon: Home          },

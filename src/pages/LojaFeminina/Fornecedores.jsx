@@ -6,8 +6,8 @@ import StatCard from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
+import { fmtR } from '../../utils/formatters'
 
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtData(d) {
   if (!d) return '—'
   const [y, m, dd] = d.split('-')

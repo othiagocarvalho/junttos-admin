@@ -5,8 +5,7 @@ import { HeroCard } from '../../components/studio/Card'
 import StatusPill from '../../components/studio/StatusPill'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 const BADGE = {
   critico: { label: 'Crítico', bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },

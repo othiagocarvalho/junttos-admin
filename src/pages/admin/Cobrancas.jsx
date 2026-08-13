@@ -2,10 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { AlertCircle, Loader2, CreditCard, Check, X, ChevronDown } from 'lucide-react'
 import { T } from '../../theme/tokens'
-
-function fmtR(v) {
-  return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { fmtR } from '../../utils/formatters'
 
 function fmtDate(str) {
   if (!str) return '—'

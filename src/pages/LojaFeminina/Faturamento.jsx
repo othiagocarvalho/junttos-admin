@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { BarChart2, TrendingUp, ShoppingBag, CreditCard } from 'lucide-react'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 function monthStartStr() {

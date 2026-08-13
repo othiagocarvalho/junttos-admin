@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, TrendingUp, CreditCard, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
-
-function fmtR(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
+import { fmtR } from '../../utils/formatters'
 
 export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {} }) {
   const [contasData, setContasData] = useState(null)

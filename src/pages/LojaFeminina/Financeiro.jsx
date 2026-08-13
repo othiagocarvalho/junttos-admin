@@ -7,8 +7,8 @@ import { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
+import { fmtR } from '../../utils/formatters'
 
-const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 const fmtDate = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
 const CATEGORIAS_PAGAR = ['aluguel', 'fornecedor', 'salario', 'imposto', 'energia', 'agua', 'internet', 'marketing', 'outros']

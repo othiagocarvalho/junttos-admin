@@ -3,12 +3,11 @@ import { ChevronLeft, Plus, Check, Search, MessageCircle } from 'lucide-react'
 import { agruparPorCliente, totaisFiado, descricaoLancamento, PRAZO_PADRAO_DIAS } from '../../utils/fiado'
 import { iniciais, fmtDiaMes, fmtDataExtenso } from '../../utils/datas'
 import { normalizeWaPhone } from '../../utils/crm'
+import { fmtR } from '../../utils/formatters'
 
 const ROXO      = '#5E2BD0'
 const VERMELHO  = '#C4321F'
 const VERDE     = '#17864F'
-
-const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 
 // ═══════════════════════════════════════════════════════════════
 // T8 · Lista

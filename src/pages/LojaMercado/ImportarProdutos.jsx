@@ -2,12 +2,11 @@ import { useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { ChevronLeft, Download, UploadCloud, FileSpreadsheet, Check, AlertCircle } from 'lucide-react'
 import { paraDataLocal } from '../../utils/datas'
+import { fmtR } from '../../utils/formatters'
 
 const AZUL     = '#1E63C8'
 const VERDE    = '#17864F'
 const VERMELHO = '#C4321F'
-
-const fmtR = v => 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',')
 
 // Colunas do modelo, na ordem. Validade é opcional.
 const COLUNAS = ['EAN', 'Nome', 'Preço Venda', 'Quantidade', 'Validade']
