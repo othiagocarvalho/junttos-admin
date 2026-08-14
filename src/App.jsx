@@ -77,7 +77,6 @@ function AdminApp() {
             <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
             <Route path="/arquitetura" element={<ProtectedLayout><ArquiteturaPage /></ProtectedLayout>} />
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
-            <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
             <Route path="/clientes" element={<ProtectedLayout><SuperAdminRoute><CadastroCliente /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/clientes/:slug" element={<ProtectedLayout><SuperAdminRoute><LojaDetalhe /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/redes"    element={<ProtectedLayout><SuperAdminRoute><Redes /></SuperAdminRoute></ProtectedLayout>} />
