@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 import { temTravaBal } from '../../utils/balanco'
+import { normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
 const _DEMO_MULT_DIA = [
@@ -227,9 +228,80 @@ export function useLojaData(lojaId = 'estrada') {
       fornecedor:  p.fornecedor || null,
       referencia:  p.referencia || null,
     }))
-    const { error } = await supabase.from('lf_produtos').insert(rows)
+    // Via RPC para o trigger de lf_estoque_mov marcar as linhas como
+    // 'importacao' em vez do fallback 'cadastro'.
+    const error = await inserirProdutos(rows, 'importacao')
     if (!error) await fetchAll()
     return error
+  }
+
+  // Insert de produtos com o contexto de movimentação. Cai no insert direto
+  // enquanto a migration não estiver aplicada — ver rpcAusente().
+  async function inserirProdutos(rows, tipo) {
+    const { error } = await supabase.rpc('lf_inserir_produtos', {
+      p_rows: rows,
+      p_tipo: tipo,
+      p_usuario: null,
+    })
+    if (!rpcAusente(error)) return error
+    console.warn('[estoque] lf_inserir_produtos ausente — rode migration_estoque_mov.sql')
+    const { error: errDireto } = await supabase.from('lf_produtos').insert(rows)
+    return errDireto
+  }
+
+  /**
+   * Baixa ou restauração de estoque a partir dos itens de uma venda/pedido.
+   * Caminho único de venda, troca e exclusão de venda — antes eram três blocos
+   * praticamente iguais. Passa pela RPC lf_set_variacoes para que o trigger de
+   * lf_estoque_mov saiba o motivo da mudança (venda, devolução...) em vez de
+   * cair no fallback 'ajuste'.
+   *
+   * @param produtosItens itens no formato de lf_vendas.produtos ou lf_pedidos.produtos
+   * @param modo 'baixa' | 'restauro'
+   */
+  async function aplicarEstoque(produtosItens, { modo, tipo, origemTipo = null, origemId = null, motivo = null }) {
+    const itens = normalizarItensEstoque(produtosItens)
+    if (itens.length === 0) return
+
+    for (const grupo of agruparPorNome(itens)) {
+      const { data: prod } = await supabase
+        .from('lf_produtos')
+        .select('id, variacoes')
+        .eq('loja_id', lojaId)
+        .eq('nome', grupo.nome)
+        .maybeSingle()
+      if (!prod) continue
+
+      const novasVariacoes = modo === 'baixa'
+        ? decrementarVariacoes(prod.variacoes, grupo.itens)
+        : restaurarVariacoes(prod.variacoes, grupo.itens)
+
+      const error = await gravarVariacoes(prod.id, novasVariacoes, { tipo, origemTipo, origemId, motivo })
+      if (error) console.error('[estoque] gravação de variações falhou:', error.message, grupo.nome)
+    }
+  }
+
+  // Update de variacoes com o contexto de movimentação. Cai no update direto
+  // enquanto a migration não estiver aplicada — ver rpcAusente().
+  async function gravarVariacoes(id, variacoes, ctx = {}) {
+    const { error } = await supabase.rpc('lf_set_variacoes', {
+      p_produto_id:  id,
+      p_variacoes:   variacoes,
+      p_loja_id:     lojaId,
+      p_tipo:        ctx.tipo       || 'ajuste',
+      p_origem_tipo: ctx.origemTipo || 'manual',
+      p_origem_id:   ctx.origemId   || null,
+      p_motivo:      ctx.motivo     || null,
+      p_usuario:     ctx.usuario    || null,
+    })
+    if (!rpcAusente(error)) return error
+    console.warn('[estoque] lf_set_variacoes ausente — rode migration_estoque_mov.sql')
+    const { error: errDireto } = await supabase
+      .from('lf_produtos')
+      .update({ variacoes })
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+    return errDireto
   }
 
   async function addVenda(venda) {
@@ -263,42 +335,19 @@ export function useLojaData(lojaId = 'estrada') {
       return { error, venda: null }
     }
     // Restaura estoque do produto devolvido em troca
-      const itensDevolvidos = (produto_devolvido || []).filter(p => p.variacao)
-      if (itensDevolvidos.length > 0) {
-        const nomesDevolvidos = [...new Set(itensDevolvidos.map(i => i.nome))]
-        for (const nomeProd of nomesDevolvidos) {
-          const itensProd = itensDevolvidos.filter(i => i.nome === nomeProd)
-          const { data: prod } = await supabase
-            .from('lf_produtos').select('id, variacoes')
-            .eq('loja_id', lojaId).eq('nome', nomeProd).maybeSingle()
-          if (prod) {
-            const novasVariacoes = restaurarVariacoes(prod.variacoes, itensProd)
-            await supabase.from('lf_produtos').update({ variacoes: novasVariacoes })
-              .eq('id', prod.id).eq('loja_id', lojaId)
-          }
-        }
-      }
-      const itensComVariacao = (venda.produtos || []).filter(p => p.variacao)
-      if (itensComVariacao.length > 0) {
-        const nomesProd = [...new Set(itensComVariacao.map(i => i.nome))]
-        for (const nomeProd of nomesProd) {
-          const itensProd = itensComVariacao.filter(i => i.nome === nomeProd)
-          const { data: prod } = await supabase
-            .from('lf_produtos')
-            .select('id, variacoes')
-            .eq('loja_id', lojaId)
-            .eq('nome', nomeProd)
-            .maybeSingle()
-          if (prod) {
-            const novasVariacoes = decrementarVariacoes(prod.variacoes, itensProd)
-            await supabase
-              .from('lf_produtos')
-              .update({ variacoes: novasVariacoes })
-              .eq('id', prod.id)
-              .eq('loja_id', lojaId)
-          }
-        }
-      }
+      await aplicarEstoque(produto_devolvido, {
+        modo:       'restauro',
+        tipo:       'devolucao',
+        origemTipo: 'venda',
+        origemId:   novaVenda?.id || null,
+        motivo:     'Devolução em troca',
+      })
+      await aplicarEstoque(venda.produtos, {
+        modo:       'baixa',
+        tipo:       'venda',
+        origemTipo: 'venda',
+        origemId:   novaVenda?.id || null,
+      })
       // Auto-criação silenciosa de fornecedor em lf_fornecedores
       const nomeFornecedor = (venda.fornecedor || '').trim()
       if (nomeFornecedor) {
@@ -367,27 +416,14 @@ export function useLojaData(lojaId = 'estrada') {
 
     const { error } = await supabase.from('lf_vendas').delete().eq('id', id).eq('loja_id', lojaId)
     if (!error) {
-      const itensComVariacao = (venda?.produtos || []).filter(p => p.variacao)
-      if (itensComVariacao.length > 0) {
-        const nomesProd = [...new Set(itensComVariacao.map(i => i.nome))]
-        for (const nomeProd of nomesProd) {
-          const itensProd = itensComVariacao.filter(i => i.nome === nomeProd)
-          const { data: prod } = await supabase
-            .from('lf_produtos')
-            .select('id, variacoes')
-            .eq('loja_id', lojaId)
-            .eq('nome', nomeProd)
-            .maybeSingle()
-          if (prod) {
-            const novasVariacoes = restaurarVariacoes(prod.variacoes, itensProd)
-            await supabase
-              .from('lf_produtos')
-              .update({ variacoes: novasVariacoes })
-              .eq('id', prod.id)
-              .eq('loja_id', lojaId)
-          }
-        }
-      }
+      // origem_id fica nulo de propósito: a venda acabou de ser apagada, e um
+      // id que não existe mais só levaria o extrato a um link quebrado.
+      await aplicarEstoque(venda?.produtos, {
+        modo:       'restauro',
+        tipo:       'devolucao',
+        origemTipo: 'venda_excluida',
+        motivo:     'Venda excluída',
+      })
       await fetchAll()
     }
     return error
@@ -460,7 +496,9 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function addProduto(nome, extras = {}) {
-    const { error } = await supabase.from('lf_produtos').insert({
+    // Via RPC pelo mesmo motivo de importarProdutos: o trigger precisa saber
+    // que a quantidade inicial veio de um cadastro.
+    const error = await inserirProdutos([{
       loja_id: lojaId,
       nome,
       preco_custo:     extras.precoCusto     || 0,
@@ -475,7 +513,7 @@ export function useLojaData(lojaId = 'estrada') {
       video_url:       extras.video_url      || null,
       fotos:           extras.fotos          || [],
       disponivel_catalogo_b2b: extras.disponivel_catalogo_b2b ?? false,
-    })
+    }], 'cadastro')
     if (!error) await fetchAll()
     return error
   }
@@ -500,12 +538,10 @@ export function useLojaData(lojaId = 'estrada') {
     return error
   }
 
-  async function updateVariacoes(id, variacoes) {
-    const { error } = await supabase
-      .from('lf_produtos')
-      .update({ variacoes })
-      .eq('id', id)
-      .eq('loja_id', lojaId)
+  // ctx é opcional: sem ele a movimentação entra como 'ajuste' manual, que é
+  // exatamente o que a edição de estoque na tela é.
+  async function updateVariacoes(id, variacoes, ctx = {}) {
+    const error = await gravarVariacoes(id, variacoes, ctx)
     if (!error) await fetchAll()
     return error
   }

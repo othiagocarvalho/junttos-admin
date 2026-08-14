@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { detectarItensEsgotados } from '../../utils/catalogo'
+import { rpcAusente } from '../../utils/estoqueMov'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
 
@@ -745,17 +746,31 @@ export default function CatalogoPublico({ lojaId }) {
         return
       }
 
-      // Dar baixa no estoque via RPC atômica (SELECT FOR UPDATE + UPDATE na mesma transação)
+      // Dar baixa no estoque via RPC atômica (SELECT FOR UPDATE + UPDATE na mesma transação).
+      // lf_pedido_baixa_estoque é um wrapper fino: põe o contexto que o trigger
+      // de lf_estoque_mov lê (tipo 'venda', origem 'pedido') e delega para
+      // decrementar_estoque_variacao, que segue sendo quem decrementa.
       if (!modoSimples) {
         for (const item of carrinho) {
           if (!item.variacao) continue
-          const { data: ok, error: rpcError } = await supabase.rpc('decrementar_estoque_variacao', {
+          let { data: ok, error: rpcError } = await supabase.rpc('lf_pedido_baixa_estoque', {
             p_produto_id: item.produtoId,
             p_label: item.variacao,
             p_qtd: item.qtd,
+            p_pedido_id: pedidoInserido?.id || null,
           })
+          if (rpcAusente(rpcError)) {
+            // migration_estoque_mov.sql ainda não aplicada: dá a baixa pela
+            // função antiga para não deixar o checkout do cliente sem estoque.
+            console.warn('lf_pedido_baixa_estoque ausente — rode migration_estoque_mov.sql')
+            ;({ data: ok, error: rpcError } = await supabase.rpc('decrementar_estoque_variacao', {
+              p_produto_id: item.produtoId,
+              p_label: item.variacao,
+              p_qtd: item.qtd,
+            }))
+          }
           if (rpcError) {
-            console.error('RPC decrementar_estoque_variacao falhou:', rpcError.message, item.key)
+            console.error('RPC lf_pedido_baixa_estoque falhou:', rpcError.message, item.key)
           } else if (!ok) {
             // Race condition verdadeira: a pré-checagem passou mas o estoque esgotou entre
             // a verificação e o decremento (janela de milissegundos). Pedido já registrado;

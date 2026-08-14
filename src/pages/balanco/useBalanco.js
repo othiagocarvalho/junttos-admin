@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase'
 import { getVarLabel } from '../../utils/balanco'
+import { rpcAusente } from '../../utils/estoqueMov'
 
 export function useBalanco() {
 
@@ -168,10 +169,27 @@ export function useBalanco() {
         return { ...v, quantidade: a.qtd_nova }
       })
 
-      await supabase
-        .from('lf_produtos')
-        .update({ variacoes: novasVariacoes })
-        .eq('id', a.produto_id)
+      // Via RPC para o trigger de lf_estoque_mov registrar a linha como
+      // 'balanco', apontando para a sessão. bal_ajustes continua guardando o
+      // ajuste do ponto de vista do balanço; aqui é o extrato do produto.
+      // p_loja_id nulo: o balanço sempre atualizou só por id.
+      const { error: errRpc } = await supabase.rpc('lf_set_variacoes', {
+        p_produto_id:  a.produto_id,
+        p_variacoes:   novasVariacoes,
+        p_loja_id:     null,
+        p_tipo:        'balanco',
+        p_origem_tipo: 'balanco',
+        p_origem_id:   sessaoId,
+        p_motivo:      'Ajuste de balanço',
+        p_usuario:     aplicadoPor || null,
+      })
+      if (rpcAusente(errRpc)) {
+        console.warn('[balanco] lf_set_variacoes ausente — rode migration_estoque_mov.sql')
+        await supabase
+          .from('lf_produtos')
+          .update({ variacoes: novasVariacoes })
+          .eq('id', a.produto_id)
+      }
     }
     return null
   }

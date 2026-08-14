@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react'
-import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil, History } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { HeroCard } from '../../components/studio/Card'
 import StatusPill from '../../components/studio/StatusPill'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import { rotuloTipo, toneTipo, fmtDelta, labelsDeVariacoes, filtrarPorVariacao, tabelaAusente } from '../../utils/estoqueMov'
+
+function fmtDataHora(s) {
+  return new Date(s).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 const BADGE = {
   critico: { label: 'Crítico', bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
@@ -88,18 +95,29 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [editProdModal, setEditProdModal] = useState(null) // { produto }
   const [prodForm, setProdForm]           = useState(initProdForm({}))
   const [prodSaving, setProdSaving]       = useState(false)
+  const [movModal, setMovModal]     = useState(null) // { produto }
+  const [movs, setMovs]             = useState([])
+  const [movLoading, setMovLoading] = useState(false)
+  const [movErro, setMovErro]       = useState(null)
+  const [movFiltro, setMovFiltro]   = useState('')
+  const [movVenda, setMovVenda]     = useState(null) // { id, carregando, venda }
 
   useEffect(() => {
     function handleKey(e) {
       if (e.key !== 'Escape') return
       if (deleteConfirm && !deleting) { setDeleteConfirm(null); setDeleteError(null) }
+      else if (movModal) setMovModal(null)
       else if (editProdModal && !prodSaving) setEditProdModal(null)
       else if (modal) setModal(null)
       else if (newProdOpen) setNewProdOpen(false)
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [deleteConfirm, deleting, editProdModal, prodSaving, modal, newProdOpen])
+  }, [deleteConfirm, deleting, editProdModal, prodSaving, modal, newProdOpen, movModal])
+
+  // Descarta a resposta de um produto que não é mais o aberto (abrir A e B em
+  // sequência rápida devolveria a lista errada).
+  const movReq = useRef(0)
 
   // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro
   const estoqueData = produtosData.filter(p => !p.disponivel_catalogo_b2b)
@@ -196,6 +214,49 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   function openEditProd(produto) {
     setProdForm(initProdForm(produto))
     setEditProdModal({ produto })
+  }
+
+  // variacao: abre já filtrado naquela variação (vindo do modal de edição).
+  // A tabela é append-only e só cresce, então limita nas mais recentes.
+  async function openMov(produto, variacao = '') {
+    const req = ++movReq.current
+    setMovFiltro(variacao)
+    setMovVenda(null)
+    setMovModal({ produto })
+    setMovLoading(true)
+    setMovErro(null)
+    setMovs([])
+
+    const { data, error } = await supabase
+      .from('lf_estoque_mov')
+      .select('*')
+      .eq('loja_id', LOJA_ID || produto.loja_id)
+      .eq('produto_id', produto.id)
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (req !== movReq.current) return
+
+    if (error) {
+      setMovErro(tabelaAusente(error)
+        ? 'O histórico de movimentação ainda não foi ativado nesta loja.'
+        : 'Não foi possível carregar a movimentação.')
+    } else {
+      setMovs(data || [])
+    }
+    setMovLoading(false)
+  }
+
+  // A origem 'venda' guarda o id em lf_vendas — busca sob demanda, só quando a
+  // pessoa clica, para não puxar venda de todas as linhas do extrato.
+  async function abrirVenda(vendaId) {
+    if (movVenda?.id === vendaId) { setMovVenda(null); return }
+    setMovVenda({ id: vendaId, carregando: true, venda: null })
+    const { data } = await supabase
+      .from('lf_vendas')
+      .select('id, data, cliente_nome, valor, forma_pgto, vendedora, produtos')
+      .eq('id', vendaId)
+      .maybeSingle()
+    setMovVenda(prev => (prev?.id === vendaId ? { id: vendaId, carregando: false, venda: data || null } : prev))
   }
 
   async function handleSaveProd() {
@@ -395,8 +456,15 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                         <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_custo)}</td>
                         <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_venda)}</td>
                         <td style={{ ...tdBase, fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: s ? BADGE[s].color : 'var(--ink)' }}>{v.quantidade}</td>
-                        <td style={{ ...tdBase, textAlign: 'right' }}>
+                        <td style={{ ...tdBase, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <button onClick={() => openEdit(produto, idx)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
+                          <button
+                            onClick={() => openMov(produto, tamanho === '—' ? '' : tamanho)}
+                            aria-label={`Ver movimentação de ${produto.nome}`}
+                            style={{ marginLeft: 6, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Movim.
+                          </button>
                         </td>
                       </tr>
                     )
@@ -502,17 +570,30 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     </div>
                   )}
 
-                  <button
-                    onClick={() => openAdd(produto)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '8px 14px', borderRadius: 10,
-                      border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
-                      fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
-                    }}
-                  >
-                    <Plus size={13} /> Adicionar variação
-                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <button
+                      onClick={() => openAdd(produto)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '8px 14px', borderRadius: 10,
+                        border: '1px dashed var(--line)', background: 'none', cursor: 'pointer',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: theme.primary,
+                      }}
+                    >
+                      <Plus size={13} /> Adicionar variação
+                    </button>
+                    <button
+                      onClick={() => openMov(produto)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '8px 14px', borderRadius: 10,
+                        border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer',
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)',
+                      }}
+                    >
+                      <History size={13} /> Ver movimentação
+                    </button>
+                  </div>
 
                   {features?.catalogo_b2b && (
                     <div style={{ marginTop: 14 }}>
@@ -903,6 +984,23 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             {modal.mode === 'edit' && (
               <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
                 <button
+                  onClick={() => {
+                    const label = modal.produto.variacoes[modal.idx]?.cor || ''
+                    const produto = modal.produto
+                    setModal(null)
+                    openMov(produto, label)
+                  }}
+                  style={{
+                    width: '100%', height: 40, borderRadius: 10, marginBottom: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    border: '1px solid var(--line)', background: 'var(--bg)',
+                    cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                    fontSize: 12, fontWeight: 700, color: 'var(--ink)',
+                  }}
+                >
+                  <History size={14} /> Ver movimentação
+                </button>
+                <button
                   onClick={() => setDeleteConfirm({ produto: modal.produto })}
                   style={{
                     width: '100%', height: 40, borderRadius: 10,
@@ -1091,6 +1189,162 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           </div>
         </div>
       )}
+
+      {/* Bottom sheet — movimentação do produto */}
+      {movModal && (() => {
+        const produto  = movModal.produto
+        const labels   = labelsDeVariacoes(produto)
+        const listadas = filtrarPorVariacao(movs, movFiltro)
+        const chipBase = {
+          padding: '6px 12px', borderRadius: 'var(--r-pill)', cursor: 'pointer',
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+          whiteSpace: 'nowrap', flexShrink: 0,
+        }
+        const chipStyle = ativo => ({
+          ...chipBase,
+          border: `1px solid ${ativo ? theme.primary : 'var(--line)'}`,
+          background: ativo ? `${theme.primary}14` : 'var(--bg)',
+          color: ativo ? theme.primary : 'var(--muted)',
+        })
+
+        return (
+          <div
+            onClick={e => e.target === e.currentTarget && setMovModal(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 250, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          >
+            <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>
+                    Movimentação
+                  </p>
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+                    {produto.nome}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setMovModal(null)}
+                  aria-label="Fechar"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center', padding: 4, flexShrink: 0 }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {labels.length > 1 && (
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+                  <button onClick={() => setMovFiltro('')} style={chipStyle(movFiltro === '')}>Todas</button>
+                  {labels.map(l => (
+                    <button key={l} onClick={() => setMovFiltro(l)} style={chipStyle(movFiltro === l)}>{l}</button>
+                  ))}
+                </div>
+              )}
+
+              {movLoading ? (
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '28px 0' }}>
+                  Carregando...
+                </p>
+              ) : movErro ? (
+                <EmptyState icon={History} title="Movimentação indisponível" subtitle={movErro} />
+              ) : listadas.length === 0 ? (
+                <EmptyState
+                  icon={History}
+                  title="Nada registrado ainda"
+                  subtitle={movFiltro
+                    ? `Nenhuma movimentação de "${movFiltro}" até agora.`
+                    : 'As entradas, ajustes e saídas deste produto aparecem aqui a partir de agora.'}
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {listadas.map(mov => {
+                    const positivo = Number(mov.delta) > 0
+                    const clicavel = mov.origem_tipo === 'venda' && !!mov.origem_id
+                    const aberta   = movVenda?.id === mov.origem_id
+                    return (
+                      <div key={mov.id} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 12, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
+                              <StatusPill tone={toneTipo(mov.tipo)} label={rotuloTipo(mov.tipo)} />
+                              {mov.variacao_label && (
+                                <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
+                                  {mov.variacao_label}
+                                </span>
+                              )}
+                            </div>
+                            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+                              {fmtDataHora(mov.created_at)}
+                              {mov.motivo ? ` · ${mov.motivo}` : ''}
+                              {mov.usuario ? ` · ${mov.usuario}` : ''}
+                            </p>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: positivo ? 'var(--status-ok-tx)' : 'var(--status-bad-tx)', lineHeight: 1 }}>
+                              {fmtDelta(mov.delta)}
+                            </p>
+                            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                              saldo {mov.qtd_nova}
+                            </p>
+                          </div>
+                        </div>
+
+                        {clicavel && (
+                          <button
+                            onClick={() => abrirVenda(mov.origem_id)}
+                            style={{
+                              marginTop: 8, padding: 0, background: 'none', border: 'none', cursor: 'pointer',
+                              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                              color: theme.primary, textDecoration: 'underline',
+                            }}
+                          >
+                            {aberta ? 'Ocultar venda' : 'Ver venda'}
+                          </button>
+                        )}
+
+                        {clicavel && aberta && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+                            {movVenda.carregando ? (
+                              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Carregando venda...</p>
+                            ) : !movVenda.venda ? (
+                              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Venda não encontrada — pode ter sido excluída.</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--ink)', fontWeight: 700 }}>
+                                  {fmtR(movVenda.venda.valor)} · {fmtDataHora(movVenda.venda.data)}
+                                </p>
+                                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                                  {movVenda.venda.cliente_nome || 'Sem cliente'}
+                                  {movVenda.venda.vendedora ? ` · ${movVenda.venda.vendedora}` : ''}
+                                </p>
+                                {(movVenda.venda.produtos || []).length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 2 }}>
+                                    {movVenda.venda.produtos.map((p, i) => (
+                                      <span key={i} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 'var(--r-chip)', background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                                        {p.quantidade || 1}× {p.nome}{p.variacao ? ` (${p.variacao})` : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {!movLoading && !movErro && (
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 14, lineHeight: 1.5 }}>
+                  O registro vale a partir da ativação do histórico — movimentações anteriores a isso não foram guardadas.
+                </p>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal de confirmação — excluir produto */}
       {deleteConfirm && (
