@@ -241,6 +241,37 @@ Todas as tabelas `lf_*` são do módulo Loja Feminina. Tabelas `jt_*` são do Ad
 | categoria | text | categoria do produto |
 | created_at | timestamptz | |
 
+### `lf_estoque_mov` — Histórico de movimentação de estoque
+| Coluna | Tipo | Notas |
+|--------|------|-------|
+| id | uuid PK | |
+| loja_id | text | |
+| produto_id | uuid | FK `lf_produtos(id)` **ON DELETE CASCADE** |
+| variacao_label | text | rótulo da variação (cor/tamanho/modelo) |
+| tipo | text | `entrada` \| `ajuste` \| `venda` \| `devolucao` \| `balanco` \| `cadastro` \| `importacao` |
+| delta | integer | `+` entrada, `−` saída |
+| qtd_anterior / qtd_nova | integer | saldo da variação antes e depois |
+| origem_tipo | text | `venda` \| `venda_excluida` \| `pedido` \| `balanco` \| `manual` |
+| origem_id | uuid | `lf_vendas.id`, `lf_pedidos.id` ou `bal_sessoes.id` |
+| motivo / usuario | text | |
+| created_at | timestamptz | |
+
+Tabela append-only, alimentada pelo **trigger `trg_lf_estoque_mov` em `lf_produtos`**
+(`AFTER INSERT OR UPDATE OF variacoes`), que compara `OLD.variacoes` com
+`NEW.variacoes` e emite uma linha por variação alterada. O trigger pega todos os
+caminhos, inclusive edição manual no Supabase Studio.
+
+O *motivo* da mudança vem de GUCs `app.mov_*` setadas na mesma transação. Como
+cada request do PostgREST roda em transação própria, o client não consegue
+chamar `set_config` separado: escreve pelas RPCs `lf_set_variacoes`,
+`lf_inserir_produtos` e `lf_pedido_baixa_estoque` (`supabase/migration_estoque_mov.sql`),
+que setam o contexto e fazem a escrita juntos. Sem contexto, o trigger grava
+`ajuste` (UPDATE) ou `cadastro` (INSERT).
+
+> Sem backfill: o histórico vale a partir da data em que a migration entrou em
+> produção. Visível em **Estoque → Ver movimentação** (`EstoqueMobile.jsx`, usada
+> por mobile e desktop), **sem gate de plano** — Starter inclusive.
+
 ### `lf_clientes` — Clientes finais
 | Coluna | Tipo |
 |--------|------|
