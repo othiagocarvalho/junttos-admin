@@ -96,6 +96,7 @@ function Secao({ title, children, right }) {
 export default function LojaDetalhe() {
   const { slug } = useParams()
   const [loja, setLoja]           = useState(null)
+  const [contratante, setContratante] = useState(null)
   const [contratos, setContratos] = useState([])
   const [valorMensal, setValorMensal] = useState(null)
   const [fetching, setFetching]   = useState(true)
@@ -114,7 +115,7 @@ export default function LojaDetalhe() {
     if (!cfg)   { setLoja(null); setFetching(false); return }
     setLoja(cfg)
 
-    const [listaRes, cobrancaRes] = await Promise.all([
+    const [listaRes, cobrancaRes, contratanteRes] = await Promise.all([
       supabase.functions.invoke('gerar-contrato', {
         body: { action: 'listar', loja_id: cfg.loja_id },
       }),
@@ -122,10 +123,18 @@ export default function LojaDetalhe() {
       // recalculado na function, que é quem grava o snapshot.
       supabase.from('jt_cobrancas').select('valor')
         .eq('loja_id', cfg.loja_id).order('created_at', { ascending: false }).limit(1),
+      // jt_contratantes é invisível para o navegador (RLS sem policy).
+      supabase.functions.invoke('gerar-contrato', {
+        body: { action: 'contratante-obter', loja_id: cfg.loja_id },
+      }),
     ])
     const listaErro = listaRes.error?.message || listaRes.data?.error
     if (listaErro) setErro(`Erro ao carregar os contratos: ${listaErro}`)
     setContratos(listaRes.data?.contratos || [])
+
+    const ctErro = contratanteRes.error?.message || contratanteRes.data?.error
+    if (ctErro) setErro(`Erro ao carregar os dados do contratante: ${ctErro}`)
+    setContratante(contratanteRes.data?.contratante || null)
 
     const doBanco = cobrancaRes.data?.[0]?.valor
     setValorMensal(
@@ -143,8 +152,8 @@ export default function LojaDetalhe() {
   // validação não deve depender disso.
   const faltando = loja
     ? OBRIGATORIOS.filter(({ key }) => key === 'vencimento_dia'
-        ? !Number(loja[key])
-        : !String(loja[key] ?? '').trim())
+        ? !Number(contratante?.[key])
+        : !String(contratante?.[key] ?? '').trim())
     : []
   const podeGerar = loja && faltando.length === 0
 
@@ -250,17 +259,17 @@ export default function LojaDetalhe() {
       {/* ── Dados do contratante ── */}
       <Secao title="Dados do contratante">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18 }}>
-          <Campo label="Razão social / Nome" value={loja.razao_social} />
-          <Campo label="CPF / CNPJ"          value={loja.cpf_cnpj} mono />
-          <Campo label="Endereço"            value={[loja.endereco, loja.numero, loja.complemento].filter(Boolean).join(', ')} />
-          <Campo label="Bairro"              value={loja.bairro} />
-          <Campo label="Cidade / UF"         value={[loja.cidade, loja.estado].filter(Boolean).join('/')} />
-          <Campo label="CEP"                 value={loja.cep} mono />
-          <Campo label="Responsável"         value={loja.responsavel_nome} />
-          <Campo label="E-mail"              value={loja.responsavel_email} />
-          <Campo label="Telefone"            value={loja.responsavel_telefone} />
-          <Campo label="Início do contrato"  value={loja.contrato_inicio ? fmtData(loja.contrato_inicio) : ''} />
-          <Campo label="Dia de vencimento"   value={loja.vencimento_dia ? `Todo dia ${loja.vencimento_dia}` : ''} />
+          <Campo label="Razão social / Nome" value={contratante?.razao_social} />
+          <Campo label="CPF / CNPJ"          value={contratante?.cpf_cnpj} mono />
+          <Campo label="Endereço"            value={[contratante?.endereco, contratante?.numero, contratante?.complemento].filter(Boolean).join(', ')} />
+          <Campo label="Bairro"              value={contratante?.bairro} />
+          <Campo label="Cidade / UF"         value={[contratante?.cidade, contratante?.estado].filter(Boolean).join('/')} />
+          <Campo label="CEP"                 value={contratante?.cep} mono />
+          <Campo label="Responsável"         value={contratante?.responsavel_nome} />
+          <Campo label="E-mail"              value={contratante?.responsavel_email} />
+          <Campo label="Telefone"            value={contratante?.responsavel_telefone} />
+          <Campo label="Início do contrato"  value={contratante?.contrato_inicio ? fmtData(contratante.contrato_inicio) : ''} />
+          <Campo label="Dia de vencimento"   value={contratante?.vencimento_dia ? `Todo dia ${contratante.vencimento_dia}` : ''} />
         </div>
       </Secao>
 
