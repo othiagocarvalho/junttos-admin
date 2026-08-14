@@ -30,7 +30,7 @@ const FILTROS = [
   { key: 'cancelado', label: 'Cancelados' },
 ]
 
-export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, lojaId }) {
+export default function PedidosCatalogo({ pedidos = [], updatePedido, cancelarPedido, theme, lojaId }) {
   const [atualizando, setAtualizando] = useState(null)
   const [copiado, setCopiado] = useState(false)
   const [expandido, setExpandido] = useState(null)
@@ -63,9 +63,11 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, theme, loj
     setAtualizando(null)
   }
 
+  // cancelarPedido devolve ao estoque o que o checkout já tinha baixado —
+  // updatePedido sozinho só mudaria o status e deixaria a peça reservada.
   async function cancelar(id) {
     setAtualizando(id)
-    try { await updatePedido(id, { status: 'cancelado' }) } catch (e) { alert('Erro: ' + e.message) }
+    try { await cancelarPedido(id) } catch (e) { alert('Erro: ' + e.message) }
     setAtualizando(null)
   }
 
