@@ -145,6 +145,27 @@ describe('saldo resultante — o que o trigger vai ver', () => {
     expect(restaurarVariacoes(variacoes, itens)).toEqual([{ cor: 'P', quantidade: 5 }])
   })
 
+  it('cancelamento de pedido: devolve exatamente o que o checkout baixou', () => {
+    // lf_pedidos.produtos usa `qtd`. O checkout baixou 3 de "Preta"; o
+    // cancelamento tem que repor os mesmos 3, e nada além disso.
+    const itensPedido = [{ nome: 'Blusa', variacao: 'Preta', qtd: 3, preco: 49.9 }]
+    const aposCheckout = decrementarVariacoes(
+      [{ cor: 'Preta', quantidade: 10 }, { cor: 'Branca', quantidade: 4 }],
+      normalizarItensEstoque(itensPedido))
+    expect(aposCheckout).toEqual([{ cor: 'Preta', quantidade: 7 }, { cor: 'Branca', quantidade: 4 }])
+
+    const aposCancelar = restaurarVariacoes(aposCheckout, normalizarItensEstoque(itensPedido))
+    expect(aposCancelar).toEqual([{ cor: 'Preta', quantidade: 10 }, { cor: 'Branca', quantidade: 4 }])
+  })
+
+  it('pedido do catálogo simples não mexe em estoque nos dois sentidos', () => {
+    // Sem variação o checkout não baixa nada — o cancelamento também não pode repor.
+    const itens = normalizarItensEstoque([{ nome: 'Bolsa', qtd: 2, preco: 79.9 }])
+    expect(itens).toEqual([])
+    expect(restaurarVariacoes([{ cor: 'Único', quantidade: 5 }], itens))
+      .toEqual([{ cor: 'Único', quantidade: 5 }])
+  })
+
   it('venda maior que o saldo trava em 0 — delta nunca leva a negativo', () => {
     const variacoes = [{ cor: 'P', quantidade: 1 }]
     const itens = normalizarItensEstoque([{ nome: 'Vestido', variacao: 'P', qtd: 4 }])

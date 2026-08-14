@@ -395,6 +395,7 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
         : <PedidosCatalogo
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
+            cancelarPedido={data.cancelarPedido}
             theme={theme}
             lojaId={lojaId}
           />
@@ -554,7 +555,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <Fornecedores {...data} theme={theme} lojaId={lojaId} />
       : null,
     catalogo: temAcesso(plano, 'business')
-      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} theme={theme} lojaId={lojaId} />
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModulo data={data} theme={theme} lojaId={lojaId} nivel={catalogoB2BNivel} />

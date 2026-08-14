@@ -611,6 +611,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
           <PedidosCatalogo
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
+            cancelarPedido={data.cancelarPedido}
             theme={theme}
             lojaId={lojaId}
           />

@@ -639,6 +639,57 @@ export function useLojaData(lojaId = 'estrada') {
     return data
   }
 
+  /**
+   * Cancela um pedido do catálogo e devolve ao estoque o que já tinha sido
+   * baixado.
+   *
+   * A baixa acontece na CRIAÇÃO do pedido (CatalogoPublico.jsx, via
+   * lf_pedido_baixa_estoque), não no pagamento. Sem devolver no cancelamento,
+   * a peça ficava reservada para sempre num pedido que não vai acontecer.
+   *
+   * O .neq('status', 'cancelado') faz a transição valer como trava: se o
+   * pedido já estava cancelado nenhuma linha volta, e o estoque não é
+   * devolvido duas vezes.
+   */
+  async function cancelarPedido(id) {
+    const { data: pedido } = await supabase
+      .from('lf_pedidos')
+      .select('produtos')
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+      .maybeSingle()
+
+    const { data, error } = await supabase
+      .from('lf_pedidos')
+      .update({ status: 'cancelado' })
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+      .neq('status', 'cancelado')
+      .select()
+      .maybeSingle()
+    if (error) throw error
+    // data nulo = nenhuma linha transitou (já estava cancelado, ou é de outra
+    // loja). Vale enquanto lf_pedidos estiver sem RLS: se um dia ligarem, o
+    // select pós-update pode voltar vazio com o update tendo funcionado
+    // (PGRST116, o mesmo caso tratado em addVenda) e a devolução seria pulada
+    // em silêncio.
+    if (!data) return null
+
+    // Só itens com variação foram baixados no checkout, e é exatamente esse
+    // filtro que normalizarItensEstoque aplica — a devolução espelha a baixa.
+    await aplicarEstoque(pedido?.produtos, {
+      modo:       'restauro',
+      tipo:       'devolucao',
+      origemTipo: 'pedido',
+      origemId:   id,
+      motivo:     'Pedido cancelado',
+    })
+
+    setPedidos(prev => prev.map(p => p.id === id ? data : p))
+    await fetchAll()
+    return data
+  }
+
   async function addFornecedor(dados) {
     const novo = {
       loja_id: lojaId,
@@ -800,6 +851,7 @@ export function useLojaData(lojaId = 'estrada') {
     saveComissaoPercentual,
     pedidos,
     updatePedido,
+    cancelarPedido,
     fornecedores,
     addFornecedor,
     updateFornecedor,
