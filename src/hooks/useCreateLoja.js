@@ -25,34 +25,14 @@ const DEFAULT_FEATURES = {
   cadastro_completo_cliente: false,
 }
 
-// Colunas de contrato em lf_config (ver supabase/migration_contrato.sql).
-// Preenchidas hoje só pelo cadastro do admin; o Portal do Consultor não envia.
-const CONTRATO_FIELDS = [
-  'razao_social', 'cpf_cnpj',
-  'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
-  'responsavel_nome', 'responsavel_email', 'responsavel_telefone',
-  'contrato_inicio', 'vencimento_dia',
-]
-
-/**
- * Só entram no payload os campos de contrato realmente preenchidos. Assim quem
- * não passa `contratante` — o Portal do Consultor — segue gerando exatamente o
- * mesmo INSERT de antes, sem chaves novas nem nulls extras.
- */
-function pickContratante(contratante) {
-  if (!contratante) return {}
-  const out = {}
-  CONTRATO_FIELDS.forEach(k => {
-    const v = contratante[k]
-    if (v === undefined || v === null || v === '') return
-    out[k] = k === 'vencimento_dia' ? Number(v) : v
-  })
-  return out
-}
-
 /**
  * Monta o objeto a ser inserido em lf_config.
  * Exportado para facilitar testes unitários.
+ *
+ * Os dados do contratante (CPF/CNPJ, endereço, responsável) NÃO entram aqui:
+ * lf_config é lida por anon — o App.jsx resolve slug antes do login e o
+ * catálogo público faz select('*') nela. Esses campos vivem em
+ * jt_contratantes e são gravados pela Edge Function, logo após este insert.
  */
 export function buildLojaPayload({
   nome, slug,
@@ -62,7 +42,6 @@ export function buildLojaPayload({
   features = {},
   logoUrl = null,
   cadastrado_por_consultor_id = null,
-  contratante = null,
 }) {
   const payload = {
     loja_id:        slug,
@@ -80,7 +59,6 @@ export function buildLojaPayload({
     },
     logo_url:       logoUrl,
     updated_at:     new Date().toISOString(),
-    ...pickContratante(contratante),
   }
   if (cadastrado_por_consultor_id) {
     payload.cadastrado_por_consultor_id = cadastrado_por_consultor_id
@@ -135,8 +113,19 @@ export function useCreateLoja() {
 
       const { error: cfgErr } = await supabase
         .from('lf_config')
-        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id, contratante }))
+        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id }))
       if (cfgErr) throw new Error(cfgErr.message)
+
+      // jt_contratantes tem RLS e nenhuma policy — quem grava é a function.
+      // Falhar aqui não invalida a loja: o cadastro do contratante pode ser
+      // refeito depois, então o erro vira aviso e não derruba a criação.
+      if (contratante && Object.values(contratante).some(v => v !== '' && v != null)) {
+        const { data: ctData, error: ctErr } = await supabase.functions.invoke('gerar-contrato', {
+          body: { action: 'contratante-salvar', loja_id: slug, contratante },
+        })
+        const ctMsg = ctErr?.message || ctData?.error
+        if (ctMsg) setError(`Loja criada, mas os dados do contratante não foram salvos: ${ctMsg}`)
+      }
 
       if (email_acesso && senha_acesso) {
         const lojaUrl = `${window.location.origin}/${slug}/`

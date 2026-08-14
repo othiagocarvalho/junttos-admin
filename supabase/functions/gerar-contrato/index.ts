@@ -24,7 +24,11 @@ const OBRIGATORIOS = [
   'cidade', 'estado', 'contrato_inicio', 'vencimento_dia',
 ]
 
-// Campos copiados de lf_config para o snapshot congelado.
+// Campos do contratante, copiados de jt_contratantes para o snapshot congelado.
+// Moraram em lf_config até a migration_contratante.sql: lá ficavam visíveis
+// para qualquer um com a anon key, inclusive no select('*') do catálogo
+// público. Agora vivem numa tabela com RLS e sem policy, que só esta function
+// enxerga.
 const SNAPSHOT_FIELDS = [
   'razao_social', 'cpf_cnpj',
   'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
@@ -61,13 +65,43 @@ serve(async (req) => {
     })
 
   try {
-    const { action = 'gerar', loja_id, contrato_id } = await req.json()
+    const { action = 'gerar', loja_id, contrato_id, contratante } = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
+
+    // ── Cadastro do contratante: jt_contratantes é invisível para o navegador ──
+    if (action === 'contratante-obter') {
+      if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
+      const { data, error } = await admin
+        .from('jt_contratantes').select('*').eq('loja_id', loja_id).maybeSingle()
+      if (error) return json({ error: `Erro ao buscar contratante: ${error.message}` }, 500)
+      return json({ contratante: data ?? null })
+    }
+
+    if (action === 'contratante-salvar') {
+      if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
+      const dados = (contratante ?? {}) as Record<string, unknown>
+
+      // Só grava o que veio preenchido — campo em branco não vira string vazia.
+      const linha: Record<string, unknown> = { loja_id, updated_at: new Date().toISOString() }
+      SNAPSHOT_FIELDS.forEach(k => {
+        const v = dados[k]
+        if (v === undefined || v === null || v === '') return
+        linha[k] = k === 'vencimento_dia' ? Number(v) : v
+      })
+
+      // Nada preenchido: não cria linha vazia só para dizer que existe.
+      if (Object.keys(linha).length <= 2) return json({ ok: true, contratante: null })
+
+      const { data, error } = await admin
+        .from('jt_contratantes').upsert(linha, { onConflict: 'loja_id' }).select().single()
+      if (error) return json({ error: `Erro ao salvar contratante: ${error.message}` }, 500)
+      return json({ ok: true, contratante: data })
+    }
 
     // ── Histórico: a tela não consegue ler jt_contratos direto (RLS) ──
     if (action === 'listar') {
@@ -106,7 +140,12 @@ serve(async (req) => {
     }
     if (!loja) return json({ error: 'Loja não encontrada.' }, 404)
 
-    const faltando = faltamCampos(loja)
+    // O contratante vem de jt_contratantes; lf_config só entrega plano e
+    // segmento, que não são dados pessoais.
+    const { data: contratanteAtual } = await admin
+      .from('jt_contratantes').select('*').eq('loja_id', loja.loja_id).maybeSingle()
+
+    const faltando = faltamCampos(contratanteAtual ?? {})
     if (faltando.length > 0) {
       return json({ error: `Faltam dados obrigatórios no cadastro: ${faltando.join(', ')}.` }, 400)
     }
@@ -130,7 +169,7 @@ serve(async (req) => {
       segmento: loja.segmento,
     }
     SNAPSHOT_FIELDS.forEach(k => {
-      const v = loja[k]
+      const v = contratanteAtual?.[k]
       if (v !== undefined && v !== null && v !== '') snapshot[k] = v
     })
 
