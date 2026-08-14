@@ -11,6 +11,8 @@ import { T } from '../../theme/tokens'
 import DemoPanel from './DemoPanel'
 import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
 import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../../utils/planos'
+import CamposContratante from '../../components/admin/CamposContratante'
+import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 
 function rgbToHex([r, g, b]) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
@@ -47,27 +49,10 @@ const EMPTY_FORM = {
   valor_mensal: String(valorPlano(SEGMENTO_PADRAO, 'starter')),
   features: { atacado: false, crm: false },
   enviarBV: true,
-  // ── Dados do contratante (contrato) ──
-  // Todos opcionais: a loja pode ser criada sem eles e completada depois.
-  razao_social: '', cpf_cnpj: '',
-  endereco: '', numero: '', complemento: '', bairro: '',
-  cidade: '', estado: '', cep: '',
-  responsavel_nome: '', responsavel_email: '', responsavel_telefone: '',
-  contrato_inicio: '', vencimento_dia: '',
+  // Dados do contratante — todos opcionais: a loja pode ser criada sem eles e
+  // completada depois pela edição em LojaDetalhe.
+  ...CONTRATANTE_VAZIO,
 }
-
-const UFS = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
-  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
-]
-
-// Campos que viram colunas de lf_config no INSERT (ver useCreateLoja).
-const CONTRATO_KEYS = [
-  'razao_social', 'cpf_cnpj',
-  'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep',
-  'responsavel_nome', 'responsavel_email', 'responsavel_telefone',
-  'contrato_inicio', 'vencimento_dia',
-]
 
 // ── Toggle component ─────────────────────────────────────────────
 function Toggle({ value, onChange, label, sub }) {
@@ -137,15 +122,6 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   function handleSegmentoChange(novoSegmento) {
     setForm(p => ({ ...p, segmento: novoSegmento, valor_mensal: String(valorPlano(novoSegmento, p.plano)) }))
   }
-  // Dia recorrente do mês: aceita vazio ou 1–31, então digitar 45 não entra.
-  function handleVencimentoDia(val) {
-    if (val === '') { setForm(p => ({ ...p, vencimento_dia: '' })); return }
-    if (!/^\d{1,2}$/.test(val)) return
-    const n = Number(val)
-    if (n < 1 || n > 31) return
-    setForm(p => ({ ...p, vencimento_dia: val }))
-  }
-
   async function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -183,7 +159,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
       senha_acesso:   form.senha_acesso,
       valor_mensal:   form.valor_mensal,
       enviarBV:       form.enviarBV,
-      contratante:    Object.fromEntries(CONTRATO_KEYS.map(k => [k, form[k]])),
+      contratante:    apenasContratante(form),
     })
     if (link) onCreated()
   }
@@ -194,15 +170,6 @@ function NovoClienteModal({ open, onClose, onCreated }) {
     borderRadius: T.rInput, padding: '0 14px',
     fontFamily: T.ui, fontSize: 14, color: T.ink, outline: 'none',
   }
-  const sel = {
-    ...inp, cursor: 'pointer', appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%237B7390' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center',
-  }
-  const lbl = { display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }
-  // O modal tem 540px, então as linhas quebram sozinhas em telas estreitas.
-  const row = { display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }
-
   if (!open) return null
 
   return (
@@ -274,98 +241,14 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           </div>
 
           {/* ── Dados do contratante ── */}
+          {/* Mesmos campos da edição em LojaDetalhe — ver CamposContratante. */}
           <Section title="Dados do contratante" />
 
-          <p style={{ fontSize: 11, color: T.muted, marginBottom: 14, lineHeight: 1.5 }}>
-            Usados para gerar o contrato. Todos opcionais — a loja pode ser criada agora e ter esses dados completados depois.
-          </p>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Razão social / Nome completo</label>
-            <input value={form.razao_social} onChange={e => setForm(p => ({ ...p, razao_social: e.target.value }))} placeholder="Maria Store Comércio LTDA — ou o nome completo, se for CPF" style={inp} />
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>CPF / CNPJ</label>
-            <input value={form.cpf_cnpj} onChange={e => setForm(p => ({ ...p, cpf_cnpj: e.target.value }))} placeholder="000.000.000-00 ou 00.000.000/0000-00" style={{ ...inp, fontFamily: T.mono }} />
-          </div>
-
-          <div style={row}>
-            <div style={{ flex: '3 1 220px', minWidth: 0 }}>
-              <label style={lbl}>Endereço</label>
-              <input value={form.endereco} onChange={e => setForm(p => ({ ...p, endereco: e.target.value }))} placeholder="Rua das Flores" style={inp} />
-            </div>
-            <div style={{ flex: '1 1 90px', minWidth: 0 }}>
-              <label style={lbl}>Número</label>
-              <input value={form.numero} onChange={e => setForm(p => ({ ...p, numero: e.target.value }))} placeholder="123" style={inp} />
-            </div>
-          </div>
-
-          <div style={row}>
-            <div style={{ flex: '1 1 160px', minWidth: 0 }}>
-              <label style={lbl}>Complemento</label>
-              <input value={form.complemento} onChange={e => setForm(p => ({ ...p, complemento: e.target.value }))} placeholder="Sala 2" style={inp} />
-            </div>
-            <div style={{ flex: '1 1 160px', minWidth: 0 }}>
-              <label style={lbl}>Bairro</label>
-              <input value={form.bairro} onChange={e => setForm(p => ({ ...p, bairro: e.target.value }))} placeholder="Centro" style={inp} />
-            </div>
-          </div>
-
-          <div style={row}>
-            <div style={{ flex: '2 1 160px', minWidth: 0 }}>
-              <label style={lbl}>Cidade</label>
-              <input value={form.cidade} onChange={e => setForm(p => ({ ...p, cidade: e.target.value }))} placeholder="Fortaleza" style={inp} />
-            </div>
-            <div style={{ flex: '0 1 92px', minWidth: 0 }}>
-              <label style={lbl}>UF</label>
-              <select value={form.estado} onChange={e => setForm(p => ({ ...p, estado: e.target.value }))} style={sel}>
-                <option value="">—</option>
-                {UFS.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: '1 1 120px', minWidth: 0 }}>
-              <label style={lbl}>CEP</label>
-              <input value={form.cep} onChange={e => setForm(p => ({ ...p, cep: e.target.value }))} placeholder="60000-000" style={{ ...inp, fontFamily: T.mono }} />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Responsável</label>
-            <input value={form.responsavel_nome} onChange={e => setForm(p => ({ ...p, responsavel_nome: e.target.value }))} placeholder="Nome de quem assina o contrato" style={inp} />
-          </div>
-
-          <div style={row}>
-            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-              <label style={lbl}>E-mail do responsável</label>
-              <input type="email" value={form.responsavel_email} onChange={e => setForm(p => ({ ...p, responsavel_email: e.target.value }))} placeholder="maria@email.com" style={inp} />
-            </div>
-            <div style={{ flex: '1 1 150px', minWidth: 0 }}>
-              <label style={lbl}>Telefone do responsável</label>
-              <input value={form.responsavel_telefone} onChange={e => setForm(p => ({ ...p, responsavel_telefone: e.target.value }))} placeholder="(85) 99999-0000" style={inp} />
-            </div>
-          </div>
-
-          <div style={{ ...row, marginBottom: 4 }}>
-            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
-              <label style={lbl}>Início do contrato</label>
-              <input type="date" value={form.contrato_inicio} onChange={e => setForm(p => ({ ...p, contrato_inicio: e.target.value }))} style={{ ...inp, cursor: 'pointer', colorScheme: 'light' }} />
-            </div>
-            <div style={{ flex: '1 1 130px', minWidth: 0 }}>
-              <label style={lbl}>Dia de vencimento</label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                step="1"
-                value={form.vencimento_dia}
-                onChange={e => handleVencimentoDia(e.target.value)}
-                placeholder="10"
-                style={inp}
-              />
-              <p style={{ fontSize: 11, color: T.muted, marginTop: 5 }}>Todo dia {form.vencimento_dia || '__'} de cada mês</p>
-            </div>
-          </div>
+          <CamposContratante
+            valores={form}
+            onChange={(campo, valor) => setForm(p => ({ ...p, [campo]: valor }))}
+            intro="Usados para gerar o contrato. Todos opcionais — a loja pode ser criada agora e ter esses dados completados depois."
+          />
 
           {/* ── Logo ── */}
           <Section title="Logo da loja" />

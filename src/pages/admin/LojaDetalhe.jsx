@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Download, AlertCircle, Loader2, Check, ExternalLink,
-  PenLine, Link2, X, Copy,
+  PenLine, Link2, X, Copy, Pencil,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { T } from '../../theme/tokens'
 import { PLANOS, valorPlano, fmtValorPlano, nomeModulo } from '../../utils/planos'
+import CamposContratante from '../../components/admin/CamposContratante'
+import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 
 // Sem estes o contrato sai com cláusula pela metade: os três primeiros deixam o
 // documento sem partes identificadas, e os demais produzem coisas como "foro da
@@ -135,6 +137,107 @@ function ModalAssinatura({ dados, onFechar }) {
   )
 }
 
+/**
+ * Edição dos dados do contratante de uma loja que já existe. Só estes 14
+ * campos: nome, cores, plano, segmento e slug ficam de fora de propósito —
+ * segmento troca o painel que a lojista usa e slug é a chave lógica de todas
+ * as tabelas, então mudá-los aqui quebraria a loja.
+ *
+ * Salva o que estiver preenchido, sem exigir os obrigatórios: o preenchimento
+ * costuma ser incremental (o CNPJ chega depois). Quem cobra os 7 campos é a
+ * geração do contrato, na seção abaixo.
+ */
+function ModalEditarContratante({ lojaId, lojaNome, inicial, onFechar, onSalvo }) {
+  const [form, setForm]   = useState({ ...CONTRATANTE_VAZIO, ...apenasContratante(inicial) })
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro]   = useState('')
+
+  useEffect(() => {
+    function esc(e) { if (e.key === 'Escape' && !salvando) onFechar() }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onFechar, salvando])
+
+  async function handleSalvar(e) {
+    e.preventDefault()
+    setSalvando(true); setErro('')
+    // jt_contratantes tem RLS e nenhuma policy — quem grava é a function, e o
+    // contratante-salvar já faz upsert por loja_id, servindo a criar e editar.
+    const { data, error } = await supabase.functions.invoke('gerar-contrato', {
+      body: { action: 'contratante-salvar', loja_id: lojaId, contratante: form },
+    })
+    const msg = error?.message || data?.error
+    if (msg) { setErro(`Não foi possível salvar: ${msg}`); setSalvando(false); return }
+    setSalvando(false)
+    onSalvo()
+  }
+
+  return (
+    <div
+      onClick={() => { if (!salvando) onFechar() }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1500, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 540, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '24px 28px 0' }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 2 }}>Dados do contratante</h2>
+            <p style={{ fontSize: 13, color: T.muted, wordBreak: 'break-word' }}>{lojaNome}</p>
+          </div>
+          <button
+            type="button" onClick={onFechar} disabled={salvando}
+            style={{ background: T.mist, border: 'none', borderRadius: T.rInput, width: 36, height: 36, cursor: salvando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <X size={16} color={T.muted} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSalvar} style={{ padding: '18px 28px 28px' }}>
+          <CamposContratante
+            valores={form}
+            onChange={(campo, valor) => setForm(p => ({ ...p, [campo]: valor }))}
+            intro="Preencha o que já tiver — dá para completar depois. Os campos obrigatórios só são cobrados na hora de gerar o contrato."
+          />
+
+          {erro && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginTop: 16 }}>
+              <AlertCircle size={14} color={T.coralText} style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 13, color: T.coralText, lineHeight: 1.5 }}>{erro}</p>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+            <button
+              type="button" onClick={onFechar} disabled={salvando}
+              style={{ flex: 1, height: 46, borderRadius: T.rInput, border: `1.5px solid ${T.line}`, background: T.mist, cursor: salvando ? 'not-allowed' : 'pointer', fontFamily: T.ui, fontWeight: 600, color: T.muted, fontSize: 14 }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit" disabled={salvando}
+              style={{
+                flex: 2, height: 46, borderRadius: T.rInput, border: 'none',
+                background: salvando ? T.mist : T.purple,
+                color: salvando ? T.muted : T.white,
+                cursor: salvando ? 'not-allowed' : 'pointer',
+                fontFamily: T.ui, fontWeight: 700, fontSize: 14,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                boxShadow: salvando ? 'none' : '0 4px 16px rgba(94,43,208,0.28)',
+              }}
+            >
+              {salvando
+                ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
+                : <><Check size={15} /> Salvar dados</>}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // Botões de ação de cada linha do histórico.
 const btnLinha = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -177,6 +280,7 @@ export default function LojaDetalhe() {
   const [abrindoAss, setAbrindoAss] = useState(null)
   const [copiando, setCopiando]     = useState(null)
   const [copiado, setCopiado]       = useState(null)
+  const [editando, setEditando]     = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -358,7 +462,18 @@ export default function LojaDetalhe() {
       )}
 
       {/* ── Dados do contratante ── */}
-      <Secao title="Dados do contratante">
+      <Secao
+        title="Dados do contratante"
+        right={
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            style={{ ...btnLinha, height: 34 }}
+          >
+            <Pencil size={13} /> {contratante ? 'Editar' : 'Preencher'}
+          </button>
+        }
+      >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18 }}>
           <Campo label="Razão social / Nome" value={contratante?.razao_social} />
           <Campo label="CPF / CNPJ"          value={contratante?.cpf_cnpj} mono />
@@ -391,9 +506,13 @@ export default function LojaDetalhe() {
                 <li key={key} style={{ fontSize: 12.5, color: T.statusTrialTx, lineHeight: 1.7 }}>{label}</li>
               ))}
             </ul>
-            <Link to="/clientes" style={{ fontSize: 12.5, fontWeight: 700, color: T.purpleText, textDecoration: 'none' }}>
-              Editar cadastro da loja →
-            </Link>
+            <button
+              type="button"
+              onClick={() => setEditando(true)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: T.ui, fontSize: 12.5, fontWeight: 700, color: T.purpleText }}
+            >
+              Preencher os dados do contratante →
+            </button>
           </div>
         )}
 
@@ -500,6 +619,16 @@ export default function LojaDetalhe() {
           </p>
         )}
       </Secao>
+
+      {editando && (
+        <ModalEditarContratante
+          lojaId={loja.loja_id}
+          lojaNome={loja.nome}
+          inicial={contratante}
+          onFechar={() => setEditando(false)}
+          onSalvo={async () => { setEditando(false); await fetchTudo() }}
+        />
+      )}
 
       {assinatura && <ModalAssinatura dados={assinatura} onFechar={() => setAssinatura(null)} />}
 
