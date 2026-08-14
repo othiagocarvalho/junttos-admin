@@ -9,6 +9,16 @@ const corsHeaders = {
 
 const BUCKET = 'contratos'
 const LINK_TTL = 120 // segundos -- o admin baixa na hora; link curto não vaza
+const TOKEN_DIAS = 7 // validade do link público, contada da geração
+
+// Status em que o link público ainda vale. 'gerado' entra porque contratos
+// anteriores à Fase 4 pararam nele — hoje a geração já salta para
+// aguardando_assinatura.
+const ABERTOS = ['gerado', 'aguardando_assinatura']
+
+// Resposta única para token inexistente, expirado ou já usado. Diferenciar o
+// motivo transformaria a rota num oráculo de enumeração.
+const ERRO_LINK = 'Link inválido ou expirado.'
 
 // jt_contratos guarda CPF/CNPJ, endereço e telefone, então fica com RLS ligada
 // e sem policy: nada entra ou sai pela anon key do navegador. Toda escrita e
@@ -65,7 +75,7 @@ serve(async (req) => {
     })
 
   try {
-    const { action = 'gerar', loja_id, contrato_id, contratante } = await req.json()
+    const { action = 'gerar', loja_id, contrato_id, contratante, token, assinatura_svg } = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -104,14 +114,134 @@ serve(async (req) => {
     }
 
     // ── Histórico: a tela não consegue ler jt_contratos direto (RLS) ──
+    // Devolve só o que a listagem exibe. pdf_path e token_assinatura ficam de
+    // fora de propósito: o path do bucket não tem por que trafegar, e o token
+    // é a credencial do link público — quem precisa deles pede por ação
+    // específica (`link` e `link-assinatura`), por contrato.
     if (action === 'listar') {
       if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
       const { data, error } = await admin
-        .from('jt_contratos').select('*')
+        .from('jt_contratos')
+        .select('id, status, created_at, gerado_em, pdf_hash, pdf_path, token_expira_em, assinado_em, razao_social, cpf_cnpj, responsavel_nome')
         .eq('loja_id', loja_id)
         .order('created_at', { ascending: false })
       if (error) return json({ error: `Erro ao listar contratos: ${error.message}` }, 500)
-      return json({ contratos: data ?? [] })
+
+      const contratos = (data ?? []).map(({ pdf_path, ...c }) => ({
+        ...c,
+        tem_pdf: !!pdf_path,   // a tela só precisa saber se dá para baixar
+      }))
+      return json({ contratos })
+    }
+
+    // ── Assinatura de um contrato, para o modal do admin ──
+    if (action === 'assinatura-obter') {
+      if (!contrato_id) return json({ error: 'contrato_id é obrigatório.' }, 400)
+      const { data, error } = await admin
+        .from('jt_contratos')
+        .select('assinado_em, assinante_ip, assinante_user_agent, assinatura_svg, razao_social, cpf_cnpj, responsavel_nome, status')
+        .eq('id', contrato_id).maybeSingle()
+      if (error)  return json({ error: `Erro ao buscar assinatura: ${error.message}` }, 500)
+      if (!data)  return json({ error: 'Contrato não encontrado.' }, 404)
+      return json({ assinatura: data })
+    }
+
+    // ── Token do link público, sob demanda ──
+    // O admin precisa do token para enviar o link ao cliente; sem isso a
+    // feature não sai do lugar. Vem por ação própria em vez de embutido na
+    // listagem, para o token não ficar circulando sem necessidade.
+    if (action === 'link-assinatura') {
+      if (!contrato_id) return json({ error: 'contrato_id é obrigatório.' }, 400)
+      const { data, error } = await admin
+        .from('jt_contratos')
+        .select('token_assinatura, token_expira_em, status')
+        .eq('id', contrato_id).maybeSingle()
+      if (error) return json({ error: `Erro ao buscar o contrato: ${error.message}` }, 500)
+      if (!data) return json({ error: 'Contrato não encontrado.' }, 404)
+      if (!ABERTOS.includes(data.status)) {
+        return json({ error: 'Este contrato não está aguardando assinatura.' }, 400)
+      }
+      return json({ token: data.token_assinatura, expira_em: data.token_expira_em })
+    }
+
+    // ── Rota pública: leitura pelo token ──
+    // Devolve o mínimo para a tela de assinatura. Nunca loja_id, pdf_path nem
+    // o id do contrato.
+    if (action === 'publico-obter') {
+      if (!token) return json({ error: ERRO_LINK }, 404)
+      const { data: c } = await admin
+        .from('jt_contratos').select('*').eq('token_assinatura', token).maybeSingle()
+      if (!c) return json({ error: ERRO_LINK }, 404)
+
+      if (c.status === 'assinado') {
+        return json({
+          estado: 'assinado',
+          contrato: {
+            razao_social: c.razao_social,
+            assinado_em:  c.assinado_em,
+          },
+        })
+      }
+      if (!ABERTOS.includes(c.status)) return json({ error: ERRO_LINK }, 404)
+      if (c.token_expira_em && new Date(c.token_expira_em) < new Date()) {
+        return json({ error: ERRO_LINK }, 404)
+      }
+
+      const { data: signed } = await admin.storage
+        .from(BUCKET).createSignedUrl(c.pdf_path, 600)
+
+      return json({
+        estado: 'pendente',
+        contrato: {
+          razao_social:     c.razao_social,
+          cpf_cnpj:         c.cpf_cnpj,
+          responsavel_nome: c.responsavel_nome,
+          plano:            c.plano,
+          segmento:         c.segmento,
+          valor_mensal:     c.valor_mensal,
+          contrato_inicio:  c.contrato_inicio,
+          vencimento_dia:   c.vencimento_dia,
+          pdf_url:          signed?.signedUrl ?? null,
+        },
+      })
+    }
+
+    // ── Rota pública: registrar o aceite ──
+    if (action === 'publico-assinar') {
+      if (!token) return json({ error: ERRO_LINK }, 404)
+      if (!assinatura_svg || String(assinatura_svg).trim() === '') {
+        return json({ error: 'Assine no campo indicado antes de confirmar.' }, 400)
+      }
+
+      const { data: c } = await admin
+        .from('jt_contratos').select('id, status, token_expira_em')
+        .eq('token_assinatura', token).maybeSingle()
+      if (!c) return json({ error: ERRO_LINK }, 404)
+      if (!ABERTOS.includes(c.status)) return json({ error: ERRO_LINK }, 404)
+      if (c.token_expira_em && new Date(c.token_expira_em) < new Date()) {
+        return json({ error: ERRO_LINK }, 404)
+      }
+
+      // IP e user-agent vêm do header — auto-declarados pelo cliente não
+      // teriam valor probatório.
+      const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
+        || req.headers.get('x-real-ip') || null
+      const ua = req.headers.get('user-agent') || null
+
+      const { error: updErr } = await admin
+        .from('jt_contratos')
+        .update({
+          status:               'assinado',
+          assinado_em:          new Date().toISOString(),
+          assinante_ip:         ip,
+          assinante_user_agent: ua,
+          assinatura_svg:       assinatura_svg,
+        })
+        .eq('id', c.id)
+        .in('status', ABERTOS)   // corrida: dois cliques não assinam duas vezes
+      if (updErr) return json({ error: `Erro ao registrar o aceite: ${updErr.message}` }, 500)
+
+      return json({ ok: true, estado: 'assinado' })
     }
 
     // ── Link de download: signed URL curta; o path nunca vai pro frontend ──
@@ -173,6 +303,17 @@ serve(async (req) => {
       if (v !== undefined && v !== null && v !== '') snapshot[k] = v
     })
 
+    // Um contrato novo invalida os anteriores que ainda estavam em aberto —
+    // é também o caminho para revogar um link que vazou, já que não existe
+    // tela de revogação. Os já assinados NÃO são tocados: mudar o status de um
+    // contrato assinado apagaria o registro de que ele foi aceito.
+    const { error: cancErr } = await admin
+      .from('jt_contratos')
+      .update({ status: 'cancelado' })
+      .eq('loja_id', loja.loja_id)
+      .in('status', ['rascunho', ...ABERTOS])
+    if (cancErr) return json({ error: `Erro ao cancelar contratos anteriores: ${cancErr.message}` }, 500)
+
     const { data: novo, error: insErr } = await admin
       .from('jt_contratos').insert(snapshot).select().single()
     if (insErr) return json({ error: `Erro ao criar o contrato: ${insErr.message}` }, 500)
@@ -186,13 +327,20 @@ serve(async (req) => {
       .upload(path, bytes, { contentType: 'application/pdf', upsert: true })
     if (upErr) return json({ error: `Contrato criado, mas falhou ao salvar o PDF: ${upErr.message}` }, 500)
 
+    // Com o PDF no bucket o link público já é válido, então o contrato entra
+    // direto em aguardando_assinatura — 'gerado' seria um estado que duraria
+    // milissegundos e não diria nada a mais na tela.
+    const agora = new Date()
+    const expira = new Date(agora.getTime() + TOKEN_DIAS * 24 * 60 * 60 * 1000)
+
     const { data: atualizado, error: updErr } = await admin
       .from('jt_contratos')
       .update({
-        pdf_path:  path,
-        pdf_hash:  hash,
-        gerado_em: new Date().toISOString(),
-        status:    'gerado',
+        pdf_path:        path,
+        pdf_hash:        hash,
+        gerado_em:       agora.toISOString(),
+        token_expira_em: expira.toISOString(),
+        status:          'aguardando_assinatura',
       })
       .eq('id', novo.id)
       .select().single()

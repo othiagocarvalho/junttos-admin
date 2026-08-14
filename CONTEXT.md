@@ -92,9 +92,15 @@ Fontes carregadas no `index.html`: Manrope, DM Sans, Quicksand, Playfair Display
 | `/reports` | `Reports` |
 | `/settings` | `Settings` |
 | `/arquitetura` | `ArquiteturaPage` |
-| `/loja-feminina` | `LojaFeminina` |
 | `/clientes` | `CadastroCliente` |
+| `/clientes/:slug` | `LojaDetalhe` — dados do contratante e contratos |
+| `/redes` | `Redes` |
 | `/cobrancas` | `Cobrancas` |
+| `/simulador` | `SimuladorPlano` |
+| `/balanco` | `BalancoApp` |
+| `/contrato/:token` | `AssinaturaContrato` — **pública, sem login** (ver §14b) |
+
+> `/loja-feminina` foi removida: renderizava o painel com o default `lojaId = 'estrada'` e por isso lia dados reais dessa loja sem JWT nenhum. Nenhum link na UI apontava para ela.
 
 ### LojaClientApp (`src/App.jsx → LojaClientApp`)
 | Rota | Componente |
@@ -507,6 +513,68 @@ Carrega todos os dados de uma loja em paralelo. Retorna estado + mutações.
 2. Insere linha em `lf_usuarios` com `auth_user_id`, `loja_id`, `email`, `nome`, `ativo: true`
 
 **Nota:** `app_metadata.loja_id` NÃO é setado neste edge function — é setado em outro contexto (verificar). O `ClientPrivateRoute` depende desse campo estar preenchido.
+
+---
+
+## 14b. Módulo de contrato
+
+Cadastro do contratante, geração do contrato em PDF e aceite eletrônico. Duas tabelas, ambas **com RLS ligada e sem policy nenhuma** — nada entra ou sai pela anon key do navegador. Toda leitura e escrita passa pela Edge Function `gerar-contrato`, com `service_role`.
+
+### `jt_contratantes` — cadastro atual do contratante (1 linha por loja)
+
+`loja_id` (PK), `razao_social`, `cpf_cnpj`, `endereco`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `cep`, `responsavel_nome`, `responsavel_email`, `responsavel_telefone`, `contrato_inicio` (date), `vencimento_dia` (int 1–31), `updated_at`.
+
+> Estes campos moraram em `lf_config` até `migration_contratante.sql`. Saíram de lá porque `lf_config` **precisa** continuar legível por anon — o `App.jsx` resolve slug antes do login e o catálogo público faz `select('*')` nela —, e os dados pessoais iam junto em toda consulta.
+
+### `jt_contratos` — snapshot congelado + aceite
+
+Snapshot dos dados do contratante no momento da geração (mesmos campos acima), mais `valor_mensal`, `plano`, `segmento`, `status`, `pdf_path`, `pdf_hash` (SHA-256 do arquivo), `gerado_em`, `token_assinatura` (uuid único), `token_expira_em`, `assinado_em`, `assinante_ip`, `assinante_user_agent`, `assinatura_svg`.
+
+É **cópia**, não select vivo: se o cadastro da loja mudar depois, o contrato assinado continua refletindo o que foi acordado.
+
+### Fluxo de status
+
+```
+rascunho → aguardando_assinatura → assinado
+                  |
+                  +→ cancelado   (ao gerar um contrato novo para a loja)
+```
+
+`gerado` não é mais gravado — a geração salta para `aguardando_assinatura`, já que o link público passa a valer assim que o PDF sobe. Contratos anteriores à Fase 4 pararam em `gerado` e seguem aceitos.
+
+**Gerar um contrato cancela os anteriores em aberto** (`rascunho`, `gerado`, `aguardando_assinatura`) — é também o jeito de revogar um link que vazou, já que não existe tela de revogação. Contratos **assinados nunca são cancelados** automaticamente.
+
+### Assinatura eletrônica
+
+Nível simples da MP 2.200-2/2001: aceite + identificação + IP + timestamp + hash. Não é ICP-Brasil.
+
+- O link é `/<origin>/contrato/:token`, público, sem login. Vale **7 dias** a partir da geração e é de **uso único** — assinar tira o contrato de `aguardando_assinatura` e o link para de funcionar.
+- `assinante_ip` e `assinante_user_agent` vêm dos **headers da function** (`x-forwarded-for`, `user-agent`), nunca do corpo da requisição.
+- `assinatura_svg` guarda o traço do canvas como path SVG (poucos KB, escalável), não PNG base64.
+- Token inexistente, expirado ou já usado devolvem **a mesma** mensagem — "Link inválido ou expirado" —, para a rota não virar oráculo de enumeração.
+- O PDF **não** é alterado nem duplicado após o aceite: o comprovante vive no banco.
+
+### Edge Function `gerar-contrato`
+
+**Path:** `supabase/functions/gerar-contrato/index.ts` (+ `contrato-pdf.ts`, que monta o PDF com pdf-lib)
+
+| Action | Uso |
+|---|---|
+| `gerar` | cancela anteriores, monta snapshot de `jt_contratantes`, gera o PDF, sobe no bucket e emite o token |
+| `listar` | histórico da loja — **não** devolve `pdf_path` nem `token_assinatura` |
+| `link` | signed URL do PDF (120s) para o admin |
+| `link-assinatura` | token do link público, sob demanda |
+| `assinatura-obter` | dados do aceite para o modal do admin |
+| `contratante-obter` / `contratante-salvar` | cadastro em `jt_contratantes` |
+| `publico-obter` / `publico-assinar` | rota pública, por token |
+
+### Bucket `contratos`
+
+Privado, **sem policy alguma** — só a function escreve e lê. Path `contratos/{loja_id}/{contrato_id}.pdf`. O admin baixa por signed URL de 120s; o path nunca chega ao frontend.
+
+### Slugs reservados
+
+`c`, `contrato`, `admin`, `api` (em `src/hooks/useCreateLoja.js`). São primeiros segmentos de URL tratados antes da busca por loja — uma loja com esses slugs sequestraria a rota.
 
 ---
 

@@ -21,6 +21,7 @@ import LojaFeminina from './pages/LojaFeminina'
 import LojaMercado from './pages/LojaMercado'
 import CadastroCliente from './pages/admin/CadastroCliente'
 import LojaDetalhe from './pages/admin/LojaDetalhe'
+import AssinaturaContrato from './pages/publico/AssinaturaContrato'
 import Cobrancas from './pages/admin/Cobrancas'
 import Redes from './pages/admin/Redes'
 import SimuladorPlano from './pages/SimuladorPlano'
@@ -70,6 +71,9 @@ function AdminApp() {
             <Route path="/"            element={<Login />} />
             <Route path="/admin/login" element={<Login />} />
             <Route path="/login"       element={<LoginCliente />} />
+            {/* Pública: o cliente abre pelo link, sem login. O slug 'contrato'
+                é reservado em useCreateLoja para nenhuma loja tomar esta rota. */}
+            <Route path="/contrato/:token" element={<AssinaturaContrato />} />
             <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
             <Route path="/consultants" element={<ProtectedLayout><Consultants /></ProtectedLayout>} />
             <Route path="/visits" element={<ProtectedLayout><Visits /></ProtectedLayout>} />

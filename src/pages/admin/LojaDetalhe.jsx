@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Download, AlertCircle, Loader2, Check, ExternalLink,
+  PenLine, Link2, X, Copy,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { T } from '../../theme/tokens'
@@ -27,7 +28,8 @@ const OBRIGATORIOS = [
 // escrita passam pela anon key. Esta tela só lê lf_config (para exibir e
 // validar) e conversa com a function para listar, gerar e baixar.
 
-// rascunho e gerado são os desta fase; os demais entram na Fase 4.
+// 'gerado' não é mais gravado — a geração salta para aguardando_assinatura —
+// mas segue no mapa porque contratos anteriores à Fase 4 pararam nele.
 const STATUS = {
   rascunho:              { label: 'Rascunho',              bg: T.statusTrialBg, tx: T.statusTrialTx },
   gerado:                { label: 'Gerado',                bg: T.statusAtivoBg, tx: T.statusAtivoTx },
@@ -75,6 +77,73 @@ function Campo({ label, value, mono }) {
   )
 }
 
+// Modal com o comprovante do aceite. O traço vem como SVG pronto da function,
+// então é injetado direto — é conteúdo que nós mesmos geramos no canvas e
+// gravamos, nunca entrada livre de terceiros.
+function ModalAssinatura({ dados, onFechar }) {
+  useEffect(() => {
+    function esc(e) { if (e.key === 'Escape') onFechar() }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onFechar])
+
+  return (
+    <div
+      onClick={onFechar}
+      style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 520, boxShadow: T.darkCardShadow, padding: '26px 26px 22px', fontFamily: T.ui, maxHeight: '90vh', overflowY: 'auto' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: T.ink, marginBottom: 3 }}>Assinatura do contrato</h2>
+            <p style={{ fontSize: 12.5, color: T.muted }}>
+              Aceite eletrônico registrado em {fmtDataHora(dados.assinado_em)}
+            </p>
+          </div>
+          <button onClick={onFechar} style={{ background: T.mist, border: 'none', borderRadius: T.rInput, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <X size={15} color={T.muted} />
+          </button>
+        </div>
+
+        <div style={{ background: T.white, border: `1.5px solid ${T.line}`, borderRadius: T.rInput, padding: 10, marginBottom: 18 }}>
+          {dados.assinatura_svg
+            ? <div style={{ width: '100%' }} dangerouslySetInnerHTML={{ __html: dados.assinatura_svg }} />
+            : <p style={{ fontSize: 12.5, color: T.muted2, textAlign: 'center', padding: '28px 0' }}>Sem traço de assinatura registrado</p>}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+          <Campo label="Razão social / Nome" value={dados.razao_social} />
+          <Campo label="CPF / CNPJ"          value={dados.cpf_cnpj} mono />
+          <Campo label="Responsável"         value={dados.responsavel_nome} />
+          <Campo label="Data e hora"         value={fmtDataHora(dados.assinado_em)} />
+          <Campo label="Endereço IP"         value={dados.assinante_ip} mono />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <Campo label="Navegador (user-agent)" value={dados.assinante_user_agent} />
+        </div>
+
+        <p style={{ fontSize: 11, color: T.muted2, lineHeight: 1.6, marginTop: 16 }}>
+          Assinatura eletrônica simples, nos termos da MP 2.200-2/2001. A integridade do
+          documento é verificável pelo SHA-256 registrado na geração.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Botões de ação de cada linha do histórico.
+const btnLinha = {
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  height: 36, padding: '0 14px', borderRadius: T.rInput,
+  border: `1px solid ${T.line}`, background: T.white, cursor: 'pointer',
+  fontFamily: T.ui, fontSize: 13, fontWeight: 600, color: T.ink,
+  whiteSpace: 'nowrap',
+}
+
 function Secao({ title, children, right }) {
   return (
     <div style={{
@@ -104,6 +173,10 @@ export default function LojaDetalhe() {
   const [erro, setErro]           = useState('')
   const [gerando, setGerando]     = useState(false)
   const [baixando, setBaixando]   = useState(null)
+  const [assinatura, setAssinatura] = useState(null)  // dados do modal
+  const [abrindoAss, setAbrindoAss] = useState(null)
+  const [copiando, setCopiando]     = useState(null)
+  const [copiado, setCopiado]       = useState(null)
 
   const fetchTudo = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -181,6 +254,34 @@ export default function LojaDetalhe() {
     if (msg) { setErro(`Erro ao gerar o link: ${msg}`); setBaixando(null); return }
     window.open(data.url, '_blank', 'noopener,noreferrer')
     setBaixando(null)
+  }
+
+  // O token não vem na listagem — é buscado só quando o admin vai enviar o
+  // link, para a credencial do link público não ficar circulando à toa.
+  async function handleCopiarLink(contrato) {
+    setCopiando(contrato.id); setErro('')
+    const { data, error } = await supabase.functions
+      .invoke('gerar-contrato', { body: { action: 'link-assinatura', contrato_id: contrato.id } })
+    const msg = error?.message || data?.error
+    if (msg) { setErro(`Erro ao obter o link: ${msg}`); setCopiando(null); return }
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/contrato/${data.token}`)
+      setCopiado(contrato.id)
+      setTimeout(() => setCopiado(null), 2500)
+    } catch {
+      setErro(`Não foi possível copiar. O link é: ${window.location.origin}/contrato/${data.token}`)
+    }
+    setCopiando(null)
+  }
+
+  async function handleVerAssinatura(contrato) {
+    setAbrindoAss(contrato.id); setErro('')
+    const { data, error } = await supabase.functions
+      .invoke('gerar-contrato', { body: { action: 'assinatura-obter', contrato_id: contrato.id } })
+    const msg = error?.message || data?.error
+    if (msg) { setErro(`Erro ao carregar a assinatura: ${msg}`); setAbrindoAss(null); return }
+    setAssinatura(data.assinatura)
+    setAbrindoAss(null)
   }
 
   // ── Estados de carregamento / loja inexistente ──
@@ -338,39 +439,69 @@ export default function LojaDetalhe() {
                     <p style={{ fontSize: 11, color: T.muted, fontFamily: T.mono, wordBreak: 'break-all' }}>
                       {c.pdf_hash ? `SHA-256 ${c.pdf_hash.slice(0, 16)}…` : 'PDF ainda não gerado'}
                     </p>
+                    {c.assinado_em && (
+                      <p style={{ fontSize: 11.5, color: T.statusAtivoTx, fontWeight: 600, marginTop: 3 }}>
+                        Assinado em {fmtDataHora(c.assinado_em)}
+                      </p>
+                    )}
                   </div>
-                  {c.pdf_path && (
-                    <button
-                      type="button"
-                      onClick={() => handleBaixar(c)}
-                      disabled={baixando === c.id}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 6,
-                        height: 36, padding: '0 14px', borderRadius: T.rInput,
-                        border: `1px solid ${T.line}`, background: T.white,
-                        cursor: baixando === c.id ? 'wait' : 'pointer',
-                        fontFamily: T.ui, fontSize: 13, fontWeight: 600, color: T.ink,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {baixando === c.id
-                        ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Abrindo...</>
-                        : <><Download size={13} /> Baixar PDF</>}
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+                    {c.status === 'assinado' && (
+                      <button
+                        type="button"
+                        onClick={() => handleVerAssinatura(c)}
+                        disabled={abrindoAss === c.id}
+                        style={btnLinha}
+                      >
+                        {abrindoAss === c.id
+                          ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Abrindo...</>
+                          : <><PenLine size={13} /> Ver assinatura</>}
+                      </button>
+                    )}
+                    {['gerado', 'aguardando_assinatura'].includes(c.status) && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopiarLink(c)}
+                        disabled={copiando === c.id}
+                        style={btnLinha}
+                      >
+                        {copiando === c.id
+                          ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> ...</>
+                          : copiado === c.id
+                            ? <><Check size={13} color={T.statusAtivoTx} /> Copiado</>
+                            : <><Link2 size={13} /> Copiar link</>}
+                      </button>
+                    )}
+                    {c.tem_pdf && (
+                      <button
+                        type="button"
+                        onClick={() => handleBaixar(c)}
+                        disabled={baixando === c.id}
+                        style={btnLinha}
+                      >
+                        {baixando === c.id
+                          ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Abrindo...</>
+                          : <><Download size={13} /> Baixar PDF</>}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {contratoAtual?.status === 'gerado' && (
-          <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.muted, marginTop: 14 }}>
-            <Check size={13} color={T.statusAtivoTx} />
-            O link de download expira em 2 minutos e é gerado sob demanda — o arquivo fica em bucket privado.
+        {['gerado', 'aguardando_assinatura'].includes(contratoAtual?.status) && (
+          <p style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 12, color: T.muted, marginTop: 14, lineHeight: 1.6 }}>
+            <Copy size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+            Envie o link de assinatura ao cliente — ele vale 7 dias
+            {contratoAtual?.token_expira_em ? ` (até ${fmtDataHora(contratoAtual.token_expira_em)})` : ''} e
+            deixa de funcionar assim que for assinado. Gerar um contrato novo cancela este e emite outro link.
           </p>
         )}
       </Secao>
+
+      {assinatura && <ModalAssinatura dados={assinatura} onFechar={() => setAssinatura(null)} />}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
