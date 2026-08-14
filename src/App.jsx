@@ -20,6 +20,7 @@ import ArquiteturaPage from './pages/ArquiteturaPage'
 import LojaFeminina from './pages/LojaFeminina'
 import LojaMercado from './pages/LojaMercado'
 import CadastroCliente from './pages/admin/CadastroCliente'
+import LojaDetalhe from './pages/admin/LojaDetalhe'
 import Cobrancas from './pages/admin/Cobrancas'
 import Redes from './pages/admin/Redes'
 import SimuladorPlano from './pages/SimuladorPlano'
@@ -78,6 +79,7 @@ function AdminApp() {
             <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
             <Route path="/loja-feminina" element={<ProtectedLayout><LojaFeminina /></ProtectedLayout>} />
             <Route path="/clientes" element={<ProtectedLayout><SuperAdminRoute><CadastroCliente /></SuperAdminRoute></ProtectedLayout>} />
+            <Route path="/clientes/:slug" element={<ProtectedLayout><SuperAdminRoute><LojaDetalhe /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/redes"    element={<ProtectedLayout><SuperAdminRoute><Redes /></SuperAdminRoute></ProtectedLayout>} />
             <Route path="/cobrancas" element={<ProtectedLayout><Cobrancas /></ProtectedLayout>} />
             <Route path="/simulador" element={<ProtectedLayout><SimuladorPlano /></ProtectedLayout>} />

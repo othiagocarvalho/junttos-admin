@@ -14,6 +14,17 @@ export const VALORES_PLANO = {
 
 export const SEGMENTO_PADRAO = 'moda'
 
+export const SEGMENTO_LABEL = { moda: 'Moda', mercado: 'Mercado' }
+
+/**
+ * Nome do módulo que a loja contratou — "Junttos Moda" ou "Junttos Mercado".
+ * O contrato nomeia sempre o módulo exato, nunca um "Moda/Mercado" genérico.
+ * Segmento ausente cai em Moda, mesma convenção do resto do app.
+ */
+export function nomeModulo(segmento) {
+  return `Junttos ${SEGMENTO_LABEL[segmento] || SEGMENTO_LABEL[SEGMENTO_PADRAO]}`
+}
+
 /** Valor mensal do plano no segmento. Segmento desconhecido cai em Moda. */
 export function valorPlano(segmento, plano) {
   const tabela = VALORES_PLANO[segmento] || VALORES_PLANO[SEGMENTO_PADRAO]

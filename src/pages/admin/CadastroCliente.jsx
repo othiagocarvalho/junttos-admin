@@ -281,8 +281,8 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           </p>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Razão social</label>
-            <input value={form.razao_social} onChange={e => setForm(p => ({ ...p, razao_social: e.target.value }))} placeholder="Ex: Maria Store Comércio LTDA" style={inp} />
+            <label style={lbl}>Razão social / Nome completo</label>
+            <input value={form.razao_social} onChange={e => setForm(p => ({ ...p, razao_social: e.target.value }))} placeholder="Maria Store Comércio LTDA — ou o nome completo, se for CPF" style={inp} />
           </div>
 
           <div style={{ marginBottom: 16 }}>
