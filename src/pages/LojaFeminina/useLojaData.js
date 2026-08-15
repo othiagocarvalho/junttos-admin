@@ -691,35 +691,10 @@ export function useLojaData(lojaId = 'estrada') {
     return data
   }
 
-  async function addFornecedor(dados) {
-    const novo = {
-      loja_id: lojaId,
-      nome: dados.nome?.trim(),
-      contato: dados.contato?.trim() || null,
-      documento: dados.documento?.trim() || null,
-      prazo_pagamento_dias: dados.prazo_pagamento_dias ? Number(dados.prazo_pagamento_dias) : null,
-      observacoes: dados.observacoes?.trim() || null,
-      ativo: true,
-    }
-    const { data, error } = await supabase.from('lf_fornecedores').insert(novo).select().single()
-    if (error) throw error
-    setFornecedores(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
-    return data
-  }
-
-  async function updateFornecedor(id, dados) {
-    const { data, error } = await supabase.from('lf_fornecedores').update(dados).eq('id', id).eq('loja_id', lojaId).select().single()
-    if (error) throw error
-    setFornecedores(prev => prev.map(f => f.id === id ? data : f).sort((a, b) => a.nome.localeCompare(b.nome)))
-    return data
-  }
-
-  async function removeFornecedor(id) {
-    const { data, error } = await supabase.from('lf_fornecedores').update({ ativo: false }).eq('id', id).eq('loja_id', lojaId).select().single()
-    if (error) throw error
-    setFornecedores(prev => prev.map(f => f.id === id ? data : f))
-    return data
-  }
+  // O CRUD de fornecedor (add/update/remove) saiu junto com a tela
+  // Fornecedores.jsx — não havia mais nenhum componente chamando.
+  // A lista continua sendo carregada porque o Estoque ainda oferece o
+  // fornecedor como campo opcional do produto.
 
   async function addCompra(dados) {
     const novo = {
@@ -854,9 +829,6 @@ export function useLojaData(lojaId = 'estrada') {
     updatePedido,
     cancelarPedido,
     fornecedores,
-    addFornecedor,
-    updateFornecedor,
-    removeFornecedor,
     compras,
     addCompra,
     marcarCompraPaga,
