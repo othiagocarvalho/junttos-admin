@@ -1,9 +1,9 @@
 // Decisões derivadas do usuário do painel admin.
 //
-// Vive num módulo puro porque a FONTE do usuário vai mudar: hoje é a lista
-// hardcoded em auth/users.js, depois passa a ser o Supabase Auth. Estas regras
-// não podem mudar junto com a fonte — testá-las aqui é o que garante que a
-// troca não mexa, sem querer, em quem entra onde.
+// Vive num módulo puro porque a FONTE do usuário mudou: era uma lista
+// hardcoded em auth/users.js, hoje é o Supabase Auth. Estas regras não podem
+// mudar junto com a fonte — testá-las aqui é o que garantiu que a troca não
+// mexesse, sem querer, em quem entra onde.
 
 export const ROLE_SUPER  = 'Super Admin'
 export const ROLE_GESTOR = 'Gestor'

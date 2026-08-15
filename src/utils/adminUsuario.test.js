@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { readdirSync, readFileSync, existsSync } from 'fs'
 import { decidirAcessoAdmin, primeiroNome, iniciais, normalizarUsuarioSupabase, ROLE_SUPER, ROLE_GESTOR } from './adminUsuario.js'
 
 const superAdmin = { name: 'Thiago Admin',   role: ROLE_SUPER }
@@ -138,5 +139,53 @@ describe('normalizarUsuarioSupabase', () => {
     const u = normalizarUsuarioSupabase(doSupabase)
     expect(decidirAcessoAdmin({ loading: false, user: u, rolesPermitidos: [ROLE_SUPER] })).toBe('ok')
     expect(primeiroNome(u)).toBe('Admin')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Trava: credenciais nunca mais em código-fonte.
+//
+// A lista hardcoded ia inteira para o bundle público — e-mail e senha em texto
+// plano, legíveis por qualquer visitante do site. Este teste falha se alguém
+// reintroduzir o arquivo ou as senhas, em vez de o problema só reaparecer em
+// produção.
+// ---------------------------------------------------------------------------
+
+describe('sem credenciais hardcoded', () => {
+  const raiz = new URL('../', import.meta.url)
+
+  function arquivosFonte(dir = raiz) {
+    return readdirSync(dir, { withFileTypes: true }).flatMap(e => {
+      const url = new URL(e.name + (e.isDirectory() ? '/' : ''), dir)
+      if (e.isDirectory()) return arquivosFonte(url)
+      return /\.(js|jsx)$/.test(e.name) ? [url] : []
+    })
+  }
+
+  it('o arquivo da lista não existe mais', () => {
+    expect(existsSync(new URL('../auth/users.js', import.meta.url))).toBe(false)
+  })
+
+  it('nenhuma senha antiga sobrou no código', () => {
+    const senhas = ['admin@2026', 'gestor@2025', 'ducharme@2026']
+    const culpados = []
+    for (const arquivo of arquivosFonte()) {
+      // Este próprio teste cita as senhas — é o único lugar legítimo.
+      if (arquivo.pathname.endsWith('adminUsuario.test.js')) continue
+      const texto = readFileSync(arquivo, 'utf8')
+      for (const senha of senhas) {
+        if (texto.includes(senha)) culpados.push(`${arquivo.pathname}: ${senha}`)
+      }
+    }
+    expect(culpados, `credenciais em texto plano: ${culpados.join(' | ')}`).toEqual([])
+  })
+
+  // Só import de verdade: citar auth/users.js num comentário de histórico é
+  // legítimo, e foi o que este teste pegou da primeira vez que rodou.
+  it('ninguém importa a lista removida', () => {
+    const culpados = arquivosFonte()
+      .filter(a => /(?:from|require\()\s*['"][^'"]*auth\/users['"]/.test(readFileSync(a, 'utf8')))
+      .map(a => a.pathname)
+    expect(culpados, `ainda importam a lista: ${culpados.join(', ')}`).toEqual([])
   })
 })
