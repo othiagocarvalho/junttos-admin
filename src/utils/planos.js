@@ -12,6 +12,17 @@ export const VALORES_PLANO = {
   mercado: { starter:  79.90, pro: 109.90, business: 159.90 },
 }
 
+/**
+ * Taxa de implantação, cobrada uma única vez no ato do cadastro, junto com a
+ * primeira mensalidade. Vivia solta como texto dentro do PDF do contrato
+ * (contrato-pdf.ts), sem nunca virar cobrança de verdade.
+ *
+ * A edge function roda em Deno e não importa src/, então o mesmo número está
+ * duplicado lá — mesma convenção já usada por VALORES_PLANO. Mudar aqui exige
+ * mudar lá também.
+ */
+export const TAXA_IMPLANTACAO = 300
+
 export const SEGMENTO_PADRAO = 'moda'
 
 export const SEGMENTO_LABEL = { moda: 'Moda', mercado: 'Mercado' }
