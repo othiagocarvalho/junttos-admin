@@ -56,3 +56,37 @@ export function calcularTotalComAjuste(subtotal, tipoAjuste, modoAjuste, valorAj
     ? Math.max(0, subtotal - ajuste)
     : subtotal + ajuste
 }
+
+/**
+ * Centavo de folga: o crédito da troca e o subtotal do produto novo vêm de
+ * multiplicações em ponto flutuante, e 80.00000000001 não é "a cobrar".
+ */
+export const TOLERANCIA_TROCA = 0.005
+
+/**
+ * Compara o crédito do produto devolvido com o subtotal do produto novo e
+ * devolve os três cenários da troca: a cobrar, saldo a favor ou zerada.
+ *
+ * Mobile e desktop repetiam essa comparação inline e já tinham divergido —
+ * o desktop pintava "saldo a favor" de verde, como se estivesse tudo certo,
+ * quando é justamente o caso que a lojista precisa notar (não é
+ * reembolsável em dinheiro).
+ *
+ * @param {number} subtotalNovos  soma do produto novo
+ * @param {number} creditoTroca   soma do produto devolvido
+ */
+export function calcularResumoTroca(subtotalNovos, creditoTroca) {
+  const diferenca   = (Number(subtotalNovos) || 0) - (Number(creditoTroca) || 0)
+  const aCobrar     = diferenca >  TOLERANCIA_TROCA
+  const saldoAFavor = diferenca < -TOLERANCIA_TROCA
+  return {
+    diferenca,
+    aCobrar,
+    saldoAFavor,
+    zerada: !aCobrar && !saldoAFavor,
+    // O que a loja efetivamente cobra: saldo a favor não vira dinheiro de volta.
+    valorCobrado: aCobrar ? diferenca : 0,
+    valorExibido: Math.abs(diferenca),
+    rotulo: aCobrar ? 'A cobrar' : saldoAFavor ? 'Saldo a favor' : 'Troca zerada',
+  }
+}

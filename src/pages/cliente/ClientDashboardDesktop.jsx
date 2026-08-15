@@ -9,7 +9,7 @@ import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
-import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca } from '../../utils/venda'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
@@ -822,7 +822,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
-  const diferencaTroca = subtotal - creditoTroca
+  const troca = calcularResumoTroca(subtotal, creditoTroca)
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
@@ -983,21 +983,21 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     </div>
                     <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                        {diferencaTroca > 0.005 ? 'A cobrar' : diferencaTroca < -0.005 ? 'Saldo a favor' : 'Troca zerada'}
+                        {troca.rotulo}
                       </span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: diferencaTroca > 0.005 ? theme.primary : diferencaTroca < -0.005 ? '#16a34a' : '#D97706' }}>
-                        {fmtR(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca))}
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: troca.aCobrar ? theme.primary : troca.saldoAFavor ? '#D97706' : '#16a34a' }}>
+                        {fmtR(troca.valorExibido)}
                       </span>
                     </div>
-                    {diferencaTroca <= 0.005 && diferencaTroca >= -0.005 && (
+                    {troca.zerada && (
                       <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600, margin: 0 }}>✓ Sem cobrança — troca zerada</p>
                     )}
-                    {diferencaTroca < -0.005 && (
+                    {troca.saldoAFavor && (
                       <>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 700, margin: 0 }}>
-                          Saldo a favor: {fmtR(Math.abs(diferencaTroca))} — não reembolsável em dinheiro
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', fontWeight: 700, margin: 0 }}>
+                          Saldo a favor: {fmtR(troca.valorExibido)} — não reembolsável em dinheiro
                         </p>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', margin: 0 }}>
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', margin: 0 }}>
                           Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
                         </p>
                       </>
@@ -1113,8 +1113,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 )}
               </>
             )}
-            {isTroca && totalValor <= 0.005 && (
-              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.3)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#D97706', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Só depois de escolher o produto novo — sem isso o aviso aparecia
+                assim que a troca era iniciada, com o carrinho ainda vazio. */}
+            {isTroca && totalValor <= 0.005 && form.produtos.length > 0 && (
+              <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Check size={14} /> Troca zerada — sem cobrança
               </div>
             )}

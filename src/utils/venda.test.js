@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes } from './venda.js'
+import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes, calcularResumoTroca } from './venda.js'
 
 const produtosData = [
   { nome: 'Blusa Básica', preco_venda: 50 },
@@ -215,5 +215,69 @@ describe('troca: cálculo de diferença (creditoTroca vs subtotalNovos)', () => 
     // estoque de M volta de 2 → 3, G inalterado
     expect(result.find(v => v.cor === 'M').quantidade).toBe(3)
     expect(result.find(v => v.cor === 'G').quantidade).toBe(5)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// calcularResumoTroca — a função que mobile e desktop realmente usam para
+// decidir rótulo, cor e valor do resumo da troca.
+// ---------------------------------------------------------------------------
+
+describe('calcularResumoTroca', () => {
+  it('cenário 1 — crédito igual ao produto novo: troca zerada, sem cobrança', () => {
+    const devolvido = [{ nome: 'Blusa Rosa',   variacao: 'M', quantidade: 1 }]
+    const novo      = [{ nome: 'Vestido Azul', variacao: 'P', quantidade: 1 }]
+    const credito   = calcularTotalVenda(devolvido, produtosTrocaData) // 80
+    const subtotal  = calcularTotalVenda(novo,      produtosTrocaData) // 80
+
+    const r = calcularResumoTroca(subtotal, credito)
+    expect(r.zerada).toBe(true)
+    expect(r.aCobrar).toBe(false)
+    expect(r.saldoAFavor).toBe(false)
+    expect(r.diferenca).toBe(0)
+    expect(r.valorCobrado).toBe(0)
+    expect(r.rotulo).toBe('Troca zerada')
+  })
+
+  it('cenário 2 — produto novo mais caro: cliente paga só a diferença', () => {
+    const devolvido = [{ nome: 'Blusa Rosa',   variacao: 'M', quantidade: 1 }]
+    const novo      = [{ nome: 'Calça Branca', variacao: 'G', quantidade: 1 }]
+    const credito   = calcularTotalVenda(devolvido, produtosTrocaData) // 80
+    const subtotal  = calcularTotalVenda(novo,      produtosTrocaData) // 120
+
+    const r = calcularResumoTroca(subtotal, credito)
+    expect(r.aCobrar).toBe(true)
+    expect(r.zerada).toBe(false)
+    expect(r.diferenca).toBe(40)
+    expect(r.valorCobrado).toBe(40)   // cobra a diferença, não os 120
+    expect(r.valorExibido).toBe(40)
+    expect(r.rotulo).toBe('A cobrar')
+  })
+
+  it('cenário 3 — produto novo mais barato: saldo a favor, sem reembolso', () => {
+    const devolvido = [{ nome: 'Calça Branca', variacao: 'G', quantidade: 1 }]
+    const novo      = [{ nome: 'Saia Preta',   variacao: 'P', quantidade: 1 }]
+    const credito   = calcularTotalVenda(devolvido, produtosTrocaData) // 120
+    const subtotal  = calcularTotalVenda(novo,      produtosTrocaData) // 60
+
+    const r = calcularResumoTroca(subtotal, credito)
+    expect(r.saldoAFavor).toBe(true)
+    expect(r.aCobrar).toBe(false)
+    expect(r.diferenca).toBe(-60)
+    expect(r.valorCobrado).toBe(0)    // não vira dinheiro de volta
+    expect(r.valorExibido).toBe(60)   // o card mostra o saldo real, não zero
+    expect(r.rotulo).toBe('Saldo a favor')
+  })
+
+  it('sobra de centavo do ponto flutuante não vira cobrança', () => {
+    const r = calcularResumoTroca(80.000000001, 80)
+    expect(r.zerada).toBe(true)
+    expect(r.aCobrar).toBe(false)
+  })
+
+  it('troca sem produto devolvido é uma venda comum: tudo a cobrar', () => {
+    const r = calcularResumoTroca(120, 0)
+    expect(r.aCobrar).toBe(true)
+    expect(r.valorCobrado).toBe(120)
   })
 })

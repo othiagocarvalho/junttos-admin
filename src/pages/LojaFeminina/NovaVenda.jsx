@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
-import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
@@ -240,7 +240,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
-  const diferencaTroca = subtotal - creditoTroca
+  const troca = calcularResumoTroca(subtotal, creditoTroca)
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
@@ -885,19 +885,19 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     </div>
                     <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                        {diferencaTroca > 0.005 ? 'A cobrar' : diferencaTroca < -0.005 ? 'Saldo a favor' : 'Troca zerada'}
+                        {troca.rotulo}
                       </span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: diferencaTroca > 0.005 ? theme.primary : diferencaTroca < -0.005 ? '#D97706' : '#16a34a' }}>
-                        {fmtR(diferencaTroca > 0.005 ? totalValor : Math.abs(diferencaTroca))}
+                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: troca.aCobrar ? theme.primary : troca.saldoAFavor ? '#D97706' : '#16a34a' }}>
+                        {fmtR(troca.valorExibido)}
                       </span>
                     </div>
-                    {diferencaTroca <= 0.005 && diferencaTroca >= -0.005 && (
+                    {troca.zerada && (
                       <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Sem cobrança — troca zerada</p>
                     )}
-                    {diferencaTroca < -0.005 && (
+                    {troca.saldoAFavor && (
                       <>
                         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', fontWeight: 700 }}>
-                          Saldo a favor: {fmtR(Math.abs(diferencaTroca))} — não reembolsável em dinheiro
+                          Saldo a favor: {fmtR(troca.valorExibido)} — não reembolsável em dinheiro
                         </p>
                         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706' }}>
                           Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
