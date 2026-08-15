@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularPA, calcularProgressoMeta, calcularProgressoMetaProduto } from './metas.js'
+import { calcularPA, calcularProgressoMeta, calcularProgressoMetaProduto, calcularIndicadores, filtrarVendasDoDia } from './metas.js'
 
 describe('calcularPA', () => {
   it('retorna 0 quando não há vendas', () => {
@@ -144,5 +144,62 @@ describe('calcularProgressoMetaProduto', () => {
     const meta = { mes: '2026-01', tipo_medicao: 'faturamento', escopo_tipo: 'produto', escopo_valor: 'Vestido Rosa', valor_meta: 500 }
     const { faltam } = calcularProgressoMetaProduto(vendas, produtosData, meta)
     expect(faltam).toBe(300) // 500 - 200
+  })
+})
+
+describe('filtrarVendasDoDia', () => {
+  const ref = new Date('2026-08-15T12:00:00')
+
+  it('lista vazia devolve vazio', () => {
+    expect(filtrarVendasDoDia([], ref)).toEqual([])
+    expect(filtrarVendasDoDia(undefined, ref)).toEqual([])
+  })
+
+  it('mantém só as vendas do mesmo dia da referência', () => {
+    const vendas = [
+      { data: '2026-08-15T09:30:00', valor: 100 },
+      { data: '2026-08-15T20:10:00', valor: 200 },
+      { data: '2026-08-14T23:59:00', valor: 300 },
+      { data: '2026-08-16T00:01:00', valor: 400 },
+    ]
+    expect(filtrarVendasDoDia(vendas, ref).map(v => v.valor)).toEqual([100, 200])
+  })
+
+  it('a venda da véspera não entra mesmo caindo perto da virada', () => {
+    const vendas = [{ data: '2026-08-14T23:59:59', valor: 50 }]
+    expect(filtrarVendasDoDia(vendas, ref)).toEqual([])
+  })
+})
+
+describe('calcularIndicadores', () => {
+  it('sem vendas, tudo zerado (e sem divisão por zero)', () => {
+    expect(calcularIndicadores([])).toEqual({ total: 0, quantidade: 0, ticketMedio: 0, pa: 0 })
+  })
+
+  it('total, quantidade, ticket médio e P.A. de um conjunto de vendas', () => {
+    const vendas = [
+      { valor: 100, produtos: [{ quantidade: 2 }] },
+      { valor: 300, produtos: [{ quantidade: 4 }] },
+    ]
+    expect(calcularIndicadores(vendas)).toEqual({
+      total: 400, quantidade: 2, ticketMedio: 200, pa: 3,
+    })
+  })
+
+  it('o mesmo cálculo restrito ao dia dá números diferentes do mês', () => {
+    const ref = new Date('2026-08-15T12:00:00')
+    const vendas = [
+      { data: '2026-08-01T10:00:00', valor: 1000, produtos: [{ quantidade: 10 }] },
+      { data: '2026-08-15T10:00:00', valor: 100,  produtos: [{ quantidade: 1 }] },
+      { data: '2026-08-15T18:00:00', valor: 300,  produtos: [{ quantidade: 3 }] },
+    ]
+    const mes  = calcularIndicadores(vendas)
+    const hoje = calcularIndicadores(filtrarVendasDoDia(vendas, ref))
+
+    expect(mes.total).toBe(1400)
+    expect(hoje.total).toBe(400)
+    expect(hoje.quantidade).toBe(2)
+    expect(hoje.ticketMedio).toBe(200)
+    expect(hoje.pa).toBe(2)
   })
 })

@@ -8,7 +8,7 @@ import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
-import { calcularPA } from '../../utils/metas'
+import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import CatalogoB2BAdmin from './CatalogoB2BAdmin'
@@ -54,17 +54,15 @@ const MAIS_ITEMS = [
 function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const todayStr = now.toDateString()
 
   const vendasMes = vendas.filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
   })
-  const vendasHoje = vendas.filter(v => new Date(v.data).toDateString() === todayStr)
-  const totalMes = vendasMes.reduce((s, v) => s + Number(v.valor), 0)
-  const totalHoje = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
-  const ticketMedio = vendasMes.length > 0 ? totalMes / vendasMes.length : 0
-  const pa = calcularPA(vendasMes)
+  const vendasHoje = filtrarVendasDoDia(vendas, now)
+  const mes  = calcularIndicadores(vendasMes)
+  const hoje = calcularIndicadores(vendasHoje)
+  const totalMes = mes.total
   const meta = metas[currentYM] || 0
   const pctMeta = meta > 0 ? Math.min((totalMes / meta) * 100, 100) : 0
 
@@ -76,11 +74,19 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
 
   const isDark = !!theme.isDark
 
-  const kpis = [
-    { label: 'Hoje', value: fmtR(totalHoje), sub: `${vendasHoje.length} venda${vendasHoje.length !== 1 ? 's' : ''}` },
-    { label: 'Ticket médio', value: fmtR(ticketMedio), sub: 'este mês' },
-    { label: 'Vendas no mês', value: vendasMes.length, sub: 'transações' },
-    { label: 'P.A.', value: pa > 0 ? pa.toFixed(1) : '—', sub: 'peças / atendimento' },
+  // Indicadores do mês moram dentro do card do mês; os de hoje, na grade
+  // "Hoje". Antes os dois ficavam lado a lado e não dava para saber a qual
+  // período cada número se referia.
+  const indicadoresMes = [
+    { label: 'Ticket médio',  value: fmtR(mes.ticketMedio) },
+    { label: 'Vendas no mês', value: String(mes.quantidade) },
+    { label: 'P.A.',          value: mes.pa > 0 ? mes.pa.toFixed(1) : '—' },
+  ]
+
+  const kpisHoje = [
+    { label: 'Vendido hoje', value: fmtR(hoje.total), sub: `${hoje.quantidade} venda${hoje.quantidade !== 1 ? 's' : ''}` },
+    { label: 'Ticket médio', value: fmtR(hoje.ticketMedio), sub: 'hoje' },
+    { label: 'P.A.',         value: hoje.pa > 0 ? hoje.pa.toFixed(1) : '—', sub: 'peças / atendimento' },
   ]
 
   return (
@@ -110,15 +116,45 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
             <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pctMeta}%`, transition: 'width 0.7s' }} />
           </div>
         )}
+
+        {/* Indicadores do mês, dentro do próprio card do mês */}
+        <div style={{
+          marginTop: 16, paddingTop: 12,
+          borderTop: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : 'rgba(255,255,255,0.22)'}`,
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
+        }}>
+          {indicadoresMes.map(({ label, value }) => (
+            <div key={label} style={{ minWidth: 0 }}>
+              <p style={{
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9, fontWeight: 700,
+                color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.62)',
+                textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{label}</p>
+              <p style={{
+                fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 700,
+                color: isDark ? '#F0C040' : '#fff', lineHeight: 1,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{value}</p>
+            </div>
+          ))}
+        </div>
       </HeroCard>
 
-      {/* KPI grid */}
+      {/* Hoje */}
+      <p style={{
+        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
+        color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em',
+        marginBottom: 8,
+      }}>Hoje</p>
+
       <StatGrid style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 16 }}>
-        {kpis.map(({ label, value, sub }, i) => (
+        {kpisHoje.map(({ label, value, sub }, i) => (
           <div key={label} style={{
             background: 'var(--surface)', borderRadius: 'var(--r-card)',
             border: '1px solid var(--line)', padding: '16px 14px',
-            gridColumn: 'auto',
+            // O total de hoje é o número que a lojista procura primeiro.
+            gridColumn: i === 0 ? '1 / -1' : 'auto',
             minWidth: 0, boxSizing: 'border-box', overflow: 'hidden',
           }}>
             <p style={{

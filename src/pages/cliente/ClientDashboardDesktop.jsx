@@ -8,7 +8,7 @@ import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
-import { calcularPA } from '../../utils/metas'
+import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
@@ -256,16 +256,29 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const todayStr = now.toDateString()
 
   const vendasMes  = vendas.filter(v => { const d = new Date(v.data); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() })
-  const vendasHoje = vendas.filter(v => new Date(v.data).toDateString() === todayStr)
-  const totalMes   = vendasMes.reduce((s, v) => s + Number(v.valor), 0)
-  const totalHoje  = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
-  const ticket     = vendasMes.length > 0 ? totalMes / vendasMes.length : 0
-  const pa         = calcularPA(vendasMes)
+  const vendasHoje = filtrarVendasDoDia(vendas, now)
+  const mes        = calcularIndicadores(vendasMes)
+  const hoje       = calcularIndicadores(vendasHoje)
+  const totalMes   = mes.total
   const meta       = metas[curYM] || 0
   const pct        = meta > 0 ? Math.min((totalMes / meta) * 100, 100) : 0
+
+  // Indicadores do mês entram no próprio card do mês; os de hoje, na grade
+  // "Hoje" logo abaixo. Lado a lado, não dava para saber de qual período
+  // cada número era.
+  const indicadoresMes = [
+    { label: 'Ticket Médio',  value: fmtR(mes.ticketMedio) },
+    { label: 'Vendas no Mês', value: String(mes.quantidade) },
+    { label: 'P.A.',          value: mes.pa > 0 ? mes.pa.toFixed(1) : '—' },
+  ]
+
+  const kpisHoje = [
+    { label: 'Vendido Hoje', value: fmtR(hoje.total), sub: `${hoje.quantidade} venda${hoje.quantidade !== 1 ? 's' : ''}` },
+    { label: 'Ticket Médio', value: fmtR(hoje.ticketMedio), sub: 'hoje' },
+    { label: 'P.A.',         value: hoje.pa > 0 ? hoje.pa.toFixed(1) : '—', sub: 'peças / atendimento' },
+  ]
 
   const prodMap = {}
   vendasMes.forEach(v => (v.produtos || []).forEach(p => { prodMap[p.nome] = (prodMap[p.nome] || 0) + 1 }))
@@ -291,16 +304,40 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
             <div style={{ height: '100%', borderRadius: 2, background: isDark ? '#D4A017' : '#fff', width: `${pct}%`, transition: 'width 0.7s' }} />
           </div>
         )}
+
+        {/* Indicadores do mês, dentro do próprio card do mês */}
+        <div style={{
+          marginTop: 22, paddingTop: 16,
+          borderTop: `1px solid ${isDark ? 'rgba(212,160,23,0.25)' : 'rgba(255,255,255,0.2)'}`,
+          display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, maxWidth: 560,
+        }}>
+          {indicadoresMes.map(({ label, value }) => (
+            <div key={label} style={{ minWidth: 0 }}>
+              <p style={{
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
+                color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.6)',
+                textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{label}</p>
+              <p style={{
+                fontFamily: "'Space Mono', monospace", fontSize: 17, fontWeight: 700,
+                color: isDark ? '#F0C040' : '#fff', lineHeight: 1,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{value}</p>
+            </div>
+          ))}
+        </div>
       </HeroCard>
 
-      {/* KPIs — auto-fit, never cuts values */}
+      {/* Hoje */}
+      <p style={{
+        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700,
+        color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em',
+        marginBottom: 10,
+      }}>Hoje</p>
+
       <StatGrid style={{ marginBottom: 24 }}>
-        {[
-          { label: 'Hoje',             value: fmtR(totalHoje),                       sub: `${vendasHoje.length} vendas` },
-          { label: 'Ticket Médio',     value: fmtR(ticket),                          sub: 'este mês' },
-          { label: 'Vendas no Mês',    value: vendasMes.length,                      sub: 'transações' },
-          { label: 'P.A.',             value: pa > 0 ? pa.toFixed(1) : '—',         sub: 'peças / atendimento' },
-        ].map(({ label, value, sub }, i) => (
+        {kpisHoje.map(({ label, value, sub }, i) => (
           <div key={label} style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', borderTop: isDark ? '1px solid #D4A017' : (i === 0 ? '2px solid var(--accent)' : '1px solid var(--line)'), padding: '22px 20px', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>{label}</p>
             <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: 'var(--ink)', lineHeight: 1, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</p>

@@ -43,6 +43,31 @@ export function calcularPA(vendas) {
   return totalItens / vendas.length
 }
 
+/**
+ * Vendas registradas no mesmo dia da referência (por padrão, hoje).
+ * Compara pelo dia local, não em UTC: a lojista fecha o dia no fuso dela.
+ */
+export function filtrarVendasDoDia(vendas, referencia = new Date()) {
+  const dia = new Date(referencia).toDateString()
+  return (vendas || []).filter(v => new Date(v.data).toDateString() === dia)
+}
+
+/**
+ * Total, número de vendas, ticket médio e P.A. de um conjunto qualquer de
+ * vendas — o mesmo cálculo serve para o mês e para o dia, mudando só a lista
+ * que entra. O Início usa os dois: mês no card principal, hoje na grade.
+ */
+export function calcularIndicadores(vendas) {
+  const lista = vendas || []
+  const total = lista.reduce((s, v) => s + Number(v.valor || 0), 0)
+  return {
+    total,
+    quantidade: lista.length,
+    ticketMedio: lista.length > 0 ? total / lista.length : 0,
+    pa: calcularPA(lista),
+  }
+}
+
 export function calcularProgressoMeta(vendas, meta, mes) {
   const [y, m] = mes.split('-').map(Number)
   const now = new Date()
