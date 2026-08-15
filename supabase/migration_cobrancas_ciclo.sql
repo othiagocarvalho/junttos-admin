@@ -185,9 +185,13 @@ UPDATE lf_config SET vencimento_dia = 19
 DELETE FROM jt_cobrancas
  WHERE id = 'e9629d70-1223-408c-8a43-4cb1c4cd47eb';
 
--- As demais lojas (mercadodemo, sualoja, catalogob2bdemo, estrada,
--- ducharmelingerie) ficam com vencimento_dia NULO de propósito — é o que
--- mantém loja demo e loja sem assinatura fora do faturamento.
+-- As demais lojas (mercadodemo, sualoja, catalogob2bdemo, estrada) ficam com
+-- vencimento_dia NULO de propósito — é o que mantém loja demo e loja sem
+-- assinatura fora do faturamento.
+--
+-- Conferido ao vivo em 15/08/2026: lf_config tem 9 linhas. ducharmelingerie
+-- foi excluída em outra sessão e não está mais aqui; teste2, teste3 e
+-- testesssss também já saíram. Nenhum comando deste bloco dependia delas.
 
 
 -- ─────────────────────────────────────────────────────────────────────────────

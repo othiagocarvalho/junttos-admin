@@ -10,6 +10,7 @@ import ListRow from '../components/junttos/ListRow'
 import EmptyState from '../components/junttos/EmptyState'
 import { T } from '../theme/tokens'
 import { useGeracaoCobrancas } from '../hooks/useGeracaoCobrancas'
+import { isLojaAtiva } from '../utils/cobrancas'
 import { fmtR } from '../utils/formatters'
 
 export default function Dashboard() {
@@ -37,7 +38,10 @@ export default function Dashboard() {
   const now = new Date()
   const hora = now.getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
-  const activeLojas = lojas.filter((l) => l.status === 'ativo')
+  // lf_config.status é texto livre e o banco tem 'Ativo' e 'ativo' convivendo.
+  // A comparação exata que existia aqui deixava de fora as gravadas com
+  // maiúscula e subestimava o número. Mesmo critério da tela de Cobranças.
+  const activeLojas = lojas.filter((l) => isLojaAtiva(l.status))
   const nomePorLoja = Object.fromEntries(lojas.map(l => [l.loja_id, l.nome]))
   const mostrarAviso = !geracao.rodando && (geracao.atrasadas.length > 0 || geracao.erro)
 
