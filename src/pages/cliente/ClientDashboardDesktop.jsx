@@ -10,6 +10,7 @@ import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularPA } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
+import { contemBusca } from '../../utils/texto'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
@@ -651,6 +652,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
+  const [buscaProd, setBuscaProd] = useState('')
+
+  // Filtro só de exibição: roda sobre a lista completa da loja (inclui item com
+  // estoque zero) e não toca em nada da venda. Campo vazio devolve tudo.
+  const produtosFiltrados = produtos.filter(nome => contemBusca(nome, buscaProd))
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -1276,8 +1282,35 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           </div>
         )}
 
+        {/* Busca por nome — estoque grande fica impraticável de rolar. */}
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input
+            value={buscaProd}
+            onChange={e => setBuscaProd(e.target.value)}
+            placeholder="Buscar produto..."
+            style={{ ...inputS, paddingLeft: 40, paddingRight: buscaProd ? 40 : 14 }}
+            onFocus={fo} onBlur={onB}
+          />
+          {buscaProd && (
+            <button
+              type="button"
+              onClick={() => setBuscaProd('')}
+              aria-label="Limpar busca"
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex' }}
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {produtosFiltrados.length === 0 ? (
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 12px' }}>
+            Nenhum produto encontrado
+          </p>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 420, overflowY: 'auto' }}>
-          {produtos.map(nome => {
+          {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
             const vars = (pd?.variacoes || []).map(v => {
               const label = getVarLabel(v)
@@ -1448,6 +1481,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             )
           })}
         </div>
+        )}
 
         {form.produtos.length > 0 && (
           <div style={{ marginTop: 16, padding: '12px 14px', background: isDark ? '#050504' : '#F6EFE8', borderRadius: 12 }}>

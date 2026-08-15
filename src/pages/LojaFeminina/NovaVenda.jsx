@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
+import { contemBusca } from '../../utils/texto'
 import ReciboVenda from '../../components/ReciboVenda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
@@ -62,6 +63,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [ajusteInput, setAjusteInput] = useState('')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
+  const [buscaProd, setBuscaProd] = useState('')
+
+  // Filtro só de exibição: roda sobre a lista completa da loja (inclui item com
+  // estoque zero) e não toca em nada da venda. Campo vazio devolve tudo.
+  const produtosFiltrados = produtos.filter(nome => contemBusca(nome, buscaProd))
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -575,8 +581,35 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             )}
 
+            {/* Busca por nome — estoque grande fica impraticável de rolar. */}
+            <div style={{ position: 'relative' }}>
+              <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                value={buscaProd}
+                onChange={e => setBuscaProd(e.target.value)}
+                placeholder="Buscar produto..."
+                style={{ ...inputBase, paddingLeft: 40, paddingRight: buscaProd ? 40 : 14 }}
+                onFocus={focusIn} onBlur={focusOut}
+              />
+              {buscaProd && (
+                <button
+                  type="button"
+                  onClick={() => setBuscaProd('')}
+                  aria-label="Limpar busca"
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex' }}
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
+            {produtosFiltrados.length === 0 ? (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 12px' }}>
+                Nenhum produto encontrado
+              </p>
+            ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {produtos.map(nome => {
+              {produtosFiltrados.map(nome => {
                 const pd = produtosData.find(p => p.nome === nome)
                 const vars = (pd?.variacoes || []).map(v => {
                   const label = getVarLabel(v)
@@ -806,6 +839,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 )
               })}
             </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
               <OutlineBtn onClick={() => setStep(0)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
