@@ -8,6 +8,7 @@ import Panel from '../components/junttos/Panel'
 import ListRow from '../components/junttos/ListRow'
 import EmptyState from '../components/junttos/EmptyState'
 import { T } from '../theme/tokens'
+import { primeiroNome } from '../utils/adminUsuario'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -29,6 +30,8 @@ export default function Dashboard() {
   const now = new Date()
   const hora = now.getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
+  // Usuário sem nome não pode derrubar a primeira tela depois do login.
+  const nome = primeiroNome(user)
   const activeLojas = lojas.filter((l) => l.status === 'ativo')
 
   return (
@@ -36,7 +39,7 @@ export default function Dashboard() {
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <p style={{ fontSize: 13.5, color: T.muted, marginBottom: 4 }}>
-          {greeting}, {user?.name.split(' ')[0]}
+          {greeting}{nome ? `, ${nome}` : ''}
         </p>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>
           Dashboard
