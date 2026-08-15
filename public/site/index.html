@@ -355,17 +355,31 @@
   .subchooser{padding:64px 0 0;}
   .subchooser-title{font-size:clamp(1.5rem,2.8vw,2rem); font-weight:800; letter-spacing:-.032em; margin-bottom:24px;}
   .subseg{display:flex; gap:14px; flex-wrap:wrap;}
+  /* Sem borda, estes cards liam como painel e não como botão — e se confundiam
+     com o card de números logo abaixo. Borda roxa clara + chevron deixam claro
+     que dá pra clicar antes mesmo de escolher. A `color` do botão serve só pro
+     chevron (strong/small têm cor própria), o que simplifica os estados. */
   .subseg button{
     font-family:inherit; text-align:left; cursor:pointer;
-    background:var(--card); border:none; border-radius:var(--r-card);
-    box-shadow:var(--elev);
-    padding:17px 24px; min-width:230px; flex:1 1 230px; max-width:340px;
-    transition:box-shadow .18s ease, transform .18s ease, background .18s ease;
+    background:var(--card); border:1.5px solid rgba(94,43,208,.42);
+    border-radius:var(--r-card); box-shadow:var(--elev);
+    color:rgba(94,43,208,.6);
+    padding:16px 20px 16px 24px; min-width:230px; flex:1 1 230px; max-width:340px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    transition:box-shadow .18s ease, transform .18s ease, background .18s ease,
+               border-color .18s ease, color .18s ease;
   }
-  .subseg button:hover{transform:translateY(-2px); box-shadow:var(--elev-lift);}
+  .subseg button:hover{
+    transform:translateY(-2px); box-shadow:var(--elev-lift);
+    border-color:var(--purple); color:var(--purple);
+  }
+  .subseg-chev{flex-shrink:0; transition:transform .18s ease;}
+  .subseg button:hover .subseg-chev{transform:translateX(3px);}
   .subseg button strong{display:block; font-size:1.04rem; font-weight:800; color:var(--ink); letter-spacing:-.024em;}
   .subseg button small{display:block; margin-top:3px; font-size:.81rem; color:var(--muted);}
-  .subseg button[aria-selected="true"]{background:var(--purple);}
+  .subseg button[aria-selected="true"]{
+    background:var(--purple); border-color:var(--purple); color:#fff;
+  }
   .subseg button[aria-selected="true"] strong{color:#fff;}
   .subseg button[aria-selected="true"] small{color:rgba(255,255,255,.72);}
   .subseg-hint{margin-top:18px; font-size:.89rem; color:var(--muted);}
@@ -808,12 +822,18 @@
       <h2 class="subchooser-title">Qual é o seu tipo de negócio?</h2>
       <div class="subseg" role="tablist" aria-label="Escolha o segmento">
         <button type="button" role="tab" id="sub-tab-moda" aria-controls="sub-moda" aria-selected="false" data-sub="moda">
-          <strong>Junttos Moda</strong>
-          <small>loja de roupa</small>
+          <span>
+            <strong>Junttos Moda</strong>
+            <small>loja de roupa</small>
+          </span>
+          <svg class="subseg-chev" width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <button type="button" role="tab" id="sub-tab-mercado" aria-controls="sub-mercado" aria-selected="false" data-sub="mercado">
-          <strong>Junttos Mercado</strong>
-          <small>mercado, padaria, conveniência</small>
+          <span>
+            <strong>Junttos Mercado</strong>
+            <small>mercado, padaria, conveniência</small>
+          </span>
+          <svg class="subseg-chev" width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <p class="subseg-hint" id="subsegHint">Escolha um segmento acima pra ver o que o sistema faz e os planos.</p>
