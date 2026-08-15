@@ -36,7 +36,7 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-export default function Historico({ vendas, deleteVenda, updateVenda, features = {}, theme }) {
+export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -206,13 +206,6 @@ export default function Historico({ vendas, deleteVenda, updateVenda, features =
                         </span>
                       </div>
 
-                      {features?.atacado && (v.nome_loja || v.cidade_estado || v.forma_envio) && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                          {v.nome_loja && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink-soft)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600 }}>{v.nome_loja}</span>}
-                          {v.cidade_estado && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{v.cidade_estado}</span>}
-                          {v.forma_envio && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{v.forma_envio}</span>}
-                        </div>
-                      )}
 
                       {v.produtos?.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

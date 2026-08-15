@@ -47,7 +47,7 @@ const EMPTY_FORM = {
   status: 'Trial',
   plano: 'starter',
   valor_mensal: String(valorPlano(SEGMENTO_PADRAO, 'starter')),
-  features: { atacado: false, crm: false },
+  features: { crm: false },
   enviarBV: true,
   // Dados do contratante — todos opcionais: a loja pode ser criada sem eles e
   // completada depois pela edição em LojaDetalhe.
@@ -359,13 +359,6 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           <Section title="Funcionalidades" />
 
           <div style={{ background: T.mist, borderRadius: T.rCard, padding: '4px 14px', marginBottom: 4 }}>
-            <Toggle
-              value={form.features.atacado}
-              onChange={v => setForm(p => ({ ...p, features: { ...p.features, atacado: v } }))}
-              label="Modo atacado"
-              sub="Estoque com variações e tabela de preços"
-            />
-            <div style={{ height: 1, background: T.line }} />
             <Toggle
               value={form.features.crm}
               onChange={v => setForm(p => ({ ...p, features: { ...p.features, crm: v } }))}

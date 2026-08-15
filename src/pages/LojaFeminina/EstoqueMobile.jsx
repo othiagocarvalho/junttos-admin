@@ -7,6 +7,7 @@ import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import { rotuloTipo, toneTipo, fmtDelta, labelsDeVariacoes, filtrarPorVariacao, tabelaAusente } from '../../utils/estoqueMov'
+import { limiteBalancoValido } from '../../utils/balanco'
 
 function fmtDataHora(s) {
   return new Date(s).toLocaleString('pt-BR', {
@@ -61,25 +62,23 @@ export function initProdForm(produto) {
 }
 
 // Monta o payload para updateProduto a partir do form state.
-// atacado: boolean derivado de features?.atacado.
-export function buildProdPayload(form, atacado = false) {
-  const base = {
+export function buildProdPayload(form) {
+  return {
     nome:        form.nome.trim(),
     preco_custo: parseFloat((form.preco_custo || '').replace(',', '.')) || 0,
     preco_venda: parseFloat((form.preco_venda || '').replace(',', '.')) || 0,
     referencia:  (form.referencia || '').trim() || null,
     fornecedor:  (form.fornecedor || '').trim() || null,
   }
-  if (!atacado) return base
-  return {
-    ...base,
-    valor_lote:      parseFloat(form.valor_lote) || null,
-    data_vencimento: form.data_vencimento || null,
-    status_pgto:     form.status_pgto || 'a_pagar',
-  }
 }
 
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll, fornecedores = [] }) {
+  // Balanço que está travando as vendas desta loja. Fica aqui porque o Estoque
+  // é a única tela que a lojista alcança — o /balanco é do admin, então sem
+  // isso ela não tem como destravar sozinha uma sessão aberta em outro
+  // dispositivo ou deixada pela metade.
+  const [balTrava, setBalTrava]         = useState(null)
+  const [encerrandoBal, setEncerrandoBal] = useState(false)
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
@@ -170,12 +169,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       ? [...current, item]
       : current.map((v, i) => i === modal.idx ? item : v)
     await updateVariacoes(modal.produto.id, updated)
-    if (features?.atacado && updateProduto) {
-      await updateProduto(modal.produto.id, {
-        referencia: form.referencia || null,
-        fornecedor: form.fornecedor || null,
-      })
-    }
     setSaving(false)
     setModal(null)
   }
@@ -262,7 +255,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   async function handleSaveProd() {
     if (!prodForm.nome.trim() || prodSaving) return
     setProdSaving(true)
-    await updateProduto(editProdModal.produto.id, buildProdPayload(prodForm, !!features?.atacado))
+    await updateProduto(editProdModal.produto.id, buildProdPayload(prodForm))
     setProdSaving(false)
     setEditProdModal(null)
   }
@@ -298,21 +291,68 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
-      referencia: features?.atacado ? (newProd.referencia || null) : null,
-      fornecedor: features?.atacado ? (newProd.fornecedor || null) : null,
+      referencia: null,
+      fornecedor: null,
       fornecedor_id: newProd.fornecedor_id || null,
-      ...(features?.atacado ? {
-        valor_lote:      parseFloat(newProd.valor_lote) || null,
-        data_vencimento: newProd.data_vencimento || null,
-        status_pgto:     newProd.status_pgto || 'a_pagar',
-      } : {}),
     })
     setNewProdSaving(false)
     if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
   }
 
+  useEffect(() => {
+    let vivo = true
+    async function carregar() {
+      if (!LOJA_ID) return
+      const { data } = await supabase
+        .from('bal_sessoes')
+        .select('id, criado_em')
+        .eq('loja_id', LOJA_ID)
+        .eq('status', 'aberta')
+        .eq('travar_vendas', true)
+        .gte('criado_em', limiteBalancoValido())
+        .limit(1)
+      if (vivo) setBalTrava(data?.[0] ?? null)
+    }
+    carregar()
+    return () => { vivo = false }
+  }, [LOJA_ID])
+
+  async function encerrarBalanco() {
+    if (!balTrava || encerrandoBal) return
+    setEncerrandoBal(true)
+    // 'cancelada' e não 'concluida': nenhum ajuste de estoque foi aplicado.
+    const { error } = await supabase
+      .from('bal_sessoes')
+      .update({ status: 'cancelada' })
+      .eq('id', balTrava.id)
+      .eq('loja_id', LOJA_ID)
+    setEncerrandoBal(false)
+    if (!error) setBalTrava(null)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 8, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
+
+      {balTrava && (
+        <div style={{ background: 'var(--status-warn-bg, #FEF3C7)', border: '1px solid var(--status-warn-dot, #F59E0B)', borderRadius: 'var(--r-card)', padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--status-warn-tx, #92400E)', marginBottom: 3 }}>
+              Balanço de estoque em andamento
+            </p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--status-warn-tx, #92400E)', lineHeight: 1.5 }}>
+              Enquanto ele estiver aberto, as vendas ficam travadas. Se ninguém está contando estoque agora, pode encerrar.
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={encerrarBalanco}
+            disabled={encerrandoBal}
+            style={{ background: '#fff', color: 'var(--status-warn-tx, #92400E)', fontWeight: 700, flexShrink: 0 }}
+          >
+            {encerrandoBal ? 'Encerrando...' : 'Encerrar balanço'}
+          </Button>
+        </div>
+      )}
 
       {deleteToast && (
         <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: '#1e1b4b', color: '#fff', padding: '10px 22px', borderRadius: 12, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, zIndex: 400, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.3)' }}>
@@ -391,88 +431,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             actionLabel="Limpar busca"
             onAction={() => setSearch('')}
           />
-        </div>
-      ) : features?.atacado ? (
-        /* ── Modo Atacado: tabela plana por variação ── */
-        <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
-          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Plus Jakarta Sans, sans-serif', minWidth: 700 }}>
-              <thead>
-                <tr style={{ background: theme.primary }}>
-                  {['Referência', 'Descrição', 'Fornecedor', 'Tamanho', 'Custo', 'Venda', 'Qtd', ''].map(h => (
-                    <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.flatMap(produto => {
-                  const vars = produto.variacoes || []
-                  const tdBase = { padding: '10px 14px', fontSize: 13, color: 'var(--ink)', borderBottom: '1px solid var(--line)', verticalAlign: 'middle' }
-                  if (vars.length === 0) {
-                    return [(
-                      <tr key={produto.id} style={{ background: 'var(--surface)' }}>
-                        <td style={tdBase}>{produto.referencia || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
-                        <td style={{ ...tdBase, fontWeight: 600 }}>{produto.nome}</td>
-                        <td style={tdBase}>{produto.fornecedor || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
-                        <td style={{ ...tdBase, color: 'var(--muted)' }}>—</td>
-                        <td style={tdBase}>{fmtR(produto.preco_custo)}</td>
-                        <td style={tdBase}>{fmtR(produto.preco_venda)}</td>
-                        <td style={{ ...tdBase, color: 'var(--muted)' }}>—</td>
-                        <td style={{ ...tdBase, textAlign: 'right' }}>
-                          <button onClick={() => openAdd(produto)} style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${theme.primary}`, background: 'none', color: theme.primary, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Var</button>
-                        </td>
-                      </tr>
-                    )]
-                  }
-                  return vars.map((v, idx) => {
-                    const s = statusOf(v.quantidade)
-                    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
-                    const tamanho = labelKey ? String(v[labelKey]) : '—'
-                    const isFirst = idx === 0
-                    return (
-                      <tr key={`${produto.id}-${idx}`} style={{ background: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
-                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{produto.referencia || '—'}</td>
-                        <td style={{ ...tdBase, fontWeight: 600 }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            {produto.nome}
-                            {isFirst && (
-                              <button
-                                onClick={() => openEditProd(produto)}
-                                aria-label="Editar produto"
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', padding: 2, borderRadius: 4, flexShrink: 0 }}
-                              >
-                                <Pencil size={11} />
-                              </button>
-                            )}
-                          </span>
-                        </td>
-                        <td style={{ ...tdBase, color: 'var(--muted)', fontSize: 12 }}>{isFirst ? (produto.fornecedor || '—') : ''}</td>
-                        <td style={tdBase}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            {tamanho}
-                            {s && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 99, background: BADGE[s].bg, color: BADGE[s].color, border: `1px solid ${BADGE[s].border}`, fontWeight: 700 }}>{BADGE[s].label}</span>}
-                          </span>
-                        </td>
-                        <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_custo)}</td>
-                        <td style={{ ...tdBase, color: 'var(--muted)' }}>{fmtR(produto.preco_venda)}</td>
-                        <td style={{ ...tdBase, fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: s ? BADGE[s].color : 'var(--ink)' }}>{v.quantidade}</td>
-                        <td style={{ ...tdBase, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <button onClick={() => openEdit(produto, idx)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
-                          <button
-                            onClick={() => openMov(produto, tamanho === '—' ? '' : tamanho)}
-                            aria-label={`Ver movimentação de ${produto.nome}`}
-                            style={{ marginLeft: 6, padding: '4px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'none', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            Movim.
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
       ) : (
         filtered.map(produto => {
@@ -680,89 +638,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 </div>
               )}
 
-              {/* Referência e Fornecedor — apenas modo atacado */}
-              {features?.atacado && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={{ ...labelStyle, color: theme.primary }}>Referência</label>
-                    <input
-                      value={newProd.referencia} onChange={e => setNewProd(p => ({ ...p, referencia: e.target.value }))}
-                      placeholder="Ex: DC-001"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, color: theme.primary }}>Fornecedor</label>
-                    <input
-                      value={newProd.fornecedor} onChange={e => setNewProd(p => ({ ...p, fornecedor: e.target.value }))}
-                      placeholder="Nome do fornecedor"
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-              )}
 
-              {/* Pagamento ao fornecedor — apenas Du Charme (atacado) */}
-              {features?.atacado && (
-                <div>
-                  <div style={{ borderTop: '1px dashed var(--line)', margin: '4px 0 12px' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                      Pagamento ao fornecedor
-                    </span>
-                    <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 99, background: 'color-mix(in srgb, var(--primary) 12%, white)', color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                      novo
-                    </span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                    <div>
-                      <label style={{ ...labelStyle, color: theme.primary }}>Valor total do lote</label>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
-                        <input
-                          type="number" min="0" step="0.01"
-                          value={newProd.valor_lote}
-                          onChange={e => setNewProd(p => ({ ...p, valor_lote: e.target.value }))}
-                          placeholder="0,00"
-                          style={{ ...inputStyle, paddingLeft: 36 }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ ...labelStyle, color: theme.primary }}>Vencimento</label>
-                      <input
-                        type="date"
-                        value={newProd.data_vencimento}
-                        onChange={e => setNewProd(p => ({ ...p, data_vencimento: e.target.value }))}
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-                  <label style={{ ...labelStyle, color: theme.primary, marginBottom: 8 }}>Status do pagamento</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[
-                      { val: 'pago',    label: 'Pago',     bg: '#E6F6EE', border: '#9ED8B8', color: '#1F8A5B' },
-                      { val: 'a_pagar', label: 'A pagar',  bg: '#FFF4E0', border: '#F0C870', color: '#B7791F' },
-                    ].map(opt => (
-                      <button
-                        key={opt.val}
-                        type="button"
-                        onClick={() => setNewProd(p => ({ ...p, status_pgto: opt.val }))}
-                        style={{
-                          flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
-                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
-                          background: newProd.status_pgto === opt.val ? opt.bg : 'var(--bg)',
-                          border: newProd.status_pgto === opt.val ? `2px solid ${opt.border}` : '1px solid var(--line)',
-                          color: newProd.status_pgto === opt.val ? opt.color : 'var(--muted)',
-                          transition: 'all .15s',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Preços */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -906,26 +782,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {features?.atacado && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingBottom: 4, borderBottom: '1px solid var(--line)', marginBottom: 2 }}>
-                  <div>
-                    <label style={labelStyle}>Referência</label>
-                    <input
-                      value={form.referencia} onChange={e => setForm({ ...form, referencia: e.target.value })}
-                      placeholder="Ex: DC-001"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Fornecedor</label>
-                    <input
-                      value={form.fornecedor} onChange={e => setForm({ ...form, fornecedor: e.target.value })}
-                      placeholder="Nome do fornecedor"
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-              )}
               <div>
                 <label style={labelStyle}>Cor / Variação</label>
                 <input
@@ -1081,87 +937,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   </div>
                 </div>
               </div>
-
-              {/* Atacado: Referência + Fornecedor */}
-              {features?.atacado && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={{ ...labelStyle, color: theme.primary }}>Referência</label>
-                    <input
-                      value={prodForm.referencia}
-                      onChange={e => setProdForm(p => ({ ...p, referencia: e.target.value }))}
-                      placeholder="Ex: DC-001"
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, color: theme.primary }}>Fornecedor</label>
-                    <input
-                      value={prodForm.fornecedor}
-                      onChange={e => setProdForm(p => ({ ...p, fornecedor: e.target.value }))}
-                      placeholder="Nome do fornecedor"
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Atacado: Pagamento ao fornecedor */}
-              {features?.atacado && (
-                <div>
-                  <div style={{ borderTop: '1px dashed var(--line)', margin: '4px 0 12px' }} />
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 12 }}>
-                    Pagamento ao fornecedor
-                  </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                    <div>
-                      <label style={{ ...labelStyle, color: theme.primary }}>Valor total do lote</label>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
-                        <input
-                          type="number" min="0" step="0.01"
-                          value={prodForm.valor_lote}
-                          onChange={e => setProdForm(p => ({ ...p, valor_lote: e.target.value }))}
-                          placeholder="0,00"
-                          style={{ ...inputStyle, paddingLeft: 36 }}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ ...labelStyle, color: theme.primary }}>Vencimento</label>
-                      <input
-                        type="date"
-                        value={prodForm.data_vencimento}
-                        onChange={e => setProdForm(p => ({ ...p, data_vencimento: e.target.value }))}
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-                  <label style={{ ...labelStyle, color: theme.primary, marginBottom: 8 }}>Status do pagamento</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[
-                      { val: 'pago',    label: 'Pago',    bg: '#E6F6EE', border: '#9ED8B8', color: '#1F8A5B' },
-                      { val: 'a_pagar', label: 'A pagar', bg: '#FFF4E0', border: '#F0C870', color: '#B7791F' },
-                    ].map(opt => (
-                      <button
-                        key={opt.val}
-                        type="button"
-                        onClick={() => setProdForm(p => ({ ...p, status_pgto: opt.val }))}
-                        style={{
-                          flex: 1, height: 42, borderRadius: 10, cursor: 'pointer',
-                          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
-                          background: prodForm.status_pgto === opt.val ? opt.bg : 'var(--bg)',
-                          border: prodForm.status_pgto === opt.val ? `2px solid ${opt.border}` : '1px solid var(--line)',
-                          color: prodForm.status_pgto === opt.val ? opt.color : 'var(--muted)',
-                          transition: 'all .15s',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Botões */}

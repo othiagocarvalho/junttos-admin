@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, Truck, ArrowLeftRight, X, Sparkles } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, ArrowLeftRight, X, Sparkles } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
@@ -21,11 +21,9 @@ import Faturamento from './Faturamento'
 import Relatorios from './Relatorios'
 import LojaConfig from './LojaConfig'
 import EstoqueMobile from './EstoqueMobile'
-import ContasPagar from './ContasPagar'
 import WelcomeOnboarding from './WelcomeOnboarding'
 import CRM from './CRM'
 import Crediario from './Crediario'
-import Fornecedores from './Fornecedores'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
@@ -518,7 +516,6 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   }
 
   const effectiveLogo = data.config?.logo_url || `/logos/${lojaId}.svg`
-  const features = data.features
   const plano = data.config?.plano || 'starter'
   const legado = isLegado(data.config?.features)
 
@@ -551,9 +548,6 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     crm: (legado || temAcesso(plano, 'starter'))
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
-    fornecedores: features?.fornecedores === true
-      ? <Fornecedores {...data} theme={theme} lojaId={lojaId} />
-      : null,
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -601,38 +595,6 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             </button>
           )
         })}
-        {features?.fornecedores === true && (
-          <button
-            onClick={() => setTab('fornecedores')}
-            style={{
-              width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
-              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
-              cursor: 'pointer', minHeight: 44,
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600,
-              display: 'flex', alignItems: 'center', gap: 12, color: 'var(--ink)',
-            }}
-          >
-            <div style={{
-              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-              background: 'color-mix(in srgb, var(--primary) 12%, white)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Truck size={17} color="var(--primary)" strokeWidth={2} />
-            </div>
-            <span style={{ flex: 1 }}>Fornecedores</span>
-            <ChevronRight size={16} color="var(--muted)" />
-          </button>
-        )}
-        {features?.atacado && (
-          <button
-            onClick={() => setTab('contas_pagar')}
-            style={{
-              width: '100%', background: 'var(--surface)', border: '1px solid var(--status-warn-dot)',
-              borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left', cursor: 'pointer', minHeight: 44,
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--status-warn-tx)', fontWeight: 700,
-            }}
-          >Contas a Pagar</button>
-        )}
         {catalogoB2BNivel && (
           <button
             onClick={() => setTab('catalogo_b2b')}
@@ -681,13 +643,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     ),
     faturamento:   <Faturamento {...data} theme={theme} />,
     config:        <LojaConfig {...data} theme={theme} />,
-    contas_pagar:  features?.atacado
-      ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={lojaId} />
-      : null,
     socio_digital: lojaId === 'sualoja' ? <SocioDigital mobile /> : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'contas_pagar', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'fornecedores', 'socio_digital'].includes(tab)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'socio_digital'].includes(tab)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

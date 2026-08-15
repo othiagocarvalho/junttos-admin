@@ -65,7 +65,7 @@ describe('buildProdPayload', () => {
     status_pgto: 'pago',
   }
 
-  it('retorna payload base correto sem modo atacado', () => {
+  it('retorna payload base correto', () => {
     const payload = buildProdPayload(formBase, false)
     expect(payload).toEqual({
       nome: 'Vestido Canelado',
@@ -77,13 +77,6 @@ describe('buildProdPayload', () => {
     expect(payload).not.toHaveProperty('valor_lote')
     expect(payload).not.toHaveProperty('data_vencimento')
     expect(payload).not.toHaveProperty('status_pgto')
-  })
-
-  it('inclui campos de atacado quando atacado=true', () => {
-    const payload = buildProdPayload(formBase, true)
-    expect(payload.valor_lote).toBe(2000)
-    expect(payload.data_vencimento).toBe('2026-09-01')
-    expect(payload.status_pgto).toBe('pago')
   })
 
   it('faz trim no nome', () => {
@@ -113,18 +106,4 @@ describe('buildProdPayload', () => {
     expect(payload.fornecedor).toBe('Ateliê Norte')
   })
 
-  it('valor_lote vazio se torna null no modo atacado', () => {
-    const payload = buildProdPayload({ ...formBase, valor_lote: '' }, true)
-    expect(payload.valor_lote).toBeNull()
-  })
-
-  it('data_vencimento vazia se torna null no modo atacado', () => {
-    const payload = buildProdPayload({ ...formBase, data_vencimento: '' }, true)
-    expect(payload.data_vencimento).toBeNull()
-  })
-
-  it('status_pgto ausente usa "a_pagar" como default', () => {
-    const payload = buildProdPayload({ ...formBase, status_pgto: '' }, true)
-    expect(payload.status_pgto).toBe('a_pagar')
-  })
 })

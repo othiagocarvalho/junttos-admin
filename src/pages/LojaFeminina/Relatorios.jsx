@@ -292,7 +292,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, features, config, temAcessoPro }) {
+export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, config, temAcessoPro }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -510,53 +510,6 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         )}
       </div>
         </>
-      )}
-
-      {/* PIX por conta — exclusivo Du Charme (atacado) */}
-      {features?.atacado && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
-            Vendas por conta PIX
-          </p>
-          {(() => {
-            const pixMap = {}
-            filtered.forEach(v => {
-              parsePgtos(v).forEach(p => {
-                if (p.forma === 'PIX Santander' || p.forma === 'PIX Banco do Brasil') {
-                  pixMap[p.forma] = (pixMap[p.forma] || 0) + Number(p.valor)
-                }
-              })
-            })
-            const totalPix = Object.values(pixMap).reduce((s, v) => s + v, 0)
-            if (totalPix === 0) {
-              return (
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '16px 0' }}>
-                  Sem vendas via PIX no período
-                </p>
-              )
-            }
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {['PIX Santander', 'PIX Banco do Brasil'].map(conta => {
-                  const val = pixMap[conta] || 0
-                  const pct = totalPix > 0 ? (val / totalPix) * 100 : 0
-                  return (
-                    <div key={conta}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)' }}>{conta}</span>
-                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>{fmtR(val)}</span>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 3, background: 'var(--line)' }}>
-                        <div style={{ height: '100%', borderRadius: 3, background: 'var(--primary)', width: `${pct}%`, transition: 'width 0.5s' }} />
-                      </div>
-                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{pct.toFixed(0)}%</p>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })()}
-        </div>
       )}
 
       {/* Curva ABC de produtos — Pro+ */}

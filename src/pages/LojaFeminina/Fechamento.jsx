@@ -23,7 +23,7 @@ function parsePgtos(raw) {
 }
 
 const EMPTY = {
-  dinheiro: '', pix: '', pix_santander: '', pix_bb: '',
+  dinheiro: '', pix: '',
   debito: '', credito: '',
   saldo_ini: '', sangria: '', suprimento: '',
   valor_contado: '',
@@ -48,7 +48,7 @@ function CurrField({ k, label, form, setForm }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features, vendas = [] }) {
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [] }) {
   const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
@@ -77,14 +77,14 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
       catch { return false }
     })
 
-    const tot = { dinheiro: 0, pix: 0, pix_santander: 0, pix_bb: 0, debito: 0, credito: 0 }
+    const tot = { dinheiro: 0, pix: 0, debito: 0, credito: 0 }
     doDia.forEach(v => {
       parsePgtos(v.forma_pgto).forEach(p => {
         const val = Number(p.valor || 0)
         if (p.forma === 'Dinheiro') tot.dinheiro += val
-        else if (p.forma === 'Pix') tot.pix += val
-        else if (p.forma === 'PIX Santander') tot.pix_santander += val
-        else if (p.forma === 'PIX Banco do Brasil') tot.pix_bb += val
+        // Vendas antigas do modo atacado gravaram o Pix separado por banco;
+        // aqui tudo volta a somar num Pix só.
+        else if (p.forma === 'Pix' || p.forma === 'PIX Santander' || p.forma === 'PIX Banco do Brasil') tot.pix += val
         else if (p.forma === 'Cartão de Crédito') tot.credito += val
         else if (p.forma === 'Cartão de Débito') tot.debito += val
       })
@@ -93,19 +93,15 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
     setAutoFilled(doDia.length > 0)
     setForm(prev => ({
       ...prev,
-      dinheiro:      tot.dinheiro      > 0 ? tot.dinheiro.toFixed(2)      : '',
-      pix:           tot.pix           > 0 ? tot.pix.toFixed(2)           : '',
-      pix_santander: tot.pix_santander > 0 ? tot.pix_santander.toFixed(2) : '',
-      pix_bb:        tot.pix_bb        > 0 ? tot.pix_bb.toFixed(2)        : '',
-      debito:        tot.debito        > 0 ? tot.debito.toFixed(2)        : '',
-      credito:       tot.credito       > 0 ? tot.credito.toFixed(2)       : '',
+      dinheiro: tot.dinheiro > 0 ? tot.dinheiro.toFixed(2) : '',
+      pix:      tot.pix      > 0 ? tot.pix.toFixed(2)      : '',
+      debito:   tot.debito   > 0 ? tot.debito.toFixed(2)   : '',
+      credito:  tot.credito  > 0 ? tot.credito.toFixed(2)  : '',
     }))
   }, [dataSelecionada, vendas])
 
   const n = k => parseFloat(form[k] || 0) || 0
-  const totalVendas = features?.atacado
-    ? n('dinheiro') + n('pix_santander') + n('pix_bb') + n('debito') + n('credito')
-    : n('dinheiro') + n('pix') + n('debito') + n('credito')
+  const totalVendas = n('dinheiro') + n('pix') + n('debito') + n('credito')
   const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria') + n('suprimento')
   const liquido = totalVendas - n('despesas')
 
@@ -132,8 +128,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
     const err = await fecharCaixa({
       data: dataSelecionada,
       dinheiro: n('dinheiro'),
-      pix: features?.atacado ? n('pix_santander') + n('pix_bb') : n('pix'),
-      ...(features?.atacado ? { pix_santander: n('pix_santander'), pix_bb: n('pix_bb') } : {}),
+      pix: n('pix'),
       debito: n('debito'), credito: n('credito'),
       saldo_ini: n('saldo_ini'), sangria: n('sangria'),
       suprimento: n('suprimento'),
@@ -234,14 +229,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, features,
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} />
-          {features?.atacado ? (
-            <>
-              <CurrField k="pix_santander" label="PIX Santander" form={form} setForm={setForm} />
-              <CurrField k="pix_bb" label="PIX Banco do Brasil" form={form} setForm={setForm} />
-            </>
-          ) : (
-            <CurrField k="pix" label="Pix" form={form} setForm={setForm} />
-          )}
+          <CurrField k="pix" label="Pix" form={form} setForm={setForm} />
           <CurrField k="debito" label="Débito" form={form} setForm={setForm} />
           <CurrField k="credito" label="Crédito" form={form} setForm={setForm} />
         </div>
