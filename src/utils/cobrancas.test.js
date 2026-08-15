@@ -3,6 +3,7 @@ import {
   diaISO, deISO, vencimentoNoMes, isLojaAtiva, aplicarDesconto, rotuloDesconto,
   valorCheioMensalidade, cobrancasFaltantes, faltantesDeTodas, geracaoAtrasada,
   statusEfetivo, totaisPorPeriodo, calcularMRR, competencia,
+  marcoCobrancaAutomatica,
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from './cobrancas'
 
@@ -65,6 +66,27 @@ describe('isLojaAtiva', () => {
     expect(isLojaAtiva('demo')).toBe(false)
     expect(isLojaAtiva('excluida')).toBe(false)
     expect(isLojaAtiva(null)).toBe(false)
+  })
+})
+
+describe('marcoCobrancaAutomatica', () => {
+  it('loja que nasce ativa começa a ser cobrada hoje', () => {
+    expect(marcoCobrancaAutomatica('Ativo', HOJE)).toBe('2026-08-15')
+    expect(marcoCobrancaAutomatica('ativo', HOJE)).toBe('2026-08-15')
+  })
+
+  it('Trial nasce sem marco — não pode acumular dívida durante o trial', () => {
+    // O caso que isto protege: loja fica 3 meses em Trial e só então é ativada.
+    // Com o marco na data do cadastro, as 3 mensalidades atrasadas nasceriam
+    // todas de uma vez no primeiro load da tela.
+    expect(marcoCobrancaAutomatica('Trial', HOJE)).toBeNull()
+    expect(marcoCobrancaAutomatica('Inativo', HOJE)).toBeNull()
+    expect(marcoCobrancaAutomatica('demo', HOJE)).toBeNull()
+  })
+
+  it('loja cadastrada em Trial e ativada depois não gera retroativo', () => {
+    const l = loja({ status: 'ativo', vencimento_dia: 10, cobranca_automatica_desde: null })
+    expect(cobrancasFaltantes(l, [], HOJE)).toHaveLength(0)
   })
 })
 

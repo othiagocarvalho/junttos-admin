@@ -77,6 +77,21 @@ export function isLojaAtiva(status) {
   return String(status || '').trim().toLowerCase() === 'ativo'
 }
 
+/**
+ * Marco a partir do qual a loja passa a ser cobrada automaticamente, no
+ * momento do cadastro.
+ *
+ * Só loja que já nasce ativa recebe a data. Trial nasce com null de propósito:
+ * se ficasse com a data do cadastro, uma loja que passa três meses em trial e
+ * só então é ativada geraria as três mensalidades atrasadas de uma vez, no
+ * primeiro load da tela. Ativar loja é operação manual no banco hoje, e é lá
+ * que o marco deve ser definido — junto com a decisão de a partir de quando
+ * ela passa a ser cobrada.
+ */
+export function marcoCobrancaAutomatica(status, hoje = new Date()) {
+  return isLojaAtiva(status) ? diaISO(hoje) : null
+}
+
 // ── Desconto ─────────────────────────────────────────────────────
 
 /**

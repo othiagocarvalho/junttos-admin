@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { temAcesso, TAXA_IMPLANTACAO } from '../utils/planos'
-import { aplicarDesconto, diaISO, TIPO_IMPLANTACAO, TIPO_MENSALIDADE } from '../utils/cobrancas'
+import {
+  aplicarDesconto, diaISO, marcoCobrancaAutomatica,
+  TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
+} from '../utils/cobrancas'
 import { registrarHistorico, ACAO } from '../lib/historicoCobranca'
 
 export function toSlug(s) {
@@ -152,9 +155,9 @@ export function useCreateLoja() {
           nome, slug, status, plano, segmento, cor_primaria, cor_secundaria,
           features, logoUrl, cadastrado_por_consultor_id,
           vencimento_dia, desconto_tipo, desconto_valor, desconto_motivo,
-          // A geração automática começa a valer hoje: nunca cria cobrança
-          // anterior ao cadastro.
-          cobranca_automatica_desde: diaISO(new Date()),
+          // Só loja que já nasce ativa entra no ciclo — ver a explicação em
+          // marcoCobrancaAutomatica.
+          cobranca_automatica_desde: marcoCobrancaAutomatica(status),
         }))
       if (cfgErr) throw new Error(cfgErr.message)
 
