@@ -146,17 +146,30 @@ async function main() {
     await supabase.from('lf_config').delete().eq('loja_id', SLUG)
   }
 
-  // ── 7. Cobrança ──────────────────────────────────────────────────
-  console.log('\n── 7. Criar cobrança inicial ────────────────────────────')
-  const venc = new Date()
-  venc.setDate(venc.getDate() + 30)
-  const { error: cobErr } = await supabase.from('jt_cobrancas').insert({
-    loja_id:    SLUG,
-    valor:      99.90,
-    vencimento: venc.toISOString().split('T')[0],
-    status:     'pendente',
-  })
-  cobErr ? fail('Insert em jt_cobrancas falhou', cobErr.message) : ok('Cobrança inicial criada em jt_cobrancas')
+  // ── 7. Cobranças ─────────────────────────────────────────────────
+  // O cadastro cria DUAS cobranças, ambas vencendo hoje: a taxa de implantação
+  // e a primeira mensalidade. Espelha useCreateLoja.js — se aquele mudar, aqui
+  // muda junto.
+  console.log('\n── 7. Criar cobranças iniciais ──────────────────────────')
+  const hoje = new Date()
+  const hojeISO = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+  const { error: cobErr } = await supabase.from('jt_cobrancas').insert([
+    { loja_id: SLUG, tipo: 'implantacao', valor: 300,   vencimento: hojeISO, status: 'pendente' },
+    { loja_id: SLUG, tipo: 'mensalidade', valor: 99.90, vencimento: hojeISO, status: 'pendente' },
+  ])
+  if (cobErr) {
+    fail('Insert em jt_cobrancas falhou', cobErr.message)
+  } else {
+    const { data: criadas } = await supabase
+      .from('jt_cobrancas').select('tipo, valor, vencimento').eq('loja_id', SLUG)
+    const tipos = (criadas || []).map(c => c.tipo).sort()
+    criadas?.length === 2 && tipos[0] === 'implantacao' && tipos[1] === 'mensalidade'
+      ? ok('2 cobranças criadas em jt_cobrancas (implantação + mensalidade)')
+      : fail('Esperava 2 cobranças (implantacao + mensalidade)', JSON.stringify(criadas))
+    ;(criadas || []).every(c => c.vencimento === hojeISO)
+      ? ok('Ambas vencem hoje, como o contrato promete')
+      : fail('Cobranças iniciais deveriam vencer hoje', JSON.stringify(criadas))
+  }
 
   // ── 8. Limpeza ───────────────────────────────────────────────────
   console.log('\n── 8. Limpeza dos registros de teste ────────────────────')
