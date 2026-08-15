@@ -8,6 +8,10 @@ import {
   compararConferencia,
   somarSetores,
   temTravaBal,
+  isErroAuth,
+  limiteBalancoValido,
+  BALANCO_VALIDO_HORAS,
+  checarTravaBalanco,
 } from './balanco'
 
 const UUID_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
@@ -245,5 +249,105 @@ describe('somarSetores', () => {
     const res = somarSetores(itens)
     expect(res[0].produto_nome).toBe('Calça')
     expect(res[1].produto_nome).toBe('Camiseta')
+  })
+})
+
+// ── isErroAuth / checarTravaBalanco ──────────────────────────────────────────
+
+describe('isErroAuth', () => {
+  it('reconhece o 401 do PostgREST (token expirado)', () => {
+    expect(isErroAuth({ code: 'PGRST301', message: 'No suitable key or wrong key type' })).toBe(true)
+  })
+  it('reconhece status 401 e menções a JWT/token', () => {
+    expect(isErroAuth({ status: 401 })).toBe(true)
+    expect(isErroAuth({ message: 'JWT expired' })).toBe(true)
+    expect(isErroAuth({ message: 'Unauthorized' })).toBe(true)
+  })
+  it('não confunde erro de conexão com erro de auth', () => {
+    expect(isErroAuth({ code: 'CONNECTION_ERROR' })).toBe(false)
+    expect(isErroAuth(null)).toBe(false)
+  })
+})
+
+// Client falso: devolve as respostas da fila, uma por consulta.
+function fakeSupabase(respostas, { refreshFalha = false } = {}) {
+  const chamadas = { consultas: 0, refresh: 0 }
+  const chain = {
+    select: () => chain, eq: () => chain, gte: () => chain,
+    limit: () => { chamadas.consultas++; return Promise.resolve(respostas.shift()) },
+  }
+  return {
+    chamadas,
+    from: () => chain,
+    auth: {
+      refreshSession: async () => {
+        chamadas.refresh++
+        return { error: refreshFalha ? { message: 'refresh failed' } : null }
+      },
+    },
+  }
+}
+
+describe('checarTravaBalanco', () => {
+  it('token expirado: renova e libera quando a segunda consulta passa', async () => {
+    const sb = fakeSupabase([
+      { data: null, error: { code: 'PGRST301', message: 'JWT expired' } },
+      { data: [], error: null },
+    ])
+    const r = await checarTravaBalanco(sb, 'hmboutique')
+    expect(r.travado).toBe(false)
+    expect(r.renovou).toBe(true)
+    expect(sb.chamadas.consultas).toBe(2)
+    expect(sb.chamadas.refresh).toBe(1)
+  })
+
+  it('token expirado mas balanço realmente ativo: continua travando', async () => {
+    const sb = fakeSupabase([
+      { data: null, error: { code: 'PGRST301' } },
+      { data: [{ id: 'uuid' }], error: null },
+    ])
+    const r = await checarTravaBalanco(sb, 'x')
+    expect(r.travado).toBe(true)
+  })
+
+  it('erro de auth que persiste após o refresh: cai no fail-safe', async () => {
+    const sb = fakeSupabase([
+      { data: null, error: { code: 'PGRST301' } },
+      { data: null, error: { code: 'PGRST301' } },
+    ])
+    const r = await checarTravaBalanco(sb, 'x')
+    expect(r.travado).toBe(true)
+    expect(sb.chamadas.consultas).toBe(2)
+  })
+
+  it('refresh que falha: não repete a consulta e mantém o fail-safe', async () => {
+    const sb = fakeSupabase([{ data: null, error: { code: 'PGRST301' } }], { refreshFalha: true })
+    const r = await checarTravaBalanco(sb, 'x')
+    expect(r.travado).toBe(true)
+    expect(r.renovou).toBe(false)
+    expect(sb.chamadas.consultas).toBe(1)
+  })
+
+  it('erro que não é de auth: nem tenta renovar', async () => {
+    const sb = fakeSupabase([{ data: null, error: { code: 'CONNECTION_ERROR' } }])
+    const r = await checarTravaBalanco(sb, 'x')
+    expect(r.travado).toBe(true)
+    expect(sb.chamadas.refresh).toBe(0)
+  })
+
+  it('caminho feliz: uma consulta só, sem refresh', async () => {
+    const sb = fakeSupabase([{ data: [], error: null }])
+    const r = await checarTravaBalanco(sb, 'x')
+    expect(r.travado).toBe(false)
+    expect(sb.chamadas.consultas).toBe(1)
+    expect(sb.chamadas.refresh).toBe(0)
+  })
+})
+
+describe('limiteBalancoValido', () => {
+  it('devolve o instante de BALANCO_VALIDO_HORAS atrás', () => {
+    const agora = new Date('2026-08-15T20:00:00.000Z')
+    expect(limiteBalancoValido(agora)).toBe('2026-08-15T08:00:00.000Z')
+    expect(BALANCO_VALIDO_HORAS).toBe(12)
   })
 })

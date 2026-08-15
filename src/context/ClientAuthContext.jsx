@@ -28,6 +28,29 @@ export function ClientAuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // A lojista deixa o painel aberto o dia todo e volta nele depois de
+  // minimizar ou de o notebook dormir — nesse intervalo o token expira, e o
+  // primeiro clique em "Confirmar Venda" batia num 401. Renovar quando a aba
+  // volta a ficar visível resolve antes de ela tentar qualquer coisa.
+  // Silencioso de propósito: se falhar, o refresh no momento da venda ainda
+  // tenta de novo, e o onAuthStateChange cuida de derrubar a sessão se for o
+  // caso — nada de alerta na cara de quem só voltou pra aba.
+  useEffect(() => {
+    async function aoVoltar() {
+      if (document.visibilityState !== 'visible') return
+      const { data } = await supabase.auth.getSession()
+      if (!data?.session) return          // deslogada: nada a renovar
+      const { error } = await supabase.auth.refreshSession()
+      if (error) console.warn('[auth] refresh ao voltar para a aba falhou:', error.message)
+    }
+    document.addEventListener('visibilitychange', aoVoltar)
+    window.addEventListener('focus', aoVoltar)   // cobre alt-tab sem troca de aba
+    return () => {
+      document.removeEventListener('visibilitychange', aoVoltar)
+      window.removeEventListener('focus', aoVoltar)
+    }
+  }, [])
+
   async function login(email, password) {
     return supabase.auth.signInWithPassword({ email, password })
   }

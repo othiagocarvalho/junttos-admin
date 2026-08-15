@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, FileText, Target, Receipt, Truck, ArrowLeftRight, Sparkles,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, Target, Receipt, ArrowLeftRight, Sparkles,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -11,11 +11,11 @@ import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularPA } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import { contemBusca } from '../../utils/texto'
+import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
-import ContasPagar from '../LojaFeminina/ContasPagar'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
 import RelatoriosDesktop from './RelatoriosDesktop'
@@ -23,7 +23,6 @@ import EstoqueMobile from '../LojaFeminina/EstoqueMobile'
 import WelcomeOnboarding from '../LojaFeminina/WelcomeOnboarding'
 import CRM from '../LojaFeminina/CRM'
 import Crediario from '../LojaFeminina/Crediario'
-import Fornecedores from '../LojaFeminina/Fornecedores'
 import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
@@ -174,16 +173,6 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
-        {config?.features?.atacado && (
-          <button
-            onClick={() => setTab('contas_pagar')}
-            className={tab === 'contas_pagar' ? '' : 'cds-nav-btn'}
-            style={navItemStyle(tab === 'contas_pagar')}
-          >
-            <FileText size={16} style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Contas a Pagar</span>
-          </button>
-        )}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
         {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
           const hasAccess = apenasPlano ? temAcesso(plano, planoMinimo) : (legado || temAcesso(plano, planoMinimo))
@@ -210,16 +199,6 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
-        {config?.features?.fornecedores === true && (
-          <button
-            onClick={() => setTab('fornecedores')}
-            className={tab === 'fornecedores' ? '' : 'cds-nav-btn'}
-            style={navItemStyle(tab === 'fornecedores')}
-          >
-            <Truck size={16} style={{ flexShrink: 0 }} />
-            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Fornecedores</span>
-          </button>
-        )}
         {config?.features?.catalogo_b2b && (
           <button
             onClick={() => setTab('catalogo_b2b')}
@@ -628,14 +607,22 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, features = {}, theme, fornecedores = [], clientes = [], vendas = [] }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '' }) {
   const isDark = theme.primary === '#D4A017'
+  // Ver NovaVenda mobile: initializer preguiçoso, lido uma vez na montagem.
+  const [rascunho] = useState(() => lerRascunho(LOJA_ID))
   const [form,       setForm]       = useState(() => ({
     ...EMPTY_VENDA,
-    pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }],
+    pagamentos: [{ forma: 'Pix', valor: '' }],
+    ...(rascunho ? {
+      nome: rascunho.nome, tel: rascunho.tel, vendedora: rascunho.vendedora, obs: rascunho.obs,
+      produtos: rascunho.produtos,
+      pagamentos: rascunho.pagamentos?.length ? rascunho.pagamentos : [{ forma: 'Pix', valor: '' }],
+    } : {}),
   }))
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(!!rascunho)
   const [newProd,    setNewProd]    = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done,        setDone]        = useState(false)
@@ -643,12 +630,12 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [savedVenda,  setSavedVenda]  = useState(null)
   const [reciboAberto,setReciboAberto]= useState(false)
   const [varModal,   setVarModal]   = useState(null)
-  const [isTroca,      setIsTroca]      = useState(false)
-  const [produtoTroca, setProdutoTroca] = useState([])
+  const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? false)
+  const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [varModalTroca,setVarModalTroca]= useState(null)
-  const [ajusteTipo,  setAjusteTipo]  = useState('desconto')
-  const [ajusteModo,  setAjusteModo]  = useState('valor')
-  const [ajusteInput, setAjusteInput] = useState('')
+  const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')
+  const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')
+  const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
@@ -690,6 +677,12 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
 
+  // Autosave: mesma regra do mobile — ver utils/rascunhoVenda.js.
+  useEffect(() => {
+    if (done) return
+    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca }))
+  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
@@ -714,7 +707,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }))
   }
   function addPgto() {
-    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] }))
+    setForm(prev => ({ ...prev, pagamentos: [...prev.pagamentos, { forma: 'Pix', valor: '' }] }))
   }
   function removePgto(idx) {
     setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.filter((_, i) => i !== idx) }))
@@ -734,7 +727,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         : JSON.stringify(form.pagamentos.map(p => ({
             forma: p.forma,
             valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-            ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
           })))
     } else {
       const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
@@ -744,7 +736,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-        ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       })))
     }
     const { error: err, venda: novaVenda } = await addVenda({
@@ -759,11 +750,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
-      ...(features?.atacado ? {
-        nome_loja: form.nome_loja || null,
-        cidade_estado: form.cidade_estado || null,
-        forma_envio: form.forma_envio || null,
-      } : {}),
     })
     setSaving(false)
     if (err?.code === 'BAL_TRAVA') {
@@ -773,14 +759,17 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
+      limparRascunho(LOJA_ID)
       fetchAll?.()
     }
   }
 
   function resetForm() {
+    limparRascunho(LOJA_ID)
+    setRascunhoRestaurado(false)
     setDone(false)
     setSavedVenda(null)
-    setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
+    setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: 'Pix', valor: '' }] })
     setAjusteTipo('desconto')
     setAjusteModo('valor')
     setAjusteInput('')
@@ -791,11 +780,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = features?.atacado
-    ? ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
-    : PGTOS
+  const pgtoOpts = PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
-    && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
@@ -840,6 +826,21 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   }
 
   return (
+    <>
+    {rascunhoRestaurado && !done && (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', background: 'var(--bg)', border: '1px dashed var(--line)', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)' }}>
+          Retomamos a venda que estava em andamento.
+        </span>
+        <button
+          type="button"
+          onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setIsTroca(false) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 700, color: theme.primary, padding: 4 }}
+        >
+          Começar do zero
+        </button>
+      </div>
+    )}
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
       {/* Left: Cliente + Pagamento */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -920,20 +921,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               <label style={lbl}>Vendedor(a)</label>
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
             </div>
-            {features?.atacado && (<>
-              <div>
-                <label style={lbl}>Nome da Loja</label>
-                <input value={form.nome_loja} onChange={e => setForm({ ...form, nome_loja: e.target.value })} placeholder="Ex: Boutique da Maria" style={inputS} onFocus={fo} onBlur={onB} />
-              </div>
-              <div>
-                <label style={lbl}>Cidade / Estado</label>
-                <input value={form.cidade_estado} onChange={e => setForm({ ...form, cidade_estado: e.target.value })} placeholder="Ex: Fortaleza / CE" style={inputS} onFocus={fo} onBlur={onB} />
-              </div>
-              <div>
-                <label style={lbl}>Forma de Envio</label>
-                <input value={form.forma_envio} onChange={e => setForm({ ...form, forma_envio: e.target.value })} placeholder="Ex: Transportadora, Motoboy, Retirada" style={inputS} onFocus={fo} onBlur={onB} />
-              </div>
-            </>)}
             <div>
               <label style={lbl}>Observações</label>
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Anotações sobre esta venda..." style={inputS} onFocus={fo} onBlur={onB} />
@@ -1058,7 +1045,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       <select value={p.forma}
                         onChange={e => {
                           const f = e.target.value
-                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
+                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f } : x) }))
                         }}
                         style={{ height: 42, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
                         {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
@@ -1075,20 +1062,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                         </button>
                       )}
                       </div>
-                      {p.forma === 'Boleto' && (
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
-                          {[15, 30, 45, 60].map(dias => (
-                            <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
-                              padding: '4px 12px', borderRadius: 8, cursor: 'pointer',
-                              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
-                              border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
-                              background: p.vencimento === dias ? theme.primary : 'var(--bg)',
-                              color: p.vencimento === dias ? '#fff' : 'var(--muted)',
-                            }}>{dias} dias</button>
-                          ))}
-                          {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1497,6 +1470,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         )}
       </div>
     </div>
+    </>
   )
 }
 
@@ -1630,12 +1604,6 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
     conta:        <Fechamento       {...data} theme={theme} />,
     config:       <LojaConfig       {...data} theme={theme} />,
-    contas_pagar: data.features?.atacado
-      ? <ContasPagar produtosData={data.produtosData} updateProduto={data.updateProduto} theme={theme} lojaId={data.LOJA_ID} />
-      : null,
-    fornecedores: data.features?.fornecedores === true
-      ? <Fornecedores {...data} theme={theme} lojaId={data.LOJA_ID} />
-      : null,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
       : null,

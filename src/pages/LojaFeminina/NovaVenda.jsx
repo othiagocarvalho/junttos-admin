@@ -3,13 +3,13 @@ import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, Che
 import { calcularTotalVenda, calcularTotalComAjuste } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
+import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
-const PGTOS_ATACADO = ['PIX Santander', 'PIX Banco do Brasil', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '', nome_loja: '', cidade_estado: '', forma_envio: '' }
+const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -40,13 +40,23 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, features = {}, theme, fornecedores = [], clientes = [], vendas = [], initialIsTroca = false }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '' }) {
+  // Lido uma única vez, na montagem: o initializer preguiçoso do useState não
+  // roda de novo a cada render (useRef(lerRascunho(...)) reabriria o
+  // localStorage a cada tecla digitada) e o valor pode ser lido durante o render.
+  const [rascunho] = useState(() => lerRascunho(LOJA_ID))
   const isDark = !!theme.isDark
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(() => ({
     ...EMPTY,
-    pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }],
+    pagamentos: [{ forma: 'Pix', valor: '' }],
+    ...(rascunho ? {
+      nome: rascunho.nome, tel: rascunho.tel, vendedora: rascunho.vendedora, obs: rascunho.obs,
+      produtos: rascunho.produtos,
+      pagamentos: rascunho.pagamentos?.length ? rascunho.pagamentos : [{ forma: 'Pix', valor: '' }],
+    } : {}),
   }))
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(!!rascunho)
   const [newProd, setNewProd] = useState('')
   const [addingProd, setAddingProd] = useState(false)
   const [done, setDone] = useState(false)
@@ -55,12 +65,12 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [reciboAberto, setReciboAberto] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
-  const [isTroca,      setIsTroca]      = useState(initialIsTroca)
-  const [produtoTroca, setProdutoTroca] = useState([])
+  const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? initialIsTroca)
+  const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [expandedTroca,setExpandedTroca]= useState(null)
-  const [ajusteTipo,  setAjusteTipo]  = useState('desconto')   // 'desconto' | 'acrescimo'
-  const [ajusteModo,  setAjusteModo]  = useState('valor')      // 'valor' | 'percentual'
-  const [ajusteInput, setAjusteInput] = useState('')
+  const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')   // 'desconto' | 'acrescimo'
+  const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')      // 'valor' | 'percentual'
+  const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [buscaProd, setBuscaProd] = useState('')
@@ -100,6 +110,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+
+  // Autosave: qualquer alteração relevante persiste o rascunho. Não salva
+  // depois de concluída — aí o rascunho já foi limpo e o form está zerado.
+  useEffect(() => {
+    if (done) return
+    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca }))
+  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -164,7 +181,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         : JSON.stringify(form.pagamentos.map(p => ({
             forma: p.forma,
             valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-            ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
           })))
     } else {
       const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
@@ -174,7 +190,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
         forma: p.forma,
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-        ...(p.forma === 'Boleto' && p.vencimento ? { vencimento: p.vencimento } : {}),
       })))
     }
     const { error: err, venda: novaVenda } = await addVenda({
@@ -189,11 +204,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
-      ...(features?.atacado ? {
-        nome_loja: form.nome_loja || null,
-        cidade_estado: form.cidade_estado || null,
-        forma_envio: form.forma_envio || null,
-      } : {}),
     })
     setSaving(false)
     if (err?.code === 'BAL_TRAVA') {
@@ -203,14 +213,17 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     if (!err) {
       setSavedVenda(novaVenda)
       setDone(true)
+      limparRascunho(LOJA_ID)
       fetchAll?.()
     }
   }
 
   function resetForm() {
+    limparRascunho(LOJA_ID)
+    setRascunhoRestaurado(false)
     setDone(false)
     setSavedVenda(null)
-    setForm({ ...EMPTY, pagamentos: [{ forma: features?.atacado ? 'PIX Santander' : 'Pix', valor: '' }] })
+    setForm({ ...EMPTY, pagamentos: [{ forma: 'Pix', valor: '' }] })
     setStep(0)
     setAjusteTipo('desconto')
     setAjusteModo('valor')
@@ -222,9 +235,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = features?.atacado ? PGTOS_ATACADO : PGTOS
+  const pgtoOpts = PGTOS
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
-    && form.pagamentos.every(p => p.forma !== 'Boleto' || !!p.vencimento)
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
@@ -323,6 +335,22 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       </div>
 
       <div style={{ padding: '20px' }}>
+        {/* Sem esse aviso, campos preenchidos "sozinhos" parecem bug. */}
+        {rascunhoRestaurado && !done && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', background: 'var(--bg)', border: '1px dashed var(--line)', borderRadius: 12, padding: '10px 12px', marginBottom: 14 }}>
+            <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+              Retomamos a venda que estava em andamento.
+            </span>
+            <button
+              type="button"
+              onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setIsTroca(false); setStep(0) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: 'var(--rose-deep)', padding: 4 }}
+            >
+              Começar do zero
+            </button>
+          </div>
+        )}
+
         {/* ── Step 0: Cliente ── */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -406,20 +434,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
-            {features?.atacado && (<>
-              <Field label="Nome da Loja">
-                <input value={form.nome_loja} onChange={e => setForm({ ...form, nome_loja: e.target.value })}
-                  placeholder="Ex: Boutique da Maria" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
-              </Field>
-              <Field label="Cidade / Estado">
-                <input value={form.cidade_estado} onChange={e => setForm({ ...form, cidade_estado: e.target.value })}
-                  placeholder="Ex: Fortaleza / CE" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
-              </Field>
-              <Field label="Forma de Envio">
-                <input value={form.forma_envio} onChange={e => setForm({ ...form, forma_envio: e.target.value })}
-                  placeholder="Ex: Transportadora, Motoboy, Retirada" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
-              </Field>
-            </>)}
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
               <MetallicBtn onClick={() => setStep(1)} isDark={isDark} primary={theme.primary}>
                 Próximo — Produtos <ChevronRight size={16} />
@@ -988,7 +1002,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         value={p.forma}
                         onChange={e => {
                           const f = e.target.value
-                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f, ...(f !== 'Boleto' ? { vencimento: undefined } : {}) } : x) }))
+                          setForm(prev => ({ ...prev, pagamentos: prev.pagamentos.map((x, idx) => idx === i ? { ...x, forma: f } : x) }))
                         }}
                         style={{
                           height: 46, flex: '2 1 0', minWidth: 0,
@@ -1027,20 +1041,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         </button>
                       )}
                     </div>
-                    {p.forma === 'Boleto' && (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 2 }}>
-                        {[15, 30, 45, 60].map(dias => (
-                          <button key={dias} type="button" onClick={() => setPgto(i, 'vencimento', dias)} style={{
-                            padding: '5px 14px', borderRadius: 8, cursor: 'pointer',
-                            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600,
-                            border: p.vencimento === dias ? 'none' : '1px solid var(--line)',
-                            background: p.vencimento === dias ? theme.primary : 'var(--bg)',
-                            color: p.vencimento === dias ? '#fff' : 'var(--muted)',
-                          }}>{dias} dias</button>
-                        ))}
-                        {!p.vencimento && <span style={{ fontSize: 11, color: '#dc2626', fontFamily: 'Plus Jakarta Sans, sans-serif', alignSelf: 'center' }}>Selecione o vencimento</span>}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>

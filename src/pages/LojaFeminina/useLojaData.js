@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
-import { temTravaBal } from '../../utils/balanco'
+import { checarTravaBalanco } from '../../utils/balanco'
 import { normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
@@ -306,21 +306,22 @@ export function useLojaData(lojaId = 'estrada') {
 
   async function addVenda(venda) {
     // Verificar trava de balanço de estoque.
-    // .limit(1) em vez de .maybeSingle(): com múltiplas sessões abertas,
-    // .maybeSingle() retornava { data: null, error: PGRST116 } e o erro
+    // A consulta usa .limit(1), nunca .maybeSingle(): com múltiplas sessões
+    // abertas, .maybeSingle() devolvia { data: null, error: PGRST116 } e o erro
     // era silenciosamente ignorado, liberando a venda indevidamente.
-    const balResult = await supabase
-      .from('bal_sessoes')
-      .select('id')
-      .eq('loja_id', lojaId)
-      .eq('status', 'aberta')
-      .eq('travar_vendas', true)
-      .limit(1)
-    if (balResult.error) {
+    // checarTravaBalanco renova a sessão e repete uma vez quando o token
+    // expirou — sem isso, uma tela aberta o dia inteiro acusava
+    // "balanço em andamento" sem existir balanço nenhum.
+    const { travado, result: balResult, renovou } = await checarTravaBalanco(supabase, lojaId)
+    if (renovou) console.info('[addVenda] sessão renovada antes de checar a trava de balanço')
+    if (balResult?.error) {
       console.error('[addVenda] erro ao checar trava de balanço:', balResult.error)
     }
-    if (temTravaBal(balResult)) {
-      return { error: { code: 'BAL_TRAVA', message: 'Vendas travadas: há um balanço de estoque em andamento para esta loja.' }, venda: null }
+    if (travado) {
+      const msg = balResult?.error
+        ? 'Não foi possível confirmar a venda agora. Verifique a conexão e tente de novo.'
+        : 'Vendas travadas: há um balanço de estoque em andamento para esta loja.'
+      return { error: { code: 'BAL_TRAVA', message: msg, causa: balResult?.error ? 'erro' : 'balanco' }, venda: null }
     }
 
     const { produto_devolvido, ...vendaPayload } = venda

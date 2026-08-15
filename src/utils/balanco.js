@@ -84,6 +84,68 @@ export function temTravaBal(result) {
   return Array.isArray(result.data) && result.data.length > 0
 }
 
+/**
+ * Token expirado é o caso mais comum de erro nessa consulta — a lojista deixa
+ * a tela aberta o dia todo. O fail-safe de temTravaBal tratava isso como
+ * balanço ativo e mostrava "Balanço em andamento", mandando ela procurar um
+ * problema que não existia.
+ */
+/**
+ * Um balanço acontece dentro de um expediente. Passou disso, a sessão ficou
+ * órfã — alguém abriu a tela e fechou a aba sem concluir — e não faz sentido
+ * seguir travando as vendas da loja por causa dela. Hoje há sessões abertas há
+ * mais de 500 horas no banco, salvas de travar vendas só porque estavam com
+ * travar_vendas = false.
+ *
+ * Expira no client, na própria consulta: não depende de cron nem de migration,
+ * e a sessão continua no banco para o admin concluir ou auditar depois.
+ */
+export const BALANCO_VALIDO_HORAS = 12
+
+export function limiteBalancoValido(agora = new Date()) {
+  return new Date(agora.getTime() - BALANCO_VALIDO_HORAS * 60 * 60 * 1000).toISOString()
+}
+
+export function isErroAuth(error) {
+  if (!error) return false
+  const code = String(error.code ?? '')
+  const msg  = String(error.message ?? '').toLowerCase()
+  return code === 'PGRST301' || code === '401' || String(error.status ?? '') === '401'
+    || msg.includes('jwt') || msg.includes('token') || msg.includes('unauthorized')
+}
+
+/**
+ * Consulta a trava de balanço da loja, renovando a sessão uma única vez se o
+ * token tiver expirado. O retry evita recarregar a página — a venda em
+ * andamento continua no carrinho.
+ *
+ * Só cai no fail-safe (travado) se o erro persistir ou não for de autenticação.
+ * Recebe o client por parâmetro para continuar testável sem rede.
+ */
+export async function checarTravaBalanco(supabase, lojaId) {
+  const consultar = () => supabase
+    .from('bal_sessoes')
+    .select('id')
+    .eq('loja_id', lojaId)
+    .eq('status', 'aberta')
+    .eq('travar_vendas', true)
+    .gte('criado_em', limiteBalancoValido())
+    .limit(1)
+
+  let result = await consultar()
+  let renovou = false
+
+  if (result?.error && isErroAuth(result.error)) {
+    const { error: refreshErr } = await supabase.auth.refreshSession()
+    if (!refreshErr) {
+      renovou = true
+      result = await consultar()
+    }
+  }
+
+  return { travado: temTravaBal(result), result, renovou }
+}
+
 // For Setores mode: sums quantities across all sectors (each covers a different area).
 export function somarSetores(itens) {
   const mapa = agruparItensPorProduto(itens)
