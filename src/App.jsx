@@ -28,6 +28,7 @@ import SimuladorPlano from './pages/SimuladorPlano'
 import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
 import { isErroAuth } from './utils/authErro'
+import { isSlugReservado } from './utils/rotasReservadas'
 import CatalogoPublico from './pages/catalogo/CatalogoPublico'
 import ConsultorApp from './pages/consultor/ConsultorApp'
 
@@ -176,9 +177,11 @@ export default function App() {
   const [segment] = useState(() => window.location.pathname.split('/').filter(Boolean)[0] ?? '')
 
   const consultor = segment === 'c'          // área do consultor (/c/...)
-  // Sem segmento é o painel da Junttos; 'c' é o consultor. Nenhum dos dois
-  // precisa perguntar nada ao banco, então já nascem resolvidos.
-  const precisaResolver = !!segment && !consultor
+  // Só vai ao banco quem pode ser loja. Sem segmento é o painel da Junttos, e
+  // os segmentos reservados (/admin/login, /login, /contrato/..., /dashboard e
+  // companhia) são rotas do próprio sistema — procurar "admin" em lf_config
+  // não acha nada e caía na tela de "Loja não encontrada".
+  const precisaResolver = !!segment && !isSlugReservado(segment)
 
   // 'carregando' | 'ok' | 'falha' | 'inexistente'.
   // 'falha' e 'inexistente' são estados distintos de propósito: um pede

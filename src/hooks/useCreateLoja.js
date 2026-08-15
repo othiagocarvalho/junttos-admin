@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { temAcesso } from '../utils/planos'
+import { SLUGS_RESERVADOS, isSlugReservado } from '../utils/rotasReservadas'
 
 export function toSlug(s) {
   return s.toLowerCase()
@@ -16,11 +17,9 @@ export function toSlug(s) {
  * Uma loja com um destes slugs sequestraria a rota — ou seria engolida por ela.
  * 'c' é o portal do consultor; 'contrato' é o link público de assinatura.
  */
-export const SLUGS_RESERVADOS = ['c', 'contrato', 'admin', 'api']
-
-export function isSlugReservado(s) {
-  return SLUGS_RESERVADOS.includes(String(s || '').toLowerCase())
-}
+// Reexportados por compatibilidade — a lista mora em utils/rotasReservadas.js,
+// para o App.jsx e o cadastro de loja lerem exatamente a mesma coisa.
+export { SLUGS_RESERVADOS, isSlugReservado }
 
 export function isValidSlug(s) {
   if (isSlugReservado(s)) return false
