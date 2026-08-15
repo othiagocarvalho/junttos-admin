@@ -39,3 +39,37 @@ export function primeiroNome(user) {
   const nome = String(user?.name ?? '').trim()
   return nome ? nome.split(/\s+/)[0] : ''
 }
+
+/** Iniciais para o avatar da Sidebar. Nome de uma palavra usa as duas primeiras letras. */
+export function iniciais(nome) {
+  const partes = String(nome ?? '').trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return '??'
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+}
+
+/**
+ * Converte o usuário do Supabase Auth para o mesmo shape que a lista
+ * hardcoded sempre produziu — { id, name, email, role, avatar }.
+ *
+ * É o coração da migração: Sidebar, guardas de rota e a saudação do Dashboard
+ * continuam consumindo o contrato de antes e não precisam saber que a fonte
+ * mudou.
+ *
+ * Devolve null quando falta `app_metadata.role`. Isso é recusa deliberada, não
+ * um default permissivo: o role vem de app_metadata justamente porque o
+ * usuário não consegue editá-lo (ao contrário de user_metadata). Sem o claim,
+ * não dá para afirmar nada sobre a permissão dessa pessoa.
+ */
+export function normalizarUsuarioSupabase(user) {
+  const role = user?.app_metadata?.role
+  if (!role) return null
+
+  const email = String(user?.email ?? '')
+  const doMetadata = String(user?.user_metadata?.name ?? '').trim()
+  // Sem nome cadastrado, o trecho antes do @ é melhor que um espaço vazio.
+  const doEmail = email.split('@')[0].replace(/[._-]+/g, ' ').trim()
+  const name = doMetadata || (doEmail ? doEmail[0].toUpperCase() + doEmail.slice(1) : '')
+
+  return { id: user.id, name, email, role, avatar: iniciais(name) }
+}

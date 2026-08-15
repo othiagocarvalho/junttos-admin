@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decidirAcessoAdmin, primeiroNome, ROLE_SUPER, ROLE_GESTOR } from './adminUsuario.js'
+import { decidirAcessoAdmin, primeiroNome, iniciais, normalizarUsuarioSupabase, ROLE_SUPER, ROLE_GESTOR } from './adminUsuario.js'
 
 const superAdmin = { name: 'Thiago Admin',   role: ROLE_SUPER }
 const gestor     = { name: 'Gestor Junttos', role: ROLE_GESTOR }
@@ -68,5 +68,75 @@ describe('primeiroNome', () => {
 
   it('nome único funciona', () => {
     expect(primeiroNome({ name: 'Thiago' })).toBe('Thiago')
+  })
+})
+
+describe('iniciais', () => {
+  it('usa primeira e última palavra', () => {
+    expect(iniciais('Thiago Admin')).toBe('TA')
+    expect(iniciais('Thiago de Carvalho')).toBe('TC')
+  })
+
+  it('nome de uma palavra usa as duas primeiras letras', () => {
+    expect(iniciais('Admin')).toBe('AD')
+  })
+
+  it('vazio não quebra', () => {
+    expect(iniciais('')).toBe('??')
+    expect(iniciais(null)).toBe('??')
+    expect(iniciais('   ')).toBe('??')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// normalizarUsuarioSupabase — o contrato que a migração precisa preservar.
+// ---------------------------------------------------------------------------
+
+describe('normalizarUsuarioSupabase', () => {
+  // Conta real do admin, como veio da API durante a Fase 0.
+  const doSupabase = {
+    id: 'e357e5b4-6ce7-4b99-af2e-14b3fcc76728',
+    email: 'admin@junttos.com.br',
+    app_metadata: { provider: 'email', providers: ['email'], role: ROLE_SUPER },
+    user_metadata: { email_verified: true },
+  }
+
+  it('produz o mesmo shape da lista hardcoded', () => {
+    const u = normalizarUsuarioSupabase(doSupabase)
+    expect(Object.keys(u).sort()).toEqual(['avatar', 'email', 'id', 'name', 'role'])
+    expect(u.role).toBe(ROLE_SUPER)
+    expect(u.email).toBe('admin@junttos.com.br')
+    expect(u.id).toBe('e357e5b4-6ce7-4b99-af2e-14b3fcc76728')
+  })
+
+  // A conta real não tem user_metadata.name — sem isso o Dashboard ficaria sem nome.
+  it('sem nome no metadata, deriva do e-mail', () => {
+    expect(normalizarUsuarioSupabase(doSupabase).name).toBe('Admin')
+    expect(normalizarUsuarioSupabase(doSupabase).avatar).toBe('AD')
+  })
+
+  it('nome do user_metadata tem precedência', () => {
+    const u = normalizarUsuarioSupabase({ ...doSupabase, user_metadata: { name: 'Thiago Admin' } })
+    expect(u.name).toBe('Thiago Admin')
+    expect(u.avatar).toBe('TA')
+  })
+
+  // Recusa deliberada: sem o claim não dá para afirmar nada sobre permissão.
+  it('sem app_metadata.role devolve null', () => {
+    expect(normalizarUsuarioSupabase({ ...doSupabase, app_metadata: { provider: 'email' } })).toBeNull()
+    expect(normalizarUsuarioSupabase({ id: 'x', email: 'a@b.com' })).toBeNull()
+    expect(normalizarUsuarioSupabase(null)).toBeNull()
+  })
+
+  // role em user_metadata seria editável pelo próprio usuário — não vale.
+  it('role em user_metadata é ignorado', () => {
+    const forjado = { id: 'x', email: 'a@b.com', user_metadata: { role: ROLE_SUPER } }
+    expect(normalizarUsuarioSupabase(forjado)).toBeNull()
+  })
+
+  it('o resultado passa nas guardas como a lista antiga passava', () => {
+    const u = normalizarUsuarioSupabase(doSupabase)
+    expect(decidirAcessoAdmin({ loading: false, user: u, rolesPermitidos: [ROLE_SUPER] })).toBe('ok')
+    expect(primeiroNome(u)).toBe('Admin')
   })
 })
