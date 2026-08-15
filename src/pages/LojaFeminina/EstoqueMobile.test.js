@@ -19,7 +19,6 @@ describe('initProdForm', () => {
       preco_custo: '50',
       preco_venda: '120',
       referencia: 'VF-001',
-      fornecedor: 'Moda Sul',
       valor_lote: '1500',
       data_vencimento: '2026-08-15',
       status_pgto: 'a_pagar',
@@ -33,7 +32,6 @@ describe('initProdForm', () => {
     expect(form.preco_custo).toBe('')
     expect(form.preco_venda).toBe('80')
     expect(form.referencia).toBe('')
-    expect(form.fornecedor).toBe('')
     expect(form.valor_lote).toBe('')
     expect(form.data_vencimento).toBe('')
     expect(form.status_pgto).toBe('a_pagar')
@@ -72,7 +70,6 @@ describe('buildProdPayload', () => {
       preco_custo: 45.5,
       preco_venda: 99,
       referencia: 'VC-002',
-      fornecedor: null,
     })
     expect(payload).not.toHaveProperty('valor_lote')
     expect(payload).not.toHaveProperty('data_vencimento')
@@ -101,9 +98,16 @@ describe('buildProdPayload', () => {
     expect(payload.referencia).toBeNull()
   })
 
-  it('fornecedor preenchido é preservado', () => {
+  // O campo saiu da tela. Como updateProduto faz update parcial, a ausência da
+  // chave no payload é o que preserva o valor já gravado em lf_produtos —
+  // mandar null aqui apagaria o dado histórico de quem já tinha fornecedor.
+  it('não envia fornecedor, nem quando o form ainda carrega o valor', () => {
     const payload = buildProdPayload({ ...formBase, fornecedor: 'Ateliê Norte' }, false)
-    expect(payload.fornecedor).toBe('Ateliê Norte')
+    expect(payload).not.toHaveProperty('fornecedor')
+  })
+
+  it('initProdForm também não expõe mais fornecedor', () => {
+    expect(initProdForm({ nome: 'X', fornecedor: 'Moda Sul' })).not.toHaveProperty('fornecedor')
   })
 
 })

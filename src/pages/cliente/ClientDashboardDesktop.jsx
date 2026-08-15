@@ -1624,7 +1624,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
       : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
-    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} fornecedores={data.fornecedores} />,
+    estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />

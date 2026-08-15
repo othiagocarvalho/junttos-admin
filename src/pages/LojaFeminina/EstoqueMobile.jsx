@@ -45,7 +45,7 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', fornecedor: '', fornecedor_id: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
 // Inicializa o form "Editar Produto" a partir do objeto produto do banco.
 export function initProdForm(produto) {
@@ -54,7 +54,6 @@ export function initProdForm(produto) {
     preco_custo:     produto.preco_custo  != null ? String(produto.preco_custo)  : '',
     preco_venda:     produto.preco_venda  != null ? String(produto.preco_venda)  : '',
     referencia:      produto.referencia      || '',
-    fornecedor:      produto.fornecedor      || '',
     valor_lote:      produto.valor_lote   != null ? String(produto.valor_lote)   : '',
     data_vencimento: produto.data_vencimento || '',
     status_pgto:     produto.status_pgto     || 'a_pagar',
@@ -62,17 +61,20 @@ export function initProdForm(produto) {
 }
 
 // Monta o payload para updateProduto a partir do form state.
+//
+// `fornecedor` saiu daqui junto com o campo na tela. updateProduto faz update
+// parcial, então a coluna simplesmente não é tocada: o que já estava gravado
+// em lf_produtos continua lá, só deixou de ter interface.
 export function buildProdPayload(form) {
   return {
     nome:        form.nome.trim(),
     preco_custo: parseFloat((form.preco_custo || '').replace(',', '.')) || 0,
     preco_venda: parseFloat((form.preco_venda || '').replace(',', '.')) || 0,
     referencia:  (form.referencia || '').trim() || null,
-    fornecedor:  (form.fornecedor || '').trim() || null,
   }
 }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll, fornecedores = [] }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
   // Balanço que está travando as vendas desta loja. Fica aqui porque o Estoque
   // é a única tela que a lojista alcança — o /balanco é do admin, então sem
   // isso ela não tem como destravar sozinha uma sessão aberta em outro
@@ -82,7 +84,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
-  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', referencia: '', fornecedor: '' })
+  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', referencia: '' })
   const [saving, setSaving]         = useState(false)
   const [newProdOpen, setNewProdOpen] = useState(false)
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
@@ -151,7 +153,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     setForm({
       cor: v.cor, quantidade: String(v.quantidade), custo: v.custo ? String(v.custo) : '',
       referencia: produto.referencia || '',
-      fornecedor: produto.fornecedor || '',
     })
     setModal({ mode: 'edit', produto, idx })
   }
@@ -292,8 +293,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
       referencia: null,
-      fornecedor: null,
-      fornecedor_id: newProd.fornecedor_id || null,
     })
     setNewProdSaving(false)
     if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
@@ -620,25 +619,6 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   autoFocus
                 />
               </div>
-
-              {/* Fornecedor cadastrado (opcional) */}
-              {fornecedores.length > 0 && (
-                <div>
-                  <label style={labelStyle}>Fornecedor (opcional)</label>
-                  <select
-                    value={newProd.fornecedor_id}
-                    onChange={e => setNewProd(p => ({ ...p, fornecedor_id: e.target.value }))}
-                    style={{ ...inputStyle, cursor: 'pointer' }}
-                  >
-                    <option value="">Nenhum</option>
-                    {fornecedores.filter(f => f.ativo !== false).map(f => (
-                      <option key={f.id} value={f.id}>{f.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-
 
               {/* Preços */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

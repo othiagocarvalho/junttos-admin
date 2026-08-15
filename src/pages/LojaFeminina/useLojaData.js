@@ -75,7 +75,6 @@ export function useLojaData(lojaId = 'estrada') {
   const [clientes, setClientes] = useState([])
   const [crediario, setCrediario] = useState([])
   const [pedidos, setPedidos] = useState([])
-  const [fornecedores, setFornecedores] = useState([])
   const [compras, setCompras] = useState([])
   const [lembretes, setLembretes] = useState([])
   const [dispensados, setDispensados] = useState([])
@@ -137,12 +136,6 @@ export function useLojaData(lojaId = 'estrada') {
         setPedidos(pedidosData || [])
       } catch (_e) {
         setPedidos([])
-      }
-      try {
-        const { data: fornData } = await supabase.from('lf_fornecedores').select('*').eq('loja_id', lojaId).order('nome')
-        setFornecedores(fornData || [])
-      } catch (_e) {
-        setFornecedores([])
       }
       try {
         const { data: comprasData } = await supabase.from('lf_compras').select('*').eq('loja_id', lojaId).order('data_compra', { ascending: false })
@@ -691,10 +684,11 @@ export function useLojaData(lojaId = 'estrada') {
     return data
   }
 
-  // O CRUD de fornecedor (add/update/remove) saiu junto com a tela
-  // Fornecedores.jsx — não havia mais nenhum componente chamando.
-  // A lista continua sendo carregada porque o Estoque ainda oferece o
-  // fornecedor como campo opcional do produto.
+  // Fornecedor saiu inteiro da experiência: primeiro o CRUD, junto com a tela
+  // Fornecedores.jsx, e agora a leitura de lf_fornecedores, junto com o
+  // dropdown do cadastro de produto — sem a tela de cadastro não havia como
+  // popular a lista, e ela ficava presa em "Nenhum".
+  // A tabela e as colunas em lf_produtos continuam no banco, intactas.
 
   async function addCompra(dados) {
     const novo = {
@@ -828,7 +822,6 @@ export function useLojaData(lojaId = 'estrada') {
     pedidos,
     updatePedido,
     cancelarPedido,
-    fornecedores,
     compras,
     addCompra,
     marcarCompraPaga,
