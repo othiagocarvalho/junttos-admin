@@ -524,22 +524,18 @@
   .site-note{font-size:.84rem; color:var(--muted); margin-top:16px; line-height:1.5;}
 
   /* ---------- CARROSSEL DE EXEMPLOS DE SITE ----------
-     As imagens já trazem a moldura do navegador (barra de URL inclusa), então
-     aqui não existe moldura de CSS — só o palco, os dots e a legenda. */
+     As imagens já vêm no formato final: paisagem 3:2, com a moldura do
+     navegador e a página inteira dentro, da barra de URL às fotos do rodapé.
+     Por isso aqui não há moldura, corte nem máscara — o palco tem exatamente a
+     proporção do arquivo e `contain` encaixa sem sobrar nem faltar. `contain`
+     e não `cover` de propósito: se um arquivo futuro vier fora de 3:2, ele
+     deixa barra em vez de cortar conteúdo. */
   .sitecar{display:flex; flex-direction:column; align-items:center; gap:14px;}
-  /* O palco usa a proporção do mockup MAIS ALTO. Assim nenhuma imagem precisa
-     ser cortada: as mais baixas sobram espaço em cima e embaixo, e como o img
-     encolhe pra sua própria proporção (max-width/max-height + margin:auto),
-     a sombra e o canto arredondado acompanham a imagem, não a caixa. */
-  /* Palco padronizado: as 4 imagens ocupam exatamente a MESMA caixa 4:3, sem
-     exceção. O corte é por baixo (object-position no topo), então a barra de
-     URL e o título de cada site — o que prova "isto é um site" e identifica o
-     segmento — ficam sempre visíveis; o que se perde é o rodapé de cards. */
-  .sitecar-stage{position:relative; width:100%; aspect-ratio:4/3;}
+  .sitecar-stage{position:relative; width:100%; aspect-ratio:3/2;}
   .sitecar-stage img{
     position:absolute; inset:0;
     width:100%; height:100%;
-    object-fit:cover; object-position:50% 0%;
+    object-fit:contain;
     border-radius:var(--r-card);
     box-shadow:var(--elev-lift);
     opacity:0; transition:opacity .7s ease;
@@ -1203,10 +1199,10 @@
 
       <figure class="sitecar">
         <div class="sitecar-stage">
-          <img class="on" data-site="0" src="/site/screens/mockup-estilohomem.jpg" alt="Página do Estilo Homem — camisaria e alfaiataria masculina" loading="eager" decoding="async" width="1100" height="1275">
-          <img data-site="1" src="/site/screens/mockup-belamoda.jpg" alt="Página da Bela Moda — nova coleção de outono" loading="lazy" decoding="async" width="1100" height="1298">
-          <img data-site="2" src="/site/screens/mockup-marianalobo.jpg" alt="Página da Mariana Lobo — fisioterapia e pilates clínico" loading="lazy" decoding="async" width="1100" height="1483">
-          <img data-site="3" src="/site/screens/mockup-espacosaude.jpg" alt="Página do Espaço Saúde — dermatologia e estética" loading="lazy" decoding="async" width="1100" height="1298">
+          <img class="on" data-site="0" src="/site/screens/mockup-estilohomem-3x2.jpg" alt="Página do Estilo Homem — camisaria e alfaiataria masculina" loading="eager" decoding="async" width="1200" height="800">
+          <img data-site="1" src="/site/screens/mockup-belamoda-3x2.jpg" alt="Página da Bela Moda — nova coleção de outono" loading="lazy" decoding="async" width="1200" height="800">
+          <img data-site="2" src="/site/screens/mockup-marianalobo-3x2.jpg" alt="Página da Mariana Lobo — fisioterapia e pilates clínico" loading="lazy" decoding="async" width="1200" height="800">
+          <img data-site="3" src="/site/screens/mockup-espacosaude-3x2.jpg" alt="Página do Espaço Saúde — dermatologia e estética" loading="lazy" decoding="async" width="1200" height="800">
         </div>
         <figcaption class="sitecar-foot">
           <span class="sitecar-cap">Estilo Homem</span>
