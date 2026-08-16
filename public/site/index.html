@@ -523,35 +523,38 @@
   .site-copy > p{color:var(--muted); line-height:1.55; margin-bottom:20px; letter-spacing:-.006em;}
   .site-note{font-size:.84rem; color:var(--muted); margin-top:16px; line-height:1.5;}
 
-  .browser{
-    background:var(--card); border:none; border-radius:var(--r-card);
-    overflow:hidden; box-shadow:var(--elev-lift);
+  /* ---------- CARROSSEL DE EXEMPLOS DE SITE ----------
+     As imagens já trazem a moldura do navegador (barra de URL inclusa), então
+     aqui não existe moldura de CSS — só o palco, os dots e a legenda. */
+  .sitecar{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  /* O palco usa a proporção do mockup MAIS ALTO. Assim nenhuma imagem precisa
+     ser cortada: as mais baixas sobram espaço em cima e embaixo, e como o img
+     encolhe pra sua própria proporção (max-width/max-height + margin:auto),
+     a sombra e o canto arredondado acompanham a imagem, não a caixa. */
+  .sitecar-stage{position:relative; width:100%; aspect-ratio:2580/3480;}
+  .sitecar-stage img{
+    position:absolute; inset:0; margin:auto;
+    max-width:100%; max-height:100%; width:auto; height:auto;
+    /* o JPEG achatou os cantos transparentes do PNG em quase-branco;
+       2.8% devolve o mesmo raio do mockup original em qualquer tamanho */
+    border-radius:2.8%;
+    box-shadow:var(--elev-lift);
+    opacity:0; transition:opacity .7s ease;
   }
-  .browser-bar{
-    display:flex; align-items:center; gap:7px; padding:13px 15px;
-    background:var(--tint); border-bottom:1px solid var(--line);
+  .sitecar-stage img.on{opacity:1;}
+  .sitecar-foot{display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;}
+  .sitecar-cap{
+    background:var(--card); color:var(--ink);
+    font-size:.75rem; font-weight:700; padding:8px 16px;
+    border-radius:var(--r-pill); box-shadow:var(--elev); white-space:nowrap;
   }
-  .browser-bar i{width:9px; height:9px; border-radius:50%; background:#D3C9EA; flex-shrink:0;}
-  .browser-url{
-    flex:1; margin-left:8px; background:var(--card); border:1px solid var(--line);
-    border-radius:var(--r-pill); padding:5px 13px;
-    font-family:'Space Mono', monospace; font-size:.67rem; color:var(--muted);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  .sitecar-dots{display:flex; gap:7px;}
+  .sitecar-dots i{
+    width:7px; height:7px; border-radius:var(--r-pill);
+    background:#C3BAD9; cursor:pointer; transition:all .25s;
   }
-  .browser-body{padding:26px 24px 28px;}
-  .bw-nav{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
-  .bw-logo{font-weight:800; font-size:.95rem; letter-spacing:-.035em; color:var(--purple);}
-  .bw-pill{background:var(--wa); color:#fff; font-size:.65rem; font-weight:700; padding:6px 12px; border-radius:var(--r-pill);}
-  .bw-h1{font-size:1.3rem; font-weight:800; letter-spacing:-.032em; line-height:1.14; margin-bottom:9px;}
-  .bw-sub{font-size:.82rem; color:var(--muted); line-height:1.5; margin-bottom:18px;}
-  .bw-cta{
-    display:inline-block; background:var(--purple); color:#fff;
-    font-size:.74rem; font-weight:700; padding:10px 20px;
-    border-radius:var(--r-pill); margin-bottom:22px;
-  }
-  .bw-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
-  .bw-cards div{height:66px; border-radius:12px; background:linear-gradient(135deg,#EDE6FC,#FFEDE9);}
-  .bw-cards div:nth-child(2){background:linear-gradient(135deg,#FFEDE9,#EDE6FC);}
+  .sitecar-dots i.on{background:var(--purple); width:20px;}
+  .sitecar-note{font-size:.78rem; color:var(--muted); text-align:center; line-height:1.5;}
 
   /* ---------- BALANÇO — ficha de orçamento ---------- */
   .balanco-grid{display:grid; grid-template-columns:.88fr 1.12fr; gap:52px; align-items:start;}
@@ -1160,22 +1163,21 @@
         <p class="site-note">Serviço independente do sistema: dá pra contratar só o site, só o sistema, ou os dois juntos.</p>
       </div>
 
-      <div class="browser">
-        <div class="browser-bar">
-          <i></i><i></i><i></i>
-          <div class="browser-url">https://www.suamarca.com.br</div>
+      <figure class="sitecar">
+        <div class="sitecar-stage">
+          <img class="on" data-site="0" src="/site/screens/mockup-estilohomem.jpg" alt="Página do Estilo Homem — camisaria e alfaiataria masculina" loading="eager" decoding="async" width="1100" height="1275">
+          <img data-site="1" src="/site/screens/mockup-belamoda.jpg" alt="Página da Bela Moda — nova coleção de outono" loading="lazy" decoding="async" width="1100" height="1298">
+          <img data-site="2" src="/site/screens/mockup-marianalobo.jpg" alt="Página da Mariana Lobo — fisioterapia e pilates clínico" loading="lazy" decoding="async" width="1100" height="1483">
+          <img data-site="3" src="/site/screens/mockup-espacosaude.jpg" alt="Página do Espaço Saúde — dermatologia e estética" loading="lazy" decoding="async" width="1100" height="1298">
         </div>
-        <div class="browser-body">
-          <div class="bw-nav">
-            <span class="bw-logo">sua marca</span>
-            <span class="bw-pill">WhatsApp</span>
-          </div>
-          <div class="bw-h1">Sua loja, do jeito que ela merece ser vista.</div>
-          <div class="bw-sub">Uma página só sua, feita pra vender e pronta pro celular.</div>
-          <div class="bw-cta">Chamar no WhatsApp</div>
-          <div class="bw-cards"><div></div><div></div><div></div></div>
-        </div>
-      </div>
+        <figcaption class="sitecar-foot">
+          <span class="sitecar-cap">Estilo Homem</span>
+          <span class="sitecar-dots">
+            <i class="on" data-sitedot="0"></i><i data-sitedot="1"></i><i data-sitedot="2"></i><i data-sitedot="3"></i>
+          </span>
+        </figcaption>
+        <p class="sitecar-note">Alguns exemplos do que a gente entrega.</p>
+      </figure>
     </div>
   </div>
 </section>
@@ -1375,6 +1377,34 @@
     var cio=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!counted){counted=true;document.querySelectorAll('.num[data-count]').forEach(function(n){var t=+n.dataset.count,s=0,step=Math.max(1,Math.ceil(t/40));var iv=setInterval(function(){s+=step;if(s>=t){s=t;clearInterval(iv);}n.textContent=s+(n.dataset.suffix||'');},30);});}});},{threshold:.4});
     var sb=document.querySelector('.stat-band'); if(sb)cio.observe(sb);
   }
+})();
+</script>
+
+<script>
+// Carrossel de exemplos de site (aba Site). Bloco separado de propósito: o
+// carrossel das telas do app tem seus próprios seletores e não deve ser tocado.
+(function(){
+  var stage = document.querySelector('.sitecar-stage');
+  if(!stage) return;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var imgs = stage.querySelectorAll('img');
+  var dots = document.querySelectorAll('.sitecar-dots i');
+  var nomes = ['Estilo Homem','Bela Moda','Mariana Lobo','Espaço Saúde'];
+  var cap = document.querySelector('.sitecar-cap');
+  var idx = 0, timer;
+  function go(n){
+    idx = n;
+    imgs.forEach(function(im,k){ im.classList.toggle('on', k===n); });
+    dots.forEach(function(d,k){ d.classList.toggle('on', k===n); });
+    if(cap) cap.textContent = nomes[n];
+  }
+  function next(){ go((idx+1) % imgs.length); }
+  if(imgs.length) timer = setInterval(next, reduce ? 999999 : 4200);
+  dots.forEach(function(d,k){
+    d.addEventListener('click', function(){
+      go(k); clearInterval(timer); timer = setInterval(next, reduce ? 999999 : 4200);
+    });
+  });
 })();
 </script>
 
