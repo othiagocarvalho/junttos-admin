@@ -16,6 +16,25 @@ export const PLANO_LABEL: Record<string, string> = {
   starter: 'Starter', pro: 'Pro', business: 'Business',
 }
 
+// Também duplicado de src/utils/planos.js (TAXA_IMPLANTACAO), pelo mesmo
+// motivo. Este número aparecia solto no texto da cláusula 2 e não existia em
+// lugar nenhum do sistema; hoje é a cobrança tipo='implantacao' que o cadastro
+// cria. Mudar aqui exige mudar em planos.js também.
+export const TAXA_IMPLANTACAO = 300
+
+// "trezentos reais" por extenso, para a cláusula. Só os valores que a taxa de
+// fato assume — não vale um extenso genérico que ninguém consegue revisar.
+const TAXA_POR_EXTENSO: Record<number, string> = {
+  300: 'trezentos reais',
+}
+
+export function taxaImplantacaoTexto(): string {
+  const extenso = TAXA_POR_EXTENSO[TAXA_IMPLANTACAO]
+  return extenso
+    ? `R$ ${fmtValor(TAXA_IMPLANTACAO)} (${extenso})`
+    : `R$ ${fmtValor(TAXA_IMPLANTACAO)}`
+}
+
 // ── Helpers de formatação ────────────────────────────────────────────────────
 
 export function ou(v: unknown, fallback = 'não informado'): string {
@@ -124,8 +143,8 @@ export function montaBlocos(c: Record<string, unknown>): Bloco[] {
     { texto: 'CLÁUSULA 2 — DOS VALORES E FORMA DE PAGAMENTO', bold: true, espacoAntes: 16 },
     {
       texto:
-        `No ato da assinatura, será cobrada a taxa de implantação de R$ 300,00 ` +
-        `(trezentos reais) somada à primeira mensalidade integral do plano contratado, ` +
+        `No ato da assinatura, será cobrada a taxa de implantação de ${taxaImplantacaoTexto()} ` +
+        `somada à primeira mensalidade integral do plano contratado, ` +
         `no valor de R$ ${fmtValor(c.valor_mensal)}. A partir do segundo mês, será ` +
         `cobrada apenas a mensalidade recorrente, com vencimento todo dia ` +
         `${ou(c.vencimento_dia)} de cada mês.`,

@@ -6,7 +6,9 @@ import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
 import { Check, Copy, ExternalLink, Loader2, AlertCircle, Building2, Upload } from 'lucide-react'
 import { T } from '../../theme/tokens'
 import ConsultorLayout from './ConsultorLayout'
-import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../../utils/planos'
+import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO, TAXA_IMPLANTACAO } from '../../utils/planos'
+import { aplicarDesconto } from '../../utils/cobrancas'
+import { fmtR } from '../../utils/formatters'
 
 // Este formulário não tem seletor de segmento: o consultor só cadastra loja de
 // moda (useCreateLoja usa 'moda' por padrão). Fica explícito aqui para não
@@ -41,6 +43,13 @@ const emptyForm = {
   plano:        'starter',
   email_acesso: '',
   senha_acesso: '',
+  // Ciclo de cobrança — mesmos campos da tela de cadastro do admin, para a
+  // loja não precisar de ajuste manual depois. Ver a nota na seção do
+  // formulário sobre quando eles passam a valer.
+  vencimento_dia:  '',
+  desconto_tipo:   '',
+  desconto_valor:  '',
+  desconto_motivo: '',
 }
 
 const inp = {
@@ -122,6 +131,10 @@ export default function ConsultorNovaLoja() {
       valor_mensal:   String(valorPlano(SEGMENTO_CONSULTOR, form.plano)),
       enviarBV:       true,
       cadastrado_por_consultor_id: consultorId,
+      vencimento_dia:  form.vencimento_dia,
+      desconto_tipo:   form.desconto_tipo,
+      desconto_valor:  form.desconto_valor,
+      desconto_motivo: form.desconto_motivo,
     })
   }
 
@@ -263,6 +276,85 @@ export default function ConsultorNovaLoja() {
                   <option key={k} value={k}>{label} — R$ {fmtValorPlano(valorPlano(SEGMENTO_CONSULTOR, k))}/mês</option>
                 ))}
               </select>
+            </div>
+
+            {/* Cobrança — mesmos campos do cadastro do admin */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <label style={labelSt}>Dia de vencimento</label>
+                <input
+                  type="number" min="1" max="28"
+                  value={form.vencimento_dia}
+                  onChange={e => setForm(f => ({ ...f, vencimento_dia: e.target.value }))}
+                  placeholder="Ex: 10"
+                  style={inp}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={labelSt}>Desconto na assinatura</label>
+                <select
+                  value={form.desconto_tipo}
+                  onChange={e => setForm(f => ({ ...f, desconto_tipo: e.target.value }))}
+                  style={{ ...inp, cursor: 'pointer', appearance: 'none' }}
+                >
+                  <option value="">Sem desconto</option>
+                  <option value="percentual">Percentual (%)</option>
+                  <option value="fixo">Valor fixo (R$)</option>
+                </select>
+              </div>
+            </div>
+
+            {form.desconto_tipo && (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelSt}>
+                    {form.desconto_tipo === 'percentual' ? 'Percentual (%)' : 'Valor abatido (R$)'}
+                  </label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={form.desconto_valor}
+                    onChange={e => setForm(f => ({ ...f, desconto_valor: e.target.value }))}
+                    style={inp}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={labelSt}>Motivo</label>
+                  <input
+                    value={form.desconto_motivo}
+                    onChange={e => setForm(f => ({ ...f, desconto_motivo: e.target.value }))}
+                    placeholder="Ex: parceria"
+                    style={inp}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Prévia do que o cadastro cria: duas cobranças, vencendo hoje */}
+            <div style={{ background: T.mist, borderRadius: T.rInput, padding: '12px 14px', marginBottom: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8, marginTop: 0 }}>
+                Será cobrado hoje
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.ink, marginBottom: 3 }}>
+                <span>Taxa de implantação</span><span style={{ fontWeight: 700 }}>{fmtR(TAXA_IMPLANTACAO)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.ink }}>
+                <span>1ª mensalidade</span>
+                <span style={{ fontWeight: 700 }}>
+                  {fmtR(aplicarDesconto(valorPlano(SEGMENTO_CONSULTOR, form.plano), form.desconto_tipo, form.desconto_valor))}
+                </span>
+              </div>
+              <div style={{ height: 1, background: T.line, margin: '8px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, color: T.ink, fontWeight: 700 }}>
+                <span>Total</span>
+                <span>{fmtR(TAXA_IMPLANTACAO + aplicarDesconto(valorPlano(SEGMENTO_CONSULTOR, form.plano), form.desconto_tipo, form.desconto_valor))}</span>
+              </div>
+              {/* O consultor cadastra sempre como Trial, e trial não é cobrado
+                  automaticamente. Dizer isso aqui evita a promessa errada de que
+                  a mensalidade seguinte vai nascer sozinha. */}
+              <p style={{ fontSize: 11, color: T.muted, marginTop: 8, marginBottom: 0, lineHeight: 1.5 }}>
+                A loja é cadastrada como Trial. O dia de vencimento e o desconto ficam gravados e passam a valer
+                assim que a Junttos ativar a loja — sem precisar preencher nada de novo.
+              </p>
             </div>
 
             <div style={{ height: 1, background: T.line, margin: '18px 0' }} />

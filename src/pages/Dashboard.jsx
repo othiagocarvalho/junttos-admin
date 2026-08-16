@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { supabase } from '../lib/supabase'
-import { Users, DollarSign, MapPin, Building2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Users, DollarSign, MapPin, Building2, AlertTriangle } from 'lucide-react'
 import StatCard from '../components/junttos/StatCard'
 import Panel from '../components/junttos/Panel'
 import ListRow from '../components/junttos/ListRow'
 import EmptyState from '../components/junttos/EmptyState'
 import { T } from '../theme/tokens'
+import { useGeracaoCobrancas } from '../hooks/useGeracaoCobrancas'
+import { isLojaAtiva } from '../utils/cobrancas'
+import { fmtR } from '../utils/formatters'
 import { primeiroNome } from '../utils/adminUsuario'
 
 export default function Dashboard() {
@@ -27,12 +31,22 @@ export default function Dashboard() {
       })
   }, [])
 
+  // Segunda checagem do ciclo de cobrança. Sem cron no plano gratuito, a
+  // geração depende de alguém abrir uma tela — o Dashboard é a mais aberta,
+  // então roda aqui também para o atraso não passar semanas sem ser notado.
+  const geracao = useGeracaoCobrancas()
+
   const now = new Date()
   const hora = now.getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
   // Usuário sem nome não pode derrubar a primeira tela depois do login.
   const nome = primeiroNome(user)
-  const activeLojas = lojas.filter((l) => l.status === 'ativo')
+  // lf_config.status é texto livre e o banco tem 'Ativo' e 'ativo' convivendo.
+  // A comparação exata que existia aqui deixava de fora as gravadas com
+  // maiúscula e subestimava o número. Mesmo critério da tela de Cobranças.
+  const activeLojas = lojas.filter((l) => isLojaAtiva(l.status))
+  const nomePorLoja = Object.fromEntries(lojas.map(l => [l.loja_id, l.nome]))
+  const mostrarAviso = !geracao.rodando && (geracao.atrasadas.length > 0 || geracao.erro)
 
   return (
     <div style={{ maxWidth: 1200, fontFamily: T.ui }}>
@@ -48,6 +62,35 @@ export default function Dashboard() {
           {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
+
+      {/* Cobrança do ciclo atrasada — precisa ficar óbvio, não em log */}
+      {mostrarAviso && (
+        <div style={{
+          display: 'flex', gap: 12, alignItems: 'flex-start',
+          background: '#FEE8E8', border: '1px solid #C0392B44',
+          borderRadius: T.rCard, padding: '16px 18px', marginBottom: 24,
+        }}>
+          <AlertTriangle size={17} color="#C0392B" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, color: '#C0392B', marginBottom: 4 }}>
+              {geracao.atrasadas.length > 0
+                ? `${geracao.atrasadas.length} ${geracao.atrasadas.length === 1 ? 'cobrança atrasada não foi gerada' : 'cobranças atrasadas não foram geradas'}`
+                : 'A geração automática de cobranças falhou'}
+            </p>
+            {geracao.atrasadas.length > 0 && (
+              <ul style={{ margin: '0 0 6px', paddingLeft: 18, fontSize: 12.5, color: '#C0392B', lineHeight: 1.7 }}>
+                {geracao.atrasadas.map((a, i) => (
+                  <li key={`${a.loja_id}-${a.vencimento}-${i}`}>
+                    <strong>{nomePorLoja[a.loja_id] || a.loja_id}</strong> — {fmtR(a.valor)}, venceu em {a.vencimento.split('-').reverse().join('/')}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {geracao.erro && <p style={{ fontSize: 12, color: '#C0392B', fontFamily: T.mono, wordBreak: 'break-word' }}>{geracao.erro}</p>}
+            <Link to="/cobrancas" style={{ fontSize: 12.5, fontWeight: 700, color: '#C0392B' }}>Abrir Cobranças →</Link>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 28 }}>

@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { temAcesso } from '../utils/planos'
+import { temAcesso, TAXA_IMPLANTACAO } from '../utils/planos'
 import { SLUGS_RESERVADOS, isSlugReservado } from '../utils/rotasReservadas'
+import {
+  aplicarDesconto, diaISO, marcoCobrancaAutomatica,
+  TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
+} from '../utils/cobrancas'
+import { registrarHistorico, ACAO } from '../lib/historicoCobranca'
 
 export function toSlug(s) {
   return s.toLowerCase()
@@ -53,6 +58,11 @@ export function buildLojaPayload({
   features = {},
   logoUrl = null,
   cadastrado_por_consultor_id = null,
+  vencimento_dia = null,
+  desconto_tipo = null,
+  desconto_valor = null,
+  desconto_motivo = null,
+  cobranca_automatica_desde = null,
 }) {
   const payload = {
     loja_id:        slug,
@@ -70,6 +80,14 @@ export function buildLojaPayload({
     },
     logo_url:       logoUrl,
     updated_at:     new Date().toISOString(),
+    // Ciclo de cobrança. vencimento_dia nulo tira a loja da geração
+    // automática — é o que mantém as lojas demo fora do faturamento.
+    vencimento_dia:            Number(vencimento_dia) || null,
+    cobranca_automatica_desde: cobranca_automatica_desde || null,
+    // O CHECK do banco exige os dois juntos ou nenhum.
+    desconto_tipo:  Number(desconto_valor) > 0 ? desconto_tipo : null,
+    desconto_valor: Number(desconto_valor) > 0 ? Number(desconto_valor) : null,
+    desconto_motivo: Number(desconto_valor) > 0 ? (desconto_motivo || null) : null,
   }
   if (cadastrado_por_consultor_id) {
     payload.cadastrado_por_consultor_id = cadastrado_por_consultor_id
@@ -103,6 +121,10 @@ export function useCreateLoja() {
     enviarBV = true,
     cadastrado_por_consultor_id = null,
     contratante = null,
+    vencimento_dia = null,
+    desconto_tipo = null,
+    desconto_valor = null,
+    desconto_motivo = null,
   }) {
     if (!nome?.trim() || !slug?.trim()) {
       setError('Nome e slug são obrigatórios.')
@@ -128,7 +150,14 @@ export function useCreateLoja() {
 
       const { error: cfgErr } = await supabase
         .from('lf_config')
-        .insert(buildLojaPayload({ nome, slug, status, plano, segmento, cor_primaria, cor_secundaria, features, logoUrl, cadastrado_por_consultor_id }))
+        .insert(buildLojaPayload({
+          nome, slug, status, plano, segmento, cor_primaria, cor_secundaria,
+          features, logoUrl, cadastrado_por_consultor_id,
+          vencimento_dia, desconto_tipo, desconto_valor, desconto_motivo,
+          // Só loja que já nasce ativa entra no ciclo — ver a explicação em
+          // marcoCobrancaAutomatica.
+          cobranca_automatica_desde: marcoCobrancaAutomatica(status),
+        }))
       if (cfgErr) throw new Error(cfgErr.message)
 
       // jt_contratantes tem RLS e nenhuma policy — quem grava é a function.
@@ -159,14 +188,49 @@ export function useCreateLoja() {
         }
       }
 
-      const venc = new Date()
-      venc.setDate(venc.getDate() + 30)
-      await supabase.from('jt_cobrancas').insert({
-        loja_id:    slug,
-        valor:      parseFloat(valor_mensal) || 0,
-        vencimento: venc.toISOString().split('T')[0],
-        status:     'pendente',
-      })
+      // O contrato promete taxa de implantação + primeira mensalidade integral
+      // "no ato da assinatura" — então as duas nascem vencendo hoje. Antes daqui
+      // nascia uma cobrança só, com vencimento em 30 dias, e a implantação
+      // simplesmente nunca era cobrada.
+      const hoje = diaISO(new Date())
+      const cheio = parseFloat(valor_mensal) || 0
+      const comDesconto = aplicarDesconto(cheio, desconto_tipo, desconto_valor)
+
+      const { data: criadas, error: cobErr } = await supabase
+        .from('jt_cobrancas')
+        .insert([
+          {
+            loja_id:    slug,
+            tipo:       TIPO_IMPLANTACAO,
+            valor:      TAXA_IMPLANTACAO,   // desconto de assinatura não se aplica à implantação
+            vencimento: hoje,
+            status:     'pendente',
+          },
+          {
+            loja_id:     slug,
+            tipo:        TIPO_MENSALIDADE,
+            valor:       comDesconto,
+            valor_cheio: comDesconto !== cheio ? cheio : null,
+            vencimento:  hoje,
+            status:      'pendente',
+          },
+        ])
+        .select()
+
+      // Antes o retorno deste insert era descartado: uma falha aqui criava a
+      // loja sem cobrança nenhuma, em silêncio. A loja já existe e o usuário
+      // já foi criado, então isto é aviso e não rollback — mas precisa aparecer.
+      if (cobErr) {
+        setError(`Loja criada, mas as cobranças iniciais não foram geradas: ${cobErr.message}`)
+      } else {
+        await registrarHistorico((criadas || []).map(c => ({
+          cobranca_id: c.id,
+          loja_id:     c.loja_id,
+          acao:        ACAO.CRIADA,
+          campo:       'cadastro_loja',
+          valor_novo:  `${c.tipo} R$ ${c.valor} venc ${c.vencimento}`,
+        })))
+      }
 
       const link = `${window.location.origin}/${slug}/`
       setSuccessLink(link)

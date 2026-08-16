@@ -282,9 +282,14 @@ serve(async (req) => {
 
     // lf_config não guarda valor mensal — o valor real cobrado está na cobrança
     // mais recente. Sem cobrança, cai na tabela de preço do plano.
+    //
+    // O filtro por tipo é obrigatório: a cobrança mais recente de uma loja
+    // recém-cadastrada pode ser a taxa de implantação, e o valor entra num
+    // snapshot que depois é assinado pelo cliente.
     const { data: cobrancas } = await admin
       .from('jt_cobrancas').select('valor')
       .eq('loja_id', loja.loja_id)
+      .eq('tipo', 'mensalidade')
       .order('created_at', { ascending: false }).limit(1)
     const doBanco = cobrancas?.[0]?.valor
     const valorMensal = doBanco !== undefined && doBanco !== null

@@ -10,7 +10,9 @@ import EmptyState from '../../components/junttos/EmptyState'
 import { T } from '../../theme/tokens'
 import DemoPanel from './DemoPanel'
 import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
-import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO } from '../../utils/planos'
+import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO, TAXA_IMPLANTACAO } from '../../utils/planos'
+import { aplicarDesconto } from '../../utils/cobrancas'
+import { fmtR } from '../../utils/formatters'
 import CamposContratante from '../../components/admin/CamposContratante'
 import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 
@@ -47,6 +49,12 @@ const EMPTY_FORM = {
   status: 'Trial',
   plano: 'starter',
   valor_mensal: String(valorPlano(SEGMENTO_PADRAO, 'starter')),
+  // Ciclo de cobrança. Sem dia de vencimento a loja não entra na geração
+  // automática — é o que mantém loja demo fora do faturamento.
+  vencimento_dia: '',
+  desconto_tipo: '',
+  desconto_valor: '',
+  desconto_motivo: '',
   features: { crm: false },
   enviarBV: true,
   // Dados do contratante — todos opcionais: a loja pode ser criada sem eles e
@@ -160,6 +168,10 @@ function NovoClienteModal({ open, onClose, onCreated }) {
       valor_mensal:   form.valor_mensal,
       enviarBV:       form.enviarBV,
       contratante:    apenasContratante(form),
+      vencimento_dia:  form.vencimento_dia,
+      desconto_tipo:   form.desconto_tipo,
+      desconto_valor:  form.desconto_valor,
+      desconto_motivo: form.desconto_motivo,
     })
     if (link) onCreated()
   }
@@ -338,6 +350,86 @@ function NovoClienteModal({ open, onClose, onCreated }) {
                 style={inp}
               />
             </div>
+          </div>
+
+          {/* Dia de vencimento e desconto permanente da assinatura */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Dia de vencimento</label>
+              <input
+                type="number"
+                min="1"
+                max="28"
+                value={form.vencimento_dia}
+                onChange={e => setForm(p => ({ ...p, vencimento_dia: e.target.value }))}
+                placeholder="Ex: 10"
+                style={inp}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Desconto na assinatura</label>
+              <select
+                value={form.desconto_tipo}
+                onChange={e => setForm(p => ({ ...p, desconto_tipo: e.target.value }))}
+                style={{ ...inp, cursor: 'pointer' }}
+              >
+                <option value="">Sem desconto</option>
+                <option value="percentual">Percentual (%)</option>
+                <option value="fixo">Valor fixo (R$)</option>
+              </select>
+            </div>
+          </div>
+          <p style={{ fontSize: 11, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>
+            De 1 a 28. Sem o dia preenchido, a loja não entra na geração automática das mensalidades seguintes.
+          </p>
+
+          {form.desconto_tipo && (
+            <div style={{ display: 'flex', gap: 12, marginTop: 14 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+                  {form.desconto_tipo === 'percentual' ? 'Percentual (%)' : 'Valor abatido (R$)'}
+                </label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.desconto_valor}
+                  onChange={e => setForm(p => ({ ...p, desconto_valor: e.target.value }))}
+                  style={inp}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Motivo</label>
+                <input
+                  value={form.desconto_motivo}
+                  onChange={e => setForm(p => ({ ...p, desconto_motivo: e.target.value }))}
+                  placeholder="Ex: parceria"
+                  style={inp}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Prévia: o cadastro cria as duas cobranças, ambas vencendo hoje */}
+          <div style={{ background: T.mist, borderRadius: T.rInput, padding: '12px 14px', marginTop: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+              Será cobrado hoje
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.ink, marginBottom: 3 }}>
+              <span>Taxa de implantação</span><span style={{ fontWeight: 700 }}>{fmtR(TAXA_IMPLANTACAO)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: T.ink }}>
+              <span>1ª mensalidade</span>
+              <span style={{ fontWeight: 700 }}>
+                {fmtR(aplicarDesconto(parseFloat(form.valor_mensal) || 0, form.desconto_tipo, form.desconto_valor))}
+              </span>
+            </div>
+            <div style={{ height: 1, background: T.line, margin: '8px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5, color: T.ink, fontWeight: 700 }}>
+              <span>Total</span>
+              <span>{fmtR(TAXA_IMPLANTACAO + aplicarDesconto(parseFloat(form.valor_mensal) || 0, form.desconto_tipo, form.desconto_valor))}</span>
+            </div>
+            <p style={{ fontSize: 11, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>
+              Duas cobranças separadas, ambas vencendo hoje — igual ao que o contrato promete. A partir do mês seguinte, só a mensalidade.
+            </p>
           </div>
 
           {/* ── Credenciais ── */}

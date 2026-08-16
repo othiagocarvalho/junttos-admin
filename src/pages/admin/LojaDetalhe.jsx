@@ -298,8 +298,11 @@ export default function LojaDetalhe() {
       }),
       // Só para exibir no cabeçalho. O valor que vai para o contrato é
       // recalculado na function, que é quem grava o snapshot.
+      // tipo='mensalidade' é obrigatório: sem o filtro, a taxa de implantação
+      // de R$ 300 vira "valor mensal" da loja no cabeçalho.
       supabase.from('jt_cobrancas').select('valor')
-        .eq('loja_id', cfg.loja_id).order('created_at', { ascending: false }).limit(1),
+        .eq('loja_id', cfg.loja_id).eq('tipo', 'mensalidade')
+        .order('created_at', { ascending: false }).limit(1),
       // jt_contratantes é invisível para o navegador (RLS sem policy).
       supabase.functions.invoke('gerar-contrato', {
         body: { action: 'contratante-obter', loja_id: cfg.loja_id },
