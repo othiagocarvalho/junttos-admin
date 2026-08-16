@@ -9,7 +9,8 @@ import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
-import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
+import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/venda/ResumoVenda'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
@@ -673,6 +674,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
+  // Ajuste manual da troca — dois campos em R$, aplicáveis juntos. Ver o
+  // mesmo par em LojaFeminina/NovaVenda.jsx.
+  const [trocaDesconto,  setTrocaDesconto]  = useState(rascunho?.trocaDesconto ?? '')
+  const [trocaAcrescimo, setTrocaAcrescimo] = useState(rascunho?.trocaAcrescimo ?? '')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
@@ -698,7 +703,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       total = 0
     } else if (isTroca) {
       const credito = calcularTotalVenda(produtoTroca, produtosData)
-      total = Math.max(0, sub - credito)
+      total = Math.max(0, sub - credito + calcularAjusteTroca(trocaDesconto, trocaAcrescimo))
     } else {
       total = calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
     }
@@ -712,13 +717,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }))
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo])
 
   // Autosave: mesma regra do mobile — ver utils/rascunhoVenda.js.
   useEffect(() => {
     if (done) return
-    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca }))
-  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo }))
+  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -758,7 +763,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     let ajusteValor
     let pgtoPayload
     if (isTroca) {
-      ajusteValor = creditoTroca > 0 ? -creditoTroca : 0
+      // Mantém a relação valor = subtotal + ajuste_valor da venda normal: o
+      // crédito da devolução e o ajuste manual entram no mesmo campo, sem
+      // coluna nova. Ver o mesmo trecho em LojaFeminina/NovaVenda.jsx.
+      const ajTroca = calcularAjusteTroca(trocaDesconto, trocaAcrescimo)
+      ajusteValor = -creditoTroca + ajTroca
       pgtoPayload = valorFinal <= 0.005
         ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
         : JSON.stringify(form.pagamentos.map(p => ({
@@ -813,6 +822,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setIsTroca(false)
     setProdutoTroca([])
     setVarModalTroca(null)
+    setTrocaDesconto('')
+    setTrocaAcrescimo('')
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -822,10 +833,15 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
-  const troca = calcularResumoTroca(subtotal, creditoTroca)
+  const ajusteTrocaR = isTroca ? calcularAjusteTroca(trocaDesconto, trocaAcrescimo) : 0
+  const troca = calcularResumoTroca(subtotal, creditoTroca, ajusteTrocaR)
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
+
+  // preco_venda vive no produto, não na variação — a linha mostra um preço só,
+  // o mesmo que calcularTotalVenda usa.
+  const precoDe = nome => Number(produtosData.find(p => p.nome === nome)?.preco_venda || 0)
 
   const inputS = inp(theme.primary)
   const fo = onF(theme.primary)
@@ -871,17 +887,20 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         </span>
         <button
           type="button"
-          onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setIsTroca(false) }}
+          onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setTrocaDesconto(''); setTrocaAcrescimo(''); setIsTroca(false) }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 700, color: theme.primary, padding: 4 }}
         >
           Começar do zero
         </button>
       </div>
     )}
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-      {/* Left: Cliente + Pagamento */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
+    {/* Grade de duas colunas: produtos à esquerda (mais espaço), resumo à
+        direita. O resumo é sticky para não sair da viewport enquanto a lista
+        de produtos rola — em loja com 141 produtos o botão de confirmar ficava
+        a uma tela inteira de distância. */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: 20, alignItems: 'start' }}>
+      {/* Coluna 1, linha 1: dados da cliente */}
+        <div style={{ gridColumn: 1, gridRow: 1, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ position: 'relative' }}>
@@ -965,68 +984,53 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           </div>
         </div>
 
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Pagamento</p>
+        {/* Coluna 2: painel de resumo/pagamento, fixo ao lado da grade */}
+        <div style={{
+          gridColumn: 2, gridRow: '1 / span 2', alignSelf: 'start',
+          position: 'sticky', top: 24,
+          maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto',
+          background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
+        }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>
+            {isTroca ? 'Resumo da troca' : 'Resumo da venda'}
+          </p>
           <div>
             {/* Breakdown: Subtotal / Ajuste / Total */}
+            {form.produtos.length === 0 && (
+              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', margin: '0 0 14px' }}>
+                Selecione os produtos ao lado para ver o resumo.
+              </p>
+            )}
             {form.produtos.length > 0 && (
-              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                {isTroca ? (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#D97706' }}>Produto devolvido (crédito)</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− {fmtR(creditoTroca)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Produto novo</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>{fmtR(subtotal)}</span>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                        {troca.rotulo}
-                      </span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: troca.aCobrar ? theme.primary : troca.saldoAFavor ? '#D97706' : '#16a34a' }}>
-                        {fmtR(troca.valorExibido)}
-                      </span>
-                    </div>
-                    {troca.zerada && (
-                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600, margin: 0 }}>✓ Sem cobrança — troca zerada</p>
-                    )}
-                    {troca.saldoAFavor && (
-                      <>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', fontWeight: 700, margin: 0 }}>
-                          Saldo a favor: {fmtR(troca.valorExibido)} — não reembolsável em dinheiro
-                        </p>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', margin: 0 }}>
-                          Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
-                        </p>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>{fmtR(subtotal)}</span>
-                    </div>
-                    {ajusteNum > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                          {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
-                          {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
-                        </span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                          {ajusteTipo === 'desconto' ? '−' : '+'} {fmtR(ajusteR)}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>{fmtR(totalValor)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+              <LinhasResumo
+                isTroca={isTroca}
+                subtotal={subtotal}
+                creditoTroca={creditoTroca}
+                troca={troca}
+                ajusteTipo={ajusteTipo}
+                ajusteModo={ajusteModo}
+                ajusteInput={ajusteInput}
+                ajusteR={ajusteNum > 0 ? ajusteR : 0}
+                ajusteTrocaR={ajusteTrocaR}
+                totalValor={totalValor}
+                primary={theme.primary}
+                style={{ marginBottom: 14 }}
+              />
+            )}
+
+            {/* Ajuste manual da troca: desconto e acréscimo em R$ */}
+            {form.produtos.length > 0 && isTroca && (
+              <CamposAjusteTroca
+                desconto={trocaDesconto}
+                setDesconto={setTrocaDesconto}
+                acrescimo={trocaAcrescimo}
+                setAcrescimo={setTrocaAcrescimo}
+                inputStyle={inputS}
+                onFocus={fo}
+                onBlur={onB}
+                labelStyle={lbl}
+                style={{ marginBottom: 14 }}
+              />
             )}
 
             {/* Ajuste: Desconto ou Acréscimo (opcional) */}
@@ -1147,10 +1151,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             {saving ? 'Salvando...' : isTroca ? 'Confirmar Troca' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
         </div>
-      </div>
 
-      {/* Right: Produtos */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
+      {/* Coluna 1, linha 2: grade de produtos */}
+      <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
@@ -1223,11 +1226,12 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                         background: selCount > 0 ? (isDark ? '#1c1400' : '#FEF3C7') : (isDark ? '#1a1a1a' : '#FFFFFF'),
                         fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', cursor: 'pointer', userSelect: 'none',
                       }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                         <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? '#D97706' : 'transparent', border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #EDE2DA'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
                         </div>
-                        <span style={{ fontWeight: selCount > 0 ? 600 : 400, color: selCount > 0 ? '#D97706' : (isDark ? '#D4A017' : '#1a1a1a') }}>{nome}</span>
+                        <span style={{ fontWeight: selCount > 0 ? 600 : 400, color: selCount > 0 ? '#D97706' : (isDark ? '#D4A017' : '#1a1a1a'), minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+                        <PrecoProduto preco={precoDe(nome)} cor="#D97706" />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {!hasVars && selCount > 0 ? (
@@ -1316,12 +1320,14 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           )}
         </div>
 
+        {/* A lista não tem maxHeight própria: com o resumo fixo à direita ela
+            rola junto com a página, em vez de criar um segundo scroll. */}
         {produtosFiltrados.length === 0 ? (
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 12px' }}>
             Nenhum produto encontrado
           </p>
         ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 420, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
             const vars = (pd?.variacoes || []).map(v => {
@@ -1354,7 +1360,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif',
                     cursor: 'pointer', userSelect: 'none',
                   }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                     <div style={{
                       width: 20, height: 20, borderRadius: 6, flexShrink: 0,
                       background: selCount > 0 ? (isDark ? '#D4A017' : theme.primary) : 'transparent',
@@ -1363,7 +1369,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     }}>
                       {selCount > 0 && <Check size={12} color={isDark ? '#1a1a1a' : '#fff'} strokeWidth={2.5} />}
                     </div>
-                    <span style={{ fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                    <span style={{ fontWeight: selCount > 0 ? 600 : 400, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+                    <PrecoProduto preco={precoDe(nome)} cor={selCount > 0 ? (isDark ? '#D4A017' : theme.primary) : undefined} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {!hasVars && selCount > 0 ? (
