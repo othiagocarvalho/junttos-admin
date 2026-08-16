@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { faltantesDeTodas, geracaoAtrasada } from '../utils/cobrancas'
-import { registrarHistorico, autorAtual, ACAO } from '../lib/historicoCobranca'
+import { registrarHistorico, ACAO } from '../lib/historicoCobranca'
 
 // Postgres: unique_violation. Duas abas abertas tentam criar a mesma cobrança
 // e uma delas perde a corrida — isso é o índice único fazendo o trabalho dele,
@@ -27,7 +27,9 @@ const CAMPOS_LOJA =
  * Roda a checagem uma vez. Não depende de React — dá para chamar de qualquer
  * lugar. Devolve o que criou, o que continua faltando e o erro, se houve.
  */
-export async function executarGeracao(autor = autorAtual()) {
+// autor nulo faz registrarHistorico resolver pela sessão do Supabase — é o
+// caminho normal aqui, já que a geração roda sem interação de ninguém.
+export async function executarGeracao(autor = null) {
   const vazio = { criadas: [], atrasadas: [], erro: null }
 
   const [lojasRes, cobRes] = await Promise.all([

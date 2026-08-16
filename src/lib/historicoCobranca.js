@@ -1,13 +1,19 @@
 // Registro de alterações em jt_cobrancas.
 //
-// O autor vem do admin logado, que hoje é a lista de src/auth/users.js salva
-// em localStorage pelo AuthContext. É um registro operacional — serve para
-// responder "quem mudou essa data?" no dia a dia — e não uma trilha de
-// auditoria com valor probatório: o localStorage é editável pelo próprio
-// navegador. Quando o login migrar para o Supabase Auth, troca-se a origem do
-// autor aqui e a tabela continua igual.
+// O autor vem do admin logado. A fonte é a sessão do Supabase Auth
+// (supabaseAdmin, storageKey 'sb-admin-auth') — não mais o localStorage.
+//
+// Isto mudou junto com a Fase 3 do login: o AuthContext passou a APAGAR a
+// chave 'junttos_admin_user' na entrada do app, porque era JSON não assinado e
+// dava para forjar Super Admin pelo DevTools. Ler dali agora devolveria null em
+// toda alteração, e o histórico nasceria sem autor sem ninguém perceber.
+//
+// Com a sessão do Supabase o registro passa a ter valor de verdade: o token é
+// assinado e o navegador não consegue inventar quem é.
 
 import { supabase } from './supabase'
+import { supabaseAdmin } from './supabaseAdmin'
+import { normalizarUsuarioSupabase } from '../utils/adminUsuario'
 
 export const ACAO = {
   CRIADA:             'criada',
@@ -19,15 +25,32 @@ export const ACAO = {
   DESCONTO:           'desconto',
 }
 
-/** Admin logado, no formato gravado por AuthContext. */
-export function autorAtual() {
+const SEM_AUTOR = { nome: null, email: null }
+
+/**
+ * Converte o usuário do useAuth() no formato do histórico.
+ *
+ * Serve para as telas que já têm o usuário em contexto passarem direto, sem
+ * pagar um getSession() a cada clique.
+ */
+export function autorDeUsuario(user) {
+  if (!user) return SEM_AUTOR
+  return { nome: user.name ?? null, email: user.email ?? null }
+}
+
+/**
+ * Autor a partir da sessão do Supabase.
+ *
+ * É o caminho para quem não tem o usuário em contexto: o cadastro de loja
+ * (useCreateLoja, também usado pelo portal do consultor, que roda fora do
+ * AuthProvider) e a geração automática de cobranças.
+ */
+export async function autorAtual() {
   try {
-    const cru = localStorage.getItem('junttos_admin_user')
-    if (!cru) return { nome: null, email: null }
-    const u = JSON.parse(cru)
-    return { nome: u?.name ?? null, email: u?.email ?? null }
+    const { data } = await supabaseAdmin.auth.getSession()
+    return autorDeUsuario(normalizarUsuarioSupabase(data?.session?.user))
   } catch {
-    return { nome: null, email: null }
+    return SEM_AUTOR
   }
 }
 
@@ -36,10 +59,14 @@ export function autorAtual() {
  * pré-requisito — se ele falhar, a alteração da cobrança em si (que já foi
  * gravada) não pode ser desfeita por causa disso. Devolve o erro para quem
  * quiser exibir.
+ *
+ * Sem autor explícito, resolve pela sessão.
  */
-export async function registrarHistorico(entradas, autor = autorAtual()) {
+export async function registrarHistorico(entradas, autor = null) {
   const linhas = (Array.isArray(entradas) ? entradas : [entradas]).filter(Boolean)
   if (linhas.length === 0) return { error: null }
+
+  const quem = autor ?? await autorAtual()
 
   const payload = linhas.map(e => ({
     cobranca_id:    e.cobranca_id,
@@ -48,8 +75,8 @@ export async function registrarHistorico(entradas, autor = autorAtual()) {
     campo:          e.campo ?? null,
     valor_anterior: e.valor_anterior === null || e.valor_anterior === undefined ? null : String(e.valor_anterior),
     valor_novo:     e.valor_novo === null || e.valor_novo === undefined ? null : String(e.valor_novo),
-    autor_nome:     autor?.nome ?? null,
-    autor_email:    autor?.email ?? null,
+    autor_nome:     quem?.nome ?? null,
+    autor_email:    quem?.email ?? null,
   }))
 
   try {

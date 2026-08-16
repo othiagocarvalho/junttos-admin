@@ -119,9 +119,9 @@ CREATE TABLE IF NOT EXISTS jt_cobrancas_historico (
   valor_anterior  text,
   valor_novo      text,
 
-  -- Vem do localStorage do admin logado (AuthContext + src/auth/users.js).
-  -- Registro operacional, não prova: o navegador pode mentir. Vira auth.uid()
-  -- quando o login migrar para o Supabase Auth, sem mudar esta tabela.
+  -- Vem da sessão do Supabase Auth do painel (client supabaseAdmin). O token é
+  -- assinado, então o navegador não consegue inventar quem é — ao contrário do
+  -- localStorage do login antigo, que saiu na Fase 3.
   autor_nome      text,
   autor_email     text,
 

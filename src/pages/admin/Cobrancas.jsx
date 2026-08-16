@@ -12,7 +12,8 @@ import {
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from '../../utils/cobrancas'
 import { useGeracaoCobrancas } from '../../hooks/useGeracaoCobrancas'
-import { registrarHistorico, ACAO } from '../../lib/historicoCobranca'
+import { registrarHistorico, autorDeUsuario, ACAO } from '../../lib/historicoCobranca'
+import { useAuth } from '../../context/AuthContext'
 
 function fmtDate(str) {
   if (!str) return '—'
@@ -165,7 +166,7 @@ function AvisoAtraso({ atrasadas, erro, nomeMap, rodando }) {
 // ── Modal de uma cobrança: editar, pagar, desfazer, histórico ────
 // Montado com key={cobranca.id} pelo pai: trocar de cobrança remonta o
 // componente e o estado nasce dos props, sem efeito de sincronização.
-function CobrancaModal({ cobranca, nome, historico, onClose, onSalvo }) {
+function CobrancaModal({ cobranca, nome, historico, autor, onClose, onSalvo }) {
   const pago = cobranca.status === 'pago'
 
   const [vencimento, setVencimento]   = useState(cobranca.vencimento || '')
@@ -188,7 +189,7 @@ function CobrancaModal({ cobranca, nome, historico, onClose, onSalvo }) {
         .update({ ...patch, updated_at: new Date().toISOString() })
         .eq('id', cobranca.id)
       if (error) throw new Error(error.message)
-      await registrarHistorico(entradasHistorico)
+      await registrarHistorico(entradasHistorico, autor)
       await onSalvo()
       onClose()
     } catch (e) {
@@ -362,7 +363,7 @@ function CobrancaModal({ cobranca, nome, historico, onClose, onSalvo }) {
 
 // ── Modal de desconto permanente da loja ─────────────────────────
 // Também montado com key pelo pai — mesmo motivo do CobrancaModal.
-function DescontoModal({ loja, cobrancasDaLoja, onClose, onSalvo }) {
+function DescontoModal({ loja, cobrancasDaLoja, autor, onClose, onSalvo }) {
   const [tipo, setTipo]     = useState(loja.desconto_tipo || '')
   const [valor, setValor]   = useState(loja.desconto_valor != null ? String(loja.desconto_valor) : '')
   const [motivo, setMotivo] = useState(loja.desconto_motivo || '')
@@ -397,7 +398,7 @@ function DescontoModal({ loja, cobrancasDaLoja, onClose, onSalvo }) {
         campo:          'desconto',
         valor_anterior: rotuloDesconto(loja.desconto_tipo, loja.desconto_valor) || 'sem desconto',
         valor_novo:     (rotuloDesconto(temDesconto ? tipo : null, num) || 'sem desconto') + (temDesconto && motivo ? ` — ${motivo}` : ''),
-      }])
+      }], autor)
       await onSalvo()
       onClose()
     } catch (e) {
@@ -568,6 +569,12 @@ function PainelAssinaturas({ lojas, cobrancas, onDesconto }) {
 
 // ── Main Page ────────────────────────────────────────────────────
 export default function Cobrancas() {
+  // Autor do histórico. Vem da sessão do Supabase Auth via AuthContext — esta
+  // tela roda dentro do AuthProvider, então dá para passar direto e evitar um
+  // getSession() a cada clique.
+  const { user } = useAuth()
+  const autor = useMemo(() => autorDeUsuario(user), [user])
+
   const [configs, setConfigs]     = useState([])
   const [cobrancas, setCobrancas] = useState([])
   const [historico, setHistorico] = useState([])
@@ -751,6 +758,7 @@ export default function Cobrancas() {
           cobranca={selecionada}
           nome={nomeMap[selecionada.loja_id] || selecionada.loja_id}
           historico={historico}
+          autor={autor}
           onClose={() => setSelecionada(null)}
           onSalvo={fetchData}
         />
@@ -761,6 +769,7 @@ export default function Cobrancas() {
           key={lojaDesconto.loja_id}
           loja={lojaDesconto}
           cobrancasDaLoja={cobrancas.filter(c => c.loja_id === lojaDesconto.loja_id)}
+          autor={autor}
           onClose={() => setLojaDesconto(null)}
           onSalvo={fetchData}
         />
