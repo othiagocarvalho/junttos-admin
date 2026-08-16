@@ -1,3 +1,5 @@
+import { isErroAuth } from './authErro'
+
 // Extracts the display label from a variacao JSONB object
 export function getVarLabel(v) {
   if (!v || typeof v !== 'object') return null
@@ -85,12 +87,6 @@ export function temTravaBal(result) {
 }
 
 /**
- * Token expirado é o caso mais comum de erro nessa consulta — a lojista deixa
- * a tela aberta o dia todo. O fail-safe de temTravaBal tratava isso como
- * balanço ativo e mostrava "Balanço em andamento", mandando ela procurar um
- * problema que não existia.
- */
-/**
  * Um balanço acontece dentro de um expediente. Passou disso, a sessão ficou
  * órfã — alguém abriu a tela e fechou a aba sem concluir — e não faz sentido
  * seguir travando as vendas da loja por causa dela. Hoje há sessões abertas há
@@ -106,13 +102,14 @@ export function limiteBalancoValido(agora = new Date()) {
   return new Date(agora.getTime() - BALANCO_VALIDO_HORAS * 60 * 60 * 1000).toISOString()
 }
 
-export function isErroAuth(error) {
-  if (!error) return false
-  const code = String(error.code ?? '')
-  const msg  = String(error.message ?? '').toLowerCase()
-  return code === 'PGRST301' || code === '401' || String(error.status ?? '') === '401'
-    || msg.includes('jwt') || msg.includes('token') || msg.includes('unauthorized')
-}
+// Token expirado é o erro mais comum na consulta da trava — a lojista deixa a
+// tela aberta o dia todo. O fail-safe de temTravaBal tratava isso como balanço
+// ativo e mandava ela procurar um problema que não existia.
+// Reexportado daqui por compatibilidade: a definição mora em utils/authErro.js,
+// porque o mesmo problema aparece fora do balanço (ver App.jsx).
+// Precisa ser import + export: `export ... from` não cria binding local, e
+// checarTravaBalanco chama isErroAuth aqui dentro.
+export { isErroAuth }
 
 /**
  * Consulta a trava de balanço da loja, renovando a sessão uma única vez se o

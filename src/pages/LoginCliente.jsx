@@ -44,7 +44,7 @@ export default function LoginCliente() {
     e.preventDefault()
     setLoading(true)
     await new Promise(r => setTimeout(r, 650))
-    const ok = login(credential, password)
+    const ok = await login(credential, password)
     setLoading(false)
     if (ok) navigate('/dashboard')
   }

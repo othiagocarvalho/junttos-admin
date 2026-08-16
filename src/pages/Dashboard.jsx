@@ -12,6 +12,7 @@ import { T } from '../theme/tokens'
 import { useGeracaoCobrancas } from '../hooks/useGeracaoCobrancas'
 import { isLojaAtiva } from '../utils/cobrancas'
 import { fmtR } from '../utils/formatters'
+import { primeiroNome } from '../utils/adminUsuario'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -38,6 +39,8 @@ export default function Dashboard() {
   const now = new Date()
   const hora = now.getHours()
   const greeting = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
+  // Usuário sem nome não pode derrubar a primeira tela depois do login.
+  const nome = primeiroNome(user)
   // lf_config.status é texto livre e o banco tem 'Ativo' e 'ativo' convivendo.
   // A comparação exata que existia aqui deixava de fora as gravadas com
   // maiúscula e subestimava o número. Mesmo critério da tela de Cobranças.
@@ -50,7 +53,7 @@ export default function Dashboard() {
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <p style={{ fontSize: 13.5, color: T.muted, marginBottom: 4 }}>
-          {greeting}, {user?.name.split(' ')[0]}
+          {greeting}{nome ? `, ${nome}` : ''}
         </p>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginBottom: 4, letterSpacing: '-0.02em' }}>
           Dashboard
