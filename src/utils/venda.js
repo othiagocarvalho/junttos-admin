@@ -63,6 +63,21 @@ export function calcularTotalComAjuste(subtotal, tipoAjuste, modoAjuste, valorAj
  */
 export const TOLERANCIA_TROCA = 0.005
 
+/** "12,50" → 12.5. Campo vazio, texto solto ou NaN viram 0. */
+export function parseValorBR(v) {
+  const n = parseFloat(String(v ?? '').replace(',', '.'))
+  return Number.isFinite(n) ? n : 0
+}
+
+/**
+ * Ajuste manual da troca, já com o sinal certo: desconto abate, acréscimo soma.
+ * Valor negativo digitado é ignorado — quem quer abater usa o campo desconto,
+ * senão "-50" no acréscimo viraria um desconto disfarçado.
+ */
+export function calcularAjusteTroca(desconto, acrescimo) {
+  return Math.max(0, parseValorBR(acrescimo)) - Math.max(0, parseValorBR(desconto))
+}
+
 /**
  * Compara o crédito do produto devolvido com o subtotal do produto novo e
  * devolve os três cenários da troca: a cobrar, saldo a favor ou zerada.
@@ -74,9 +89,11 @@ export const TOLERANCIA_TROCA = 0.005
  *
  * @param {number} subtotalNovos  soma do produto novo
  * @param {number} creditoTroca   soma do produto devolvido
+ * @param {number} ajuste         ajuste manual já com sinal (ver calcularAjusteTroca);
+ *                                0 por padrão, para as chamadas que não ajustam nada
  */
-export function calcularResumoTroca(subtotalNovos, creditoTroca) {
-  const diferenca   = (Number(subtotalNovos) || 0) - (Number(creditoTroca) || 0)
+export function calcularResumoTroca(subtotalNovos, creditoTroca, ajuste = 0) {
+  const diferenca   = (Number(subtotalNovos) || 0) - (Number(creditoTroca) || 0) + (Number(ajuste) || 0)
   const aCobrar     = diferenca >  TOLERANCIA_TROCA
   const saldoAFavor = diferenca < -TOLERANCIA_TROCA
   return {

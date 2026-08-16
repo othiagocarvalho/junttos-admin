@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleRight, Lock, Bell } from 'lucide-react'
+import { Settings, Save, Palette, ToggleRight, Lock, Bell, Receipt, Paperclip } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import Card from '../../components/studio/Card'
@@ -39,12 +39,25 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
   const [pwdSaving, setPwdSaving] = useState(false)
   const [pwdMsg,    setPwdMsg]    = useState(null)
 
+  // ── Fiscal (addon NFC-e) ──────────────────────────────────────────────
+  const [inscricaoEstadual, setInscricaoEstadual] = useState(config?.inscricao_estadual || '')
+  const [regimeTributario,  setRegimeTributario]  = useState(config?.regime_tributario  || '')
+  const [cnae,               setCnae]              = useState(config?.cnae              || '')
+  const [certValidade,       setCertValidade]      = useState(config?.certificado_a1_validade || '')
+  const [certFile,           setCertFile]          = useState(null)
+  const [certUploading,      setCertUploading]     = useState(false)
+  const [certMsg,            setCertMsg]           = useState(null)
+
   useEffect(() => {
     if (config) {
       setNome(config.nome            || '')
       setPrimary(config.cor_primaria  || '#5E2BD0')
       setAccent(config.cor_secundaria || '#FF6F5E')
       setFeats({ ...features })
+      setInscricaoEstadual(config.inscricao_estadual || '')
+      setRegimeTributario(config.regime_tributario   || '')
+      setCnae(config.cnae                             || '')
+      setCertValidade(config.certificado_a1_validade || '')
     }
   }, [config])
 
@@ -59,10 +72,41 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
       cor_primaria:   primary,
       cor_secundaria: accent,
       features: feats,
+      inscricao_estadual: inscricaoEstadual.trim() || null,
+      regime_tributario:  regimeTributario || null,
+      cnae:                cnae.trim() || null,
+      certificado_a1_validade: certValidade || null,
     })
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  // Upload é uma chamada separada (Storage), então tem ação própria em vez
+  // de esperar o "Salvar configurações" — o texto some fixado, o arquivo não.
+  async function handleUploadCertificado() {
+    if (!certFile) return
+    setCertUploading(true)
+    setCertMsg(null)
+    const lojaId = config?.loja_id
+    const path = `${lojaId}/${Date.now()}_${certFile.name}`
+    const { error: uploadErr } = await supabase.storage
+      .from('certificados-fiscais')
+      .upload(path, certFile, { upsert: false })
+    if (uploadErr) {
+      setCertUploading(false)
+      setCertMsg({ type: 'error', text: 'Erro ao enviar certificado: ' + uploadErr.message })
+      return
+    }
+    const saveErr = await saveConfig({ certificado_a1_path: path })
+    setCertUploading(false)
+    if (saveErr) {
+      setCertMsg({ type: 'error', text: 'Certificado enviado, mas houve erro ao salvar: ' + saveErr.message })
+      return
+    }
+    setCertFile(null)
+    setCertMsg({ type: 'success', text: 'Certificado enviado com sucesso!' })
+    setTimeout(() => setCertMsg(null), 4000)
   }
 
   async function handleChangePwd() {
@@ -157,6 +201,117 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
               )
             })}
           </div>
+        </Card>
+      )}
+
+      {/* Dados Fiscais — addon NFC-e, ainda sem provedor integrado. Só
+          aparece quando o addon está ativo (features.nfce_ativo), que hoje
+          começa desligado em todas as lojas. */}
+      {features?.nfce_ativo && (
+        <Card>
+          <p style={sectionTitle}>
+            <Receipt size={16} style={{ color: theme.primary }} />
+            Dados Fiscais
+          </p>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            Necessário para emitir NFC-e.
+          </p>
+
+          <div style={{ marginBottom: 14 }}>
+            <Label>Inscrição Estadual</Label>
+            <Input
+              value={inscricaoEstadual}
+              onChange={e => setInscricaoEstadual(e.target.value)}
+              placeholder="Ex: 123.456.789.112"
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <Label>Regime Tributário</Label>
+            <select
+              value={regimeTributario}
+              onChange={e => setRegimeTributario(e.target.value)}
+              style={{
+                width: '100%', height: 44, boxSizing: 'border-box',
+                background: 'var(--bg)', border: '1.5px solid var(--line)',
+                borderRadius: 'var(--r-input)', padding: '0 14px',
+                fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)',
+                outline: 'none', cursor: 'pointer',
+              }}
+            >
+              <option value="">Selecione...</option>
+              <option value="simples_nacional">Simples Nacional</option>
+              <option value="lucro_presumido">Lucro Presumido</option>
+              <option value="lucro_real">Lucro Real</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <Label>CNAE</Label>
+            <Input
+              value={cnae}
+              onChange={e => setCnae(e.target.value)}
+              placeholder="Ex: 4711-3/02"
+            />
+          </div>
+
+          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0 20px' }} />
+
+          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 12, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+            Certificado Digital A1
+          </p>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              height: 44, borderRadius: 'var(--r-input)', border: '1.5px dashed var(--line)',
+              padding: '0 14px', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+              fontSize: 13, color: 'var(--muted)',
+            }}>
+              <Paperclip size={15} />
+              {certFile ? certFile.name : 'Selecionar arquivo .pfx ou .p12'}
+              <input
+                type="file"
+                accept=".pfx,.p12"
+                onChange={e => setCertFile(e.target.files?.[0] || null)}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+
+          <Button
+            variant="secondary"
+            onClick={handleUploadCertificado}
+            disabled={!certFile || certUploading}
+            style={{ marginBottom: 16 }}
+          >
+            {certUploading ? 'Enviando...' : 'Enviar certificado'}
+          </Button>
+
+          {certMsg && (
+            <div style={{
+              padding: '10px 14px', borderRadius: 10, marginBottom: 16,
+              fontSize: 13, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
+              ...(certMsg.type === 'success'
+                ? { background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', color: '#16a34a' }
+                : { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626' }),
+            }}>
+              {certMsg.text}
+            </div>
+          )}
+
+          <div>
+            <Label>Validade do Certificado</Label>
+            <Input
+              type="date"
+              value={certValidade || ''}
+              onChange={e => setCertValidade(e.target.value)}
+            />
+          </div>
+
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 16, fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+            A senha do certificado não é pedida aqui — será solicitada só na hora de emitir, quando integrarmos o provedor de NFC-e.
+          </p>
         </Card>
       )}
 
