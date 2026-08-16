@@ -48,10 +48,15 @@ Fontes carregadas no `index.html`: Manrope, DM Sans, Quicksand, Playfair Display
 
   ```sh
   git push origin staging                                   # gera Preview
-  git checkout master && git merge staging --ff-only
+  git checkout master && git merge staging --no-edit
   git push origin master                                    # PRODUÇÃO SAI AQUI
   git checkout staging
   ```
+
+  > `--ff-only` não funciona aqui e nunca funcionou: `master` acumula commits
+  > próprios (os `Merge branch 'staging' into master` e o `3ed8c00 fix(rotas)`),
+  > então as duas branches divergem e o fast-forward é recusado. O histórico do
+  > repo é todo de merge commits — o comando acima é o que de fato acontece.
 
   Confira o resultado com `npx vercel ls usejunttos --scope junttos-projetos`.
 
