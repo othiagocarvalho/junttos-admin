@@ -3,7 +3,7 @@ import { ChevronLeft, Check, Camera } from 'lucide-react'
 import BarcodeScanner from '../../components/BarcodeScanner'
 
 const TEAL = '#0E7C86'
-const EMPTY = { ean: '', nome: '', preco_venda: '', quantidade: 1 }
+const EMPTY = { ean: '', nome: '', preco_venda: '', quantidade: 1, ncm: '', cfop: '' }
 
 function StepPills({ step }) {
   const labels = ['Código', 'Dados', 'Pronto']
@@ -44,7 +44,7 @@ function ModuleHeader({ onBack, backLabel, step }) {
 
 const FAIXAS_VAZIAS = [{ qtd_minima: '6', preco_faixa: '' }, { qtd_minima: '12', preco_faixa: '' }]
 
-export default function CadastrarProduto({ addProduto, addPrecosFaixas, setTab }) {
+export default function CadastrarProduto({ addProduto, addPrecosFaixas, features, setTab }) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState(EMPTY)
   const [scanner, setScanner] = useState(false)
@@ -93,6 +93,8 @@ export default function CadastrarProduto({ addProduto, addPrecosFaixas, setTab }
       ean: form.ean.trim() || null,
       preco_venda: preco,
       variacoes: [{ cor: 'Único', quantidade: form.quantidade }],
+      ncm: form.ncm.trim() || null,
+      cfop: form.cfop.trim() || null,
     })
     if (error) {
       setSaving(false)
@@ -322,6 +324,46 @@ export default function CadastrarProduto({ addProduto, addPrecosFaixas, setTab }
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* NCM/CFOP — só aparecem com o addon de NFC-e ativo na loja */}
+          {features?.nfce_ativo && (
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#71717A', marginBottom: 8 }}>
+                  NCM
+                </label>
+                <input
+                  style={{
+                    width: '100%', height: 56, background: '#F4F4F7', border: 'none',
+                    borderRadius: 14, padding: '0 16px', fontSize: 16, fontWeight: 600,
+                    color: '#18181B', outline: 'none', boxSizing: 'border-box',
+                  }}
+                  placeholder="00000000"
+                  inputMode="numeric"
+                  maxLength={8}
+                  value={form.ncm}
+                  onChange={e => setF('ncm', e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#71717A', marginBottom: 8 }}>
+                  CFOP
+                </label>
+                <input
+                  style={{
+                    width: '100%', height: 56, background: '#F4F4F7', border: 'none',
+                    borderRadius: 14, padding: '0 16px', fontSize: 16, fontWeight: 600,
+                    color: '#18181B', outline: 'none', boxSizing: 'border-box',
+                  }}
+                  placeholder="5102"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={form.cfop}
+                  onChange={e => setF('cfop', e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
             </div>
           )}
 

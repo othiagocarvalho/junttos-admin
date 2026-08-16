@@ -36,7 +36,15 @@ function StepPills({ step }) {
 
 const PGTO_ICONS = { Dinheiro: DollarSign, Pix: Smartphone, Cartão: CreditCard, Fiado: Receipt }
 
-export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, vendas = [], precosFaixas = [], fetchAll, config = {}, setTab }) {
+// Ponto de entrada pra emissão de NFC-e — hoje só loga, nenhuma API fiscal
+// integrada ainda (provedor Focus NFe vs Geranet NFe ainda não decidido).
+// Não bloqueia nem altera o fluxo de venda; é só o gancho pronto pra quando
+// a integração de verdade entrar.
+function emitirNotaFiscal(venda) {
+  console.log('[emitirNotaFiscal] placeholder — nenhuma API fiscal integrada ainda', venda)
+}
+
+export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, vendas = [], precosFaixas = [], fetchAll, config = {}, features = {}, setTab }) {
   const [cart, setCart]           = useState([])
   const [step, setStep]           = useState(0)    // 0=bipar 1=pagamento 2=recibo
   const [pgto, setPgto]           = useState('Dinheiro')
@@ -146,6 +154,7 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
     setSaving(false)
     if (saveErr?.code === 'BAL_TRAVA') { setErr('Caixa travado. Feche o caixa para registrar vendas.'); return }
     if (saveErr) { setErr('Erro ao salvar: ' + (saveErr.message || JSON.stringify(saveErr))); return }
+    if (features?.nfce_ativo) emitirNotaFiscal(novaVenda)
     fetchAll?.()
     setStep(2)
   }
