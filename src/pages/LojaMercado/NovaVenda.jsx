@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { precoEfetivo } from '../../utils/precosFaixas'
+import { getVarLabel } from '../../utils/balanco'
 import { fmtR } from '../../utils/formatters'
 
 const GREEN = '#17864F'
@@ -114,13 +115,37 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
   }
   handleEanRef.current = handleEanDetected
 
+  /**
+   * Rótulo da variação do produto, para a baixa de estoque.
+   *
+   * Hoje todo produto do Mercado nasce com uma variação só, 'Único' — tanto o
+   * cadastro (CadastrarProduto.jsx) quanto a importação em lote gravam
+   * `[{ cor: 'Único', quantidade }]` fixo. Mesmo assim isto lê a variação real
+   * em vez de fixar a string: o modelo de dados aceita várias (ContarEstoque
+   * já tem seletor quando existe mais de uma), e o modo de falha de fixar
+   * seria justamente o bug que estamos consertando — item descartado em
+   * silêncio, sem baixa e sem erro.
+   *
+   * Produto com mais de uma variação cairia na primeira, que é o melhor
+   * possível sem um seletor no PDV. Não existe esse caso hoje; se passar a
+   * existir, o passo 1 do PDV precisa perguntar qual variação está saindo.
+   */
+  function variacaoDoProduto(prod) {
+    return getVarLabel((prod?.variacoes || [])[0]) || 'Único'
+  }
+
   function addToCart(prod) {
     setErr(''); setEanNotFound(''); setBusca(''); setResultados([])
     setCart(prev => {
       const idx = prev.findIndex(i => i.id === prod.id)
       if (idx >= 0)
         return prev.map((i, n) => n === idx ? { ...i, quantidade: i.quantidade + 1, addedAt: Date.now() } : i)
-      return [...prev, { id: prod.id, nome: prod.nome, preco_venda: Number(prod.preco_venda) || 0, quantidade: 1, addedAt: Date.now() }]
+      return [...prev, {
+        id: prod.id, nome: prod.nome,
+        preco_venda: Number(prod.preco_venda) || 0,
+        variacao: variacaoDoProduto(prod),
+        quantidade: 1, addedAt: Date.now(),
+      }]
     })
   }
 
@@ -154,7 +179,11 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
       valor: total,
       ajuste_valor: 0,
       forma_pgto: JSON.stringify([{ forma: pgto, valor: total }]),
-      produtos: cart.map(i => ({ nome: i.nome, quantidade: i.quantidade })),
+      // `variacao` é obrigatório para a baixa de estoque acontecer:
+      // normalizarItensEstoque (utils/estoqueMov.js) descarta todo item que
+      // não tenha esse campo, e era por isso que o PDV do Mercado vendia sem
+      // nunca mexer no estoque — 14 vendas reais, zero movimento 'venda'.
+      produtos: cart.map(i => ({ nome: i.nome, quantidade: i.quantidade, variacao: i.variacao || 'Único' })),
       obs: pgto === 'Fiado' ? `Fiado — ${nomeFiado}` : null,
       data: new Date().toISOString(),
     })
