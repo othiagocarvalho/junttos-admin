@@ -3,6 +3,7 @@ import {
   MODELO_VAREJO, MODELO_ATACADO,
   nivelParaModelo, modeloDeFeatures, nivelDoModelo,
   featuresComModelo, rotuloNivel, pedidoMinimoPayload, precisaGravar,
+  precisaAvisarPedidoMinimo, resumoPedidoMinimo,
 } from './modeloVenda.js'
 
 describe('nivelParaModelo', () => {
@@ -192,5 +193,95 @@ describe('precisaGravar', () => {
     expect(precisaGravar(MODELO_ATACADO, false)).toBe(true)
     expect(precisaGravar(MODELO_VAREJO, 'pro')).toBe(true)
     expect(precisaGravar(MODELO_VAREJO, true)).toBe(true)
+  })
+})
+
+// ── Aviso para a lojista (CatalogoB2BAdmin / …Desktop) ───────────────────────
+
+describe('precisaAvisarPedidoMinimo', () => {
+  it("aparece em loja 'pro' com tipo 'nenhum' — o default da coluna", () => {
+    expect(precisaAvisarPedidoMinimo('pro', 'nenhum')).toBe(true)
+  })
+
+  it("aparece em loja 'pro' com tipo ausente ou vazio", () => {
+    expect(precisaAvisarPedidoMinimo('pro', null)).toBe(true)
+    expect(precisaAvisarPedidoMinimo('pro', undefined)).toBe(true)
+    expect(precisaAvisarPedidoMinimo('pro', '')).toBe(true)
+  })
+
+  it('some assim que ela escolhe um tipo — antes mesmo de salvar', () => {
+    expect(precisaAvisarPedidoMinimo('pro', 'valor')).toBe(false)
+    expect(precisaAvisarPedidoMinimo('pro', 'quantidade')).toBe(false)
+  })
+
+  it('nunca aparece fora do nível pro — só ele lê pedido mínimo', () => {
+    expect(precisaAvisarPedidoMinimo('simples', 'nenhum')).toBe(false)
+    expect(precisaAvisarPedidoMinimo(false, 'nenhum')).toBe(false)
+    expect(precisaAvisarPedidoMinimo(true, 'nenhum')).toBe(false)
+    expect(precisaAvisarPedidoMinimo(undefined, 'nenhum')).toBe(false)
+  })
+})
+
+// ── Leitura do admin (LojaDetalhe, seção Modelo de venda) ────────────────────
+
+describe('resumoPedidoMinimo', () => {
+  it("tipo 'nenhum' → sem configuração, com texto explícito", () => {
+    const r = resumoPedidoMinimo({ pedido_minimo_tipo: 'nenhum' })
+    expect(r.configurado).toBe(false)
+    expect(r.texto).toBe('Sem pedido mínimo configurado')
+  })
+
+  it('config ausente não quebra', () => {
+    expect(resumoPedidoMinimo(undefined).configurado).toBe(false)
+    expect(resumoPedidoMinimo(null).configurado).toBe(false)
+    expect(resumoPedidoMinimo({}).configurado).toBe(false)
+  })
+
+  it('mínimo por valor mostra o valor formatado (caso catalogob2bdemo)', () => {
+    const r = resumoPedidoMinimo({ pedido_minimo_tipo: 'valor', pedido_minimo_valor: 500 })
+    expect(r.configurado).toBe(true)
+    expect(r.texto).toBe('R$ 500,00 por pedido')
+  })
+
+  it('mínimo por quantidade concorda o plural', () => {
+    expect(resumoPedidoMinimo({ pedido_minimo_tipo: 'quantidade', pedido_minimo_qtd: 12 }).texto)
+      .toBe('12 peças por pedido')
+    expect(resumoPedidoMinimo({ pedido_minimo_tipo: 'quantidade', pedido_minimo_qtd: 1 }).texto)
+      .toBe('1 peça por pedido')
+  })
+
+  it('tipo escolhido sem número não conta como configurado — não trava nada', () => {
+    const semValor = resumoPedidoMinimo({ pedido_minimo_tipo: 'valor', pedido_minimo_valor: null })
+    expect(semValor.configurado).toBe(false)
+    expect(semValor.texto).toMatch(/não trava nada/)
+
+    const zerado = resumoPedidoMinimo({ pedido_minimo_tipo: 'valor', pedido_minimo_valor: 0 })
+    expect(zerado.configurado).toBe(false)
+
+    const semQtd = resumoPedidoMinimo({ pedido_minimo_tipo: 'quantidade', pedido_minimo_qtd: 0 })
+    expect(semQtd.configurado).toBe(false)
+  })
+
+  it('tipo desconhecido é reportado em vez de virar silêncio', () => {
+    const r = resumoPedidoMinimo({ pedido_minimo_tipo: 'xpto' })
+    expect(r.configurado).toBe(false)
+    expect(r.texto).toMatch(/xpto/)
+  })
+})
+
+// Estado real das lojas na data desta tarefa — serve de âncora de regressão.
+describe('lojas reais em pro', () => {
+  const casos = [
+    { loja: 'hmboutique',       cfg: { pedido_minimo_tipo: 'nenhum', pedido_minimo_valor: 0, pedido_minimo_qtd: 0 }, aviso: true,  configurado: false },
+    { loja: 'tropicaleatacado', cfg: { pedido_minimo_tipo: 'nenhum', pedido_minimo_valor: 0, pedido_minimo_qtd: 0 }, aviso: true,  configurado: false },
+    { loja: 'sualoja',          cfg: { pedido_minimo_tipo: 'nenhum', pedido_minimo_valor: 0, pedido_minimo_qtd: 0 }, aviso: true,  configurado: false },
+    { loja: 'catalogob2bdemo',  cfg: { pedido_minimo_tipo: 'valor',  pedido_minimo_valor: 500, pedido_minimo_qtd: 0 }, aviso: false, configurado: true },
+  ]
+
+  casos.forEach(({ loja, cfg, aviso, configurado }) => {
+    it(`${loja}: aviso=${aviso}, admin vê configurado=${configurado}`, () => {
+      expect(precisaAvisarPedidoMinimo('pro', cfg.pedido_minimo_tipo)).toBe(aviso)
+      expect(resumoPedidoMinimo(cfg).configurado).toBe(configurado)
+    })
   })
 })
