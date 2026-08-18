@@ -2,11 +2,18 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Download, AlertCircle, Loader2, Check, ExternalLink,
-  PenLine, Link2, X, Copy, Pencil,
+  PenLine, Link2, X, Copy, Pencil, ArrowUpDown, Gift,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { T } from '../../theme/tokens'
 import { PLANOS, valorPlano, fmtValorPlano, nomeModulo } from '../../utils/planos'
+import { fmtR } from '../../utils/formatters'
+import {
+  aplicarDesconto, rotuloDesconto, statusEfetivo,
+  TIPO_MENSALIDADE, isLojaAtiva,
+} from '../../utils/cobrancas'
+import { registrarHistorico, autorDeUsuario, ACAO } from '../../lib/historicoCobranca'
+import { useAuth } from '../../context/AuthContext'
 import CamposContratante from '../../components/admin/CamposContratante'
 import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 
@@ -265,8 +272,311 @@ function Secao({ title, children, right }) {
   )
 }
 
+// Overlay compartilhado pelos dois modais de decisão desta tela. Os modais
+// antigos (assinatura, contratante) seguem com o markup próprio deles — não
+// foram tocados.
+function ModalConfirm({ titulo, sub, children, onFechar, bloqueado }) {
+  useEffect(() => {
+    function esc(e) { if (e.key === 'Escape' && !bloqueado) onFechar() }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onFechar, bloqueado])
+
+  return (
+    <div
+      onClick={() => { if (!bloqueado) onFechar() }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1600, background: 'rgba(22,16,31,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: T.white, borderRadius: T.rCard + 4, width: '100%', maxWidth: 500, boxShadow: T.darkCardShadow, maxHeight: '90vh', overflowY: 'auto', fontFamily: T.ui, padding: '26px 28px 24px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: T.ink, marginBottom: 3 }}>{titulo}</h2>
+            {sub && <p style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.55 }}>{sub}</p>}
+          </div>
+          <button
+            type="button" onClick={onFechar} disabled={bloqueado}
+            style={{ background: T.mist, border: 'none', borderRadius: T.rInput, width: 34, height: 34, cursor: bloqueado ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <X size={15} color={T.muted} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const btnModal = {
+  height: 46, borderRadius: T.rInput, cursor: 'pointer',
+  fontFamily: T.ui, fontWeight: 700, fontSize: 14,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+}
+
+/**
+ * Troca de plano.
+ *
+ * Grava só lf_config.plano e lf_config.valor_mensal. Não encosta em
+ * jt_cobrancas: cobrança já criada é passado, e mexer nela mudaria o que já
+ * foi combinado (ou já foi pago) com o cliente. O novo preço entra na próxima
+ * mensalidade que o ciclo gerar, via valorCheioMensalidade().
+ *
+ * features.legado e o resto do controle de acesso ficam intactos de propósito
+ * — temAcesso() lê o campo plano direto, então trocar o plano já basta.
+ */
+function ModalTrocarPlano({ loja, planoNovo, autor, onFechar, onSalvo }) {
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+
+  const cheioAtual = valorPlano(loja.segmento, loja.plano)
+  const cheioNovo  = valorPlano(loja.segmento, planoNovo)
+  const finalNovo  = aplicarDesconto(cheioNovo, loja.desconto_tipo, loja.desconto_valor)
+  const desconto   = rotuloDesconto(loja.desconto_tipo, loja.desconto_valor)
+
+  async function confirmar() {
+    setSalvando(true); setErro('')
+    try {
+      const { error } = await supabase
+        .from('lf_config')
+        .update({ plano: planoNovo, valor_mensal: cheioNovo })
+        .eq('loja_id', loja.loja_id)
+      if (error) throw new Error(error.message)
+
+      await registrarHistorico([{
+        // Ação da loja, não de uma cobrança — mesma convenção do desconto.
+        cobranca_id:    null,
+        loja_id:        loja.loja_id,
+        acao:           ACAO.PLANO,
+        campo:          'plano',
+        valor_anterior: `${PLANOS[loja.plano]?.label || loja.plano} — R$ ${fmtValorPlano(cheioAtual)}`,
+        valor_novo:     `${PLANOS[planoNovo]?.label || planoNovo} — R$ ${fmtValorPlano(cheioNovo)}`,
+      }], autor)
+
+      await onSalvo()
+      onFechar()
+    } catch (e) {
+      setErro(
+        /valor_mensal|gratuito|column/i.test(e.message)
+          ? `${e.message} — rode supabase/migration_plano_gratuito.sql antes de usar esta tela.`
+          : e.message,
+      )
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <ModalConfirm
+      titulo="Trocar o plano desta loja?"
+      sub={loja.nome}
+      onFechar={onFechar}
+      bloqueado={salvando}
+    >
+      <div style={{ background: T.mist, borderRadius: T.rInput, padding: '14px 16px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 700, color: T.ink, flexWrap: 'wrap' }}>
+          <span>{PLANOS[loja.plano]?.label || loja.plano}</span>
+          <ArrowUpDown size={14} color={T.muted} style={{ transform: 'rotate(90deg)' }} />
+          <span style={{ color: T.purpleText }}>{PLANOS[planoNovo]?.label || planoNovo}</span>
+        </div>
+        <p style={{ fontSize: 12.5, color: T.muted, marginTop: 8 }}>
+          Mensalidade cheia: {fmtR(cheioAtual)} → <strong style={{ color: T.ink }}>{fmtR(cheioNovo)}</strong>
+        </p>
+        {desconto && (
+          <p style={{ fontSize: 12.5, color: T.purpleText, marginTop: 4 }}>
+            Desconto {desconto} preservado — a loja passa a pagar <strong>{fmtR(finalNovo)}</strong>.
+          </p>
+        )}
+      </div>
+
+      <ul style={{ margin: '0 0 4px 18px', padding: 0 }}>
+        <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+          Vale a partir da <strong style={{ color: T.ink }}>próxima</strong> mensalidade gerada pelo ciclo.
+        </li>
+        <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+          Cobranças já criadas — pendentes, vencidas ou pagas — não mudam.
+        </li>
+        <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+          O acesso às funcionalidades do novo plano passa a valer imediatamente.
+        </li>
+      </ul>
+
+      {erro && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginTop: 14 }}>
+          <AlertCircle size={14} color={T.coralText} style={{ flexShrink: 0, marginTop: 1 }} />
+          <p style={{ fontSize: 13, color: T.coralText, lineHeight: 1.5 }}>{erro}</p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button type="button" onClick={onFechar} disabled={salvando}
+          style={{ ...btnModal, flex: 1, border: `1.5px solid ${T.line}`, background: T.mist, color: T.muted }}>
+          Cancelar
+        </button>
+        <button type="button" onClick={confirmar} disabled={salvando}
+          style={{ ...btnModal, flex: 2, border: 'none', background: salvando ? T.mist : T.purple, color: salvando ? T.muted : T.white }}>
+          {salvando
+            ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Trocando...</>
+            : <><Check size={15} /> Confirmar troca</>}
+        </button>
+      </div>
+    </ModalConfirm>
+  )
+}
+
+/**
+ * Liga/desliga a cortesia.
+ *
+ * Nenhuma cobrança é criada, alterada ou apagada aqui — nem as pendentes que
+ * já existem. Elas são listadas para o admin saber que continuam de pé e
+ * resolver uma a uma na tela de Cobranças, que é onde cobrança se edita.
+ */
+function ModalGratuito({ loja, pendentes, autor, onFechar, onSalvo }) {
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+  const [ciente, setCiente] = useState(false)
+
+  const ligando = !loja.gratuito
+  const totalPendente = pendentes.reduce((s, c) => s + (Number(c.valor) || 0), 0)
+  // Só exige o "estou ciente" quando há dinheiro pendente em aberto para
+  // resolver — desligar a cortesia ou ligar sem pendência é decisão simples.
+  const exigeCiente = ligando && pendentes.length > 0
+  const podeConfirmar = !exigeCiente || ciente
+
+  async function confirmar() {
+    if (!podeConfirmar) return
+    setSalvando(true); setErro('')
+    try {
+      const { error } = await supabase
+        .from('lf_config')
+        .update({ gratuito: ligando })
+        .eq('loja_id', loja.loja_id)
+      if (error) throw new Error(error.message)
+
+      await registrarHistorico([{
+        cobranca_id:    null,
+        loja_id:        loja.loja_id,
+        acao:           ACAO.GRATUITO,
+        campo:          'gratuito',
+        valor_anterior: loja.gratuito ? 'gratuito' : 'cobrança normal',
+        valor_novo:     ligando ? 'gratuito' : 'cobrança normal',
+      }], autor)
+
+      await onSalvo()
+      onFechar()
+    } catch (e) {
+      setErro(
+        /gratuito|column/i.test(e.message)
+          ? `${e.message} — rode supabase/migration_plano_gratuito.sql antes de usar esta tela.`
+          : e.message,
+      )
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <ModalConfirm
+      titulo={ligando ? 'Marcar como loja gratuita?' : 'Voltar a cobrar esta loja?'}
+      sub={loja.nome}
+      onFechar={onFechar}
+      bloqueado={salvando}
+    >
+      <ul style={{ margin: '0 0 4px 18px', padding: 0 }}>
+        {ligando ? (
+          <>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              A loja <strong style={{ color: T.ink }}>mantém o plano {PLANOS[loja.plano]?.label || loja.plano} e todo o acesso</strong> — nada muda para quem usa o sistema.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              O ciclo automático para de gerar mensalidade para ela.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              Ela sai do cálculo do MRR na tela de Cobranças.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              Reversível a qualquer momento por este mesmo botão.
+            </li>
+          </>
+        ) : (
+          <>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              O ciclo automático volta a gerar a mensalidade nos próximos meses.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              Ela volta a contar no MRR.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              Os meses em que ficou isenta <strong style={{ color: T.ink }}>não</strong> são cobrados retroativamente.
+            </li>
+          </>
+        )}
+      </ul>
+
+      {ligando && pendentes.length > 0 && (
+        <div style={{ background: '#FFF4E0', border: '1px solid #B7791F44', borderRadius: T.rInput, padding: '13px 15px', marginTop: 14 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#B7791F', marginBottom: 6 }}>
+            Esta loja tem {pendentes.length} {pendentes.length === 1 ? 'cobrança em aberto' : 'cobranças em aberto'} — {fmtR(totalPendente)}
+          </p>
+          <ul style={{ margin: '0 0 8px 18px', padding: 0 }}>
+            {pendentes.map(c => (
+              <li key={c.id} style={{ fontSize: 12, color: '#B7791F', lineHeight: 1.6 }}>
+                {c.tipo === TIPO_MENSALIDADE ? 'Mensalidade' : 'Implantação'} de {fmtR(c.valor)} — vence {fmtData(c.vencimento)}
+                {statusEfetivo(c) === 'atrasado' ? ' (atrasada)' : ''}
+              </li>
+            ))}
+          </ul>
+          <p style={{ fontSize: 12, color: '#B7791F', lineHeight: 1.6 }}>
+            Elas <strong>continuam de pé</strong>. Nada é apagado nem alterado aqui: se a cortesia também vale para elas,
+            resolva uma a uma na tela de Cobranças.
+          </p>
+        </div>
+      )}
+
+      {exigeCiente && (
+        <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', marginTop: 14, cursor: 'pointer' }}>
+          <input type="checkbox" checked={ciente} onChange={e => setCiente(e.target.checked)} style={{ marginTop: 2, cursor: 'pointer' }} />
+          <span style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.55 }}>
+            Entendi que as cobranças já em aberto continuam existindo e não serão apagadas.
+          </span>
+        </label>
+      )}
+
+      {erro && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginTop: 14 }}>
+          <AlertCircle size={14} color={T.coralText} style={{ flexShrink: 0, marginTop: 1 }} />
+          <p style={{ fontSize: 13, color: T.coralText, lineHeight: 1.5 }}>{erro}</p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button type="button" onClick={onFechar} disabled={salvando}
+          style={{ ...btnModal, flex: 1, border: `1.5px solid ${T.line}`, background: T.mist, color: T.muted }}>
+          Cancelar
+        </button>
+        <button type="button" onClick={confirmar} disabled={salvando || !podeConfirmar}
+          style={{
+            ...btnModal, flex: 2, border: 'none',
+            background: (salvando || !podeConfirmar) ? T.mist : T.purple,
+            color: (salvando || !podeConfirmar) ? T.muted : T.white,
+            cursor: (salvando || !podeConfirmar) ? 'not-allowed' : 'pointer',
+          }}>
+          {salvando
+            ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
+            : <><Check size={15} /> {ligando ? 'Marcar como gratuita' : 'Voltar a cobrar'}</>}
+        </button>
+      </div>
+    </ModalConfirm>
+  )
+}
+
 export default function LojaDetalhe() {
   const { slug } = useParams()
+  // Autor do histórico — esta tela roda dentro do AuthProvider, mesma
+  // convenção da tela de Cobranças.
+  const { user } = useAuth()
+  const autor = autorDeUsuario(user)
   const [loja, setLoja]           = useState(null)
   const [contratante, setContratante] = useState(null)
   const [contratos, setContratos] = useState([])
@@ -281,6 +591,10 @@ export default function LojaDetalhe() {
   const [copiando, setCopiando]     = useState(null)
   const [copiado, setCopiado]       = useState(null)
   const [editando, setEditando]     = useState(false)
+  const [cobrancasLoja, setCobrancasLoja] = useState([])
+  const [planoSel, setPlanoSel]     = useState('')
+  const [confirmandoPlano, setConfirmandoPlano] = useState(null)  // plano destino
+  const [confirmandoGratuito, setConfirmandoGratuito] = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -292,7 +606,9 @@ export default function LojaDetalhe() {
     if (!cfg)   { setLoja(null); setFetching(false); return }
     setLoja(cfg)
 
-    const [listaRes, cobrancaRes, contratanteRes] = await Promise.all([
+    setPlanoSel(cfg.plano || 'starter')
+
+    const [listaRes, cobrancaRes, contratanteRes, todasCobRes] = await Promise.all([
       supabase.functions.invoke('gerar-contrato', {
         body: { action: 'listar', loja_id: cfg.loja_id },
       }),
@@ -307,7 +623,13 @@ export default function LojaDetalhe() {
       supabase.functions.invoke('gerar-contrato', {
         body: { action: 'contratante-obter', loja_id: cfg.loja_id },
       }),
+      // Todas as cobranças da loja — usadas só para avisar o que fica em
+      // aberto ao marcar a loja como gratuita. Esta tela nunca as altera.
+      supabase.from('jt_cobrancas').select('*')
+        .eq('loja_id', cfg.loja_id)
+        .order('vencimento', { ascending: true }),
     ])
+    setCobrancasLoja(todasCobRes.error ? [] : (todasCobRes.data || []))
     const listaErro = listaRes.error?.message || listaRes.data?.error
     if (listaErro) setErro(`Erro ao carregar os contratos: ${listaErro}`)
     setContratos(listaRes.data?.contratos || [])
@@ -316,7 +638,10 @@ export default function LojaDetalhe() {
     if (ctErro) setErro(`Erro ao carregar os dados do contratante: ${ctErro}`)
     setContratante(contratanteRes.data?.contratante || null)
 
-    const doBanco = cobrancaRes.data?.[0]?.valor
+    // lf_config.valor_mensal manda quando existe — é o que a troca de plano
+    // grava. Nulo (ou coluna ainda inexistente) cai na última mensalidade,
+    // exatamente como antes.
+    const doBanco = cfg.valor_mensal ?? cobrancaRes.data?.[0]?.valor
     setValorMensal(
       doBanco !== undefined && doBanco !== null
         ? Number(doBanco)
@@ -425,6 +750,11 @@ export default function LojaDetalhe() {
 
   const planoLabel = PLANOS[loja.plano]?.label || loja.plano || '—'
   const contratoAtual = contratos[0] || null
+  const ehGratuita = loja.gratuito === true
+  // Em aberto = tudo que ainda não foi pago, vencido ou não.
+  const pendentes = cobrancasLoja.filter(c => statusEfetivo(c) !== 'pago')
+  const descontoLoja = rotuloDesconto(loja.desconto_tipo, loja.desconto_valor)
+  const cheioPlanoAtual = valorPlano(loja.segmento, loja.plano)
 
   return (
     <div style={{ maxWidth: 900, fontFamily: T.ui }}>
@@ -446,6 +776,11 @@ export default function LojaDetalhe() {
             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: T.rPill, background: T.mist, color: T.muted, border: `1px solid ${T.line}` }}>
               {planoLabel}{valorMensal != null ? ` · R$ ${fmtValorPlano(valorMensal)}/mês` : ''}
             </span>
+            {ehGratuita && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: T.rPill, background: T.statusAtivoBg, color: T.statusAtivoTx }}>
+                <Gift size={11} /> Gratuito
+              </span>
+            )}
           </div>
         </div>
         <a
@@ -490,6 +825,103 @@ export default function LojaDetalhe() {
           <Campo label="Início do contrato"  value={contratante?.contrato_inicio ? fmtData(contratante.contrato_inicio) : ''} />
           <Campo label="Dia de vencimento"   value={contratante?.vencimento_dia ? `Todo dia ${contratante.vencimento_dia}` : ''} />
         </div>
+      </Secao>
+
+      {/* ── Plano e cobrança ── */}
+      <Secao
+        title="Plano e cobrança"
+        right={
+          <span style={{ fontSize: 12, color: T.muted }}>
+            {ehGratuita ? 'Fora da cobrança automática' : 'Entra no ciclo automático'}
+          </span>
+        }
+      >
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 18 }}>
+          <div style={{ minWidth: 190, flex: 1 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+              Plano
+            </p>
+            <select
+              value={planoSel}
+              onChange={e => setPlanoSel(e.target.value)}
+              style={{
+                width: '100%', height: 44, boxSizing: 'border-box',
+                background: T.mist, border: `1.5px solid ${T.line}`, borderRadius: T.rInput,
+                padding: '0 14px', fontFamily: T.ui, fontSize: 14, color: T.ink,
+                outline: 'none', cursor: 'pointer',
+              }}
+            >
+              {Object.entries(PLANOS).map(([key, { label }]) => (
+                <option key={key} value={key}>
+                  {label} — R$ {fmtValorPlano(valorPlano(loja.segmento, key))}/mês
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmandoPlano(planoSel)}
+            disabled={planoSel === loja.plano}
+            style={{
+              ...btnLinha, height: 44, padding: '0 18px',
+              cursor: planoSel === loja.plano ? 'not-allowed' : 'pointer',
+              background: planoSel === loja.plano ? T.mist : T.purple,
+              color: planoSel === loja.plano ? T.muted : T.white,
+              border: planoSel === loja.plano ? `1px solid ${T.line}` : 'none',
+              fontWeight: 700,
+            }}
+          >
+            <ArrowUpDown size={14} /> Trocar plano
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 18, marginBottom: 18 }}>
+          <Campo label="Plano atual" value={planoLabel} />
+          <Campo label="Mensalidade cheia do plano" value={`R$ ${fmtValorPlano(cheioPlanoAtual)}`} />
+          <Campo label="Desconto permanente" value={descontoLoja || ''} />
+          <Campo
+            label="Próxima mensalidade gerada"
+            value={ehGratuita
+              ? 'Nenhuma — loja gratuita'
+              : `R$ ${fmtValorPlano(aplicarDesconto(valorMensal ?? cheioPlanoAtual, loja.desconto_tipo, loja.desconto_valor))}`}
+          />
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
+          background: ehGratuita ? T.statusAtivoBg : T.mist,
+          border: `1px solid ${ehGratuita ? `${T.statusAtivoTx}33` : T.line}`,
+          borderRadius: T.rInput, padding: '14px 16px',
+        }}>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Gift size={14} color={ehGratuita ? T.statusAtivoTx : T.muted} />
+              Loja gratuita — não gera cobrança
+            </p>
+            <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.55 }}>
+              Mantém o plano e todo o acesso. Só sai da geração automática e do MRR.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmandoGratuito(true)}
+            style={{
+              ...btnLinha, height: 40, padding: '0 16px', fontWeight: 700,
+              background: ehGratuita ? T.white : T.mist,
+              color: ehGratuita ? T.statusAtivoTx : T.ink,
+              border: `1px solid ${ehGratuita ? `${T.statusAtivoTx}55` : T.line}`,
+            }}
+          >
+            {ehGratuita ? 'Voltar a cobrar' : 'Marcar como gratuita'}
+          </button>
+        </div>
+
+        {!isLojaAtiva(loja.status) && !ehGratuita && (
+          <p style={{ fontSize: 11.5, color: T.muted, marginTop: 12, lineHeight: 1.6 }}>
+            Esta loja está com status <strong style={{ color: T.ink }}>{loja.status}</strong> — só loja
+            com status “ativo” entra na geração automática, independentemente do plano.
+          </p>
+        )}
       </Secao>
 
       {/* ── Contrato ── */}
@@ -634,6 +1066,26 @@ export default function LojaDetalhe() {
       )}
 
       {assinatura && <ModalAssinatura dados={assinatura} onFechar={() => setAssinatura(null)} />}
+
+      {confirmandoPlano && (
+        <ModalTrocarPlano
+          loja={loja}
+          planoNovo={confirmandoPlano}
+          autor={autor}
+          onFechar={() => setConfirmandoPlano(null)}
+          onSalvo={fetchTudo}
+        />
+      )}
+
+      {confirmandoGratuito && (
+        <ModalGratuito
+          loja={loja}
+          pendentes={pendentes}
+          autor={autor}
+          onFechar={() => setConfirmandoGratuito(false)}
+          onSalvo={fetchTudo}
+        />
+      )}
 
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
