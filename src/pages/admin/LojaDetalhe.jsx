@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Download, AlertCircle, Loader2, Check, ExternalLink,
-  PenLine, Link2, X, Copy, Pencil, ArrowUpDown, Gift,
+  PenLine, Link2, X, Copy, Pencil, ArrowUpDown, Gift, Sparkles,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { T } from '../../theme/tokens'
@@ -16,6 +16,10 @@ import { registrarHistorico, autorDeUsuario, ACAO } from '../../lib/historicoCob
 import { useAuth } from '../../context/AuthContext'
 import CamposContratante from '../../components/admin/CamposContratante'
 import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
+import {
+  MODELO_VAREJO, MODELO_ATACADO,
+  modeloDeFeatures, featuresComModelo, rotuloNivel, precisaGravar,
+} from '../../utils/modeloVenda'
 
 // Sem estes o contrato sai com cláusula pela metade: os três primeiros deixam o
 // documento sem partes identificadas, e os demais produzem coisas como "foro da
@@ -426,6 +430,115 @@ function ModalTrocarPlano({ loja, planoNovo, autor, onFechar, onSalvo }) {
 }
 
 /**
+ * Troca o modelo de venda — Varejo ou Atacado.
+ *
+ * Grava só lf_config.features.catalogo_b2b, preservando todas as outras flags
+ * do objeto. Não encosta em pedido_minimo_*: em Varejo esses campos ficam
+ * inertes (CatalogoPublico só os lê quando o nível é 'pro'), então apagá-los
+ * destruiria a configuração da lojista à toa — e voltar para Atacado
+ * restaura o pedido mínimo que ela já tinha montado.
+ *
+ * Ver utils/modeloVenda.js para o porquê de Atacado gravar 'pro' e não `true`.
+ */
+function ModalModeloVenda({ loja, modeloNovo, onFechar, onSalvo, autor }) {
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+
+  const nivelAtual = loja.features?.catalogo_b2b
+  const featuresNovas = featuresComModelo(loja.features, modeloNovo)
+  const virandoAtacado = modeloNovo === MODELO_ATACADO
+
+  async function confirmar() {
+    setSalvando(true); setErro('')
+    try {
+      const { error } = await supabase
+        .from('lf_config')
+        .update({ features: featuresNovas })
+        .eq('loja_id', loja.loja_id)
+      if (error) throw new Error(error.message)
+
+      await registrarHistorico([{
+        cobranca_id:    null,
+        loja_id:        loja.loja_id,
+        acao:           ACAO.MODELO_VENDA,
+        campo:          'features.catalogo_b2b',
+        valor_anterior: rotuloNivel(nivelAtual),
+        valor_novo:     rotuloNivel(featuresNovas.catalogo_b2b),
+      }], autor)
+
+      await onSalvo()
+      onFechar()
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <ModalConfirm
+      titulo="Trocar o modelo de venda?"
+      sub={loja.nome}
+      onFechar={onFechar}
+      bloqueado={salvando}
+    >
+      <div style={{ background: T.mist, borderRadius: T.rInput, padding: '14px 16px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, fontWeight: 700, color: T.ink, flexWrap: 'wrap' }}>
+          <span>{rotuloNivel(nivelAtual)}</span>
+          <ArrowUpDown size={14} color={T.muted} style={{ transform: 'rotate(90deg)' }} />
+          <span style={{ color: T.purpleText }}>{rotuloNivel(featuresNovas.catalogo_b2b)}</span>
+        </div>
+      </div>
+
+      <ul style={{ margin: '0 0 4px 18px', padding: 0 }}>
+        {virandoAtacado ? (
+          <>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              O catálogo público passa a usar <strong style={{ color: T.ink }}>pedido mínimo e grade de tamanho</strong>.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              A aba de Catálogo B2B aparece no painel da lojista, onde ela define o pedido mínimo.
+            </li>
+          </>
+        ) : (
+          <>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              O catálogo volta ao formato de <strong style={{ color: T.ink }}>varejo</strong>: uma variação por vez, sem pedido mínimo.
+            </li>
+            <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+              O pedido mínimo já configurado <strong style={{ color: T.ink }}>não é apagado</strong> — volta a valer se a loja voltar para Atacado.
+            </li>
+          </>
+        )}
+        <li style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7 }}>
+          Nenhum produto, pedido ou cobrança é alterado.
+        </li>
+      </ul>
+
+      {erro && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.tintCoral, border: `1px solid ${T.coral}44`, borderRadius: T.rInput, padding: '12px 14px', marginTop: 14 }}>
+          <AlertCircle size={14} color={T.coralText} style={{ flexShrink: 0, marginTop: 1 }} />
+          <p style={{ fontSize: 13, color: T.coralText, lineHeight: 1.5 }}>{erro}</p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button type="button" onClick={onFechar} disabled={salvando}
+          style={{ ...btnModal, flex: 1, border: `1.5px solid ${T.line}`, background: T.mist, color: T.muted }}>
+          Cancelar
+        </button>
+        <button type="button" onClick={confirmar} disabled={salvando}
+          style={{ ...btnModal, flex: 2, border: 'none', background: salvando ? T.mist : T.purple, color: salvando ? T.muted : T.white }}>
+          {salvando
+            ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Trocando...</>
+            : <><Check size={15} /> Confirmar troca</>}
+        </button>
+      </div>
+    </ModalConfirm>
+  )
+}
+
+/**
  * Liga/desliga a cortesia.
  *
  * Nenhuma cobrança é criada, alterada ou apagada aqui — nem as pendentes que
@@ -595,6 +708,12 @@ export default function LojaDetalhe() {
   const [planoSel, setPlanoSel]     = useState('')
   const [confirmandoPlano, setConfirmandoPlano] = useState(null)  // plano destino
   const [confirmandoGratuito, setConfirmandoGratuito] = useState(false)
+  // Modelo de venda selecionado na tela. Sincronizado com o banco a cada
+  // fetchTudo — nunca resetado por conta própria, para não sugerir uma troca
+  // que o admin não pediu.
+  const [modeloSel, setModeloSel]   = useState(MODELO_VAREJO)
+  const [confirmandoModelo, setConfirmandoModelo] = useState(null)
+  const [tourSalvando, setTourSalvando] = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -607,6 +726,7 @@ export default function LojaDetalhe() {
     setLoja(cfg)
 
     setPlanoSel(cfg.plano || 'starter')
+    setModeloSel(modeloDeFeatures(cfg.features))
 
     const [listaRes, cobrancaRes, contratanteRes, todasCobRes] = await Promise.all([
       supabase.functions.invoke('gerar-contrato', {
@@ -661,6 +781,27 @@ export default function LojaDetalhe() {
         : !String(contratante?.[key] ?? '').trim())
     : []
   const podeGerar = loja && faltando.length === 0
+
+  /**
+   * Liga o tour de boas-vindas para esta loja.
+   *
+   * Só marca a flag: quem mostra o modal é o painel da lojista no próximo
+   * load, e é ele quem desliga ao terminar ou pular. Reativar é o mesmo
+   * clique — serve para quando a lojista pede para rever.
+   */
+  async function handleAtivarTour() {
+    setTourSalvando(true); setErro('')
+    const { error } = await supabase
+      .from('lf_config').update({ tour_pendente: true }).eq('loja_id', loja.loja_id)
+    if (error) {
+      setErro(/tour_pendente|column/i.test(error.message)
+        ? `${error.message} — rode supabase/migration_tour_e_lembrete_meta.sql antes de usar este botão.`
+        : error.message)
+    } else {
+      await fetchTudo()
+    }
+    setTourSalvando(false)
+  }
 
   // A function faz tudo: lê lf_config, monta o snapshot, grava e gera o PDF.
   // A validação abaixo é só para não deixar o clique sair à toa — quem decide
@@ -755,6 +896,12 @@ export default function LojaDetalhe() {
   const pendentes = cobrancasLoja.filter(c => statusEfetivo(c) !== 'pago')
   const descontoLoja = rotuloDesconto(loja.desconto_tipo, loja.desconto_valor)
   const cheioPlanoAtual = valorPlano(loja.segmento, loja.plano)
+  // Modelo gravado no banco — é ele que decide se o botão "Trocar modelo"
+  // fica ativo, não o estado do seletor.
+  const modeloAtual = modeloDeFeatures(loja.features)
+  // Não basta comparar o modelo: loja com o `true` legado já aparece como
+  // Atacado mas ainda precisa ser normalizada para 'pro'.
+  const podeTrocarModelo = precisaGravar(modeloSel, loja.features?.catalogo_b2b)
 
   return (
     <div style={{ maxWidth: 900, fontFamily: T.ui }}>
@@ -916,12 +1063,113 @@ export default function LojaDetalhe() {
           </button>
         </div>
 
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
+          background: T.mist, border: `1px solid ${T.line}`,
+          borderRadius: T.rInput, padding: '14px 16px', marginTop: 14,
+        }}>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Sparkles size={14} color={loja.tour_pendente ? T.purpleText : T.muted} />
+              Tour de boas-vindas
+            </p>
+            <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.55 }}>
+              {loja.tour_pendente
+                ? 'Pendente — a lojista vê o tour no próximo acesso.'
+                : loja.tour_visto_em
+                  ? `Visto em ${fmtDataHora(loja.tour_visto_em)}.`
+                  : 'Slides de apresentação do sistema, filtrados pelo plano da loja.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAtivarTour}
+            disabled={tourSalvando}
+            style={{
+              ...btnLinha, height: 40, padding: '0 16px', fontWeight: 700,
+              cursor: tourSalvando ? 'not-allowed' : 'pointer',
+              background: loja.tour_pendente ? T.white : T.mist,
+              color: loja.tour_pendente ? T.purpleText : T.ink,
+              border: `1px solid ${loja.tour_pendente ? `${T.purple}55` : T.line}`,
+            }}
+          >
+            {tourSalvando
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Ativando...</>
+              : loja.tour_pendente
+                ? 'Tour pendente — reativar'
+                : loja.tour_visto_em
+                  ? 'Tour já visto — Reativar'
+                  : 'Ativar tour de boas-vindas'}
+          </button>
+        </div>
+
         {!isLojaAtiva(loja.status) && !ehGratuita && (
           <p style={{ fontSize: 11.5, color: T.muted, marginTop: 12, lineHeight: 1.6 }}>
             Esta loja está com status <strong style={{ color: T.ink }}>{loja.status}</strong> — só loja
             com status “ativo” entra na geração automática, independentemente do plano.
           </p>
         )}
+      </Secao>
+
+      {/* ── Modelo de venda ── */}
+      <Secao
+        title="Modelo de venda"
+        right={
+          <span style={{ fontSize: 12, color: T.muted }}>
+            Atual: {rotuloNivel(loja.features?.catalogo_b2b)}
+          </span>
+        }
+      >
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
+              Modelo
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { key: MODELO_VAREJO,  label: 'Varejo' },
+                { key: MODELO_ATACADO, label: 'Atacado' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setModeloSel(key)}
+                  style={{
+                    flex: 1, height: 44, borderRadius: T.rInput, cursor: 'pointer',
+                    border: `1.5px solid ${modeloSel === key ? T.purple : T.line}`,
+                    background: modeloSel === key ? T.tintPurple : T.mist,
+                    color: modeloSel === key ? T.purpleText : T.muted,
+                    fontFamily: T.ui, fontSize: 13, fontWeight: 700,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setConfirmandoModelo(modeloSel)}
+            disabled={!podeTrocarModelo}
+            style={{
+              ...btnLinha, height: 44, padding: '0 18px',
+              cursor: podeTrocarModelo ? 'pointer' : 'not-allowed',
+              background: podeTrocarModelo ? T.purple : T.mist,
+              color: podeTrocarModelo ? T.white : T.muted,
+              border: podeTrocarModelo ? 'none' : `1px solid ${T.line}`,
+              fontWeight: 700,
+            }}
+          >
+            <ArrowUpDown size={14} /> {modeloSel === modeloAtual ? 'Normalizar' : 'Trocar modelo'}
+          </button>
+        </div>
+
+        <p style={{ fontSize: 11.5, color: T.muted, marginTop: 12, lineHeight: 1.6 }}>
+          {modeloAtual === MODELO_ATACADO
+            ? 'Atacado liga pedido mínimo e grade de tamanho no catálogo público. O pedido mínimo em si é definido pela lojista, na aba Catálogo B2B do painel dela.'
+            : 'Varejo é o catálogo comum — o cliente escolhe uma variação por vez, sem pedido mínimo.'}
+        </p>
       </Secao>
 
       {/* ── Contrato ── */}
@@ -1066,6 +1314,16 @@ export default function LojaDetalhe() {
       )}
 
       {assinatura && <ModalAssinatura dados={assinatura} onFechar={() => setAssinatura(null)} />}
+
+      {confirmandoModelo && (
+        <ModalModeloVenda
+          loja={loja}
+          modeloNovo={confirmandoModelo}
+          autor={autor}
+          onFechar={() => setConfirmandoModelo(null)}
+          onSalvo={fetchTudo}
+        />
+      )}
 
       {confirmandoPlano && (
         <ModalTrocarPlano

@@ -26,6 +26,7 @@ export const ACAO = {
   // Ações da LOJA, não de uma cobrança: cobranca_id fica nulo, como no desconto.
   PLANO:              'plano',
   GRATUITO:           'gratuito',
+  MODELO_VENDA:       'modelo_venda',
 }
 
 const SEM_AUTOR = { nome: null, email: null }

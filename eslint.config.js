@@ -18,4 +18,10 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // scripts/ roda no Node (process, console…), não no browser.
+    // Os .mjs já ficavam de fora do glob acima; este bloco cobre os .js também.
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: { globals: globals.node },
+  },
 ])

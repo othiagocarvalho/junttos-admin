@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { detectarItensEsgotados } from '../../utils/catalogo'
+import { detectarItensEsgotados, produtoVisivelNoCatalogo } from '../../utils/catalogo'
 import { rpcAusente } from '../../utils/estoqueMov'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
@@ -653,7 +653,11 @@ export default function CatalogoPublico({ lojaId }) {
       const { data: cfg } = await supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle()
       const { data: prods } = await supabase.from('lf_produtos').select('id, nome, preco_venda, fotos, video_url, variacoes').eq('loja_id', lojaId).eq('ativo', true).eq('disponivel_catalogo_b2b', true).order('nome')
       setConfig(cfg)
-      setProdutos(prods || [])
+      // Produto sem variação cadastrada fica fora do catálogo público — ver
+      // produtoVisivelNoCatalogo. O filtro é feito aqui (e não no .eq() acima)
+      // porque variacoes é JSONB e o tamanho do array não dá pra filtrar no
+      // PostgREST sem uma coluna/índice novo.
+      setProdutos((prods || []).filter(produtoVisivelNoCatalogo))
       setLoading(false)
     }
     load()

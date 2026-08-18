@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "validar:financeiro": "node scripts/validar-financeiro.mjs",
-    "validar:cadastro": "node scripts/validar-cadastro-loja.mjs"
+    "validar:cadastro": "node scripts/validar-cadastro-loja.mjs",
+    "validar:modelo": "node scripts/validar-modelo-venda.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

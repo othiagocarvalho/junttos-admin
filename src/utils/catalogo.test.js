@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { detectarItensEsgotados } from './catalogo.js'
+import { detectarItensEsgotados, produtoVisivelNoCatalogo } from './catalogo.js'
 
 const mkProd = (id, variacoes) => ({ id, variacoes })
 const mkItem = (produtoId, variacao, qtd) => ({
@@ -71,5 +71,29 @@ describe('detectarItensEsgotados', () => {
     const carrinho = [mkItem('p1', 'M', 3)]
     const freshProds = [mkProd('p1', [{ tamanho: 'M', quantidade: 3 }])]
     expect(detectarItensEsgotados(carrinho, freshProds)).toEqual([])
+  })
+})
+
+describe('produtoVisivelNoCatalogo', () => {
+  it('esconde produto com variacoes vazio (importado sem cor definida)', () => {
+    expect(produtoVisivelNoCatalogo({ variacoes: [] })).toBe(false)
+  })
+
+  it('esconde produto com variacoes null ou ausente', () => {
+    expect(produtoVisivelNoCatalogo({ variacoes: null })).toBe(false)
+    expect(produtoVisivelNoCatalogo({})).toBe(false)
+    expect(produtoVisivelNoCatalogo(null)).toBe(false)
+  })
+
+  it('mostra produto com pelo menos uma variação', () => {
+    expect(produtoVisivelNoCatalogo({ variacoes: [{ cor: 'Preto', quantidade: 4 }] })).toBe(true)
+  })
+
+  it('mostra produto com variação mas estoque zerado (segue como esgotado, não some)', () => {
+    expect(produtoVisivelNoCatalogo({ variacoes: [{ tamanho: 'M', quantidade: 0 }] })).toBe(true)
+  })
+
+  it('esconde quando variacoes não é array (JSONB objeto solto)', () => {
+    expect(produtoVisivelNoCatalogo({ variacoes: {} })).toBe(false)
   })
 })
