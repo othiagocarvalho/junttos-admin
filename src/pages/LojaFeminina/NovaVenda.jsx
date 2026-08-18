@@ -452,6 +452,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
                 placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
             </Field>
+            <Field label="Observações">
+              <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
+                placeholder="Anotações sobre esta venda..."
+                style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+            </Field>
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
               <MetallicBtn onClick={() => setStep(1)} isDark={isDark} primary={theme.primary}>
                 Próximo — Produtos <ChevronRight size={16} />
@@ -1072,12 +1077,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 </div>
               )}
             </div>}
-
-            <Field label="Observações">
-              <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
-                placeholder="Anotações sobre esta venda..."
-                style={inputBase} onFocus={focusIn} onBlur={focusOut} />
-            </Field>
 
             {form.produtos.length > 0 && (
               <div style={{ background: 'var(--bg)', borderRadius: 14, padding: '14px 16px' }}>
