@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronLeft, ChevronDown, X, Pencil,
@@ -11,6 +11,8 @@ import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/venda/ResumoVenda'
+import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
+import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
@@ -703,10 +705,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [travaAviso, setTravaAviso] = useState(false)
   const [buscaProd, setBuscaProd] = useState('')
   const [step, setStep] = useState(0)   // 0=Cliente 1=Produtos 2=Pagamento
+  const [catSel, setCatSel] = useState(CHAVE_TODOS)
 
-  // Filtro só de exibição: roda sobre a lista completa da loja (inclui item com
-  // estoque zero) e não toca em nada da venda. Campo vazio devolve tudo.
-  const produtosFiltrados = produtos.filter(nome => contemBusca(nome, buscaProd))
+  // Categorias derivadas do nome — mesma regra do mobile.
+  const cats = useMemo(() => construirCategorias(produtos), [produtos])
+
+  // Categoria e busca se combinam: a busca acontece dentro da categoria ativa.
+  const produtosFiltrados = filtrarPorCategoria(produtos, catSel, cats.mapa)
+    .filter(nome => contemBusca(nome, buscaProd))
+
+  function removerSelecionado(idx) {
+    setForm(f => ({ ...f, produtos: f.produtos.filter((_, i) => i !== idx) }))
+  }
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -846,6 +856,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setTrocaDesconto('')
     setTrocaAcrescimo('')
     setStep(0)
+    setCatSel(CHAVE_TODOS)
+    setBuscaProd('')
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -1423,6 +1435,24 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             </div>
           </div>
         )}
+
+        <div style={{ marginBottom: 12 }}>
+          <ChipsCategoria
+            categorias={cats.categorias}
+            exibir={cats.exibir}
+            selecionada={catSel}
+            onSelecionar={setCatSel}
+            primary={theme.primary}
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <ChipsSelecionados
+            itens={form.produtos}
+            onRemover={removerSelecionado}
+            primary={theme.primary}
+          />
+        </div>
 
         {/* Busca por nome — estoque grande fica impraticável de rolar. */}
         <div style={{ position: 'relative', marginBottom: 10 }}>

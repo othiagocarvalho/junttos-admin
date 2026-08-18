@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
@@ -6,6 +6,8 @@ import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
+import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
+import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
@@ -79,10 +81,24 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [buscaProd, setBuscaProd] = useState('')
+  const [catSel, setCatSel] = useState(CHAVE_TODOS)
+
+  // Categorias derivadas do nome do produto (utils/categoriaProduto.js).
+  // useMemo porque a lista da loja não muda no meio da venda e a derivação
+  // roda sobre todos os produtos — 141 na hmboutique.
+  const cats = useMemo(() => construirCategorias(produtos), [produtos])
 
   // Filtro só de exibição: roda sobre a lista completa da loja (inclui item com
-  // estoque zero) e não toca em nada da venda. Campo vazio devolve tudo.
-  const produtosFiltrados = produtos.filter(nome => contemBusca(nome, buscaProd))
+  // estoque zero) e não toca em nada da venda. Categoria e busca se combinam —
+  // a busca acontece dentro da categoria escolhida.
+  const produtosFiltrados = filtrarPorCategoria(produtos, catSel, cats.mapa)
+    .filter(nome => contemBusca(nome, buscaProd))
+
+  /** Tira um item do carrinho pelo índice — o mesmo produto pode estar lá
+   *  duas vezes com variações diferentes, e remover por nome levaria as duas. */
+  function removerSelecionado(idx) {
+    setForm(f => ({ ...f, produtos: f.produtos.filter((_, i) => i !== idx) }))
+  }
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -242,6 +258,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     setExpandedTroca(null)
     setTrocaDesconto('')
     setTrocaAcrescimo('')
+    setCatSel(CHAVE_TODOS)
+    setBuscaProd('')
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -618,6 +636,20 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 </div>
               </div>
             )}
+
+            <ChipsCategoria
+              categorias={cats.categorias}
+              exibir={cats.exibir}
+              selecionada={catSel}
+              onSelecionar={setCatSel}
+              primary={theme.primary}
+            />
+
+            <ChipsSelecionados
+              itens={form.produtos}
+              onRemover={removerSelecionado}
+              primary={theme.primary}
+            />
 
             {/* Busca por nome — estoque grande fica impraticável de rolar. */}
             <div style={{ position: 'relative' }}>
