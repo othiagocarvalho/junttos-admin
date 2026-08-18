@@ -30,6 +30,10 @@ import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
 import AlertaBanner from '../LojaFeminina/AlertaBanner'
+import TourBoasVindas from '../../components/onboarding/TourBoasVindas'
+import BannerMeta from '../../components/onboarding/BannerMeta'
+import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
+import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
@@ -269,7 +273,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -303,6 +307,13 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
 
   return (
     <div>
+      {mostrarLembreteMeta && (
+        <BannerMeta
+          primary={theme.primary}
+          onDefinirMeta={() => setTab('meta')}
+          onDispensar={onDispensarLembrete}
+        />
+      )}
       <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
@@ -1769,6 +1780,14 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
 
+  // Estado derivado em vez de useEffect + setState: o modal está aberto
+  // enquanto a flag do banco disser que sim E a lojista não tiver fechado
+  // nesta sessão. Sem efeito de sincronização, sem render em cascata.
+  // Fica antes de qualquer early return — rules-of-hooks.
+  const [tourFechado, setTourFechado] = useState(false)
+  const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
+  const tourAberto = data.config?.tour_pendente === true && !tourFechado
+
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
   if ((catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') && data?.config?.features?.apenas_catalogo_b2b === true) {
     return (
@@ -1802,10 +1821,40 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const plano = data.config?.plano || 'starter'
   const legado = isLegado(data.config?.features || data.features)
 
+  const slidesTour = tourAberto
+    ? construirSlides({
+        nomeLoja:    data.config?.nome || theme.nome || 'sua loja',
+        plano,
+        temProdutos: (data.produtosData || []).length > 0,
+        temClientes: (data.clientes || []).length > 0,
+        temMeta:     temMetaDoMes(data.metas),
+      })
+    : []
+
+  async function fecharTour() {
+    setTourFechado(true)
+    // tour_visto_em separa "já viu e fechou" de "nunca foi ativado" — é o
+    // que o painel admin usa para escolher entre "Ativar" e "Reativar".
+    if (data.config?.tour_pendente === true) {
+      await data.saveConfig?.({ tour_pendente: false, tour_visto_em: new Date().toISOString() })
+    }
+  }
+
+  const mostrarLembreteMeta = deveMostrarLembreteMeta({
+    metas: data.metas,
+    dispensadoEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
+  })
+
+  async function dispensarLembreteMeta() {
+    const mes = competenciaAtual()
+    setMetaDispensadaLocal(mes)
+    await data.saveConfig?.({ meta_lembrete_dispensado_em: mes })
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
@@ -1848,6 +1897,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
           {panels[tab]}
         </div>
       </div>
+      {tourAberto && slidesTour.length > 0 && (
+        <TourBoasVindas slides={slidesTour} primary={theme.primary} onFechar={fecharTour} />
+      )}
     </div>
   )
 }

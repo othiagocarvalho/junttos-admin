@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Download, AlertCircle, Loader2, Check, ExternalLink,
-  PenLine, Link2, X, Copy, Pencil, ArrowUpDown, Gift,
+  PenLine, Link2, X, Copy, Pencil, ArrowUpDown, Gift, Sparkles,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { T } from '../../theme/tokens'
@@ -595,6 +595,7 @@ export default function LojaDetalhe() {
   const [planoSel, setPlanoSel]     = useState('')
   const [confirmandoPlano, setConfirmandoPlano] = useState(null)  // plano destino
   const [confirmandoGratuito, setConfirmandoGratuito] = useState(false)
+  const [tourSalvando, setTourSalvando] = useState(false)
 
   const fetchTudo = useCallback(async () => {
     setFetching(true); setFetchError('')
@@ -661,6 +662,27 @@ export default function LojaDetalhe() {
         : !String(contratante?.[key] ?? '').trim())
     : []
   const podeGerar = loja && faltando.length === 0
+
+  /**
+   * Liga o tour de boas-vindas para esta loja.
+   *
+   * Só marca a flag: quem mostra o modal é o painel da lojista no próximo
+   * load, e é ele quem desliga ao terminar ou pular. Reativar é o mesmo
+   * clique — serve para quando a lojista pede para rever.
+   */
+  async function handleAtivarTour() {
+    setTourSalvando(true); setErro('')
+    const { error } = await supabase
+      .from('lf_config').update({ tour_pendente: true }).eq('loja_id', loja.loja_id)
+    if (error) {
+      setErro(/tour_pendente|column/i.test(error.message)
+        ? `${error.message} — rode supabase/migration_tour_e_lembrete_meta.sql antes de usar este botão.`
+        : error.message)
+    } else {
+      await fetchTudo()
+    }
+    setTourSalvando(false)
+  }
 
   // A function faz tudo: lê lf_config, monta o snapshot, grava e gera o PDF.
   // A validação abaixo é só para não deixar o clique sair à toa — quem decide
@@ -913,6 +935,46 @@ export default function LojaDetalhe() {
             }}
           >
             {ehGratuita ? 'Voltar a cobrar' : 'Marcar como gratuita'}
+          </button>
+        </div>
+
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
+          background: T.mist, border: `1px solid ${T.line}`,
+          borderRadius: T.rInput, padding: '14px 16px', marginTop: 14,
+        }}>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 7 }}>
+              <Sparkles size={14} color={loja.tour_pendente ? T.purpleText : T.muted} />
+              Tour de boas-vindas
+            </p>
+            <p style={{ fontSize: 12, color: T.muted, lineHeight: 1.55 }}>
+              {loja.tour_pendente
+                ? 'Pendente — a lojista vê o tour no próximo acesso.'
+                : loja.tour_visto_em
+                  ? `Visto em ${fmtDataHora(loja.tour_visto_em)}.`
+                  : 'Slides de apresentação do sistema, filtrados pelo plano da loja.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAtivarTour}
+            disabled={tourSalvando}
+            style={{
+              ...btnLinha, height: 40, padding: '0 16px', fontWeight: 700,
+              cursor: tourSalvando ? 'not-allowed' : 'pointer',
+              background: loja.tour_pendente ? T.white : T.mist,
+              color: loja.tour_pendente ? T.purpleText : T.ink,
+              border: `1px solid ${loja.tour_pendente ? `${T.purple}55` : T.line}`,
+            }}
+          >
+            {tourSalvando
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Ativando...</>
+              : loja.tour_pendente
+                ? 'Tour pendente — reativar'
+                : loja.tour_visto_em
+                  ? 'Tour já visto — Reativar'
+                  : 'Ativar tour de boas-vindas'}
           </button>
         </div>
 

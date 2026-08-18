@@ -28,6 +28,10 @@ import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
 import AlertaBanner from './AlertaBanner'
+import TourBoasVindas from '../../components/onboarding/TourBoasVindas'
+import BannerMeta from '../../components/onboarding/BannerMeta'
+import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
+import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
 import SocioDigital from './SocioDigital'
 import { fmtR } from '../../utils/formatters'
 
@@ -51,7 +55,7 @@ const MAIS_ITEMS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano }) {
+function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -91,6 +95,13 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
 
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      {mostrarLembreteMeta && (
+        <BannerMeta
+          primary={theme.primary}
+          onDefinirMeta={() => setTab('meta')}
+          onDispensar={onDispensarLembrete}
+        />
+      )}
       <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
       {/* Hero */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
@@ -449,6 +460,14 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const [showVendaModal, setShowVendaModal] = useState(false)
   const [vendaInitTroca, setVendaInitTroca] = useState(false)
 
+  // Estado derivado em vez de useEffect + setState: o modal está aberto
+  // enquanto a flag do banco disser que sim E a lojista não tiver fechado
+  // nesta sessão. Sem efeito de sincronização, sem render em cascata.
+  // Fica antes de qualquer early return — rules-of-hooks.
+  const [tourFechado, setTourFechado] = useState(false)
+  const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
+  const tourAberto = data.config?.tour_pendente === true && !tourFechado
+
   const primary = data.config?.cor_primaria || '#5E2BD0'
   const isDark = primary === '#D4A017'
   const theme = {
@@ -568,10 +587,46 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     )
   }
 
+  // ── Tour de boas-vindas ────────────────────────────────────────
+  // Só abre quando o admin ligou lf_config.tour_pendente. Coluna ainda
+  // inexistente chega undefined → nada aparece, que é o estado de hoje.
+  const slidesTour = tourAberto
+    ? construirSlides({
+        nomeLoja:    data.config?.nome || theme.nome || 'sua loja',
+        plano,
+        temProdutos: (data.produtosData || []).length > 0,
+        temClientes: (data.clientes || []).length > 0,
+        temMeta:     temMetaDoMes(data.metas),
+      })
+    : []
+
+  // Terminar e pular fecham do mesmo jeito: ninguém vê duas vezes sem o
+  // admin reativar.
+  async function fecharTour() {
+    setTourFechado(true)
+    // tour_visto_em separa "já viu e fechou" de "nunca foi ativado" — é o
+    // que o painel admin usa para escolher entre "Ativar" e "Reativar".
+    if (data.config?.tour_pendente === true) {
+      await data.saveConfig?.({ tour_pendente: false, tour_visto_em: new Date().toISOString() })
+    }
+  }
+
+  // ── Lembrete de meta ───────────────────────────────────────────
+  const mostrarLembreteMeta = deveMostrarLembreteMeta({
+    metas: data.metas,
+    dispensadoEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
+  })
+
+  async function dispensarLembreteMeta() {
+    const mes = competenciaAtual()
+    setMetaDispensadaLocal(mes)   // some na hora, sem esperar o banco
+    await data.saveConfig?.({ meta_lembrete_dispensado_em: mes })
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
-      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} />,
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
@@ -703,6 +758,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
           </div>
         )
       }
+
+      {tourAberto && slidesTour.length > 0 && (
+        <TourBoasVindas slides={slidesTour} primary={theme.primary} onFechar={fecharTour} />
+      )}
 
       {/* Modal: selecionar tipo de venda */}
       {showVendaModal && (
