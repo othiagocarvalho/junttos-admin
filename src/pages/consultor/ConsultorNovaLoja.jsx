@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { getPalette } from 'colorthief'
 import { supabaseConsultor as supabase } from '../../lib/supabaseConsultor'
+import { uploadLogo } from '../../utils/uploadLogo'
 import { useConsultorAuth } from '../../context/ConsultorAuthContext'
 import { useCreateLoja, toSlug, isValidSlug } from '../../hooks/useCreateLoja'
 import { Check, Copy, ExternalLink, Loader2, AlertCircle, Building2, Upload } from 'lucide-react'
@@ -25,16 +26,6 @@ async function extractColors(objectUrl) {
     primary:   rgbToHex(palette[0]),
     secondary: rgbToHex(palette[1] ?? palette[0]),
   }
-}
-
-async function uploadLogo(slug, file) {
-  const ext  = file.name.split('.').pop().toLowerCase()
-  const path = `${slug}/logo.${ext}`
-  const { error } = await supabase.storage
-    .from('Logo').upload(path, file, { upsert: true, contentType: file.type })
-  if (error) throw new Error(`Upload: ${error.message}`)
-  const { data: { publicUrl } } = supabase.storage.from('Logo').getPublicUrl(path)
-  return publicUrl
 }
 
 const emptyForm = {
@@ -114,7 +105,7 @@ export default function ConsultorNovaLoja() {
 
     let logoUrl = null
     if (logoFile) {
-      try { logoUrl = await uploadLogo(form.slug, logoFile) }
+      try { logoUrl = await uploadLogo(supabase, form.slug, logoFile) }
       catch (err) { setLogoError(`Upload da logo falhou: ${err.message}`); return }
     }
 

@@ -22,6 +22,11 @@
  * 'pro', que é o padrão de quem escolhe Atacado hoje.
  */
 
+// Extensão explícita de propósito: além do app (Vite), este módulo é importado
+// por scripts/validar-modelo-venda.mjs, que roda em Node puro — e o Node ESM
+// não resolve import sem extensão. Mesmo estilo de utils/corrida.js.
+import { fmtR } from './formatters.js'
+
 export const MODELO_VAREJO  = 'varejo'
 export const MODELO_ATACADO = 'atacado'
 
@@ -127,4 +132,57 @@ export function pedidoMinimoPayload({ tipo, valor, qtd } = {}) {
     pedido_minimo_valor: t === 'valor'      ? (parseFloat(String(valor ?? '').replace(',', '.')) || null) : null,
     pedido_minimo_qtd:   t === 'quantidade' ? (parseInt(qtd, 10) || null) : null,
   }
+}
+
+/**
+ * A lojista precisa ser avisada de que o catálogo está sem piso de pedido?
+ *
+ * Só faz sentido no nível 'pro' — é o único em que o catálogo público chega a
+ * olhar pedido mínimo. Com tipo 'nenhum' (o default da coluna) o cliente final
+ * fecha pedido de 1 peça, e hoje a tela não distingue isso de uma escolha
+ * deliberada: o select mostra "Nenhum" nos dois casos.
+ *
+ * Recebe o tipo SELECIONADO na tela, não o salvo no banco, para o aviso sumir
+ * assim que ela escolhe outro tipo — antes mesmo de salvar.
+ *
+ * @param {string|boolean} nivel — features.catalogo_b2b
+ * @param {string} tipo — pedido_minimo_tipo em edição
+ */
+export function precisaAvisarPedidoMinimo(nivel, tipo) {
+  if (nivel !== 'pro') return false
+  return !tipo || tipo === 'nenhum'
+}
+
+/**
+ * Resumo do pedido mínimo para leitura do admin.
+ *
+ * `configurado: false` cobre dois casos que na prática dão no mesmo — o
+ * catálogo não trava nada:
+ *   - tipo 'nenhum'/ausente;
+ *   - tipo escolhido mas sem número (CatalogoPublico faz Number(null) || 0,
+ *     e `total >= 0` é sempre verdadeiro).
+ * O segundo é invisível na tela da lojista, então vale o admin enxergar.
+ */
+export function resumoPedidoMinimo(config) {
+  const tipo = config?.pedido_minimo_tipo
+
+  if (!tipo || tipo === 'nenhum') {
+    return { configurado: false, texto: 'Sem pedido mínimo configurado' }
+  }
+
+  if (tipo === 'valor') {
+    const valor = Number(config.pedido_minimo_valor) || 0
+    return valor > 0
+      ? { configurado: true,  texto: `${fmtR(valor)} por pedido` }
+      : { configurado: false, texto: 'Tipo "valor" escolhido, sem valor definido — não trava nada' }
+  }
+
+  if (tipo === 'quantidade') {
+    const qtd = Number(config.pedido_minimo_qtd) || 0
+    return qtd > 0
+      ? { configurado: true,  texto: `${qtd} ${qtd === 1 ? 'peça' : 'peças'} por pedido` }
+      : { configurado: false, texto: 'Tipo "quantidade" escolhido, sem quantidade definida — não trava nada' }
+  }
+
+  return { configurado: false, texto: `Tipo não reconhecido: ${tipo}` }
 }

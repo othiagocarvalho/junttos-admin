@@ -18,7 +18,7 @@ import CamposContratante from '../../components/admin/CamposContratante'
 import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 import {
   MODELO_VAREJO, MODELO_ATACADO,
-  modeloDeFeatures, featuresComModelo, rotuloNivel, precisaGravar,
+  modeloDeFeatures, featuresComModelo, rotuloNivel, precisaGravar, resumoPedidoMinimo,
 } from '../../utils/modeloVenda'
 
 // Sem estes o contrato sai com cláusula pela metade: os três primeiros deixam o
@@ -902,6 +902,7 @@ export default function LojaDetalhe() {
   // Não basta comparar o modelo: loja com o `true` legado já aparece como
   // Atacado mas ainda precisa ser normalizada para 'pro'.
   const podeTrocarModelo = precisaGravar(modeloSel, loja.features?.catalogo_b2b)
+  const resumoPM = resumoPedidoMinimo(loja)
 
   return (
     <div style={{ maxWidth: 900, fontFamily: T.ui }}>
@@ -1164,6 +1165,39 @@ export default function LojaDetalhe() {
             <ArrowUpDown size={14} /> {modeloSel === modeloAtual ? 'Normalizar' : 'Trocar modelo'}
           </button>
         </div>
+
+        {/* Pedido mínimo — só leitura. Quem edita é a lojista, na aba Catálogo
+            B2B; aqui o admin enxerga o estado sem precisar consultar o banco.
+            Só faz sentido em Atacado: no varejo o campo nem é lido. */}
+        {modeloAtual === MODELO_ATACADO && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 14, flexWrap: 'wrap', marginTop: 16,
+            background: resumoPM.configurado ? T.mist : T.tintCoral,
+            border: `1px solid ${resumoPM.configurado ? T.line : `${T.coral}44`}`,
+            borderRadius: T.rInput, padding: '14px 16px',
+          }}>
+            <div style={{ minWidth: 220, flex: 1 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 5 }}>
+                Pedido mínimo
+              </p>
+              <p style={{
+                fontSize: 13.5, fontWeight: 700,
+                color: resumoPM.configurado ? T.ink : T.coralText,
+                display: 'flex', alignItems: 'center', gap: 7,
+              }}>
+                {!resumoPM.configurado && <AlertCircle size={14} style={{ flexShrink: 0 }} />}
+                {resumoPM.texto}
+              </p>
+              {!resumoPM.configurado && (
+                <p style={{ fontSize: 11.5, color: T.muted, marginTop: 5, lineHeight: 1.55 }}>
+                  O cliente final consegue fechar pedido de 1 peça. A lojista já
+                  vê um aviso na aba Catálogo B2B do painel dela.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <p style={{ fontSize: 11.5, color: T.muted, marginTop: 12, lineHeight: 1.6 }}>
           {modeloAtual === MODELO_ATACADO
