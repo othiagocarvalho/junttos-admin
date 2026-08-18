@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
-import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
+import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
@@ -71,6 +72,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
+  // Ajuste manual da troca — separado do ajuste da venda normal (que é
+  // tipo + modo R$/%): aqui são dois campos em R$, aplicáveis juntos.
+  const [trocaDesconto,  setTrocaDesconto]  = useState(rascunho?.trocaDesconto ?? '')
+  const [trocaAcrescimo, setTrocaAcrescimo] = useState(rascunho?.trocaAcrescimo ?? '')
   const [cliNomeOpen, setCliNomeOpen] = useState(false)
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [buscaProd, setBuscaProd] = useState('')
@@ -95,7 +100,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       total = 0
     } else if (isTroca) {
       const credito = calcularTotalVenda(produtoTroca, produtosData)
-      total = Math.max(0, sub - credito)
+      total = Math.max(0, sub - credito + calcularAjusteTroca(trocaDesconto, trocaAcrescimo))
     } else {
       total = calcularTotalComAjuste(sub, ajusteTipo, ajusteModo, ajNum)
     }
@@ -109,14 +114,14 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     }))
   // produtosData excluído intencionalmente — não muda no meio de uma venda
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+  }, [form.produtos, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo])
 
   // Autosave: qualquer alteração relevante persiste o rascunho. Não salva
   // depois de concluída — aí o rascunho já foi limpo e o form está zerado.
   useEffect(() => {
     if (done) return
-    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca }))
-  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca])
+    salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo }))
+  }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo])
 
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
@@ -175,7 +180,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     let ajusteValor
     let pgtoPayload
     if (isTroca) {
-      ajusteValor = creditoTroca > 0 ? -creditoTroca : 0
+      // Mantém a relação valor = subtotal + ajuste_valor que a venda normal já
+      // usa: o crédito da devolução e o ajuste manual entram no mesmo campo,
+      // sem coluna nova. O que é cobrado de fato continua sendo form.valor.
+      const ajTroca = calcularAjusteTroca(trocaDesconto, trocaAcrescimo)
+      ajusteValor = -creditoTroca + ajTroca
       pgtoPayload = valorFinal <= 0.005
         ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
         : JSON.stringify(form.pagamentos.map(p => ({
@@ -231,6 +240,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     setIsTroca(false)
     setProdutoTroca([])
     setExpandedTroca(null)
+    setTrocaDesconto('')
+    setTrocaAcrescimo('')
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -240,10 +251,17 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
   const creditoTroca = isTroca ? calcularTotalVenda(produtoTroca, produtosData) : 0
-  const troca = calcularResumoTroca(subtotal, creditoTroca)
+  const ajusteTrocaR = isTroca ? calcularAjusteTroca(trocaDesconto, trocaAcrescimo) : 0
+  const troca = calcularResumoTroca(subtotal, creditoTroca, ajusteTrocaR)
   const ajusteNum = parseFloat(ajusteInput.replace(',', '.')) || 0
   const ajusteR = ajusteNum === 0 ? 0
     : ajusteModo === 'percentual' ? subtotal * (ajusteNum / 100) : ajusteNum
+
+  // Preço de venda por produto: o schema guarda preco_venda no produto, não na
+  // variação (variacoes só tem label, quantidade e custo) — então a linha
+  // mostra um preço só, o mesmo que calcularTotalVenda usa.
+  const precoDe = nome => Number(produtosData.find(p => p.nome === nome)?.preco_venda || 0)
+  const qtdItensVenda = form.produtos.reduce((s, p) => s + (p.quantidade || 1), 0)
 
   if (done) {
     return (
@@ -343,7 +361,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
             </span>
             <button
               type="button"
-              onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setIsTroca(false); setStep(0) }}
+              onClick={() => { limparRascunho(LOJA_ID); setRascunhoRestaurado(false); setForm({ ...EMPTY, pagamentos: [{ forma: 'Pix', valor: '' }] }); setProdutoTroca([]); setAjusteInput(''); setTrocaDesconto(''); setTrocaAcrescimo(''); setIsTroca(false); setStep(0) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, color: 'var(--rose-deep)', padding: 4 }}
             >
               Começar do zero
@@ -521,11 +539,12 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             transition: 'background .15s, border-color .15s',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                             <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: selCount > 0 ? '#D97706' : 'transparent', border: selCount > 0 ? 'none' : (isDark ? '1.5px solid #3a3a3a' : '1.5px solid #ddd'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               {selCount > 0 && <Check size={12} color="#fff" strokeWidth={2.5} />}
                             </div>
-                            <span style={{ fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', color: selCount > 0 ? '#D97706' : (isDark ? theme.primary : '#1a1a1a'), fontWeight: selCount > 0 ? 600 : 400 }}>{nome}</span>
+                            <span style={{ fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', color: selCount > 0 ? '#D97706' : (isDark ? theme.primary : '#1a1a1a'), fontWeight: selCount > 0 ? 600 : 400, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                            <PrecoProduto preco={precoDe(nome)} cor="#D97706" />
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {(isSimples || !hasVars) && selCount > 0 ? (
@@ -666,7 +685,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         transition: 'background .15s, border-color .15s',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                         <div style={{
                           width: 20, height: 20, borderRadius: 6, flexShrink: 0,
                           background: selCount > 0 ? (isDark ? GOLD : theme.primary) : 'transparent',
@@ -679,7 +698,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           fontSize: 14, fontFamily: 'Plus Jakarta Sans, sans-serif',
                           color: selCount > 0 ? theme.primary : (isDark ? theme.primary : '#1a1a1a'),
                           fontWeight: selCount > 0 ? 600 : 400,
+                          minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{nome}</span>
+                        <PrecoProduto preco={precoDe(nome)} cor={selCount > 0 ? theme.primary : undefined} />
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {isSimples && selCount > 0 ? (
@@ -859,6 +880,19 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <OutlineBtn onClick={() => setStep(0)}><ChevronLeft size={15} /> Voltar</OutlineBtn>
               <MetallicBtn onClick={() => setStep(2)} isDark={isDark} primary={theme.primary}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
+
+            {/* Espaço para a barra fixa não cobrir o último produto da lista. */}
+            <div aria-hidden style={{ height: 72 }} />
+            <BarraResumoMobile
+              isTroca={isTroca}
+              qtdItens={qtdItensVenda}
+              totalValor={totalValor}
+              troca={troca}
+              onAvancar={() => setStep(2)}
+              primary={theme.primary}
+              isDark={isDark}
+              gold={GOLD}
+            />
           </div>
         )}
 
@@ -872,67 +906,33 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
             {/* Breakdown: Subtotal / Ajuste / Total */}
             {form.produtos.length > 0 && (
-              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {isTroca ? (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#D97706' }}>Produto devolvido (crédito)</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#D97706' }}>− {fmtR(creditoTroca)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Produto novo</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>{fmtR(subtotal)}</span>
-                    </div>
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
-                        {troca.rotulo}
-                      </span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: troca.aCobrar ? theme.primary : troca.saldoAFavor ? '#D97706' : '#16a34a' }}>
-                        {fmtR(troca.valorExibido)}
-                      </span>
-                    </div>
-                    {troca.zerada && (
-                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Sem cobrança — troca zerada</p>
-                    )}
-                    {troca.saldoAFavor && (
-                      <>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706', fontWeight: 700 }}>
-                          Saldo a favor: {fmtR(troca.valorExibido)} — não reembolsável em dinheiro
-                        </p>
-                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: '#D97706' }}>
-                          Produto novo mais barato. Adicione outro produto ou prossiga zerando a troca.
-                        </p>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>Subtotal</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'var(--ink-soft)' }}>
-                        {fmtR(subtotal)}
-                      </span>
-                    </div>
-                    {ajusteNum > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                          {ajusteTipo === 'desconto' ? '− Desconto' : '+ Acréscimo'}
-                          {ajusteModo === 'percentual' ? ` (${ajusteInput}%)` : ''}
-                        </span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: ajusteTipo === 'desconto' ? '#dc2626' : '#16a34a' }}>
-                          {ajusteTipo === 'desconto' ? '−' : '+'} {fmtR(ajusteR)}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ borderTop: '1px solid var(--line)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary }}>
-                        {fmtR(totalValor)}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
+              <LinhasResumo
+                isTroca={isTroca}
+                subtotal={subtotal}
+                creditoTroca={creditoTroca}
+                troca={troca}
+                ajusteTipo={ajusteTipo}
+                ajusteModo={ajusteModo}
+                ajusteInput={ajusteInput}
+                ajusteR={ajusteNum > 0 ? ajusteR : 0}
+                ajusteTrocaR={ajusteTrocaR}
+                totalValor={totalValor}
+                primary={theme.primary}
+              />
+            )}
+
+            {/* Ajuste manual da troca: desconto e acréscimo em R$ */}
+            {form.produtos.length > 0 && isTroca && (
+              <CamposAjusteTroca
+                desconto={trocaDesconto}
+                setDesconto={setTrocaDesconto}
+                acrescimo={trocaAcrescimo}
+                setAcrescimo={setTrocaAcrescimo}
+                inputStyle={inputBase}
+                onFocus={focusIn}
+                onBlur={focusOut}
+                labelStyle={labelStyle}
+              />
             )}
 
             {/* Ajuste: Desconto ou Acréscimo (opcional) — oculto no modo troca */}

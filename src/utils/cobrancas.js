@@ -78,6 +78,22 @@ export function isLojaAtiva(status) {
 }
 
 /**
+ * Loja de cortesia: mantém o plano e todo o acesso, mas fica fora do dinheiro
+ * — não recebe cobrança gerada pelo ciclo e não conta no MRR.
+ *
+ * Independente de legado: legado é controle de ACESSO (ignora o plano),
+ * gratuito é controle de COBRANÇA (ignora o preço). Uma loja pode ser os dois,
+ * um só, ou nenhum.
+ *
+ * Enquanto a coluna lf_config.gratuito não existir no banco, o campo chega
+ * undefined e isto devolve false — ou seja, o comportamento é exatamente o de
+ * hoje até a migration rodar.
+ */
+export function isLojaGratuita(loja) {
+  return loja?.gratuito === true
+}
+
+/**
  * Marco a partir do qual a loja passa a ser cobrada automaticamente, no
  * momento do cadastro.
  *
@@ -133,6 +149,14 @@ export function rotuloDesconto(descontoTipo, descontoValor) {
  * desconto duas vezes sobre um valor que já estava descontado.
  */
 export function valorCheioMensalidade(loja, cobrancasDaLoja = []) {
+  // Preço definido explicitamente na loja (lf_config.valor_mensal) vence a
+  // última mensalidade. É o que faz a troca de plano valer para o mês seguinte:
+  // sem isto, a mensalidade antiga seria copiada para sempre e mudar o plano
+  // não mudaria nada na cobrança. Só as lojas que passam pela troca de plano
+  // têm esse campo preenchido — nas demais ele é null e a regra antiga vale.
+  const daLoja = Number(loja?.valor_mensal)
+  if (Number.isFinite(daLoja) && daLoja > 0) return arredonda(daLoja)
+
   const mensalidades = cobrancasDaLoja
     .filter(c => c.tipo === TIPO_MENSALIDADE)
     .sort((a, b) => String(b.vencimento).localeCompare(String(a.vencimento)))
@@ -169,6 +193,11 @@ export function competencia(vencimentoISO) {
 export function cobrancasFaltantes(loja, cobrancasDaLoja = [], hoje = new Date()) {
   if (!loja?.loja_id) return []
   if (!isLojaAtiva(loja.status)) return []
+  // Cortesia: nada é gerado enquanto durar. Voltar gratuito para false
+  // religa o ciclo — e os meses em que ela ficou isenta não são cobrados
+  // retroativamente, porque a geração só olha do marco para frente e os
+  // meses já vencidos ficam fora do limite de antecedência.
+  if (isLojaGratuita(loja)) return []
 
   const dia = Number(loja.vencimento_dia)
   if (!dia || dia < 1 || dia > 31) return []
@@ -279,9 +308,14 @@ export function totaisPorPeriodo(cobrancas = [], de, ate) {
  * MRR: soma da mensalidade mais recente de cada loja ativa. Só tipo
  * 'mensalidade' — sem esse filtro a taxa de implantação de R$ 300 entraria
  * como receita recorrente.
+ *
+ * Loja gratuita fica de fora: ela não gera receita, e mantê-la aqui inflaria o
+ * MRR com uma cobrança antiga que nunca mais vai se repetir.
  */
 export function calcularMRR(lojas = [], cobrancas = []) {
-  const ativas = new Set(lojas.filter(l => isLojaAtiva(l.status)).map(l => l.loja_id))
+  const ativas = new Set(
+    lojas.filter(l => isLojaAtiva(l.status) && !isLojaGratuita(l)).map(l => l.loja_id),
+  )
   const porLoja = new Map()
   for (const c of cobrancas) {
     if (c.tipo !== TIPO_MENSALIDADE) continue

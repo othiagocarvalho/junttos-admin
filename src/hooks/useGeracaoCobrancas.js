@@ -19,9 +19,12 @@ import { registrarHistorico, ACAO } from '../lib/historicoCobranca'
 // não um erro que interesse a alguém.
 const DUPLICATA = '23505'
 
-const CAMPOS_LOJA =
-  'loja_id, nome, status, plano, segmento, vencimento_dia, ' +
-  'cobranca_automatica_desde, desconto_tipo, desconto_valor'
+// '*' e não uma lista fixa: a lista quebraria a query inteira (PostgREST
+// devolve 400) no intervalo entre subir este código e rodar a migration que
+// cria lf_config.gratuito e lf_config.valor_mensal. Com '*', a coluna que
+// ainda não existe simplesmente chega undefined e o ciclo segue como hoje.
+// lf_config tem poucas dezenas de linhas — o payload extra é irrelevante.
+const CAMPOS_LOJA = '*'
 
 /**
  * Roda a checagem uma vez. Não depende de React — dá para chamar de qualquer

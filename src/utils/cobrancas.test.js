@@ -3,7 +3,7 @@ import {
   diaISO, deISO, vencimentoNoMes, isLojaAtiva, aplicarDesconto, rotuloDesconto,
   valorCheioMensalidade, cobrancasFaltantes, faltantesDeTodas, geracaoAtrasada,
   statusEfetivo, totaisPorPeriodo, calcularMRR, competencia,
-  marcoCobrancaAutomatica,
+  marcoCobrancaAutomatica, isLojaGratuita,
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from './cobrancas'
 
@@ -310,5 +310,120 @@ describe('competencia', () => {
   it('extrai ano-mês', () => {
     expect(competencia('2026-08-10')).toBe('2026-08')
     expect(competencia(null)).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Loja gratuita (cortesia) e valor_mensal vindo de lf_config — o que faz a
+// troca de plano valer para o mês seguinte.
+// ---------------------------------------------------------------------------
+
+describe('isLojaGratuita', () => {
+  it('só true com a flag explícita', () => {
+    expect(isLojaGratuita({ gratuito: true })).toBe(true)
+  })
+  it('coluna ainda inexistente (undefined) não é gratuita', () => {
+    expect(isLojaGratuita({})).toBe(false)
+    expect(isLojaGratuita(null)).toBe(false)
+  })
+  it('false e valores falsos não são gratuita', () => {
+    expect(isLojaGratuita({ gratuito: false })).toBe(false)
+    expect(isLojaGratuita({ gratuito: 0 })).toBe(false)
+  })
+  it('independe de legado', () => {
+    expect(isLojaGratuita({ gratuito: true, features: { legado: true } })).toBe(true)
+    expect(isLojaGratuita({ gratuito: false, features: { legado: true } })).toBe(false)
+  })
+})
+
+describe('valorCheioMensalidade com lf_config.valor_mensal', () => {
+  const loja = { loja_id: 'x', segmento: 'moda', plano: 'starter' }
+
+  it('valor_mensal vence a última mensalidade — é o efeito da troca de plano', () => {
+    const cobrancas = [
+      { tipo: TIPO_MENSALIDADE, valor: 99.9, vencimento: '2026-08-10' },
+    ]
+    expect(valorCheioMensalidade({ ...loja, plano: 'pro', valor_mensal: 149.9 }, cobrancas)).toBe(149.9)
+  })
+
+  it('sem valor_mensal, mantém a regra antiga (última mensalidade)', () => {
+    const cobrancas = [
+      { tipo: TIPO_MENSALIDADE, valor: 120, vencimento: '2026-08-10' },
+    ]
+    expect(valorCheioMensalidade(loja, cobrancas)).toBe(120)
+  })
+
+  it('valor_mensal nulo ou zero não sequestra o cálculo', () => {
+    const cobrancas = [{ tipo: TIPO_MENSALIDADE, valor: 120, vencimento: '2026-08-10' }]
+    expect(valorCheioMensalidade({ ...loja, valor_mensal: null }, cobrancas)).toBe(120)
+    expect(valorCheioMensalidade({ ...loja, valor_mensal: 0 }, cobrancas)).toBe(120)
+  })
+
+  it('sem cobrança nenhuma e sem valor_mensal, cai na tabela do plano', () => {
+    expect(valorCheioMensalidade(loja, [])).toBe(99.9)
+  })
+})
+
+describe('cobrancasFaltantes para loja gratuita', () => {
+  const base = {
+    loja_id: 'nb', status: 'ativo', plano: 'starter', segmento: 'moda',
+    vencimento_dia: 10, cobranca_automatica_desde: '2026-06-01',
+  }
+  const hoje = new Date(2026, 7, 18, 12, 0, 0) // 18/08/2026
+
+  it('loja normal gera as mensalidades que faltam', () => {
+    expect(cobrancasFaltantes(base, [], hoje).length).toBeGreaterThan(0)
+  })
+
+  it('loja gratuita não gera nada', () => {
+    expect(cobrancasFaltantes({ ...base, gratuito: true }, [], hoje)).toEqual([])
+  })
+
+  it('desligar a cortesia religa a geração', () => {
+    expect(cobrancasFaltantes({ ...base, gratuito: false }, [], hoje).length).toBeGreaterThan(0)
+  })
+
+  it('faltantesDeTodas pula a gratuita e mantém as demais', () => {
+    const lojas = [base, { ...base, loja_id: 'nb2', gratuito: true }]
+    const r = faltantesDeTodas(lojas, [], hoje)
+    expect(r.every(f => f.loja_id === 'nb')).toBe(true)
+  })
+})
+
+describe('calcularMRR exclui loja gratuita', () => {
+  const cobrancas = [
+    { loja_id: 'a', tipo: TIPO_MENSALIDADE, valor: 99.9,  vencimento: '2026-08-10' },
+    { loja_id: 'b', tipo: TIPO_MENSALIDADE, valor: 149.9, vencimento: '2026-08-10' },
+  ]
+
+  it('soma as duas quando nenhuma é gratuita', () => {
+    const lojas = [{ loja_id: 'a', status: 'ativo' }, { loja_id: 'b', status: 'ativo' }]
+    expect(calcularMRR(lojas, cobrancas)).toBe(249.8)
+  })
+
+  it('tira a gratuita da soma', () => {
+    const lojas = [{ loja_id: 'a', status: 'ativo' }, { loja_id: 'b', status: 'ativo', gratuito: true }]
+    expect(calcularMRR(lojas, cobrancas)).toBe(99.9)
+  })
+
+  it('cobrança antiga da loja gratuita não infla o MRR', () => {
+    const lojas = [{ loja_id: 'b', status: 'ativo', gratuito: true }]
+    expect(calcularMRR(lojas, cobrancas)).toBe(0)
+  })
+})
+
+describe('troca de plano preserva o desconto', () => {
+  it('desconto percentual passa a incidir sobre o valor cheio novo', () => {
+    // starter 99,90 com 10% → 89,91 ; pro 149,90 com 10% → 134,91
+    expect(aplicarDesconto(99.9, 'percentual', 10)).toBe(89.91)
+    expect(aplicarDesconto(149.9, 'percentual', 10)).toBe(134.91)
+  })
+
+  it('desconto fixo continua abatendo o mesmo valor no plano novo', () => {
+    expect(aplicarDesconto(149.9, 'fixo', 50)).toBe(99.9)
+  })
+
+  it('100% de desconto zera em qualquer plano', () => {
+    expect(aplicarDesconto(259.9, 'percentual', 100)).toBe(0)
   })
 })

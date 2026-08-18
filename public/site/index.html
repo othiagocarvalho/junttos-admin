@@ -521,7 +521,6 @@
   .site-grid{display:grid; grid-template-columns:1fr .98fr; gap:52px; align-items:center;}
   .site-copy h3{margin-bottom:14px;}
   .site-copy > p{color:var(--muted); line-height:1.55; margin-bottom:20px; letter-spacing:-.006em;}
-  .site-note{font-size:.84rem; color:var(--muted); margin-top:16px; line-height:1.5;}
 
   /* ---------- CARROSSEL DE EXEMPLOS DE SITE ----------
      As imagens já vêm no formato final: paisagem 3:2, com a moldura do
@@ -662,8 +661,11 @@
 
   /* ---------- FOOTER ---------- */
   footer{padding:56px 0 36px; border-top:1px solid var(--line);}
+  /* Sem o parágrafo de claim, a coluna da esquerda virou só o logo: com
+     flex-start ele ficava colado no topo enquanto o botão descia sozinho.
+     Centralizado, a linha logo + CTA fecha certinho. */
   .footer-top{
-    display:flex; justify-content:space-between; align-items:flex-start;
+    display:flex; justify-content:space-between; align-items:center;
     flex-wrap:wrap; gap:32px; padding-bottom:34px; border-bottom:1px solid var(--line);
   }
   .footer-top p{color:var(--muted); font-size:.88rem; margin-top:12px; max-width:360px; line-height:1.55;}
@@ -682,10 +684,17 @@
     display:flex; justify-content:space-between; align-items:center;
     padding-top:26px; font-size:.79rem; color:var(--muted); flex-wrap:wrap; gap:12px;
   }
+  /* Era inline-flex com gap:8px. Como o conteúdo é uma frase corrida, cada
+     pedaço de texto ao redor do <span> da marca virava um item de flex
+     independente: no celular os itens encolhiam e a frase quebrava em pontos
+     estranhos, com o nome da marca deslocado do "Com a". Voltou a ser texto
+     corrido; o espaçamento agora é o espaço natural entre palavras. */
   .footer-sign{
-    display:inline-flex; align-items:center; gap:8px;
-    font-weight:700; color:var(--ink);
+    font-weight:700; color:var(--ink); line-height:1.55;
   }
+  /* O nome da marca é um span colorido — nunca pode quebrar no meio.
+     Junto com o &nbsp; do markup, "a Junttos" viaja sempre na mesma linha. */
+  .footer-sign .brand{white-space:nowrap;}
 
   /* ---------- FAB WHATSAPP ---------- */
   .wa-fab{display:none;}
@@ -841,7 +850,7 @@
       </div>
       <div class="hero-founder">
         <div class="badge">TC</div>
-        <p><strong>Feito por quem também vive o desafio de gerenciar um negócio.</strong> A Junttos nasceu da rotina de quem já geriu marca, treinou vendedor e fechou caixa — não de uma planilha de investidor.</p>
+        <p><strong>Feito por quem também vive o desafio de gerenciar um negócio.</strong> A Junttos nasceu da rotina de quem já geriu marca, treinou vendedor e fechou caixa — e sabe exatamente onde o dia a dia trava.</p>
       </div>
     </div>
 
@@ -1194,7 +1203,6 @@
         <div>
           <a class="btn-primary" href="https://wa.me/5591992733546?text=Oi!%20Quero%20um%20or%C3%A7amento%20de%20site%2Flanding%20page%20com%20a%20Junttos." target="_blank" rel="noopener">Pedir orçamento no WhatsApp <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         </div>
-        <p class="site-note">Serviço independente do sistema: dá pra contratar só o site, só o sistema, ou os dois juntos.</p>
       </div>
 
       <figure class="sitecar">
@@ -1331,7 +1339,6 @@
     <div class="footer-top">
       <div>
         <div class="logo"><svg class="logo-mark" viewBox="18 21 64 64" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="20" y="55" width="60" height="28" rx="14" fill="#5E2BD0"></rect><circle cx="40" cy="37" r="14" fill="#341780"></circle><circle cx="64" cy="39" r="14" fill="#FF6F5E"></circle></svg><span>junttos</span></div>
-        <p>Feito por quem vive de gestão e varejo há mais de 15 anos — pra loja de moda, confecção e, em breve, outros segmentos do varejo.</p>
       </div>
       <div class="footer-cta">
         <a href="https://wa.me/5591992733546" target="_blank" rel="noopener">
@@ -1342,7 +1349,7 @@
     </div>
     <div class="footer-bottom">
       <span>© 2026 Junttos — Belém, PA</span>
-      <span class="footer-sign">Sozinho(a) você corre atrás. Com a <span style="color:var(--purple);">Jun<span style="color:var(--coral);">tt</span>os</span>, você sai na frente.</span>
+      <span class="footer-sign">Sozinho(a) você corre atrás. Com a&nbsp;<span class="brand" style="color:var(--purple);">Jun<span style="color:var(--coral);">tt</span>os</span>, você sai na frente.</span>
     </div>
   </div>
 </footer>
@@ -1544,9 +1551,27 @@
     });
   });
 
+  // "Ver soluções" (nav e hero) aponta pra #solucoes, que é justamente o
+  // seletor de abas — e ele é sticky (top:72px). O pulo nativo da âncora mede
+  // a posição GRUDADA do elemento, então cada clique parava um pouco mais
+  // abaixo do que o anterior: parecia um scroll que "empurra" a página sem
+  // destino. Interceptamos e usamos a mesma medição em fluxo do
+  // scrollToChooser(), que é idempotente — clicar 1x ou 10x para no mesmo
+  // lugar, com a barra de abas logo abaixo do nav.
+  [].forEach.call(document.querySelectorAll('a[href="#solucoes"]'), function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      scrollToChooser();
+      if(history.replaceState) history.replaceState(null, '', '#solucoes');
+    });
+  });
+
   var start = (location.hash || '').replace('#', '');
   if(start === 'planos'){
     openTab('sistemas'); openSub('moda');
+  } else if(start === 'solucoes'){
+    // Recarregar com #solucoes na URL cairia no mesmo pulo nativo torto.
+    setTimeout(scrollToChooser, 30);
   } else if(panes[start]){
     openTab(start);
     setTimeout(scrollToChooser, 30);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes, calcularResumoTroca } from './venda.js'
+import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes, calcularResumoTroca, calcularAjusteTroca, parseValorBR } from './venda.js'
 
 const produtosData = [
   { nome: 'Blusa Básica', preco_venda: 50 },
@@ -279,5 +279,88 @@ describe('calcularResumoTroca', () => {
     const r = calcularResumoTroca(120, 0)
     expect(r.aCobrar).toBe(true)
     expect(r.valorCobrado).toBe(120)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Ajuste manual da troca: desconto e acréscimo em R$ digitados pelo operador
+// na tela de fechamento. Não vira coluna nova — entra no valor final e no
+// ajuste_valor da venda de troca.
+// ---------------------------------------------------------------------------
+
+describe('parseValorBR', () => {
+  it('aceita vírgula como separador decimal', () => {
+    expect(parseValorBR('12,50')).toBe(12.5)
+  })
+  it('aceita ponto', () => {
+    expect(parseValorBR('12.50')).toBe(12.5)
+  })
+  it('campo vazio, nulo ou texto solto viram 0', () => {
+    expect(parseValorBR('')).toBe(0)
+    expect(parseValorBR(null)).toBe(0)
+    expect(parseValorBR(undefined)).toBe(0)
+    expect(parseValorBR('abc')).toBe(0)
+  })
+})
+
+describe('calcularAjusteTroca', () => {
+  it('sem nada digitado: ajuste 0', () => {
+    expect(calcularAjusteTroca('', '')).toBe(0)
+  })
+  it('só desconto: valor negativo', () => {
+    expect(calcularAjusteTroca('20', '')).toBe(-20)
+  })
+  it('só acréscimo: valor positivo', () => {
+    expect(calcularAjusteTroca('', '15,50')).toBe(15.5)
+  })
+  it('os dois juntos: acréscimo menos desconto', () => {
+    expect(calcularAjusteTroca('20', '5')).toBe(-15)
+  })
+  it('valor negativo digitado é ignorado — desconto se pede no campo de desconto', () => {
+    expect(calcularAjusteTroca('-30', '')).toBe(0)
+    expect(calcularAjusteTroca('', '-30')).toBe(0)
+  })
+})
+
+describe('calcularResumoTroca com ajuste manual', () => {
+  it('desconto abate a diferença a cobrar', () => {
+    // novo 120, devolvido 80 → 40 a cobrar; R$ 10 de desconto → 30
+    const r = calcularResumoTroca(120, 80, calcularAjusteTroca('10', ''))
+    expect(r.aCobrar).toBe(true)
+    expect(r.diferenca).toBe(30)
+    expect(r.valorCobrado).toBe(30)
+    expect(r.rotulo).toBe('A cobrar')
+  })
+
+  it('acréscimo soma na diferença a cobrar', () => {
+    const r = calcularResumoTroca(120, 80, calcularAjusteTroca('', '25'))
+    expect(r.diferenca).toBe(65)
+    expect(r.valorCobrado).toBe(65)
+  })
+
+  it('desconto exatamente igual à diferença zera a troca', () => {
+    const r = calcularResumoTroca(120, 80, calcularAjusteTroca('40', ''))
+    expect(r.zerada).toBe(true)
+    expect(r.aCobrar).toBe(false)
+    expect(r.valorCobrado).toBe(0)
+    expect(r.rotulo).toBe('Troca zerada')
+  })
+
+  it('desconto maior que a diferença vira saldo a favor, sem reembolso', () => {
+    const r = calcularResumoTroca(120, 80, calcularAjusteTroca('60', ''))
+    expect(r.saldoAFavor).toBe(true)
+    expect(r.valorCobrado).toBe(0)     // não vira dinheiro de volta
+    expect(r.valorExibido).toBe(20)
+  })
+
+  it('acréscimo converte saldo a favor em cobrança', () => {
+    // novo 60, devolvido 120 → saldo a favor de 60; taxa de 80 → cobra 20
+    const r = calcularResumoTroca(60, 120, calcularAjusteTroca('', '80'))
+    expect(r.aCobrar).toBe(true)
+    expect(r.valorCobrado).toBe(20)
+  })
+
+  it('ajuste omitido mantém o comportamento anterior (default 0)', () => {
+    expect(calcularResumoTroca(120, 80)).toEqual(calcularResumoTroca(120, 80, 0))
   })
 })

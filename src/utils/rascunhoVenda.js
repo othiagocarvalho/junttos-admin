@@ -30,6 +30,8 @@ export function extrairRascunho(form, extras = {}) {
     ajusteInput: extras.ajusteInput ?? '',
     isTroca:      !!extras.isTroca,
     produtoTroca: Array.isArray(extras.produtoTroca) ? extras.produtoTroca : [],
+    trocaDesconto:  extras.trocaDesconto  ?? '',
+    trocaAcrescimo: extras.trocaAcrescimo ?? '',
   }
 }
 

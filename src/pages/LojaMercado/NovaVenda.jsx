@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { precoEfetivo } from '../../utils/precosFaixas'
+import { getVarLabel } from '../../utils/balanco'
 import { fmtR } from '../../utils/formatters'
 
 const GREEN = '#17864F'
@@ -36,7 +37,15 @@ function StepPills({ step }) {
 
 const PGTO_ICONS = { Dinheiro: DollarSign, Pix: Smartphone, Cartão: CreditCard, Fiado: Receipt }
 
-export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, vendas = [], precosFaixas = [], fetchAll, config = {}, setTab }) {
+// Ponto de entrada pra emissão de NFC-e — hoje só loga, nenhuma API fiscal
+// integrada ainda (provedor Focus NFe vs Geranet NFe ainda não decidido).
+// Não bloqueia nem altera o fluxo de venda; é só o gancho pronto pra quando
+// a integração de verdade entrar.
+function emitirNotaFiscal(venda) {
+  console.log('[emitirNotaFiscal] placeholder — nenhuma API fiscal integrada ainda', venda)
+}
+
+export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra, clientes = [], buscarPorEan, vendas = [], precosFaixas = [], fetchAll, config = {}, features = {}, setTab }) {
   const [cart, setCart]           = useState([])
   const [step, setStep]           = useState(0)    // 0=bipar 1=pagamento 2=recibo
   const [pgto, setPgto]           = useState('Dinheiro')
@@ -50,6 +59,11 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
   const [saving, setSaving]       = useState(false)
   const [err, setErr]             = useState('')
   const [eanNotFound, setEanNotFound] = useState('')
+  // Fiado precisa de nome: sem ele o lançamento não tem em qual conta entrar.
+  // merc_fiado aceita nome livre (cliente_id é opcional), então a lista de
+  // clientes serve só de atalho — digitar um nome novo continua valendo.
+  const [fiadoCliente, setFiadoCliente] = useState('')
+  const [avisoFiado, setAvisoFiado] = useState('')
 
   const videoRef         = useRef(null)
   const controlsRef      = useRef(null)
@@ -101,13 +115,37 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
   }
   handleEanRef.current = handleEanDetected
 
+  /**
+   * Rótulo da variação do produto, para a baixa de estoque.
+   *
+   * Hoje todo produto do Mercado nasce com uma variação só, 'Único' — tanto o
+   * cadastro (CadastrarProduto.jsx) quanto a importação em lote gravam
+   * `[{ cor: 'Único', quantidade }]` fixo. Mesmo assim isto lê a variação real
+   * em vez de fixar a string: o modelo de dados aceita várias (ContarEstoque
+   * já tem seletor quando existe mais de uma), e o modo de falha de fixar
+   * seria justamente o bug que estamos consertando — item descartado em
+   * silêncio, sem baixa e sem erro.
+   *
+   * Produto com mais de uma variação cairia na primeira, que é o melhor
+   * possível sem um seletor no PDV. Não existe esse caso hoje; se passar a
+   * existir, o passo 1 do PDV precisa perguntar qual variação está saindo.
+   */
+  function variacaoDoProduto(prod) {
+    return getVarLabel((prod?.variacoes || [])[0]) || 'Único'
+  }
+
   function addToCart(prod) {
     setErr(''); setEanNotFound(''); setBusca(''); setResultados([])
     setCart(prev => {
       const idx = prev.findIndex(i => i.id === prod.id)
       if (idx >= 0)
         return prev.map((i, n) => n === idx ? { ...i, quantidade: i.quantidade + 1, addedAt: Date.now() } : i)
-      return [...prev, { id: prod.id, nome: prod.nome, preco_venda: Number(prod.preco_venda) || 0, quantidade: 1, addedAt: Date.now() }]
+      return [...prev, {
+        id: prod.id, nome: prod.nome,
+        preco_venda: Number(prod.preco_venda) || 0,
+        variacao: variacaoDoProduto(prod),
+        quantidade: 1, addedAt: Date.now(),
+      }]
     })
   }
 
@@ -133,19 +171,49 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
 
   async function handleSave() {
     if (cart.length === 0) { setErr('Adicione ao menos um produto ao carrinho.'); return }
-    setErr('')
+    const nomeFiado = fiadoCliente.trim()
+    if (pgto === 'Fiado' && !nomeFiado) { setErr('Informe o nome do cliente para anotar o fiado.'); return }
+    setErr(''); setAvisoFiado('')
     setSaving(true)
     const { error: saveErr, venda: novaVenda } = await addVenda({
       valor: total,
       ajuste_valor: 0,
       forma_pgto: JSON.stringify([{ forma: pgto, valor: total }]),
-      produtos: cart.map(i => ({ nome: i.nome, quantidade: i.quantidade })),
-      obs: pgto === 'Fiado' ? 'Fiado' : null,
+      // `variacao` é obrigatório para a baixa de estoque acontecer:
+      // normalizarItensEstoque (utils/estoqueMov.js) descarta todo item que
+      // não tenha esse campo, e era por isso que o PDV do Mercado vendia sem
+      // nunca mexer no estoque — 14 vendas reais, zero movimento 'venda'.
+      produtos: cart.map(i => ({ nome: i.nome, quantidade: i.quantidade, variacao: i.variacao || 'Único' })),
+      obs: pgto === 'Fiado' ? `Fiado — ${nomeFiado}` : null,
       data: new Date().toISOString(),
     })
+    if (saveErr?.code === 'BAL_TRAVA') { setSaving(false); setErr('Caixa travado. Feche o caixa para registrar vendas.'); return }
+    if (saveErr) { setSaving(false); setErr('Erro ao salvar: ' + (saveErr.message || JSON.stringify(saveErr))); return }
+
+    // Fiado: além da venda, entra como 'compra' na conta corrente do cliente
+    // (merc_fiado). Antes isto não acontecia — a venda ficava só em lf_vendas
+    // com obs 'Fiado' e nunca aparecia no saldo devedor de ninguém.
+    //
+    // A venda já foi gravada aqui: se o lançamento falhar, NÃO dá para
+    // desfazer nem repetir o clique (duplicaria a venda). Então o recibo é
+    // exibido do mesmo jeito, com o aviso do que precisa ser lançado à mão.
+    if (pgto === 'Fiado') {
+      const itens = cart.map(i => `${i.quantidade}× ${i.nome}`).join(', ')
+      const { error: fiadoErr } = await addFiadoCompra?.({
+        cliente_nome: nomeFiado,
+        valor: total,
+        descricao: itens.slice(0, 200),
+      }) ?? { error: { message: 'addFiadoCompra indisponível' } }
+      if (fiadoErr) {
+        setAvisoFiado(
+          `A venda foi salva, mas o fiado de ${nomeFiado} NÃO entrou na conta dele: ` +
+          `${fiadoErr.message || 'erro desconhecido'}. Lance manualmente na tela Fiado.`,
+        )
+      }
+    }
+
     setSaving(false)
-    if (saveErr?.code === 'BAL_TRAVA') { setErr('Caixa travado. Feche o caixa para registrar vendas.'); return }
-    if (saveErr) { setErr('Erro ao salvar: ' + (saveErr.message || JSON.stringify(saveErr))); return }
+    if (features?.nfce_ativo) emitirNotaFiscal(novaVenda)
     fetchAll?.()
     setStep(2)
   }
@@ -154,6 +222,7 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
     setCart([]); setStep(0); setPgto('Dinheiro'); setCedula(null)
     setCedOutro(''); setCedOutroMode(false); setDigitarMode(false)
     setBusca(''); setResultados([]); setErr(''); setEanNotFound(''); setPermErr(false)
+    setFiadoCliente(''); setAvisoFiado('')
   }
 
   const recentItems = [...cartPrecificado].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 2)
@@ -203,6 +272,21 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
 
         {/* Receipt card */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px 0' }}>
+          {/* A venda foi salva; só o lançamento do fiado falhou. Precisa ficar
+              na cara do lojista, senão a dívida some sem ninguém perceber. */}
+          {avisoFiado && (
+            <div style={{
+              background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 16,
+              padding: '14px 16px', marginBottom: 18,
+            }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#DC2626', margin: '0 0 4px' }}>
+                Atenção: fiado não lançado
+              </p>
+              <p style={{ fontSize: 13.5, color: '#DC2626', margin: 0, lineHeight: 1.5 }}>
+                {avisoFiado}
+              </p>
+            </div>
+          )}
           <div style={{ border: '2px dashed #D4D4D8', borderRadius: 20, padding: '20px' }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#A1A1AA', letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center', margin: '0 0 4px' }}>
               RECIBO · NÃO FISCAL
@@ -400,9 +484,28 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
           )}
 
           {pgto === 'Fiado' && (
-            <div style={{ padding: '16px 22px', background: '#FFFBEB' }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#D97706', margin: 0 }}>
-                Fiado: a venda será registrada sem baixa financeira.
+            <div style={{ padding: '20px 22px', background: '#F9F9F9', borderBottom: '1px solid #F4F4F7' }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#3F3F46', margin: '0 0 12px' }}>
+                Fiado de quem?
+              </p>
+              <input
+                value={fiadoCliente}
+                onChange={e => { setFiadoCliente(e.target.value); setErr('') }}
+                placeholder="Nome do cliente"
+                list="mkt-clientes-fiado"
+                autoComplete="off"
+                style={{
+                  width: '100%', height: 56, background: '#FFFFFF',
+                  border: '2px solid #E4E4E7', borderRadius: 14, padding: '0 16px',
+                  fontSize: 17, fontWeight: 600, color: '#18181B',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <datalist id="mkt-clientes-fiado">
+                {clientes.map(c => <option key={c.id} value={c.nome} />)}
+              </datalist>
+              <p style={{ fontSize: 13, color: '#71717A', margin: '10px 0 0', lineHeight: 1.5 }}>
+                Entra na conta do cliente na tela Fiado, somando {fmtR(total)} ao que ele já deve.
               </p>
             </div>
           )}
@@ -420,7 +523,7 @@ export default function NovaVenda({ produtosData = [], addVenda, buscarPorEan, v
         <div style={{ padding: '14px 22px 28px', flexShrink: 0 }}>
           <button
             onClick={handleSave}
-            disabled={saving || (pgto === 'Dinheiro' && cedula !== null && cedula < total)}
+            disabled={saving || (pgto === 'Dinheiro' && cedula !== null && cedula < total) || (pgto === 'Fiado' && !fiadoCliente.trim())}
             style={{
               width: '100%', height: 72, borderRadius: 20, border: 'none', minHeight: 56,
               background: saving ? '#A9DCC2' : GREEN,

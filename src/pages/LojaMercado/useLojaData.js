@@ -124,6 +124,8 @@ export function useLojaData(lojaId) {
       referencia:     extras.referencia     || null,
       fotos:          extras.fotos          || [],
       disponivel_catalogo_b2b: extras.disponivel_catalogo_b2b ?? false,
+      ncm:            extras.ncm            || null,
+      cfop:           extras.cfop           || null,
     }).select().single()
     if (!error) await base.fetchAll()
     return { error, produto: data || null }

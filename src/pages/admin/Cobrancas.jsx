@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import {
   AlertCircle, AlertTriangle, Loader2, CreditCard, Check, X, ChevronDown,
-  Pencil, RotateCcw, History, Percent,
+  Pencil, RotateCcw, History, Percent, Gift,
 } from 'lucide-react'
 import { T } from '../../theme/tokens'
 import { fmtR } from '../../utils/formatters'
 import {
   diaISO, statusEfetivo, totaisPorPeriodo, calcularMRR, isLojaAtiva,
-  rotuloDesconto, aplicarDesconto, valorCheioMensalidade,
+  isLojaGratuita, rotuloDesconto, aplicarDesconto, valorCheioMensalidade,
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from '../../utils/cobrancas'
 import { useGeracaoCobrancas } from '../../hooks/useGeracaoCobrancas'
@@ -530,11 +530,13 @@ function PainelAssinaturas({ lojas, cobrancas, onDesconto }) {
       <p style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 4 }}>Assinaturas ativas</p>
       <p style={{ fontSize: 12.5, color: T.muted, marginBottom: 14 }}>
         Só lojas com status ativo entram na geração automática. Sem dia de vencimento, a loja fica de fora.
+        Loja marcada como gratuita aparece aqui, mas não gera cobrança nem entra no MRR.
       </p>
       <div style={{ background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard, boxShadow: T.cardShadow, overflow: 'hidden' }}>
         {ativas.map((l, i) => {
           const rotulo = rotuloDesconto(l.desconto_tipo, l.desconto_valor)
           const cheio = valorCheioMensalidade(l, cobrancas.filter(c => c.loja_id === l.loja_id))
+          const gratuita = isLojaGratuita(l)
           return (
             <div key={l.loja_id} style={{
               display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
@@ -547,10 +549,19 @@ function PainelAssinaturas({ lojas, cobrancas, onDesconto }) {
               {l.vencimento_dia
                 ? <Chip bg={T.mist} color={T.muted}>vence dia {l.vencimento_dia}</Chip>
                 : <Chip bg="#FFF4E0" color="#B7791F">sem dia definido</Chip>}
+              {gratuita && (
+                <Chip bg={T.statusAtivoBg} color={T.statusAtivoTx}>
+                  <Gift size={10} style={{ marginRight: 4, verticalAlign: -1 }} />Gratuito
+                </Chip>
+              )}
               {rotulo
                 ? <Chip bg={T.tintPurple} color={T.purpleText}>{rotulo}</Chip>
                 : <span style={{ fontSize: 12, color: T.muted2 }}>sem desconto</span>}
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, width: 96, textAlign: 'right' }}>
+              <span style={{
+                fontSize: 13.5, fontWeight: 700, width: 96, textAlign: 'right',
+                color: gratuita ? T.muted2 : T.ink,
+                textDecoration: gratuita ? 'line-through' : 'none',
+              }}>
                 {fmtR(aplicarDesconto(cheio, l.desconto_tipo, l.desconto_valor))}
               </span>
               <button
@@ -611,8 +622,12 @@ export default function Cobrancas() {
   const geracao = useGeracaoCobrancas({ aoGerar: fetchData })
 
   const ativos = configs.filter(c => isLojaAtiva(c.status))
+  const gratuitas = configs.filter(c => isLojaGratuita(c))
   const mrr = calcularMRR(configs, cobrancas)
   const nomeMap = Object.fromEntries(configs.map(c => [c.loja_id, c.nome]))
+  // Para marcar a linha da tabela do mês: cobrança de loja isenta continua
+  // existindo e precisa ficar explicável, em vez de parecer um resto solto.
+  const gratuitaMap = Object.fromEntries(configs.map(c => [c.loja_id, isLojaGratuita(c)]))
 
   const [selY, selM] = selectedMonth.split('-').map(Number)
   const filtered = cobrancas.filter(c => {
@@ -625,7 +640,14 @@ export default function Cobrancas() {
   const pendente = filtered.filter(c => statusEfetivo(c) !== 'pago').reduce((s, c) => s + Number(c.valor || 0), 0)
 
   const metrics = [
-    { label: 'MRR', value: fmtR(mrr), sub: 'só mensalidades de lojas ativas', color: T.purple },
+    {
+      label: 'MRR',
+      value: fmtR(mrr),
+      sub: gratuitas.length
+        ? `só mensalidades de lojas ativas · ${gratuitas.length} gratuita${gratuitas.length === 1 ? '' : 's'} fora da conta`
+        : 'só mensalidades de lojas ativas',
+      color: T.purple,
+    },
     { label: 'Recebido este mês', value: fmtR(recebido), sub: `${filtered.filter(c => c.status === 'pago').length} pagamentos`, color: T.statusAtivoTx },
     { label: 'Pendente', value: fmtR(pendente), sub: `${filtered.filter(c => statusEfetivo(c) !== 'pago').length} cobranças`, color: '#B7791F' },
     { label: 'Clientes ativos', value: ativos.length, sub: 'planos ativos', color: T.purple },
@@ -733,6 +755,11 @@ export default function Cobrancas() {
                   <p style={{ fontSize: 11, color: T.muted, fontFamily: T.mono }}>{row.loja_id}</p>
                 </div>
                 <Chip bg={tipoSt.bg} color={tipoSt.color}>{tipoSt.label}</Chip>
+                {gratuitaMap[row.loja_id] && (
+                  <Chip bg={T.statusAtivoBg} color={T.statusAtivoTx}>
+                    <Gift size={10} style={{ marginRight: 4, verticalAlign: -1 }} />Gratuito
+                  </Chip>
+                )}
                 <span style={{ fontSize: 14, fontWeight: 700, color: T.ink, width: 100, textAlign: 'right' }}>{fmtR(row.valor)}</span>
                 <span style={{ fontSize: 13, color: T.muted, width: 92, textAlign: 'right' }}>{fmtDate(row.vencimento)}</span>
                 <Chip bg={bg} color={color}>{label}</Chip>

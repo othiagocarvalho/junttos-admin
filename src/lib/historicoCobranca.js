@@ -23,6 +23,9 @@ export const ACAO = {
   PAGO:               'pago',
   PAGAMENTO_DESFEITO: 'pagamento_desfeito',
   DESCONTO:           'desconto',
+  // Ações da LOJA, não de uma cobrança: cobranca_id fica nulo, como no desconto.
+  PLANO:              'plano',
+  GRATUITO:           'gratuito',
 }
 
 const SEM_AUTOR = { nome: null, email: null }
