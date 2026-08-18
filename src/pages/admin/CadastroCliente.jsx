@@ -14,6 +14,7 @@ import { PLANOS, valorPlano, fmtValorPlano, SEGMENTO_PADRAO, TAXA_IMPLANTACAO } 
 import { aplicarDesconto } from '../../utils/cobrancas'
 import { fmtR } from '../../utils/formatters'
 import CamposContratante from '../../components/admin/CamposContratante'
+import { MODELO_VAREJO, MODELO_ATACADO, featuresComModelo } from '../../utils/modeloVenda'
 import { CONTRATANTE_VAZIO, apenasContratante } from '../../components/admin/contratante'
 
 function rgbToHex([r, g, b]) {
@@ -56,6 +57,14 @@ const EMPTY_FORM = {
   desconto_valor: '',
   desconto_motivo: '',
   features: { crm: false },
+  // Varejo é o padrão — mesma coisa que o cadastro fazia antes de existir
+  // este campo (features.catalogo_b2b: false vindo de DEFAULT_FEATURES).
+  modelo_venda: MODELO_VAREJO,
+  // Pedido mínimo do atacado. Opcional: em branco a lojista completa depois
+  // na própria tela de catálogo B2B.
+  pm_tipo: 'nenhum',
+  pm_valor: '',
+  pm_qtd: '',
   enviarBV: true,
   // Dados do contratante — todos opcionais: a loja pode ser criada sem eles e
   // completada depois pela edição em LojaDetalhe.
@@ -161,7 +170,12 @@ function NovoClienteModal({ open, onClose, onCreated }) {
       segmento:       form.segmento,
       cor_primaria:   form.cor_primaria,
       cor_secundaria: form.cor_secundaria,
-      features:       form.features,
+      features:       featuresComModelo(form.features, form.modelo_venda),
+      // Só manda pedido mínimo se a loja nasce atacado — em varejo os campos
+      // nem aparecem, e mandá-los sujaria lf_config à toa.
+      pedido_minimo:  form.modelo_venda === MODELO_ATACADO
+        ? { tipo: form.pm_tipo, valor: form.pm_valor, qtd: form.pm_qtd }
+        : null,
       logoUrl,
       email_acesso:   form.email_acesso,
       senha_acesso:   form.senha_acesso,
@@ -449,6 +463,88 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
           {/* ── Funcionalidades ── */}
           <Section title="Funcionalidades" />
+
+          {/* Modelo de venda — grava features.catalogo_b2b. Ver utils/modeloVenda.js
+              para o porquê de Atacado gravar 'pro' e não true. */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Modelo de venda</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { key: MODELO_VAREJO,  label: 'Varejo' },
+                { key: MODELO_ATACADO, label: 'Atacado' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setForm(p => ({ ...p, modelo_venda: key }))}
+                  style={{
+                    flex: 1, height: 44, borderRadius: T.rInput, cursor: 'pointer',
+                    border: `1.5px solid ${form.modelo_venda === key ? T.purple : T.line}`,
+                    background: form.modelo_venda === key ? T.tintPurple : T.mist,
+                    color: form.modelo_venda === key ? T.purpleText : T.muted,
+                    fontFamily: T.ui, fontSize: 13, fontWeight: 700,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: T.muted, marginTop: 6, lineHeight: 1.5 }}>
+              {form.modelo_venda === MODELO_ATACADO
+                ? 'Catálogo de atacado: pedido mínimo e grade de tamanho no catálogo público.'
+                : 'Catálogo comum de varejo — o cliente escolhe uma variação por vez.'}
+            </p>
+          </div>
+
+          {form.modelo_venda === MODELO_ATACADO && (
+            <div style={{ background: T.mist, borderRadius: T.rCard, padding: '14px 16px', marginBottom: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+                Pedido mínimo
+              </p>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>Tipo</label>
+                  <select
+                    value={form.pm_tipo}
+                    onChange={e => setForm(p => ({ ...p, pm_tipo: e.target.value }))}
+                    style={{ ...inp, background: T.white, cursor: 'pointer' }}
+                  >
+                    <option value="nenhum">Sem pedido mínimo</option>
+                    <option value="valor">Valor (R$)</option>
+                    <option value="quantidade">Quantidade (peças)</option>
+                  </select>
+                </div>
+                {form.pm_tipo !== 'nenhum' && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: T.ink, marginBottom: 6 }}>
+                      {form.pm_tipo === 'valor' ? 'Valor mínimo (R$)' : 'Peças no mínimo'}
+                    </label>
+                    {form.pm_tipo === 'valor' ? (
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={form.pm_valor}
+                        onChange={e => setForm(p => ({ ...p, pm_valor: e.target.value }))}
+                        placeholder="Ex: 500,00"
+                        style={{ ...inp, background: T.white }}
+                      />
+                    ) : (
+                      <input
+                        type="number" min="0" step="1"
+                        value={form.pm_qtd}
+                        onChange={e => setForm(p => ({ ...p, pm_qtd: e.target.value }))}
+                        placeholder="Ex: 12"
+                        style={{ ...inp, background: T.white }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+              <p style={{ fontSize: 11, color: T.muted, marginTop: 8, lineHeight: 1.5 }}>
+                Opcional — pode ficar em branco e a lojista define depois na tela de Catálogo B2B.
+              </p>
+            </div>
+          )}
 
           <div style={{ background: T.mist, borderRadius: T.rCard, padding: '4px 14px', marginBottom: 4 }}>
             <Toggle
