@@ -1,4 +1,4 @@
-import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet, Store, Lock, Settings } from 'lucide-react'
+import { Barcode, Camera, Package, CalendarClock, Receipt, Wallet, Store, Lock, Settings, BarChart2, TrendingUp } from 'lucide-react'
 import Logo from '../../components/junttos/Logo'
 import { parsePgtosRecibo } from '../../utils/recibo'
 import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
@@ -73,6 +73,8 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
   const totalFiado  = totaisFiado(contasFiado).aReceber
 
   const podeRede = temAcesso(config?.plano, 'business')
+  // Financeiro segue a mesma régua da Rede: Business, sem exceção de legado.
+  const podeFinanceiro = temAcesso(config?.plano, 'business')
 
   const nomeLoja = config?.nome || 'Mercado'
   const dayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -337,6 +339,18 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
               <Ctx>Sobrou {fmtK(noCaixa)} hoje</Ctx>
             </div>
           </div>
+
+          <div className="mkt-bloco" onClick={() => setTab('relatorios')} style={{
+            background: '#0EA5E9', borderRadius: 24, padding: '20px 18px',
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}>
+            <IconBox><BarChart2 size={24} color="#FFF" strokeWidth={2.2} /></IconBox>
+            <div>
+              <p className="mkt-titulo" style={{ fontSize: 22, fontWeight: 800, color: '#FFFFFF', margin: 0 }}>Relatórios</p>
+              <Ctx>Quanto vendeu no período</Ctx>
+            </div>
+          </div>
         </div>
 
         {/* Rodapé — mobile: Caixa + Ajuda · desktop: só Ajuda */}
@@ -354,6 +368,18 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
           {/* Rede é exclusiva do plano Business — sempre visível, nunca escondida
               (seção 7 do documento). O toque leva pro UpgradeWall; o cadeado aqui
               é só a pista visual de que é uma funcionalidade travada. */}
+          {/* Financeiro: mesma regra visual da Rede — sempre visível, com
+              cadeado quando o plano não alcança. */}
+          <button onClick={() => setTab('financeiro')} style={{
+            width: 150, height: 62, borderRadius: 18, border: 'none', minHeight: 56,
+            background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',
+            fontSize: 18, fontWeight: 800,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            <TrendingUp size={18} strokeWidth={2.2} />
+            Financeiro
+            {!podeFinanceiro && <Lock size={13} strokeWidth={2.5} style={{ marginLeft: -2 }} />}
+          </button>
           <button onClick={() => setTab('rede')} style={{
             width: 120, height: 62, borderRadius: 18, border: 'none', minHeight: 56,
             background: '#F4F4F7', color: '#3F3F46', cursor: 'pointer',

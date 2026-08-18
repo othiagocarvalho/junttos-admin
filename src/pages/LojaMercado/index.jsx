@@ -16,8 +16,16 @@ import Caixa from './Caixa'
 import NovaVenda from './NovaVenda'
 import Ajuda from './Ajuda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+// Financeiro é o MESMO componente da Moda, não uma cópia: Contas a Pagar,
+// Contas a Receber, Fluxo de Caixa e DRE já leem lf_contas_pagar/receber, que
+// é o que o Mercado usa também. Ele recebe lojaId + vendas + theme e o resto
+// vem das CSS vars globais (src/index.css), então renderiza igual aqui.
+// Mesmo padrão de reuso já adotado pelo LojaConfig acima.
+import Financeiro from '../LojaFeminina/Financeiro'
+import Relatorios from './Relatorios'
 import ModoVisualizacao from './ModoVisualizacao'
 import UpgradeWall from '../../components/UpgradeWall'
+import { temAcesso } from '../../utils/planos'
 
 export default function LojaMercado({ lojaId = 'mercadodemo' }) {
   const data = useLojaData(lojaId)
@@ -41,7 +49,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
 
   const panels = {
     inicio:    <Menu vendas={data.vendas} produtosData={data.produtosData} fiado={data.fiado} config={data.config} setTab={setTab} />,
-    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} buscarPorEan={data.buscarPorEan} vendas={data.vendas} precosFaixas={data.precosFaixas} fetchAll={data.fetchAll} config={data.config} features={data.features} setTab={setTab} />,
+    venda:     <NovaVenda produtosData={data.produtosData} addVenda={data.addVenda} addFiadoCompra={data.addFiadoCompra} clientes={data.clientes} buscarPorEan={data.buscarPorEan} vendas={data.vendas} precosFaixas={data.precosFaixas} fetchAll={data.fetchAll} config={data.config} features={data.features} setTab={setTab} />,
     cadastrar: <CadastrarProduto addProduto={data.addProduto} addPrecosFaixas={data.addPrecosFaixas} features={data.features} setTab={setTab} />,
     estoque:   <Estoque produtosData={data.produtosData} vendas={data.vendas} setTab={setTab} />,
     'contar-estoque': <ContarEstoque lojaId={lojaId} config={data.config} fetchAll={data.fetchAll} buscarPorEan={data.buscarPorEan} setTab={setTab} />,
@@ -52,6 +60,28 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
     importar:  <ImportarProdutos importarProdutos={data.importarProdutos} setTab={setTab} />,
     caixa:     <Caixa vendas={data.vendas} saidas={data.saidas} caixas={data.caixas} contas={data.contas} config={data.config} setTab={setTab} addSaida={data.addSaida} fecharCaixa={data.fecharCaixa} />,
     ajuda:     <Ajuda setTab={setTab} />,
+    relatorios: <Relatorios vendas={data.vendas} setTab={setTab} />,
+    // Business puro: sem `legado ||`, porque não existe loja de Mercado
+    // legada — o segmento nasceu depois da régua de planos.
+    financeiro: temAcesso(data.config?.plano || 'starter', 'business')
+      ? (
+        <>
+          <div style={{ background: 'var(--bg, #FFFFFF)', padding: '18px 22px 6px' }}>
+            <button onClick={() => setTab('inicio')} style={{
+              display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+              cursor: 'pointer', padding: 0, color: '#3F3F46',
+              fontSize: 17, fontWeight: 800, fontFamily: 'Plus Jakarta Sans, sans-serif',
+            }}>
+              <ChevronLeft size={24} strokeWidth={2.5} />
+              Menu
+            </button>
+          </div>
+          <div style={{ padding: '10px 16px 40px' }}>
+            <Financeiro lojaId={lojaId} vendas={data.vendas} theme={{ primary: '#17864F' }} />
+          </div>
+        </>
+      )
+      : <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="financeiro" theme={{ primary: '#17864F' }} onVoltar={() => setTab('inicio')} segmento={data.config?.segmento || 'mercado'} />,
     rede:      <UpgradeWall planoAtual={data.config?.plano || 'starter'} planoNecessario="business" funcionalidade="rede" theme={{ primary: '#18181B' }} onVoltar={() => setTab('inicio')} segmento={data.config?.segmento || 'mercado'} />,
     mais: (
       <>
