@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { getPalette } from 'colorthief'
 import { supabase } from '../../lib/supabase'
+import { uploadLogo } from '../../utils/uploadLogo'
 import {
   Building2, Upload, Check, ExternalLink, Plus,
   AlertCircle, X, RefreshCw, Copy, Loader2, ChevronDown,
@@ -26,16 +27,6 @@ async function extractColors(objectUrl) {
   const primary   = rgbToHex(palette[0])
   const secondary = rgbToHex(palette[1] ?? palette[0])
   return { primary, secondary }
-}
-
-async function uploadLogo(slug, file) {
-  const ext = file.name.split('.').pop().toLowerCase()
-  const path = `${slug}/logo.${ext}`
-  const { error } = await supabase.storage
-    .from('Logo').upload(path, file, { upsert: true, contentType: file.type })
-  if (error) throw new Error(`Upload: ${error.message}`)
-  const { data: { publicUrl } } = supabase.storage.from('Logo').getPublicUrl(path)
-  return publicUrl
 }
 
 const EMPTY_FORM = {
@@ -158,7 +149,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
 
     let logoUrl = null
     if (form.logoFile) {
-      try { logoUrl = await uploadLogo(form.slug, form.logoFile) }
+      try { logoUrl = await uploadLogo(supabase, form.slug, form.logoFile) }
       catch (err) { setLogoError(`Upload da logo falhou: ${err.message}`); return }
     }
 

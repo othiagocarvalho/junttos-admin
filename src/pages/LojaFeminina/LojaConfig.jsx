@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleRight, Lock, Bell, Receipt, Paperclip } from 'lucide-react'
+import { Settings, Save, Palette, ToggleRight, Lock, Bell, Receipt, Paperclip, Image as ImageIcon, Upload } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { uploadLogo, validarArquivoLogo, urlComVersao, LOGO_ACCEPT } from '../../utils/uploadLogo'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
@@ -39,6 +40,13 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
   const [pwdSaving, setPwdSaving] = useState(false)
   const [pwdMsg,    setPwdMsg]    = useState(null)
 
+  // ── Logo da loja ──────────────────────────────────────────────────────
+  // logoLocal existe só para o preview responder na hora. Depois que o
+  // saveConfig volta, config.logo_url já traz o mesmo valor.
+  const [logoLocal,     setLogoLocal]     = useState(null)
+  const [logoEnviando,  setLogoEnviando]  = useState(false)
+  const [logoMsg,       setLogoMsg]       = useState(null)
+
   // ── Fiscal (addon NFC-e) ──────────────────────────────────────────────
   const [inscricaoEstadual, setInscricaoEstadual] = useState(config?.inscricao_estadual || '')
   const [regimeTributario,  setRegimeTributario]  = useState(config?.regime_tributario  || '')
@@ -58,6 +66,7 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
       setRegimeTributario(config.regime_tributario   || '')
       setCnae(config.cnae                             || '')
       setCertValidade(config.certificado_a1_validade || '')
+      setLogoLocal(null)   // config.logo_url passa a mandar de novo
     }
   }, [config])
 
@@ -80,6 +89,47 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  // Sobe assim que o arquivo é escolhido, sem esperar o "Salvar
+  // configurações": o botão salva campos de texto, e deixar o logo pendurado
+  // nele faria o lojista escolher a imagem, ver o preview e perder tudo ao
+  // sair da tela sem salvar.
+  async function handleSelecionarLogo(e) {
+    const file = e.target.files?.[0] || null
+    // Zera o input para que reescolher o MESMO arquivo dispare onChange de novo.
+    e.target.value = ''
+    if (!file) return
+
+    setLogoMsg(null)
+
+    const erro = validarArquivoLogo(file)
+    if (erro) { setLogoMsg({ type: 'error', text: erro }); return }
+
+    const lojaId = config?.loja_id
+    if (!lojaId) { setLogoMsg({ type: 'error', text: 'Loja não identificada. Recarregue a página.' }); return }
+
+    setLogoEnviando(true)
+    let url
+    try {
+      url = urlComVersao(await uploadLogo(supabase, lojaId, file))
+    } catch (err) {
+      setLogoEnviando(false)
+      setLogoMsg({ type: 'error', text: 'Erro ao enviar o logo: ' + err.message })
+      return
+    }
+
+    // A URL gravada leva o ?v= de propósito — o path no bucket é fixo, então
+    // sem ele o header e o catálogo continuariam exibindo a imagem em cache.
+    const saveErr = await saveConfig({ logo_url: url })
+    setLogoEnviando(false)
+    if (saveErr) {
+      setLogoMsg({ type: 'error', text: 'Logo enviado, mas houve erro ao salvar: ' + saveErr.message })
+      return
+    }
+    setLogoLocal(url)
+    setLogoMsg({ type: 'success', text: 'Logo atualizado!' })
+    setTimeout(() => setLogoMsg(null), 4000)
   }
 
   // Upload é uma chamada separada (Storage), então tem ação própria em vez
@@ -143,6 +193,8 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
     setTimeout(() => setPwdMsg(null), 4000)
   }
 
+  const logoAtual = logoLocal || config?.logo_url || null
+
   const sectionTitle = {
     fontSize: 14, fontWeight: 700, color: 'var(--ink)',
     marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
@@ -164,6 +216,69 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
           onChange={e => setNome(e.target.value)}
           placeholder="Ex: Estrada Moda Feminina"
         />
+
+        <div style={{ height: 1, background: 'var(--line)', margin: '20px 0' }} />
+
+        {/* Logo da loja — sem trava de plano: é ajuste de identidade, não
+            funcionalidade de segmento. Vale para Starter, Pro, Business e
+            para as lojas legadas. */}
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+          <ImageIcon size={15} style={{ color: theme.primary }} />
+          Logo da Loja
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+          Aparece no topo do app e no seu catálogo. JPG, PNG ou WEBP, até 2 MB.
+        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+          <div style={{
+            width: 72, height: 72, flexShrink: 0, borderRadius: 'var(--r-input)',
+            border: '1px solid var(--line)', background: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+          }}>
+            {logoAtual ? (
+              <img
+                src={logoAtual}
+                alt="Logo da loja"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <ImageIcon size={22} style={{ color: 'var(--muted)' }} />
+            )}
+          </div>
+
+          <label style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            minHeight: 44, padding: '0 16px', borderRadius: 'var(--r-input)',
+            border: '1.5px dashed var(--line)', background: 'var(--surface)',
+            cursor: logoEnviando ? 'wait' : 'pointer',
+            opacity: logoEnviando ? 0.6 : 1,
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+            color: 'var(--ink)',
+          }}>
+            <Upload size={15} />
+            {logoEnviando ? 'Enviando...' : logoAtual ? 'Trocar logo' : 'Escolher logo'}
+            <input
+              type="file"
+              accept={LOGO_ACCEPT}
+              onChange={handleSelecionarLogo}
+              disabled={logoEnviando}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+
+        {logoMsg && (
+          <div style={{
+            padding: '10px 14px', borderRadius: 10,
+            fontSize: 13, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
+            ...(logoMsg.type === 'success'
+              ? { background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', color: '#16a34a' }
+              : { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626' }),
+          }}>
+            {logoMsg.text}
+          </div>
+        )}
       </Card>
 
       {/* Funcionalidades — hideFeatureToggles: as 7 chaves de FEATURE_LABELS
