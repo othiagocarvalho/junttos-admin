@@ -29,6 +29,7 @@ import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
 import { isErroAuth } from './utils/authErro'
 import { isSlugReservado } from './utils/rotasReservadas'
+import { isLojaExcluida } from './utils/lojaStatus'
 import CatalogoPublico from './pages/catalogo/CatalogoPublico'
 import ConsultorApp from './pages/consultor/ConsultorApp'
 
@@ -192,9 +193,12 @@ export default function App() {
     let vivo = true
     if (!precisaResolver) return
 
+    // `status` entra no select para a checagem de loja excluída logo abaixo.
+    // O filtro NÃO é feito aqui no PostgREST de propósito — ver o comentário
+    // em isLojaExcluida, no ponto de uso.
     const consultar = () => supabase
       .from('lf_config')
-      .select('loja_id, segmento')
+      .select('loja_id, segmento, status')
       .or(`loja_id.eq.${segment},slug.eq.${segment}`)
       .maybeSingle()
 
@@ -223,7 +227,17 @@ export default function App() {
       // Erro que sobreviveu ao retry: rede fora, PostgREST fora, ou linha
       // duplicada quebrando o .maybeSingle(). Não é "loja inexistente".
       if (error) { console.error('[App] falha ao resolver a loja:', error); setEstado('falha'); return }
-      if (!data) { setEstado('inexistente'); return }
+      // Loja excluída (soft delete) é tratada como inexistente: mesma tela,
+      // mesma mensagem genérica, nada que revele que ela já existiu.
+      //
+      // A checagem é aqui e não como .neq() na query por dois motivos:
+      // 1) `status <> 'excluida'` no Postgres é NULL para linha com status
+      //    nulo, e a linha sumiria — derrubando uma loja legítima;
+      // 2) lf_config não tem RLS e já é legível por anon, então filtrar no
+      //    servidor não seria barreira de segurança nenhuma: o gate real é o
+      //    que este código faz com o dado. Um só caminho, que também
+      //    normaliza maiúsculas.
+      if (!data || isLojaExcluida(data.status)) { setEstado('inexistente'); return }
 
       setLojaSegment(segment)
       setLojaId(data.loja_id)
