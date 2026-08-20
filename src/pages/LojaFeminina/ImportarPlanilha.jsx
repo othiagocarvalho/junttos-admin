@@ -6,6 +6,7 @@ import Button from '../../components/studio/Button'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import VariacaoBadge from '../../components/studio/VariacaoBadge'
 
 export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
   const [preview, setPreview]   = useState(null)
@@ -232,13 +233,7 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
                 {p.variacoes.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {p.variacoes.map((v, j) => (
-                      <span key={j} style={{
-                        fontSize: 11, padding: '2px 8px', borderRadius: 6,
-                        background: `${theme.primary}14`, color: theme.primary,
-                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600,
-                      }}>
-                        {v.cor} ({v.quantidade})
-                      </span>
+                      <VariacaoBadge key={j} nome={v.cor} quantidade={v.quantidade} />
                     ))}
                   </div>
                 )}

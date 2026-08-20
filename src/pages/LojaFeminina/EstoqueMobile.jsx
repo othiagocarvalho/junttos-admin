@@ -6,6 +6,7 @@ import StatusPill from '../../components/studio/StatusPill'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import { BolinhaCor } from '../../components/studio/VariacaoBadge'
 import { rotuloTipo, toneTipo, fmtDelta, labelsDeVariacoes, filtrarPorVariacao, tabelaAusente } from '../../utils/estoqueMov'
 import { limiteBalancoValido } from '../../utils/balanco'
 
@@ -520,6 +521,9 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                           }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: produto.preco_custo > 0 ? 2 : 0 }}>
+                                {/* Bolinha da cor + nome neutro: mesmo vocabulário
+                                    visual do catálogo público e do Catálogo B2B. */}
+                                <BolinhaCor nome={v.cor} />
                                 <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{v.cor}</span>
                                 {s && <StatusPill tone={s === 'critico' ? 'bad' : 'warn'} label={BADGE[s].label} />}
                               </div>

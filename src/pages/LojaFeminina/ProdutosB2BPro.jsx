@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
+import VariacaoBadge from '../../components/studio/VariacaoBadge'
 
 const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
 
@@ -656,21 +657,19 @@ export default function ProdutosB2BPro({
                     </span>
                   )}
                 </div>
-                {/* Mini-grade pills */}
+                {/* Mini-grade: bolinha da cor + texto neutro (o fundo colorido
+                    cheio virava mosaico com 5+ variações por produto). */}
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {variacoes.map((v, idx) => {
                     const label = getLabel(v)
                     const s = statusOf(v.quantidade)
                     return (
-                      <span key={idx} style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 7,
-                        background: s ? BADGE[s].bg : `${theme.primary}10`,
-                        color: s ? BADGE[s].color : theme.primary,
-                        border: `1px solid ${s ? BADGE[s].border : theme.primary + '28'}`,
-                        fontFamily: 'var(--font-ui)',
-                      }}>
-                        {label}: {v.quantidade}
-                      </span>
+                      <VariacaoBadge
+                        key={idx}
+                        nome={label}
+                        quantidade={v.quantidade}
+                        statusColor={s ? BADGE[s].color : null}
+                      />
                     )
                   })}
                   {variacoes.length === 0 && (
