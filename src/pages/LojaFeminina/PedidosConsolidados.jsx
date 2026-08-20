@@ -4,6 +4,7 @@ import Card, { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import VariacaoBadge from '../../components/studio/VariacaoBadge'
 
 function consolidar(pedidos, filtroStatus) {
   const filtrados = pedidos.filter(p => {
@@ -134,14 +135,7 @@ export default function PedidosConsolidados({ pedidos = [], theme }) {
                       .filter(([k]) => k !== '')
                       .sort((a, b) => b[1].qtd - a[1].qtd)
                       .map(([label, data]) => (
-                        <span key={label} style={{
-                          fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--r-chip)',
-                          background: `${theme.primary}10`, color: theme.primary,
-                          border: `1px solid ${theme.primary}28`,
-                          fontFamily: 'Plus Jakarta Sans, sans-serif',
-                        }}>
-                          {label}: {data.qtd}
-                        </span>
+                        <VariacaoBadge key={label} nome={label} quantidade={data.qtd} />
                       ))}
                   </div>
                 ) : (
