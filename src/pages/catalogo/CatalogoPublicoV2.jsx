@@ -1265,28 +1265,45 @@ export default function CatalogoPublicoV2({ lojaId }) {
         ) : visiveis.length === 0 ? <EstadoVazio /> : (
           <div style={{
             display: 'grid',
-            // ── Seção 4.7, recalibrada em 20/08/2026 ──────────────────────
-            // Era min(48%, 258px) com máximo 1fr. Duas mudanças, ambas só de
-            // número — a técnica continua sem media query e sem JS.
+            // ── Seção 4.7, recalibrada em 20/08/2026, CORRIGIDA em 20/08/2026 ──
             //
-            // 48% → 46%: com 48%, duas colunas ocupam 96% e sobram 4% para o
-            // gap. Num viewport de 320px o conteúdo tem 280px, 4% = 11,2px e o
-            // gap mínimo é 12px: faltavam 0,8px e o auto-fill desistia da
-            // segunda coluna. Com 46% sobram 8% (22,4px) para um gap de 12px —
-            // folga de 10,4px, e a conta só quebraria abaixo de 190px de
-            // viewport, largura que não existe. 47% também resolveria, mas com
-            // 4,8px de folga; 46% é a mesma ideia com margem de segurança.
+            // Trilha única `min(46%, 258px)`, sem minmax. Parece detalhe, mas é
+            // o ponto exato onde a versão anterior quebrava.
             //
-            // 1fr → 258px: trava a largura do card. Com 1fr as colunas
-            // esticavam (4 de ~294px em 1440px); agora param em 258px e a
-            // sobra vira respiro. justifyContent centraliza essa sobra nos
-            // dois lados, senão a grade encostaria à esquerda e o canto
-            // direito não alinharia com o rodapé.
+            // A regra anterior era
+            //   repeat(auto-fill, minmax(min(46%, 258px), 258px))
+            // e rendia UMA coluna em todo celular — confirmado em device físico
+            // (Safari e webview do WhatsApp) e reproduzido no Chrome headless:
+            // getComputedStyle devolvia `grid-template-columns: 258px`, trilha
+            // única, em 375, 390 e 430px.
             //
-            // Resultado: 2 colunas de 320px a 837px, 3 até 1023px, 4 daí em
-            // diante (o container trava em 1280px). Pior sobra em 768px, onde
-            // ficam 200px divididos em 100px de cada lado.
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(46%, 258px), 258px))',
+            // O motivo está no CSS Grid §7.2.3.1: para decidir QUANTAS vezes
+            // repetir, o auto-fill usa a função de tamanho MÁXIMA da trilha
+            // quando ela é definida — e não a mínima. Com máximo `258px` fixo,
+            // o navegador pergunta "quantas colunas de 258px cabem?". Em 390px
+            // de viewport sobram 350px de conteúdo: cabe uma só. O mínimo
+            // `min(46%, 258px)` nunca chegava a ser consultado para a contagem;
+            // ele só entraria se o máximo fosse flexível (1fr), que era
+            // justamente o que a spec original usava.
+            //
+            // Ou seja: a troca `1fr → 258px`, feita para travar o card no
+            // desktop, tirou a flexibilidade que fazia a conta do celular
+            // funcionar. O teste da época não pegou porque modelava o auto-fill
+            // contando pelo mínimo — o modelo errado.
+            //
+            // Com trilha única o dilema some, porque `min()` já é as duas
+            // coisas ao mesmo tempo:
+            //   • celular: 46% manda (em 320px → 128,8px), e duas colunas de
+            //     46% + gap sempre cabem em 100%. Três nunca cabem (138% > 100%),
+            //     então a faixa 320–430px dá exatamente 2 colunas.
+            //   • desktop: 258px manda a partir de ~561px de conteúdo, e o card
+            //     trava em 258px — idêntico ao comportamento aprovado antes,
+            //     porque quando 46% ≥ 258px a regra velha também valia 258px.
+            //
+            // justifyContent centraliza a sobra nos dois lados; sem isso a
+            // grade encostaria à esquerda e o canto direito não alinharia com
+            // o rodapé. Continua sem media query e sem JS, como manda a seção 10.
+            gridTemplateColumns: 'repeat(auto-fill, min(46%, 258px))',
             gap: 'clamp(12px, 1.4vw, 22px)',
             justifyContent: 'center',
             paddingBottom: 64,
