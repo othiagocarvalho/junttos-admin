@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { criarRenovadorAoVoltar } from '../lib/authRefresh'
 
 const Spinner = () => (
   <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FDF8F5' }}>
@@ -32,17 +33,18 @@ export function ClientAuthProvider({ children }) {
   // minimizar ou de o notebook dormir — nesse intervalo o token expira, e o
   // primeiro clique em "Confirmar Venda" batia num 401. Renovar quando a aba
   // volta a ficar visível resolve antes de ela tentar qualquer coisa.
-  // Silencioso de propósito: se falhar, o refresh no momento da venda ainda
-  // tenta de novo, e o onAuthStateChange cuida de derrubar a sessão se for o
-  // caso — nada de alerta na cara de quem só voltou pra aba.
+  //
+  // Os DOIS listeners continuam: 'visibilitychange' pega a troca de aba e
+  // 'focus' pega o alt-tab que volta para a mesma aba, que é um caso que o
+  // outro evento não cobre. O que mudou é que voltar para a aba dispara os
+  // dois quase juntos, e antes cada um fazia o seu refreshSession() — duas
+  // chamadas a /auth/v1/token com um refresh token de uso único, a segunda
+  // já com o token que a primeira rotacionou. Agora os dois passam pelo
+  // mesmo single-flight (ver src/lib/authRefresh.js) e viram uma chamada só.
   useEffect(() => {
-    async function aoVoltar() {
-      if (document.visibilityState !== 'visible') return
-      const { data } = await supabase.auth.getSession()
-      if (!data?.session) return          // deslogada: nada a renovar
-      const { error } = await supabase.auth.refreshSession()
-      if (error) console.warn('[auth] refresh ao voltar para a aba falhou:', error.message)
-    }
+    const aoVoltar = criarRenovadorAoVoltar(supabase, {
+      aoFalhar: msg => console.warn('[auth] refresh ao voltar para a aba falhou:', msg),
+    })
     document.addEventListener('visibilitychange', aoVoltar)
     window.addEventListener('focus', aoVoltar)   // cobre alt-tab sem troca de aba
     return () => {

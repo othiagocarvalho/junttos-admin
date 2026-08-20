@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { renovarSessao } from '../../lib/authRefresh'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
 
@@ -441,7 +442,9 @@ export default function ProdutosB2BPro({
   async function garantirSessao() {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.access_token) return session
-    const { data, error } = await supabase.auth.refreshSession()
+    // Single-flight: subir foto logo depois de voltar para a aba não pode
+    // disparar um segundo refresh em cima do que já está em voo.
+    const { data, error } = await renovarSessao(supabase)
     if (error || !data?.session) {
       throw new Error('sua sessão expirou. Entre de novo para enviar arquivos.')
     }
