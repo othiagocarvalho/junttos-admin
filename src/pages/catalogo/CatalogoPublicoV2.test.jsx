@@ -1,0 +1,569 @@
+import { describe, it, expect, vi } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+
+// O cliente real chama createClient() no import e depende das env vars do Vite.
+// Aqui só interessa que o módulo do catálogo carregue inteiro.
+vi.mock('../../lib/supabase', () => ({ supabase: { from: () => ({}) } }))
+
+const {
+  default: CatalogoPublicoV2,
+  Cabecalho, TresPassos, BlocoApresentacao, FaixaMinimo, Filtros,
+  CardProduto, EstadoVazio, Rodape, ModalProduto, DrawerPedido, FaixaVideo,
+} = await import('./CatalogoPublicoV2')
+
+const { normalizarProduto, lojaDaConfig, estadoMinimo, linhasDoCarrinho } =
+  await import('../../utils/catalogoV2')
+
+// vitest roda em environment 'node', sem jsdom: não dá para montar a página
+// inteira nem medir layout. Dá para renderizar cada pedaço com react-dom/server
+// e conferir o DOM que sai — é o que valida os critérios de estrutura da
+// seção 13. Os critérios de PIXEL (quantas colunas cabem em 390px) estão
+// verificados por aritmética de CSS no fim do arquivo, não por render.
+const html = el => renderToStaticMarkup(el)
+
+// ── Fixtures: os dados reais da tropicaleatacado ─────────────────────────────
+const multicor = normalizarProduto({
+  id: 'p1', nome: 'VESTIDO CURTO PATY DUDA', preco_venda: 33.33, ativo: true,
+  fotos: ['foto1.jpg'],
+  variacoes: [{ cor: 'ROSA BEBÊ' }, { cor: 'ROSA PINK' }, { cor: 'NUDE' }],
+})
+const umaCor = normalizarProduto({
+  id: 'p2', nome: 'MACAQUINHO PATY MAVIE', preco_venda: 44.9, ativo: true,
+  fotos: ['foto2.jpg'], variacoes: [{ cor: 'VINHO' }],
+})
+const comTamanho = normalizarProduto({
+  id: 'p4', nome: 'CAMISA LISA', preco_venda: 20, ativo: true,
+  fotos: ['f.jpg'], variacoes: [], tamanhos: ['P', 'M', 'G'],
+})
+const lojaAtacado = lojaDaConfig({
+  nome: 'TropicaleAtacado', whatsapp_loja: '(85) 99999-0000',
+  pedido_minimo_tipo: 'valor', pedido_minimo_valor: 300,
+})
+
+describe('módulo', () => {
+  it('compila e exporta o componente como default', () => {
+    expect(typeof CatalogoPublicoV2).toBe('function')
+    expect(CatalogoPublicoV2.name).toBe('CatalogoPublicoV2')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Critérios de aceite — seção 13
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('13.2 — cabeçalho sticky, sem forçar layout no celular', () => {
+  const saida = html(
+    <Cabecalho loja={lojaAtacado} busca="" setBusca={() => {}} totalPecas={3} aoAbrirPedido={() => {}} />,
+  )
+
+  it('é sticky no topo', () => {
+    expect(saida).toContain('position:sticky')
+    expect(saida).toContain('top:0')
+  })
+
+  it('deixa os 3 itens quebrarem sozinhos por flex-wrap, sem media query', () => {
+    expect(saida).toContain('flex-wrap:wrap')
+  })
+
+  it('a busca usa 16px para o iOS não dar zoom no foco', () => {
+    expect(saida).toMatch(/font-size:16px/)
+  })
+
+  it('mostra o contador de peças no botão Pedido', () => {
+    expect(saida).toContain('Pedido')
+    expect(saida).toContain('>3<')
+  })
+})
+
+describe('13.3 — card sem texto de botão, card inteiro clicável, "+" na foto', () => {
+  const saida = html(
+    <CardProduto produto={multicor} modoAtacado noPedido={0} prioridade aoAbrir={() => {}} />,
+  )
+
+  it('não existe <button> nenhum dentro do card', () => {
+    expect(saida).not.toContain('<button')
+  })
+
+  it('não escreve frase decorativa de ação', () => {
+    for (const proibido of ['Escolher cor', 'Adicionar', 'Comprar', 'Ver produto']) {
+      expect(saida).not.toContain(proibido)
+    }
+  })
+
+  it('o card inteiro é o alvo: role=button e acessível por teclado', () => {
+    expect(saida).toContain('role="button"')
+    expect(saida).toContain('tabindex="0"')
+    expect(saida).toContain('aria-label="Abrir VESTIDO CURTO PATY DUDA"')
+  })
+
+  it('tem o "+" no canto da foto', () => {
+    expect(saida).toContain('>+<')
+  })
+
+  it('mostra o badge "N no pedido" só quando há itens', () => {
+    expect(saida).not.toContain('no pedido')
+    const comItens = html(
+      <CardProduto produto={multicor} modoAtacado noPedido={4} aoAbrir={() => {}} />,
+    )
+    expect(comItens).toContain('4 no pedido')
+  })
+
+  it('a foto do card é 3/4 com object-fit cover', () => {
+    expect(saida).toContain('aspect-ratio:3 / 4')
+    expect(saida).toContain('object-fit:cover')
+  })
+
+  it('só os 4 primeiros cards carregam com prioridade', () => {
+    expect(saida).toContain('loading="eager"')
+    const tardio = html(<CardProduto produto={multicor} modoAtacado noPedido={0} aoAbrir={() => {}} />)
+    expect(tardio).toContain('loading="lazy"')
+  })
+})
+
+describe('13.4 — copy dinâmica no card e no modal', () => {
+  it('produto só com cor: legenda e pergunta falam só de cor', () => {
+    const card = html(<CardProduto produto={multicor} modoAtacado noPedido={0} aoAbrir={() => {}} />)
+    expect(card).toContain('3 cores · Tamanho único')
+
+    const modal = html(
+      <ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />,
+    )
+    expect(modal).toContain('Quantas peças de cada cor?')
+    expect(modal).not.toContain('cor e tamanho')
+  })
+
+  it('produto só com tamanho: legenda e pergunta falam só de tamanho', () => {
+    const card = html(<CardProduto produto={comTamanho} modoAtacado noPedido={0} aoAbrir={() => {}} />)
+    expect(card).toContain('P M G')
+
+    const modal = html(
+      <ModalProduto produto={comTamanho} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />,
+    )
+    expect(modal).toContain('Quantas peças de cada tamanho?')
+    expect(modal).not.toContain('cor e tamanho')
+  })
+
+  it('produto sem escolha nenhuma: célula única rotulada "Quantidade"', () => {
+    const modal = html(
+      <ModalProduto produto={umaCor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />,
+    )
+    expect(modal).toContain('Quantas peças você quer?')
+    expect(modal).toContain('Quantidade')
+    // Cor única não vira seletor de cor.
+    expect(modal).not.toContain('Quantas peças de cada cor?')
+  })
+
+  it('sufixo "/ peça" só existe no atacado', () => {
+    const atacado = html(<CardProduto produto={multicor} modoAtacado noPedido={0} aoAbrir={() => {}} />)
+    const varejo = html(<CardProduto produto={multicor} modoAtacado={false} noPedido={0} aoAbrir={() => {}} />)
+    expect(atacado).toContain('/ peça')
+    expect(varejo).not.toContain('/ peça')
+  })
+})
+
+describe('13.5 — faixa de pedido mínimo', () => {
+  const faixa = carrinho => html(
+    <FaixaMinimo minimo={estadoMinimo({ tipo: 'valor', valor: 300 }, carrinho)} />,
+  )
+
+  it('não aparece sem mínimo configurado', () => {
+    expect(html(<FaixaMinimo minimo={null} />)).toBe('')
+  })
+
+  it('carrinho vazio: anuncia o mínimo, barra em 0%', () => {
+    const s = faixa({ pecas: 0, valor: 0 })
+    expect(s).toContain('Pedido mínimo de R$ 300,00.')
+    expect(s).toContain('width:0%')
+    expect(s).toContain('aria-valuenow="0"')
+  })
+
+  it('abaixo do mínimo: a barra reage ao carrinho', () => {
+    const s = faixa({ pecas: 3, valor: 120 })
+    expect(s).toContain('Faltam R$ 180,00 para atingir o pedido mínimo de R$ 300,00.')
+    expect(s).toContain('width:40%')
+  })
+
+  it('atingido: libera e a barra trava em 100%', () => {
+    const s = faixa({ pecas: 20, valor: 900 })
+    expect(s).toContain('Pedido mínimo atingido. Você já pode finalizar.')
+    expect(s).toContain('width:100%')
+  })
+
+  it('cabe em uma linha só — trunca em vez de quebrar', () => {
+    expect(faixa({ pecas: 0, valor: 0 })).toContain('white-space:nowrap')
+  })
+})
+
+describe('13.6 — chips e ordenação em uma linha só', () => {
+  const saida = html(
+    <Filtros
+      categorias={['Tudo', 'Vestidos', 'Conjuntos', 'Longos', 'Saias', 'Macaquinhos']}
+      categoria="Tudo" setCategoria={() => {}} ordem="destaque" setOrdem={() => {}}
+    />,
+  )
+
+  it('a faixa de chips rola na horizontal em vez de quebrar linha', () => {
+    expect(saida).toContain('overflow-x:auto')
+    expect(saida).toContain('white-space:nowrap')
+    expect(saida).not.toContain('flex-wrap:wrap')
+  })
+
+  it('o primeiro chip é sempre "Tudo" e ele começa ativo', () => {
+    const primeiro = saida.indexOf('Tudo')
+    const segundo = saida.indexOf('Vestidos')
+    expect(primeiro).toBeGreaterThan(-1)
+    expect(primeiro).toBeLessThan(segundo)
+    expect(saida).toContain('aria-pressed="true"')
+  })
+
+  it('as 4 opções de ordenação estão lá', () => {
+    for (const o of ['⇅ Ordenar', 'Menor preço', 'Maior preço', 'Nome A–Z']) {
+      expect(saida).toContain(o)
+    }
+  })
+})
+
+describe('13.7 — modal: galeria, miniaturas e zoom', () => {
+  const comVariasFotos = normalizarProduto({
+    id: 'p9', nome: 'VESTIDO', preco_venda: 30, ativo: true,
+    fotos: ['a.jpg', 'b.jpg', 'c.jpg'], variacoes: [{ cor: 'AZUL' }, { cor: 'VERDE' }],
+  })
+
+  it('é um dialog modal de verdade', () => {
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).toContain('role="dialog"')
+    expect(s).toContain('aria-modal="true"')
+  })
+
+  it('convida ao zoom e começa sem ampliação', () => {
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).toContain('Toque para ampliar')
+    expect(s).toContain('cursor:zoom-in')
+    expect(s).toContain('transform:scale(1)')
+  })
+
+  it('miniaturas aparecem com 2+ fotos, cada uma com aria-label', () => {
+    const s = html(<ModalProduto produto={comVariasFotos} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).toContain('aria-label="Ver foto 1"')
+    expect(s).toContain('aria-label="Ver foto 3"')
+  })
+
+  it('miniaturas ficam DENTRO do modal, ancoradas na base da foto', () => {
+    const s = html(<ModalProduto produto={comVariasFotos} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    // left/bottom em vez de negativos: nunca sai da área visível do modal.
+    expect(s).toContain('left:14px')
+    expect(s).toContain('bottom:14px')
+  })
+
+  it('com uma foto só não há miniatura', () => {
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).not.toContain('Ver foto')
+  })
+
+  it('empilha no celular e vira 2 colunas no desktop sem media query', () => {
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).toContain('grid-template-columns:repeat(auto-fit, minmax(min(100%, 340px), 1fr))')
+  })
+
+  it('a nota final muda entre atacado e varejo', () => {
+    const a = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    const v = html(<ModalProduto produto={multicor} modoAtacado={false} aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(a).toContain('Você pode misturar cores e tamanhos livremente. Não há grade fechada.')
+    expect(v).toContain('Selecione a quantidade desejada de cada tamanho.')
+  })
+})
+
+describe('13.8 — drawer soma, avisa e bloqueia abaixo do mínimo', () => {
+  const mapa = { p1: multicor, p2: umaCor }
+  const linhas = linhasDoCarrinho({ 'p1|ROSA PINK|Único': 3, 'p2|VINHO|Único': 5 }, mapa)
+
+  it('mostra o total somado e o resumo de peças e variações', () => {
+    const s = html(
+      <DrawerPedido
+        linhas={linhas} produtosPorId={mapa} minimo={estadoMinimo({ tipo: 'valor', valor: 300 }, { pecas: 8, valor: 324.49 })}
+        loja={lojaAtacado} aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).toContain('R$ 324,49')
+    expect(s).toContain('8 peças · 2 variações')
+  })
+
+  it('abaixo do mínimo mostra o aviso âmbar', () => {
+    const s = html(
+      <DrawerPedido
+        linhas={linhas} produtosPorId={mapa} minimo={estadoMinimo({ tipo: 'valor', valor: 500 }, { pecas: 8, valor: 324.49 })}
+        loja={lojaAtacado} aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).toContain('Faltam R$ 175,51 para o pedido mínimo. Adicione mais peças para finalizar.')
+    expect(s).toContain('#FFF6E6')
+  })
+
+  it('mínimo atingido não mostra aviso', () => {
+    const s = html(
+      <DrawerPedido
+        linhas={linhas} produtosPorId={mapa} minimo={estadoMinimo({ tipo: 'valor', valor: 300 }, { pecas: 8, valor: 324.49 })}
+        loja={lojaAtacado} aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).not.toContain('Adicione mais peças para finalizar')
+  })
+
+  it('a variação é "{Cor} · Tamanho {T}", omitindo o que não existe', () => {
+    const s = html(
+      <DrawerPedido
+        linhas={linhas} produtosPorId={mapa} minimo={null} loja={lojaAtacado}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).toContain('ROSA PINK')
+    // Produto de cor única não repete a cor; "Único" nunca vira texto de tela.
+    expect(s).not.toContain('Tamanho Único')
+  })
+
+  it('pedido vazio explica o que fazer', () => {
+    const s = html(
+      <DrawerPedido
+        linhas={[]} produtosPorId={mapa} minimo={null} loja={lojaAtacado}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).toContain('Seu pedido está vazio')
+    expect(s).toContain('Toque em uma peça e escolha cor e tamanho.')
+    expect(s).toContain('Nenhuma peça ainda')
+  })
+
+  it('"Pagar agora pelo site" só existe com checkoutOnline ligado', () => {
+    const props = {
+      linhas, produtosPorId: mapa, minimo: null,
+      aoFechar: () => {}, aoMudarQtd: () => {}, aoEnviar: () => {}, aoPagar: () => {},
+    }
+    expect(html(<DrawerPedido {...props} loja={lojaAtacado} />)).not.toContain('Pagar agora pelo site')
+    const comCheckout = lojaDaConfig({ whatsapp_loja: '85999990000', catalogo_checkout_online: true })
+    expect(html(<DrawerPedido {...props} loja={comCheckout} />)).toContain('Pagar agora pelo site')
+  })
+
+  it('sem WhatsApp cadastrado o botão verde não é desenhado', () => {
+    const semWa = lojaDaConfig({ nome: 'X' })
+    const s = html(
+      <DrawerPedido
+        linhas={linhas} produtosPorId={mapa} minimo={null} loja={semWa}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).not.toContain('Enviar pedido no WhatsApp')
+  })
+})
+
+describe('13.10 — rodapé: Envio → Ajuda → botão, e nada além disso', () => {
+  const saida = html(<Rodape loja={lojaAtacado} aoChamar={() => {}} />)
+
+  it('a ordem dos três blocos é a da spec', () => {
+    const iEnvio = saida.indexOf('Envio')
+    const iAjuda = saida.indexOf('Precisa de ajuda?')
+    const iBotao = saida.indexOf('Chamar no WhatsApp')
+    expect(iEnvio).toBeGreaterThan(-1)
+    expect(iEnvio).toBeLessThan(iAjuda)
+    expect(iAjuda).toBeLessThan(iBotao)
+  })
+
+  it('não inclui "Como pagar" nem horário de atendimento', () => {
+    for (const proibido of ['Como pagar', 'Horário', 'horário', 'Atendimento']) {
+      expect(saida).not.toContain(proibido)
+    }
+  })
+
+  it('usa o texto de envio da loja', () => {
+    expect(saida).toContain('Enviamos para todo o Brasil.')
+    const outro = lojaDaConfig({ catalogo_texto_envio: 'Só entregamos em Fortaleza.' })
+    expect(html(<Rodape loja={outro} aoChamar={() => {}} />)).toContain('Só entregamos em Fortaleza.')
+  })
+})
+
+describe('13.11 — vídeo do topo e apresentação ligam/desligam sem quebrar', () => {
+  it('vídeo desligado não renderiza faixa nenhuma', () => {
+    expect(html(<FaixaVideo video={lojaAtacado.videoTopo} nomeLoja="X" />)).toBe('')
+  })
+
+  it('vídeo ligado usa autoplay/muted/loop/playsinline', () => {
+    const loja = lojaDaConfig({ nome: 'Tropicale', catalogo_video_topo: { ativo: true, videoUrl: 'v.mp4' } })
+    const s = html(<FaixaVideo video={loja.videoTopo} nomeLoja={loja.nome} />)
+    expect(s).toContain('<video')
+    // React 19 preserva o camelCase no markup; o HTML parser do browser lê
+    // nome de atributo sem diferenciar caixa, então isso é o autoplay de fato.
+    expect(s).toContain('autoPlay=""')
+    expect(s).toContain('muted=""')
+    expect(s).toContain('loop=""')
+    expect(s).toContain('playsInline=""')
+  })
+
+  it('sem vídeo mas com imagem usa kenburns', () => {
+    const loja = lojaDaConfig({ catalogo_video_topo: { ativo: true, imagemUrl: 'capa.jpg' } })
+    const s = html(<FaixaVideo video={loja.videoTopo} nomeLoja="Tropicale" />)
+    expect(s).toContain('cat-kenburns 18s')
+  })
+
+  it('sem título usa o nome da loja', () => {
+    const loja = lojaDaConfig({ catalogo_video_topo: { ativo: true, imagemUrl: 'c.jpg' } })
+    expect(html(<FaixaVideo video={loja.videoTopo} nomeLoja="TropicaleAtacado" />))
+      .toContain('TropicaleAtacado')
+  })
+
+  it('apresentação vazia (o estado padrão) mostra a linha fina dos 3 passos', () => {
+    const s = html(<TresPassos />)
+    expect(s).toContain('Escolha o produto')
+    expect(s).toContain('Confira o pedido')
+    expect(s).toContain('Pagamento')
+    expect(s).toContain('→')
+    expect(s).toContain('overflow-x:auto')
+  })
+
+  it('apresentação preenchida mostra o bloco grande com os passos em coluna', () => {
+    const s = html(<BlocoApresentacao apresentacao={{
+      etiqueta: 'NOVA COLEÇÃO', titulo: 'Verão 2026', descricao: 'Peças leves para revender.',
+    }} />)
+    expect(s).toContain('Verão 2026')
+    expect(s).toContain('Peças leves para revender.')
+    expect(s).toContain('Escolha o produto')
+    // Em coluna não tem a seta da linha fina.
+    expect(s).not.toContain('→')
+  })
+})
+
+describe('13.12 — trocar o público não muda estilo nenhum', () => {
+  it('o markup do card é byte a byte igual em feminino e masculino', () => {
+    // `publico` não entra em nenhuma decisão de estilo — só existe como dado
+    // de cadastro. A prova é o markup idêntico.
+    const fem = lojaDaConfig({ nome: 'Loja', catalogo_publico: 'feminino' })
+    const masc = lojaDaConfig({ nome: 'Loja', catalogo_publico: 'masculino' })
+    expect(fem.publico).toBe('feminino')
+    expect(masc.publico).toBe('masculino')
+
+    const card = loja => html(
+      <>
+        <Cabecalho loja={loja} busca="" setBusca={() => {}} totalPecas={0} aoAbrirPedido={() => {}} />
+        <CardProduto produto={multicor} modoAtacado noPedido={0} aoAbrir={() => {}} />
+        <Rodape loja={loja} aoChamar={() => {}} />
+      </>,
+    )
+    expect(card(fem)).toBe(card(masc))
+  })
+})
+
+describe('estado vazio de busca', () => {
+  it('explica o que fazer em vez de só dizer que não achou', () => {
+    const s = html(<EstadoVazio />)
+    expect(s).toContain('Nada encontrado')
+    // As aspas do texto saem escapadas no markup.
+    expect(s).toContain('Tente outra palavra ou toque em &quot;Tudo&quot;.')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 13.1 e 13.6 — o que depende de LAYOUT, verificado por aritmética de CSS.
+// jsdom não tem motor de layout e aqui nem jsdom existe; o que dá para provar
+// é que a regra do grid produz o número de colunas certo em cada largura.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px', () => {
+  /**
+   * Reproduz a regra do grid, que é pura aritmética de CSS:
+   *   grid-template-columns: repeat(auto-fill, minmax(min(46%, 258px), 258px))
+   *   gap: clamp(12px, 1.4vw, 22px)
+   *   justify-content: center
+   *
+   * auto-fill cabe N colunas quando N*minimo + (N-1)*gap <= disponivel; as
+   * trilhas então crescem do mínimo até o máximo (258px), e o que sobrar vira
+   * respiro centralizado.
+   */
+  function grade(larguraViewport) {
+    const gap = Math.min(22, Math.max(12, larguraViewport * 0.014))
+    const disponivel = Math.min(larguraViewport, 1280) - 40  // max-width 1280 + padding 20px
+    const minimo = Math.min(disponivel * 0.46, 258)
+    const n = Math.max(1, Math.floor((disponivel + gap) / (minimo + gap)))
+    const largura = Math.min(258, (disponivel - gap * (n - 1)) / n)
+    return { n, gap, largura, sobra: disponivel - (largura * n + gap * (n - 1)) }
+  }
+
+  // ── A5: 2 colunas garantidas a partir de 320px ──
+  it('320px — o caso que falhava antes — agora dá 2 colunas', () => {
+    expect(grade(320).n).toBe(2)
+  })
+
+  it('toda largura de celular dá 2 colunas, de 320 a 430', () => {
+    for (const w of [320, 330, 360, 375, 390, 414, 430]) {
+      expect(grade(w).n, `${w}px`).toBe(2)
+    }
+  })
+
+  it('390px continua com 2 colunas de 169px (critério 13.1)', () => {
+    const { n, largura } = grade(390)
+    expect(n).toBe(2)
+    expect(Math.round(largura)).toBe(169)
+  })
+
+  it('a folga em 320px é de ~10px, não de fração de pixel', () => {
+    // Duas colunas ocupam 2×46% = 92%; sobram 8% do conteúdo para o gap.
+    const { sobra, gap } = grade(320)
+    const disponivel = 320 - 40
+    expect(disponivel * 0.08 - gap).toBeGreaterThan(10)
+    expect(sobra).toBe(0)  // as trilhas crescem e preenchem a linha
+  })
+
+  it('a regra aguenta muito além do necessário — só quebraria abaixo de 190px', () => {
+    expect(grade(200).n).toBe(2)
+    // 46% nunca deixa caber uma 3ª coluna enquanto a porcentagem é quem manda:
+    // 3×46% = 138% > 100%.
+    for (const w of [320, 400, 500]) expect(grade(w).n).toBeLessThanOrEqual(2)
+  })
+
+  // ── A6: card travado em 258px ──
+  it('o card nunca passa de 258px, por mais larga que seja a tela', () => {
+    for (const w of [600, 768, 900, 1024, 1280, 1440, 1920, 2560]) {
+      expect(grade(w).largura, `${w}px`).toBeLessThanOrEqual(258)
+    }
+  })
+
+  it('no desktop o card fica exatamente em 258px e a sobra vira respiro', () => {
+    const d = grade(1440)
+    expect(d.n).toBe(4)
+    expect(d.largura).toBe(258)
+    expect(Math.round(d.sobra)).toBe(148)  // ~74px de cada lado, centralizado
+  })
+
+  it('a grade abre 2 → 3 → 4 colunas conforme a tela cresce', () => {
+    expect(grade(700).n).toBe(2)
+    expect(grade(838).n).toBe(3)
+    expect(grade(1024).n).toBe(3)
+    expect(grade(1280).n).toBe(4)
+  })
+
+  it('pior sobra é em 768px — 200px, aceito junto com o cap de 258px', () => {
+    const t = grade(768)
+    expect(t.n).toBe(2)
+    expect(Math.round(t.sobra)).toBe(200)
+  })
+
+  it('em celular não sobra nada: as trilhas crescem e preenchem a linha', () => {
+    for (const w of [320, 375, 390, 430]) {
+      expect(Math.round(grade(w).sobra), `${w}px`).toBe(0)
+    }
+  })
+
+  it('a regra do grid no componente é exatamente a calibrada aqui', async () => {
+    const fs = await import('node:fs/promises')
+    const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
+    expect(fonte).toContain("'repeat(auto-fill, minmax(min(46%, 258px), 258px))'")
+    expect(fonte).toContain("'clamp(12px, 1.4vw, 22px)'")
+    expect(fonte).toContain("justifyContent: 'center'")
+    // O 1fr que esticava o card não pode ter voltado.
+    expect(fonte).not.toContain('minmax(min(48%, 258px), 1fr)')
+  })
+
+  it('não existe nenhuma media query de layout — só a de acessibilidade', async () => {
+    const fs = await import('node:fs/promises')
+    const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
+    const queries = fonte.match(/@media[^{]+/g) || []
+    expect(queries).toHaveLength(1)
+    expect(queries[0]).toContain('prefers-reduced-motion')
+  })
+})

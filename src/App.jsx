@@ -29,7 +29,7 @@ import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
 import { isErroAuth } from './utils/authErro'
 import { isSlugReservado } from './utils/rotasReservadas'
-import CatalogoPublico from './pages/catalogo/CatalogoPublico'
+import CatalogoPublicoV2 from './pages/catalogo/CatalogoPublicoV2'
 import ConsultorApp from './pages/consultor/ConsultorApp'
 
 function ProtectedLayout({ children }) {
@@ -56,7 +56,17 @@ function LojaClientApp({ segment, lojaId, segmento }) {
               <ClientDashboard lojaId={lojaId} segmento={segmento} />
             </ClientPrivateRoute>
           } />
-          <Route path="/catalogo" element={<CatalogoPublico lojaId={lojaId} />} />
+          {/* Catálogo público — CatalogoPublicoV2 desde 20/08/2026 (spec em
+              docs/CATALOGO_SPEC.md). O CatalogoPublico.jsx antigo continua no
+              repositório, sem rota, como caminho de volta: reverter é trocar
+              este import de novo.
+
+              A rota segue aberta a qualquer slug de loja, de propósito. Quem
+              resolve "loja não existe" é o App (TelaLojaIndisponivel, acima);
+              loja que existe mas ainda não publicou peça cai no
+              EstadoSemCatalogo dentro do componente — 12 das 13 lojas estão
+              nesse caso hoje. */}
+          <Route path="/catalogo" element={<CatalogoPublicoV2 lojaId={lojaId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
