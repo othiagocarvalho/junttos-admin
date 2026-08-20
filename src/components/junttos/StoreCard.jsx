@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { Copy, ExternalLink, Check, Share2, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, Check, Share2, Trash2, ChevronRight } from 'lucide-react'
 import StatusPill from './StatusPill'
 import { T } from '../../theme/tokens'
 
-export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link, rede, onDelete }) {
+/**
+ * onOpen (opcional) — abre a tela de detalhe/contrato da loja.
+ *
+ * Enquanto não existia, /clientes/:slug só era alcançável digitando a URL na
+ * mão: a tela de contrato estava pronta e invisível. Fica opcional para o card
+ * seguir servindo a listagens que não têm para onde navegar.
+ */
+export default function StoreCard({ nome, slug, status, logoUrl, primary = T.purple, link, rede, onDelete, onOpen }) {
   const [copied, setCopied] = useState(false)
 
   const initials = (nome || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -36,8 +43,18 @@ export default function StoreCard({ nome, slug, status, logoUrl, primary = T.pur
         e.currentTarget.style.transform  = 'none'
       }}
     >
-      {/* Top */}
-      <div style={{ padding: '18px 18px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      {/* Top — vira área clicável para o detalhe quando onOpen é fornecido */}
+      <div
+        onClick={onOpen}
+        onKeyDown={onOpen ? (e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }) : undefined}
+        role={onOpen ? 'button' : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        title={onOpen ? `Abrir detalhes de ${nome}` : undefined}
+        style={{
+          padding: '18px 18px 14px', display: 'flex', alignItems: 'center', gap: 12,
+          cursor: onOpen ? 'pointer' : 'default',
+        }}
+      >
         {logoUrl ? (
           <img
             src={logoUrl}
@@ -72,7 +89,34 @@ export default function StoreCard({ nome, slug, status, logoUrl, primary = T.pur
         </div>
 
         <StatusPill status={status || 'ativo'} />
+
+        {onOpen && (
+          <ChevronRight size={16} color={T.muted2} style={{ flexShrink: 0, marginLeft: -2 }} />
+        )}
       </div>
+
+      {/* Faixa "Detalhes" — afordância explícita para /clientes/:slug.
+          Fica fora do rodapé de propósito: aquele espaço já tem link, copiar,
+          abrir e excluir, e espremer mais um botão de 300px derruba tudo. */}
+      {onOpen && (
+        <button
+          onClick={onOpen}
+          title={`Abrir detalhes de ${nome}`}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', minHeight: 44, padding: '0 18px',
+            border: 'none', borderTop: `1px solid ${T.line}`,
+            background: T.white, cursor: 'pointer',
+            fontFamily: T.ui, fontSize: 12.5, fontWeight: 700, color: T.purpleText,
+            transition: 'background .15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = T.tintPurple }}
+          onMouseLeave={e => { e.currentTarget.style.background = T.white }}
+        >
+          Detalhes e contrato
+          <ChevronRight size={14} />
+        </button>
+      )}
 
       {/* Footer */}
       <div style={{

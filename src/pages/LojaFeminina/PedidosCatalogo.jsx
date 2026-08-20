@@ -17,7 +17,13 @@ function iniciais(nome) {
   return (nome || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
+// aguardando_contato vem do catálogo público novo (CatalogoPublicoV2): o
+// pedido é gravado no instante em que a cliente toca em "Enviar pedido no
+// WhatsApp", ANTES de a conversa existir. Serve para a lojista ver a intenção
+// mesmo quando a mensagem nunca chega. Não é pagamento pendente — daí o tom
+// 'info' em vez de 'warn', que continua sendo só de quem já fechou e não pagou.
 const STATUS_MAP = {
+  aguardando_contato:   { label: 'Aguardando contato',   tone: 'info' },
   aguardando_pagamento: { label: 'Aguardando pagamento', tone: 'warn' },
   pago:                 { label: 'Pago',                 tone: 'ok' },
   cancelado:            { label: 'Cancelado',            tone: 'bad' },
@@ -25,6 +31,7 @@ const STATUS_MAP = {
 
 const FILTROS = [
   { key: 'todos', label: 'Todos' },
+  { key: 'aguardando_contato', label: 'Contato' },
   { key: 'aguardando_pagamento', label: 'Aguardando' },
   { key: 'pago', label: 'Pagos' },
   { key: 'cancelado', label: 'Cancelados' },
@@ -42,13 +49,20 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, cancelarPe
   const now = new Date()
   const hoje = now.toDateString()
 
+  const contato = pedidos.filter(p => p.status === 'aguardando_contato')
   const aguardando = pedidos.filter(p => p.status === 'aguardando_pagamento')
   const pagos = pedidos.filter(p => p.status === 'pago')
   const cancelados = pedidos.filter(p => p.status === 'cancelado')
   const pagosHoje = pedidos.filter(p => p.status === 'pago' && new Date(p.created_at).toDateString() === hoje)
   const totalHoje = pagosHoje.reduce((s, p) => s + Number(p.valor_total), 0)
 
-  const COUNTS = { todos: pedidos.length, aguardando_pagamento: aguardando.length, pago: pagos.length, cancelado: cancelados.length }
+  const COUNTS = {
+    todos: pedidos.length,
+    aguardando_contato: contato.length,
+    aguardando_pagamento: aguardando.length,
+    pago: pagos.length,
+    cancelado: cancelados.length,
+  }
 
   const buscaNorm = busca.trim().toLowerCase()
   const filtrados = pedidos.filter(p => {
@@ -100,6 +114,9 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, cancelarPe
 
       {/* Cards de resumo */}
       <StatGrid>
+        {contato.length > 0 && (
+          <StatCard label="Aguardando contato" value={contato.length} icon={MessageCircle} iconColor="var(--status-info-dot)" />
+        )}
         <StatCard label="Aguardando" value={aguardando.length} icon={Clock} iconColor="var(--status-warn-dot)" />
         <StatCard label="Pagos" value={pagos.length} icon={CheckCircle2} iconColor="var(--status-ok-dot)" />
         <HeroCard tone="primary">
@@ -151,6 +168,12 @@ export default function PedidosCatalogo({ pedidos = [], updatePedido, cancelarPe
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filtrados.map(pedido => {
                 const statusInfo = STATUS_MAP[pedido.status] || STATUS_MAP.aguardando_pagamento
+                // Só pedido que passou pelo checkout ganha "Marcar como pago" e
+                // "Cancelar". aguardando_contato fica de fora de propósito:
+                // cancelarPedido devolve ao estoque o que o checkout baixou, e
+                // esses pedidos nunca baixaram nada — cancelar um deles
+                // inflaria o estoque. Enquanto não houver contato, a linha é só
+                // registro da intenção.
                 const isAguardando = pedido.status === 'aguardando_pagamento'
                 const busy = atualizando === pedido.id
                 const isOpen = expandido === pedido.id

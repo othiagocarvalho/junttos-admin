@@ -75,25 +75,47 @@ describe('detectarItensEsgotados', () => {
 })
 
 describe('produtoVisivelNoCatalogo', () => {
-  it('esconde produto com variacoes vazio (importado sem cor definida)', () => {
-    expect(produtoVisivelNoCatalogo({ variacoes: [] })).toBe(false)
+  it('mostra produto com pelo menos uma foto', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'] })).toBe(true)
   })
 
-  it('esconde produto com variacoes null ou ausente', () => {
-    expect(produtoVisivelNoCatalogo({ variacoes: null })).toBe(false)
+  it('esconde produto sem foto — card vazio não vende', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: [] })).toBe(false)
+    expect(produtoVisivelNoCatalogo({ fotos: null })).toBe(false)
     expect(produtoVisivelNoCatalogo({})).toBe(false)
     expect(produtoVisivelNoCatalogo(null)).toBe(false)
   })
 
-  it('mostra produto com pelo menos uma variação', () => {
-    expect(produtoVisivelNoCatalogo({ variacoes: [{ cor: 'Preto', quantidade: 4 }] })).toBe(true)
+  it('esconde quando fotos não é array (JSONB objeto solto)', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: {} })).toBe(false)
   })
 
-  it('mostra produto com variação mas estoque zerado (segue como esgotado, não some)', () => {
-    expect(produtoVisivelNoCatalogo({ variacoes: [{ tamanho: 'M', quantidade: 0 }] })).toBe(true)
+  it('esconde quando o array só tem entrada vazia', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: [null, ''] })).toBe(false)
   })
 
-  it('esconde quando variacoes não é array (JSONB objeto solto)', () => {
-    expect(produtoVisivelNoCatalogo({ variacoes: {} })).toBe(false)
+  // ── A3: produto sem variação passou a aparecer (decisão de 20/08/2026) ──
+  it('mostra produto SEM variação nenhuma, desde que tenha foto', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'], variacoes: [] })).toBe(true)
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'], variacoes: null })).toBe(true)
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'] })).toBe(true)
+  })
+
+  it('mostra produto com variação e estoque zerado (segue visível, não some)', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'], variacoes: [{ tamanho: 'M', quantidade: 0 }] })).toBe(true)
+  })
+
+  it('variação não influencia mais a decisão — só a foto decide', () => {
+    expect(produtoVisivelNoCatalogo({ fotos: [], variacoes: [{ cor: 'Preto', quantidade: 4 }] })).toBe(false)
+    expect(produtoVisivelNoCatalogo({ fotos: ['a.jpg'], variacoes: [] })).toBe(true)
+  })
+
+  it('os 37 publicados da tropicaleatacado passam — inclusive os 13 sem variação', () => {
+    // Todos os 37 têm exatamente 1 foto; 13 deles têm variacoes = [].
+    const catalogo = Array.from({ length: 37 }, (_, i) => ({
+      fotos: ['foto.jpg'],
+      variacoes: i < 13 ? [] : [{ cor: 'AZUL', quantidade: 2 }],
+    }))
+    expect(catalogo.filter(produtoVisivelNoCatalogo)).toHaveLength(37)
   })
 })
