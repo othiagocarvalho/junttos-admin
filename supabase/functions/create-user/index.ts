@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function json(body: unknown, status: number) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status,
+  })
+}
+
 async function sendWelcomeEmail(
   resendKey: string,
   email: string,
@@ -61,6 +68,24 @@ async function sendWelcomeEmail(
   })
 }
 
+/**
+ * Desfaz um createUser que não pôde ser completado.
+ *
+ * Sem isto, uma falha depois do createUser deixava um login válido apontando
+ * para uma loja que o cliente já removeu — e-mail "já cadastrado" e ninguém
+ * conseguia recriar a loja sem limpar na mão pelo Dashboard do Auth.
+ */
+async function desfazerUsuario(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  lojaId: string | undefined,
+) {
+  if (lojaId) {
+    await admin.from('lf_usuarios').delete().eq('auth_user_id', userId).eq('loja_id', lojaId)
+  }
+  await admin.auth.admin.deleteUser(userId)
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -68,6 +93,7 @@ serve(async (req) => {
 
   try {
     const {
+      action,
       email, password,
       loja_id, consultant_id,
       nome, enviarBV, lojaUrl, senhaCleartext,
@@ -78,6 +104,65 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
+
+    // ─── Rollback ────────────────────────────────────────────────────────────
+    // Chamado pelo cadastro de loja quando a criação falhou no meio e o
+    // usuário pode ter sobrado. Cobre o caso em que o invoke estourou por
+    // rede DEPOIS de a function já ter criado o login: o cliente nunca soube
+    // o id do usuário, só o e-mail e a loja.
+    //
+    // A trava que impede isto de virar um "apague qualquer usuário": só
+    // remove se NÃO existir lf_config para a loja. Usuário de loja viva é
+    // intocável por esta rota.
+    if (action === 'rollback') {
+      if (!loja_id || !email) {
+        return json({ error: 'rollback exige loja_id e email.' }, 400)
+      }
+
+      const { data: cfg, error: cfgErr } = await supabaseAdmin
+        .from('lf_config')
+        .select('loja_id')
+        .eq('loja_id', loja_id)
+        .maybeSingle()
+
+      if (cfgErr) return json({ error: `Não foi possível verificar a loja: ${cfgErr.message}` }, 500)
+      if (cfg) {
+        return json({ error: `A loja "${loja_id}" existe — rollback recusado.` }, 409)
+      }
+
+      // Caminho preciso: a linha de lf_usuarios guarda o auth_user_id.
+      const { data: vinculos } = await supabaseAdmin
+        .from('lf_usuarios')
+        .select('auth_user_id')
+        .eq('loja_id', loja_id)
+        .eq('email', email)
+
+      let userId: string | undefined = vinculos?.[0]?.auth_user_id ?? undefined
+
+      // A linha pode nem ter sido gravada (é justamente uma das falhas que
+      // disparam rollback). Aí procura pelo e-mail no Auth.
+      if (!userId) {
+        const { data: lista } = await supabaseAdmin.auth.admin.listUsers()
+        const achado = lista?.users?.find((u: { email?: string }) => u.email === email)
+        // Só remove se o login pertencer a esta loja — evita apagar um
+        // homônimo de outra loja por e-mail repetido.
+        if (achado && achado.app_metadata?.loja_id === loja_id) userId = achado.id
+      }
+
+      await supabaseAdmin.from('lf_usuarios').delete().eq('loja_id', loja_id).eq('email', email)
+
+      if (!userId) {
+        // Nada para remover no Auth — rollback está completo mesmo assim.
+        return json({ rolledBack: true, authUserRemovido: false }, 200)
+      }
+
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(userId)
+      if (delErr) return json({ error: `Falha ao remover o usuário: ${delErr.message}` }, 500)
+
+      return json({ rolledBack: true, authUserRemovido: true }, 200)
+    }
+
+    // ─── Criação ─────────────────────────────────────────────────────────────
 
     // Build app_metadata with whatever identifiers are provided
     const appMetadata: Record<string, unknown> = {}
@@ -92,29 +177,41 @@ serve(async (req) => {
     })
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
+      return json({ error: error.message }, 400)
     }
 
-    // Link auth user to loja's usuarios table
-    if (loja_id && data.user) {
-      await supabaseAdmin.from('lf_usuarios').insert({
-        loja_id,
-        auth_user_id: data.user.id,
-        email,
-        nome: nome || email,
-        ativo: true,
-      })
-    }
+    // Daqui para baixo o usuário JÁ EXISTE no Auth. Toda falha precisa
+    // desfazê-lo antes de responder — senão o cliente recebe erro, apaga a
+    // lf_config, e o login fica órfão.
+    if (data.user) {
+      try {
+        // Link auth user to loja's usuarios table
+        if (loja_id) {
+          const { error: vincErr } = await supabaseAdmin.from('lf_usuarios').insert({
+            loja_id,
+            auth_user_id: data.user.id,
+            email,
+            nome: nome || email,
+            ativo: true,
+          })
+          // Antes este retorno era descartado: o insert falhava, a function
+          // devolvia 200 e a loja nascia com um login que nenhuma tela
+          // conseguia associar à loja.
+          if (vincErr) throw new Error(`vínculo com a loja: ${vincErr.message}`)
+        }
 
-    // Link auth user back to jt_consultants record
-    if (consultant_id && data.user) {
-      await supabaseAdmin
-        .from('jt_consultants')
-        .update({ auth_user_id: data.user.id })
-        .eq('id', consultant_id)
+        // Link auth user back to jt_consultants record
+        if (consultant_id) {
+          const { error: consErr } = await supabaseAdmin
+            .from('jt_consultants')
+            .update({ auth_user_id: data.user.id })
+            .eq('id', consultant_id)
+          if (consErr) throw new Error(`vínculo com o consultor: ${consErr.message}`)
+        }
+      } catch (stepErr) {
+        await desfazerUsuario(supabaseAdmin, data.user.id, loja_id)
+        return json({ error: `${String((stepErr as Error).message)} — usuário removido (rollback).` }, 400)
+      }
     }
 
     if (enviarBV) {
@@ -128,14 +225,8 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ user: data.user }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    })
+    return json({ user: data.user }, 200)
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    return json({ error: String(err) }, 500)
   }
 })
