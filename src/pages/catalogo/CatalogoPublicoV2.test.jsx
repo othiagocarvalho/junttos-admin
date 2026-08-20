@@ -466,26 +466,39 @@ describe('estado vazio de busca', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px', () => {
   /**
-   * Reproduz a regra do grid, que é pura aritmética de CSS:
-   *   grid-template-columns: repeat(auto-fill, minmax(min(46%, 258px), 258px))
+   * Reproduz a regra do grid:
+   *   grid-template-columns: repeat(auto-fill, min(46%, 258px))
    *   gap: clamp(12px, 1.4vw, 22px)
    *   justify-content: center
    *
-   * auto-fill cabe N colunas quando N*minimo + (N-1)*gap <= disponivel; as
-   * trilhas então crescem do mínimo até o máximo (258px), e o que sobrar vira
-   * respiro centralizado.
+   * ─── O MODELO ANTERIOR ESTAVA ERRADO ──────────────────────────────────────
+   * A versão de 20/08/2026 usava `minmax(min(46%, 258px), 258px)` e este teste
+   * modelava o auto-fill contando pelo MÍNIMO da trilha. Com esse modelo a
+   * conta dava 2 colunas e o teste passava — mas o navegador entregava UMA
+   * coluna em todo celular, confirmado em device físico (Safari e webview do
+   * WhatsApp) e depois no Chrome headless, onde getComputedStyle devolvia
+   * `grid-template-columns: 258px` em 375, 390 e 430px.
+   *
+   * CSS Grid §7.2.3.1: para decidir quantas vezes repetir, o auto-fill usa a
+   * função de tamanho MÁXIMA da trilha quando ela é definida — não a mínima.
+   * Com máximo `258px` fixo a pergunta virava "quantas colunas de 258px cabem
+   * em 350px de conteúdo?", e a resposta é uma.
+   *
+   * Com trilha única `min(46%, 258px)` não há mínimo e máximo divergentes: o
+   * tamanho da trilha é um só, e é ele que conta. Os números abaixo foram
+   * conferidos contra o Chrome (CDP, Emulation.setDeviceMetricsOverride) na
+   * página real da tropicaleatacado — ver o relatório do fix.
    */
   function grade(larguraViewport) {
     const gap = Math.min(22, Math.max(12, larguraViewport * 0.014))
     const disponivel = Math.min(larguraViewport, 1280) - 40  // max-width 1280 + padding 20px
-    const minimo = Math.min(disponivel * 0.46, 258)
-    const n = Math.max(1, Math.floor((disponivel + gap) / (minimo + gap)))
-    const largura = Math.min(258, (disponivel - gap * (n - 1)) / n)
-    return { n, gap, largura, sobra: disponivel - (largura * n + gap * (n - 1)) }
+    const trilha = Math.min(disponivel * 0.46, 258)
+    const n = Math.max(1, Math.floor((disponivel + gap) / (trilha + gap)))
+    return { n, gap, largura: trilha, sobra: disponivel - (trilha * n + gap * (n - 1)) }
   }
 
-  // ── A5: 2 colunas garantidas a partir de 320px ──
-  it('320px — o caso que falhava antes — agora dá 2 colunas', () => {
+  // ── A5: 2 colunas garantidas em toda a faixa de celular ──
+  it('320px — a largura que estava dando 1 coluna no device real — dá 2 colunas', () => {
     expect(grade(320).n).toBe(2)
   })
 
@@ -495,68 +508,81 @@ describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px
     }
   })
 
-  it('390px continua com 2 colunas de 169px (critério 13.1)', () => {
-    const { n, largura } = grade(390)
-    expect(n).toBe(2)
-    expect(Math.round(largura)).toBe(169)
+  it('bate com o que o Chrome mediu na página real', () => {
+    // Valores lidos de getComputedStyle().gridTemplateColumns com emulação
+    // mobile. Se o modelo desta função divergir do navegador de novo, é aqui
+    // que aparece.
+    const medidoNoChrome = { 320: 128.8, 375: 154.1, 390: 161, 430: 179.4 }
+    for (const [w, largura] of Object.entries(medidoNoChrome)) {
+      const g = grade(Number(w))
+      expect(g.n, `${w}px colunas`).toBe(2)
+      expect(+g.largura.toFixed(1), `${w}px largura`).toBe(largura)
+    }
   })
 
-  it('a folga em 320px é de ~10px, não de fração de pixel', () => {
-    // Duas colunas ocupam 2×46% = 92%; sobram 8% do conteúdo para o gap.
-    const { sobra, gap } = grade(320)
-    const disponivel = 320 - 40
-    expect(disponivel * 0.08 - gap).toBeGreaterThan(10)
-    expect(sobra).toBe(0)  // as trilhas crescem e preenchem a linha
+  it('3 colunas nunca cabem enquanto a porcentagem é quem manda', () => {
+    // 3 × 46% = 138% > 100%, então no celular o teto é 2 — sem depender do gap.
+    for (const w of [200, 320, 400, 500]) expect(grade(w).n).toBeLessThanOrEqual(2)
   })
 
-  it('a regra aguenta muito além do necessário — só quebraria abaixo de 190px', () => {
-    expect(grade(200).n).toBe(2)
-    // 46% nunca deixa caber uma 3ª coluna enquanto a porcentagem é quem manda:
-    // 3×46% = 138% > 100%.
-    for (const w of [320, 400, 500]) expect(grade(w).n).toBeLessThanOrEqual(2)
+  it('em celular a trilha é a porcentagem, não o cap de 258px', () => {
+    // É o que diferencia o comportamento novo do antigo: em 390px a trilha
+    // vale 46% (161px), e não 258px.
+    expect(grade(390).largura).toBeCloseTo(161, 1)
+    expect(grade(390).largura).toBeLessThan(258)
   })
 
-  // ── A6: card travado em 258px ──
+  // ── A6: card travado em 258px (decisão preservada) ──
   it('o card nunca passa de 258px, por mais larga que seja a tela', () => {
     for (const w of [600, 768, 900, 1024, 1280, 1440, 1920, 2560]) {
       expect(grade(w).largura, `${w}px`).toBeLessThanOrEqual(258)
     }
   })
 
-  it('no desktop o card fica exatamente em 258px e a sobra vira respiro', () => {
-    const d = grade(1440)
-    expect(d.n).toBe(4)
-    expect(d.largura).toBe(258)
-    expect(Math.round(d.sobra)).toBe(148)  // ~74px de cada lado, centralizado
+  it('no desktop o card fica exatamente em 258px', () => {
+    for (const w of [768, 1024, 1280, 1440]) {
+      expect(grade(w).largura, `${w}px`).toBe(258)
+    }
   })
 
   it('a grade abre 2 → 3 → 4 colunas conforme a tela cresce', () => {
-    expect(grade(700).n).toBe(2)
-    expect(grade(838).n).toBe(3)
+    // Conferido no Chrome: 600→2, 768→2, 1024→3, 1280→4, 1440→4.
+    expect(grade(600).n).toBe(2)
+    expect(grade(768).n).toBe(2)
     expect(grade(1024).n).toBe(3)
     expect(grade(1280).n).toBe(4)
+    expect(grade(1440).n).toBe(4)
   })
 
-  it('pior sobra é em 768px — 200px, aceito junto com o cap de 258px', () => {
-    const t = grade(768)
-    expect(t.n).toBe(2)
-    expect(Math.round(t.sobra)).toBe(200)
-  })
-
-  it('em celular não sobra nada: as trilhas crescem e preenchem a linha', () => {
-    for (const w of [320, 375, 390, 430]) {
-      expect(Math.round(grade(w).sobra), `${w}px`).toBe(0)
+  it('a sobra vira respiro centralizado, nunca negativa (sem overflow)', () => {
+    for (const w of [320, 375, 390, 430, 600, 768, 1024, 1280, 1440]) {
+      expect(grade(w).sobra, `${w}px`).toBeGreaterThanOrEqual(0)
     }
   })
 
   it('a regra do grid no componente é exatamente a calibrada aqui', async () => {
     const fs = await import('node:fs/promises')
     const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
-    expect(fonte).toContain("'repeat(auto-fill, minmax(min(46%, 258px), 258px))'")
+    expect(fonte).toContain("'repeat(auto-fill, min(46%, 258px))'")
     expect(fonte).toContain("'clamp(12px, 1.4vw, 22px)'")
     expect(fonte).toContain("justifyContent: 'center'")
-    // O 1fr que esticava o card não pode ter voltado.
-    expect(fonte).not.toContain('minmax(min(48%, 258px), 1fr)')
+    // Regressão: nenhuma das duas regras antigas pode voltar. A primeira
+    // esticava o card no desktop; a segunda dava 1 coluna no celular.
+    // A checagem é sobre a REGRA, não sobre o arquivo: o comentário que
+    // explica o bug cita as duas de propósito.
+    const regra = fonte.match(/gridTemplateColumns: '(repeat\(auto-fill[^']+)'/)?.[1]
+    expect(regra).toBe('repeat(auto-fill, min(46%, 258px))')
+  })
+
+  it('a grade não usa minmax com máximo fixo — é o que quebrava o auto-fill', async () => {
+    const fs = await import('node:fs/promises')
+    const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
+    const regra = fonte.match(/gridTemplateColumns: '(repeat\(auto-fill[^']+)'/)?.[1]
+    expect(regra).toBeTruthy()
+    // minmax(..., <length>) faz o auto-fill contar pelo máximo. Só é seguro
+    // com máximo flexível (1fr/auto) — ou sem minmax nenhum, como agora.
+    const maximoFixo = /minmax\([^)]*,\s*[\d.]+px\s*\)/.test(regra)
+    expect(maximoFixo, `regra atual: ${regra}`).toBe(false)
   })
 
   it('não existe nenhuma media query de layout — só a de acessibilidade', async () => {
