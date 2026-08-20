@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getPalette } from 'colorthief'
 import { supabase } from '../../lib/supabase'
 import {
@@ -523,7 +524,7 @@ const PLANOS_ORDER = ['starter', 'pro', 'business']
 const PLANO_LABELS = { starter: 'Starter', pro: 'Pro', business: 'Business' }
 
 // ── GruposConsultor ───────────────────────────────────────────────
-function GruposConsultor({ clientes, consultoresMap, redesMap, onDelete }) {
+function GruposConsultor({ clientes, consultoresMap, redesMap, onDelete, onOpen }) {
   // agrupar por consultor_id (null → "Admin")
   const grupos = useMemo(() => {
     const map = new Map()
@@ -561,6 +562,7 @@ function GruposConsultor({ clientes, consultoresMap, redesMap, onDelete }) {
           lojas={lojas}
           redesMap={redesMap}
           onDelete={onDelete}
+          onOpen={onOpen}
         />
       ))}
     </div>
@@ -568,7 +570,7 @@ function GruposConsultor({ clientes, consultoresMap, redesMap, onDelete }) {
 }
 
 // ── ConsultorAccordion ────────────────────────────────────────────
-function ConsultorAccordion({ nomeConsultor, lojas, redesMap, onDelete }) {
+function ConsultorAccordion({ nomeConsultor, lojas, redesMap, onDelete, onOpen }) {
   const [open, setOpen] = useState(true)
 
   // subgrupar por plano: starter → pro → business → Outros
@@ -644,6 +646,7 @@ function ConsultorAccordion({ nomeConsultor, lojas, redesMap, onDelete }) {
                       link={link}
                       rede={c.rede_id ? redesMap[c.rede_id] : undefined}
                       onDelete={() => onDelete({ nome: c.nome, slug })}
+                      onOpen={() => onOpen(slug)}
                     />
                   )
                 })}
@@ -658,6 +661,7 @@ function ConsultorAccordion({ nomeConsultor, lojas, redesMap, onDelete }) {
 
 // ── Main Page ────────────────────────────────────────────────────
 export default function CadastroCliente() {
+  const navigate = useNavigate()
   const [clientes, setClientes]           = useState([])
   const [redesMap, setRedesMap]           = useState({}) // rede_id → rede.nome
   const [consultoresMap, setConsultoresMap] = useState({}) // id → nome
@@ -746,6 +750,7 @@ export default function CadastroCliente() {
           consultoresMap={consultoresMap}
           redesMap={redesMap}
           onDelete={setConfirmDelete}
+          onOpen={slug => navigate(`/clientes/${slug}`)}
         />
       )}
 

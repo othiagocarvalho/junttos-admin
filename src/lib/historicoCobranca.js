@@ -15,18 +15,10 @@ import { supabase } from './supabase'
 import { supabaseAdmin } from './supabaseAdmin'
 import { normalizarUsuarioSupabase } from '../utils/adminUsuario'
 
-export const ACAO = {
-  CRIADA:             'criada',
-  VENCIMENTO:         'vencimento',
-  VALOR:              'valor',
-  OBSERVACOES:        'observacoes',
-  PAGO:               'pago',
-  PAGAMENTO_DESFEITO: 'pagamento_desfeito',
-  DESCONTO:           'desconto',
-  // Ações da LOJA, não de uma cobrança: cobranca_id fica nulo, como no desconto.
-  PLANO:              'plano',
-  GRATUITO:           'gratuito',
-}
+// A lista mora em historicoCobrancaAcoes.js — módulo sem Supabase, para o
+// fluxo de criação de loja e os testes usarem sem abrir conexão. Reexportado
+// aqui para não quebrar quem já importa ACAO deste arquivo.
+export { ACAO } from './historicoCobrancaAcoes'
 
 const SEM_AUTOR = { nome: null, email: null }
 
