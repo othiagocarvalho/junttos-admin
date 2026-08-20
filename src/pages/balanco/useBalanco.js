@@ -1,15 +1,19 @@
 import { supabase } from '../../lib/supabase'
 import { getVarLabel } from '../../utils/balanco'
 import { rpcAusente } from '../../utils/estoqueMov'
+import { isLojaExcluida } from '../../utils/lojaStatus'
 
 export function useBalanco() {
 
   async function buscarLojas() {
     const { data, error } = await supabase
       .from('lf_config')
-      .select('loja_id, nome')
+      .select('loja_id, nome, status')
       .order('nome')
-    return { data: data || [], error }
+    // Loja excluída fica fora do seletor: daqui sai contagem que grava
+    // estoque, e loja encerrada não pode receber movimento novo. Mesmo
+    // motivo do bloqueio em App.jsx.
+    return { data: (data || []).filter(l => !isLojaExcluida(l.status)), error }
   }
 
   async function buscarProduto(query, lojaId) {

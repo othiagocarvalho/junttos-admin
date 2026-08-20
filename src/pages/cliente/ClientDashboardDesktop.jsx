@@ -119,6 +119,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
   const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
   const [imgErr, setImgErr] = useState(false)
 
+  // Com o catálogo de atacado ligado, "Catálogo online" vira ruído: os dois
+  // itens abrem a mesma gestão de pedidos (PedidosCatalogo), e o modo atacado
+  // já responde pela presença online da loja. Nada se perde ao esconder — o
+  // Catálogo B2B tem a aba "Pedidos" com exatamente as mesmas props.
+  const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
+  const itensPlano = b2bAtivo ? PLANO_NAV_ITEMS.filter(i => i.id !== 'catalogo') : PLANO_NAV_ITEMS
+
   function navItemStyle(active) {
     return {
       display: 'flex', alignItems: 'center', gap: 10,
@@ -195,7 +202,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           )
         })}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
-        {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+        {itensPlano.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
           const hasAccess = apenasPlano ? temAcesso(plano, planoMinimo) : (legado || temAcesso(plano, planoMinimo))
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
