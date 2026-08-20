@@ -120,8 +120,13 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   // sequência rápida devolveria a lista errada).
   const movReq = useRef(0)
 
-  // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro
-  const estoqueData = produtosData.filter(p => !p.disponivel_catalogo_b2b)
+  // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro.
+  //
+  // Loja 100% atacado (ex: Tropicale) tem todo o catálogo marcado como B2B —
+  // o filtro esvaziava a tela inteira e a lojista não tinha como desfazer,
+  // porque o botão que desliga a flag vive dentro do card que sumiu.
+  const semB2b = produtosData.filter(p => !p.disponivel_catalogo_b2b)
+  const estoqueData = semB2b.length > 0 ? semB2b : produtosData
 
   const filtered = estoqueData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
@@ -449,12 +454,28 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                 onKeyDown={e => e.key === 'Enter' && toggleExpand(produto.id)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 18px', cursor: 'pointer', userSelect: 'none' }}
               >
+                {/* Miniatura da foto, com o ícone como reserva.
+                    48x60 (retrato) em vez do quadrado de 40: é a proporção que
+                    ProdutosB2BPro já usa, e roupa fotografada de corpo inteiro
+                    fica irreconhecível cortada em quadrado. overflow:hidden
+                    porque a foto preenche a caixa e precisa respeitar o raio.
+                    Produto sem foto — `fotos` vem como [] na maioria das
+                    lojas — cai no Package de antes, sem mudança visual. */}
                 <div style={{
-                  width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                  width: 48, height: 60, borderRadius: 12, flexShrink: 0,
                   background: `color-mix(in srgb, ${theme.primary} 10%, white)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden',
                 }}>
-                  <Package size={18} color={theme.primary} strokeWidth={2} />
+                  {produto.fotos?.[0] ? (
+                    <img
+                      src={produto.fotos[0]}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <Package size={18} color={theme.primary} strokeWidth={2} />
+                  )}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
