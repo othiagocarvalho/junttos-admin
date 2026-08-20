@@ -342,7 +342,12 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, onFabClick, primary }) {
+function BottomTabBar({ tab, setTab, onFabClick, primary, config }) {
+  // Mesmo motivo do sidebar desktop: com atacado ligado, a aba "Catálogo"
+  // duplica o que o Catálogo B2B já mostra em "Pedidos".
+  const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
+  const tabs = b2bAtivo ? BOTTOM_TABS.filter(t => t.id !== 'catalogo') : BOTTOM_TABS
+
   const activeColor = primary || 'var(--primary)'
   return (
     <nav style={{
@@ -354,11 +359,11 @@ function BottomTabBar({ tab, setTab, onFabClick, primary }) {
     }}>
       <div style={{
         height: 68, width: '100%',
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+        display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
         alignItems: 'center',
         overflow: 'hidden',
       }}>
-        {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
+        {tabs.map(({ id, label, Icon, isFAB }) => {
           if (isFAB) {
             return (
               <button key={id} onClick={() => onFabClick ? onFabClick() : setTab(id)} aria-label="Nova venda" style={{
