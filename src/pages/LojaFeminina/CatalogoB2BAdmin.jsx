@@ -8,6 +8,8 @@ import Financeiro from './Financeiro'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
+import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
+import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -348,6 +350,8 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 14 }}>
             Pedido Mínimo
           </p>
+          {/* Some assim que ela escolhe outro tipo — segue pmTipo, não o banco. */}
+          {precisaAvisarPedidoMinimo(nivel, pmTipo) && <AvisoPedidoMinimo compacto />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <label style={lbl}>Tipo de mínimo</label>

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
-  Trash2, Search, Check, ChevronRight, ChevronDown, X, Pencil,
+  Trash2, Search, Check, ChevronRight, ChevronLeft, ChevronDown, X, Pencil,
   User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, Target, Receipt, ArrowLeftRight, Sparkles,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
@@ -11,6 +11,8 @@ import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/venda/ResumoVenda'
+import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
+import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
@@ -28,6 +30,10 @@ import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
 import AlertaBanner from '../LojaFeminina/AlertaBanner'
+import TourBoasVindas from '../../components/onboarding/TourBoasVindas'
+import BannerMeta from '../../components/onboarding/BannerMeta'
+import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
+import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
@@ -78,6 +84,20 @@ const onB = (e) => {
   e.target.style.borderColor = 'var(--line)'
   e.target.style.boxShadow = 'none'
   e.target.style.background = 'var(--bg)'
+}
+// Botão de avanço/retorno dos passos do stepper.
+const btnPasso = (primary) => ({
+  display: 'inline-flex', alignItems: 'center', gap: 8,
+  height: 44, padding: '0 22px', borderRadius: 'var(--r-pill)',
+  border: 'none', background: primary, color: '#fff', cursor: 'pointer',
+  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 700,
+  boxShadow: 'var(--shadow-btn-primary)',
+})
+const btnPassoVoltar = {
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  height: 44, padding: '0 18px', borderRadius: 'var(--r-pill)',
+  border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer',
+  fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: 'var(--ink-soft)',
 }
 const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 
@@ -253,7 +273,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -287,6 +307,13 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
 
   return (
     <div>
+      {mostrarLembreteMeta && (
+        <BannerMeta
+          primary={theme.primary}
+          onDefinirMeta={() => setTab('meta')}
+          onDispensar={onDispensarLembrete}
+        />
+      )}
       <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
@@ -647,6 +674,12 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
 const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
+// Mesmo stepper do mobile (LojaFeminina/NovaVenda.jsx), mesma numeração e
+// mesmos rótulos — o desktop só aproveita a largura: a coluna da esquerda
+// mostra um passo por vez e o painel de resumo da direita fica visível o
+// tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
+const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
+
 function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '' }) {
   const isDark = theme.primary === '#D4A017'
   // Ver NovaVenda mobile: initializer preguiçoso, lido uma vez na montagem.
@@ -682,10 +715,19 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [cliTelOpen, setCliTelOpen] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
   const [buscaProd, setBuscaProd] = useState('')
+  const [step, setStep] = useState(0)   // 0=Cliente 1=Produtos 2=Pagamento
+  const [catSel, setCatSel] = useState(CHAVE_TODOS)
 
-  // Filtro só de exibição: roda sobre a lista completa da loja (inclui item com
-  // estoque zero) e não toca em nada da venda. Campo vazio devolve tudo.
-  const produtosFiltrados = produtos.filter(nome => contemBusca(nome, buscaProd))
+  // Categorias derivadas do nome — mesma regra do mobile.
+  const cats = useMemo(() => construirCategorias(produtos), [produtos])
+
+  // Categoria e busca se combinam: a busca acontece dentro da categoria ativa.
+  const produtosFiltrados = filtrarPorCategoria(produtos, catSel, cats.mapa)
+    .filter(nome => contemBusca(nome, buscaProd))
+
+  function removerSelecionado(idx) {
+    setForm(f => ({ ...f, produtos: f.produtos.filter((_, i) => i !== idx) }))
+  }
 
   const normTelFn = t => (t || '').replace(/[\s\-(). ]/g, '')
   const cliNomeMatches = clientes.filter(c =>
@@ -824,6 +866,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setVarModalTroca(null)
     setTrocaDesconto('')
     setTrocaAcrescimo('')
+    setStep(0)
+    setCatSel(CHAVE_TODOS)
+    setBuscaProd('')
   }
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
@@ -894,12 +939,55 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         </button>
       </div>
     )}
+    {/* Indicador de progresso — 3 círculos numerados ligados por linha.
+        Concluído vira check, atual fica preenchido, futuros em cinza. */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+      {STEPS_VENDA.map((s, i) => {
+        const past = i < step
+        const active = i === step
+        return (
+          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {i > 0 && <div style={{ width: 44, height: 2, background: past ? theme.primary : 'var(--line)' }} />}
+            <button
+              type="button"
+              // Só deixa pular para trás: avançar é pelos botões, que validam.
+              onClick={() => { if (i < step) setStep(i) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'none', border: 'none', padding: 0,
+                cursor: i < step ? 'pointer' : 'default',
+              }}
+            >
+              <span style={{
+                width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
+                ...(past
+                  ? { background: theme.primary, color: '#fff' }
+                  : active
+                    ? { background: 'none', color: theme.primary, border: `2px solid ${theme.primary}` }
+                    : { background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--line)' }),
+              }}>
+                {past ? <Check size={14} strokeWidth={2.5} /> : i + 1}
+              </span>
+              <span style={{
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13,
+                fontWeight: active ? 700 : 600,
+                color: active ? 'var(--ink)' : past ? 'var(--ink-soft)' : 'var(--muted)',
+              }}>{s}</span>
+            </button>
+          </div>
+        )
+      })}
+    </div>
+
     {/* Grade de duas colunas: produtos à esquerda (mais espaço), resumo à
         direita. O resumo é sticky para não sair da viewport enquanto a lista
         de produtos rola — em loja com 141 produtos o botão de confirmar ficava
         a uma tela inteira de distância. */}
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 1fr)', gap: 20, alignItems: 'start' }}>
-      {/* Coluna 1, linha 1: dados da cliente */}
+      {/* Passo 1 — Coluna 1, linha 1: dados da cliente */}
+      {step === 0 && (
         <div style={{ gridColumn: 1, gridRow: 1, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -982,7 +1070,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Anotações sobre esta venda..." style={inputS} onFocus={fo} onBlur={onB} />
             </div>
           </div>
+
+          {/* Nome segue OPCIONAL, como sempre foi ("Identificação opcional"):
+              venda de balcão para cliente que não quer se identificar é o
+              caso comum. Não introduzo obrigatoriedade aqui — seria mudança
+              de regra de negócio, não de apresentação. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+            <button type="button" onClick={() => setStep(1)} style={btnPasso(theme.primary)}>
+              Próximo: Produtos <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
+      )}
 
         {/* Coluna 2: painel de resumo/pagamento, fixo ao lado da grade */}
         <div style={{
@@ -1070,7 +1169,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               </div>
             )}
 
-            {(!isTroca || totalValor > 0.005) && (
+            {step === 2 && (!isTroca || totalValor > 0.005) && (
               <>
                 <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
                 <div style={{ position: 'relative', marginBottom: 14 }}>
@@ -1135,6 +1234,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               </p>
             </div>
           )}
+          {step === 2 && (
           <button type="button" disabled={saving || !pgtoOk} onClick={handleSave}
             style={{ width: '100%', height: 50, marginTop: 20, border: 'none', borderRadius: 'var(--r-input)',
               cursor: saving || !pgtoOk ? 'not-allowed' : 'pointer',
@@ -1150,9 +1250,58 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           >
             {saving ? 'Salvando...' : isTroca ? 'Confirmar Troca' : 'Confirmar Venda'} {!saving && <Check size={16} />}
           </button>
+          )}
+          {step < 2 && form.produtos.length > 0 && (
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 14, lineHeight: 1.55 }}>
+              O pagamento é o passo 3. Este resumo acompanha você durante todo o fluxo.
+            </p>
+          )}
         </div>
 
-      {/* Coluna 1, linha 2: grade de produtos */}
+      {/* Passo 3 — Coluna 1, linha 2: revisão antes de pagar. O pagamento em
+          si fica no painel da direita, que já está aberto no passo 3. */}
+      {step === 2 && (
+        <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 4 }}>
+            Revisar {isTroca ? 'troca' : 'venda'}
+          </p>
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)', marginBottom: 18 }}>
+            Confira antes de confirmar. O pagamento está no painel ao lado.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16, marginBottom: 18 }}>
+            {[
+              ['Cliente',     form.nome     || '— não informado'],
+              ['Telefone',    form.tel      || '— não informado'],
+              ['Vendedor(a)', form.vendedora || '— não informado'],
+              ['Observações', form.obs      || '—'],
+            ].map(([rot, val]) => (
+              <div key={rot} style={{ minWidth: 0 }}>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>{rot}</p>
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, color: 'var(--ink)', wordBreak: 'break-word' }}>{val}</p>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+            {isTroca ? 'Produto novo' : 'Produtos'} ({form.produtos.length})
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+            {form.produtos.map((pr, i) => (
+              <span key={i} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                {pr.nome}{pr.variacao ? ` — ${pr.variacao}` : pr.obs ? ` — ${pr.obs}` : ''}{(pr.quantidade || 1) > 1 ? ` ×${pr.quantidade || 1}` : ''}
+              </span>
+            ))}
+          </div>
+
+          <button type="button" onClick={() => setStep(1)} style={btnPassoVoltar}>
+            <ChevronLeft size={16} /> Voltar
+          </button>
+        </div>
+      )}
+
+      {/* Passo 2 — Coluna 1, linha 2: grade de produtos */}
+      {step === 1 && (
       <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
@@ -1297,6 +1446,24 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             </div>
           </div>
         )}
+
+        <div style={{ marginBottom: 12 }}>
+          <ChipsCategoria
+            categorias={cats.categorias}
+            exibir={cats.exibir}
+            selecionada={catSel}
+            onSelecionar={setCatSel}
+            primary={theme.primary}
+          />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <ChipsSelecionados
+            itens={form.produtos}
+            onRemover={removerSelecionado}
+            primary={theme.primary}
+          />
+        </div>
 
         {/* Busca por nome — estoque grande fica impraticável de rolar. */}
         <div style={{ position: 'relative', marginBottom: 10 }}>
@@ -1502,6 +1669,25 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         </div>
         )}
 
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 20 }}>
+          <button type="button" onClick={() => setStep(0)} style={btnPassoVoltar}>
+            <ChevronLeft size={16} /> Voltar
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (form.produtos.length > 0) setStep(2) }}
+            disabled={form.produtos.length === 0}
+            style={{
+              ...btnPasso(theme.primary),
+              ...(form.produtos.length === 0
+                ? { background: 'var(--line)', color: 'var(--muted)', cursor: 'not-allowed', boxShadow: 'none' }
+                : {}),
+            }}
+          >
+            Próximo: Pagamento <ChevronRight size={16} />
+          </button>
+        </div>
+
         {form.produtos.length > 0 && (
           <div style={{ marginTop: 16, padding: '12px 14px', background: isDark ? '#050504' : '#F6EFE8', borderRadius: 12 }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Selecionados</p>
@@ -1515,6 +1701,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           </div>
         )}
       </div>
+      )}
     </div>
     </>
   )
@@ -1593,6 +1780,14 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
 
+  // Estado derivado em vez de useEffect + setState: o modal está aberto
+  // enquanto a flag do banco disser que sim E a lojista não tiver fechado
+  // nesta sessão. Sem efeito de sincronização, sem render em cascata.
+  // Fica antes de qualquer early return — rules-of-hooks.
+  const [tourFechado, setTourFechado] = useState(false)
+  const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
+  const tourAberto = data.config?.tour_pendente === true && !tourFechado
+
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
   if ((catalogoB2BNivel === 'simples' || catalogoB2BNivel === 'pro') && data?.config?.features?.apenas_catalogo_b2b === true) {
     return (
@@ -1626,10 +1821,40 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const plano = data.config?.plano || 'starter'
   const legado = isLegado(data.config?.features || data.features)
 
+  const slidesTour = tourAberto
+    ? construirSlides({
+        nomeLoja:    data.config?.nome || theme.nome || 'sua loja',
+        plano,
+        temProdutos: (data.produtosData || []).length > 0,
+        temClientes: (data.clientes || []).length > 0,
+        temMeta:     temMetaDoMes(data.metas),
+      })
+    : []
+
+  async function fecharTour() {
+    setTourFechado(true)
+    // tour_visto_em separa "já viu e fechou" de "nunca foi ativado" — é o
+    // que o painel admin usa para escolher entre "Ativar" e "Reativar".
+    if (data.config?.tour_pendente === true) {
+      await data.saveConfig?.({ tour_pendente: false, tour_visto_em: new Date().toISOString() })
+    }
+  }
+
+  const mostrarLembreteMeta = deveMostrarLembreteMeta({
+    metas: data.metas,
+    dispensadoEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
+  })
+
+  async function dispensarLembreteMeta() {
+    const mes = competenciaAtual()
+    setMetaDispensadaLocal(mes)
+    await data.saveConfig?.({ meta_lembrete_dispensado_em: mes })
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} importarProdutos={data.importarProdutos} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
     relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
@@ -1672,6 +1897,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
           {panels[tab]}
         </div>
       </div>
+      {tourAberto && slidesTour.length > 0 && (
+        <TourBoasVindas slides={slidesTour} primary={theme.primary} onFechar={fecharTour} />
+      )}
     </div>
   )
 }

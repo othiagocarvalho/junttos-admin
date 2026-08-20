@@ -352,13 +352,6 @@ export default function ProdutosB2BPro({
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalPecas = b2bProdutos.reduce((s, p) =>
-    s + (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0), 0)
-  const totalVenda = b2bProdutos.reduce((s, p) => {
-    const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
-    return s + qtd * Number(p.preco_venda || 0)
-  }, 0)
-
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
@@ -578,32 +571,6 @@ export default function ProdutosB2BPro({
           {toast}
         </div>
       )}
-
-      {/* Totais */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ background: theme.primary, borderRadius: 'var(--r-card)', padding: '18px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 8 }}>
-              Valor em Estoque
-            </p>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
-              {fmtR(totalVenda)}
-            </p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{totalPecas}</p>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>peças</p>
-          </div>
-        </div>
-        <div style={{ background: `${theme.primary}12`, borderRadius: 'var(--r-card)', padding: '18px 14px', border: `1px solid ${theme.primary}25`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'flex-start', marginBottom: 6 }}>
-            Pro
-          </span>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, color: theme.primary }}>
-            Grade de tamanho ativa
-          </p>
-        </div>
-      </div>
 
       {/* Busca + Novo */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

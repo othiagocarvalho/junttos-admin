@@ -14,6 +14,7 @@ import {
   aplicarDesconto, diaISO, marcoCobrancaAutomatica,
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from '../utils/cobrancas'
+import { pedidoMinimoPayload } from '../utils/modeloVenda'
 import { ACAO } from '../lib/historicoCobrancaAcoes'
 
 export function toSlug(s) {
@@ -75,6 +76,10 @@ export function buildLojaPayload({
   desconto_valor = null,
   desconto_motivo = null,
   cobranca_automatica_desde = null,
+  // Pedido mínimo do catálogo de atacado. Só entra no payload quando o
+  // cadastro realmente escolheu atacado e preencheu — omitir mantém o INSERT
+  // idêntico ao de antes para quem não passa nada (ConsultorNovaLoja).
+  pedido_minimo = null,
 }) {
   const payload = {
     loja_id:        slug,
@@ -103,6 +108,9 @@ export function buildLojaPayload({
   }
   if (cadastrado_por_consultor_id) {
     payload.cadastrado_por_consultor_id = cadastrado_por_consultor_id
+  }
+  if (pedido_minimo) {
+    Object.assign(payload, pedidoMinimoPayload(pedido_minimo))
   }
   return payload
 }
@@ -191,6 +199,7 @@ export async function executarCriacaoLoja(params, deps) {
     desconto_tipo = null,
     desconto_valor = null,
     desconto_motivo = null,
+    pedido_minimo = null,
   } = params
 
   const { supabase, origin, registrarHistorico } = deps
@@ -212,6 +221,7 @@ export async function executarCriacaoLoja(params, deps) {
       nome, slug, status, plano, segmento, cor_primaria, cor_secundaria,
       features, logoUrl, cadastrado_por_consultor_id,
       vencimento_dia, desconto_tipo, desconto_valor, desconto_motivo,
+      pedido_minimo,
       // Só loja que já nasce ativa entra no ciclo — ver a explicação em
       // marcoCobrancaAutomatica.
       cobranca_automatica_desde: marcoCobrancaAutomatica(status),

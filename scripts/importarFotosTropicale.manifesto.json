@@ -1,0 +1,229 @@
+{
+  "loja_id": "tropicaleatacado",
+  "gerado_em": "2026-08-20T01:44:17.770Z",
+  "observacao": "Ordem congelada da 1a execucao. created_at empata nos 37 produtos, entao a ordem do banco nao e reproduzivel apos updates.",
+  "itens": [
+    {
+      "posicao": "01",
+      "produto_id": "a0058e90-058e-4807-b928-c81032310587",
+      "nome": "VESTIDO CURTO PATY DUDA",
+      "arquivo": "01.jpg"
+    },
+    {
+      "posicao": "02",
+      "produto_id": "33b531d3-802a-4cb3-9d05-eab496e7124b",
+      "nome": "VESTIDO CURTO PATY ISABELA",
+      "arquivo": "02.jpg"
+    },
+    {
+      "posicao": "03",
+      "produto_id": "f56cfc7f-27df-4672-be20-14032b01a5d6",
+      "nome": "VESTIDO CURTO PATY LAÍS",
+      "arquivo": "03.jpg"
+    },
+    {
+      "posicao": "04",
+      "produto_id": "7a92d9c1-0cb7-45bc-955a-b4e3f245978b",
+      "nome": "CONJUNTO DE SAIA CURTA PATY ÍSIS",
+      "arquivo": "04.jpg"
+    },
+    {
+      "posicao": "05",
+      "produto_id": "574abec3-1e4a-4c31-8280-74f892fdf2a6",
+      "nome": "VESTIDO CURTO PATY LAURA",
+      "arquivo": "05.jpg"
+    },
+    {
+      "posicao": "06",
+      "produto_id": "11cf6901-d330-48c3-8106-f41c17b99c42",
+      "nome": "CONJUNTO DE SHORT PATY ADRIANA",
+      "arquivo": "06.jpg"
+    },
+    {
+      "posicao": "07",
+      "produto_id": "c166ca55-9cb7-402d-ac7f-b793780eb0fa",
+      "nome": "MACAQUINHO PATY HELOÍSA",
+      "arquivo": "07.jpg"
+    },
+    {
+      "posicao": "08",
+      "produto_id": "b299f1bd-c7b9-4f01-a69b-9de8733707ad",
+      "nome": "MACAQUINHO PATY MAVIE",
+      "arquivo": "08.jpg"
+    },
+    {
+      "posicao": "09",
+      "produto_id": "38a4bad5-56bf-475b-92e3-20c051ef38d2",
+      "nome": "VESTIDO CURTO PATY ROBERTA",
+      "arquivo": "09.jpg"
+    },
+    {
+      "posicao": "10",
+      "produto_id": "f97cc0c5-db00-4bbf-a57f-ec42c1d6c094",
+      "nome": "VESTIDO LONGO GRINGA ALICE",
+      "arquivo": "10.jpg"
+    },
+    {
+      "posicao": "11",
+      "produto_id": "0d684854-5b5c-418d-82df-be7afa764faf",
+      "nome": "CJ. DE SAIA LONGA GRINGA BRUNA",
+      "arquivo": "11.jpg"
+    },
+    {
+      "posicao": "12",
+      "produto_id": "f903dde9-8830-46c5-ae4b-d6b5db37ca2a",
+      "nome": "CJ. DE SAIA MID GRINGA DANIELLY",
+      "arquivo": "12.jpg"
+    },
+    {
+      "posicao": "13",
+      "produto_id": "3e4e38a9-0c17-4e81-a1a4-5bd36fae7fa6",
+      "nome": "CJ. DE SAIA LONGA GRINGA VANESSA",
+      "arquivo": "13.jpg"
+    },
+    {
+      "posicao": "14",
+      "produto_id": "6de34dd3-5cf9-4081-8731-77c0c809dcbb",
+      "nome": "VESTIDO LONGO GRINGA HELENA",
+      "arquivo": "14.jpg"
+    },
+    {
+      "posicao": "15",
+      "produto_id": "e3a8b68b-b00e-4e50-8c45-4f2edc7cf61c",
+      "nome": "VESTIDO CURTO PATY MEL",
+      "arquivo": "15.jpg"
+    },
+    {
+      "posicao": "16",
+      "produto_id": "a68cadc5-bd80-4c7e-a828-2ef2dcf87b53",
+      "nome": "VESTIDO CURTO PATY AMORA",
+      "arquivo": "16.jpg"
+    },
+    {
+      "posicao": "17",
+      "produto_id": "0c5f7e3c-5013-467f-8fdf-18bbd9733315",
+      "nome": "VESTIDO CURTO PATY INDIANO",
+      "arquivo": "17.jpg"
+    },
+    {
+      "posicao": "18",
+      "produto_id": "5bae47a5-55ee-4dfe-9e5c-a770c57ad533",
+      "nome": "LONGO TROPICALE REF 61 ELASTEX",
+      "arquivo": "18.jpg"
+    },
+    {
+      "posicao": "19",
+      "produto_id": "abbb2d8b-e449-45c9-94e0-4031228081d0",
+      "nome": "LONGO TROPICALE SARA",
+      "arquivo": "19.jpg"
+    },
+    {
+      "posicao": "20",
+      "produto_id": "4a351aa2-5a99-42d8-9344-ae62d47f9768",
+      "nome": "LONGO TROPICALE REF 84",
+      "arquivo": "20.jpg"
+    },
+    {
+      "posicao": "21",
+      "produto_id": "3de19591-21c0-46d1-a46d-b70d7a974f0f",
+      "nome": "LONGO TROPICALE SUZANY",
+      "arquivo": "21.jpg"
+    },
+    {
+      "posicao": "22",
+      "produto_id": "016aa207-9230-45a5-a8d2-75b71c9007d8",
+      "nome": "CONJUNTO DE SHORT PATY SOPHIA",
+      "arquivo": "22.jpg"
+    },
+    {
+      "posicao": "23",
+      "produto_id": "bee5aa4c-dabe-44fc-8ad0-b43ea3666298",
+      "nome": "LONGO TROPICALE FLOR 1 OMBRO",
+      "arquivo": "23.jpg"
+    },
+    {
+      "posicao": "24",
+      "produto_id": "59b9a703-dffc-4f75-b27a-f60904dc96bb",
+      "nome": "LONGO TROPICALE FLOR REGATA",
+      "arquivo": "24.jpg"
+    },
+    {
+      "posicao": "25",
+      "produto_id": "2827f047-cb61-44d9-8a2d-1f0eb9c48482",
+      "nome": "MAC. PANTALONA TROPICALE REF 80",
+      "arquivo": "25.jpg"
+    },
+    {
+      "posicao": "26",
+      "produto_id": "d197b16b-7e17-41f1-b8f3-32c42a4fc611",
+      "nome": "CONJUNTO DE SHORT PATY SASHA",
+      "arquivo": "26.jpg"
+    },
+    {
+      "posicao": "27",
+      "produto_id": "c3a6d734-5a53-4217-8dcb-94344b561f39",
+      "nome": "CONJUNTO DE LENÇO PATY",
+      "arquivo": "27.jpg"
+    },
+    {
+      "posicao": "28",
+      "produto_id": "b623dc71-72a2-42d5-9649-84834e635ef4",
+      "nome": "VESTIDO CURTO PATY REF 07 BABADO",
+      "arquivo": "28.jpg"
+    },
+    {
+      "posicao": "29",
+      "produto_id": "cf5c02d6-0eca-4cf3-b51d-ba48e9ff238c",
+      "nome": "VESTIDO CURTO PATY ANA",
+      "arquivo": "29.jpg"
+    },
+    {
+      "posicao": "30",
+      "produto_id": "7d532f67-ebb2-4705-8885-a556a6ffc94b",
+      "nome": "VESTIDO CURTO PATY LIZ",
+      "arquivo": "30.jpg"
+    },
+    {
+      "posicao": "31",
+      "produto_id": "c0b08185-b504-4de0-b228-09709096af48",
+      "nome": "LONGO TROPICALE REF 90",
+      "arquivo": "31.jpg"
+    },
+    {
+      "posicao": "32",
+      "produto_id": "baf68a09-4ba6-4a25-8026-95106ecf97b6",
+      "nome": "VESTIDO CURTO PATY LUNA",
+      "arquivo": "32.jpg"
+    },
+    {
+      "posicao": "33",
+      "produto_id": "df79b156-4df5-4f66-b414-18d66afea87b",
+      "nome": "CONJUNTO DE SHORT PATY CLARA",
+      "arquivo": "33.jpg"
+    },
+    {
+      "posicao": "34",
+      "produto_id": "65c48876-0d10-47b1-ba5e-7630328c51c3",
+      "nome": "CONJUNTO DE SHORT PATY YASMIN",
+      "arquivo": "34.jpg"
+    },
+    {
+      "posicao": "35",
+      "produto_id": "88cba46f-407d-4cf2-8cdb-8675798dc289",
+      "nome": "CONJUNTO DE SHORT SAIA PATY AYLA",
+      "arquivo": "35.jpg"
+    },
+    {
+      "posicao": "36",
+      "produto_id": "7ad7c44d-6a6c-497c-9737-7bbefb339322",
+      "nome": "VESTIDO CURTO PATY ÍRIS",
+      "arquivo": "36.jpg"
+    },
+    {
+      "posicao": "37",
+      "produto_id": "07418e69-2bb7-425f-a7a9-a004233973ba",
+      "nome": "CONJUNTO DE SHORT PATY ESTHER",
+      "arquivo": "37.jpg"
+    }
+  ]
+}

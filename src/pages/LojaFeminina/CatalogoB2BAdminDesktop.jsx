@@ -8,6 +8,8 @@ import FinanceiroDesktop from '../cliente/FinanceiroDesktop'
 import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
+import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
+import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
   { label: 'Junttos',  primary: '#5E2BD0' },
@@ -469,6 +471,8 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
         {nivel === 'pro' ? (
           <div style={section}>
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
+            {/* Some assim que ela escolhe outro tipo — segue pmTipo, não o banco. */}
+            {precisaAvisarPedidoMinimo(nivel, pmTipo) && <AvisoPedidoMinimo />}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={lbl}>Tipo de mínimo</label>
