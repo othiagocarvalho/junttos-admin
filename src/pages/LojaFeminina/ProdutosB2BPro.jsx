@@ -36,6 +36,72 @@ const inp = {
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 
+// ── Storage: buckets e montagem do caminho ───────────────────
+//
+// Os nomes dos buckets ficam em constante exportada, e não como literal solto
+// dentro da função de upload, para o teste conseguir afirmar sem rede que o
+// bucket usado é exatamente o que existe no projeto. Mesmo motivo do
+// LOGO_BUCKET em src/utils/uploadLogo.js.
+export const BUCKET_FOTOS  = 'produtos-fotos'
+export const BUCKET_VIDEOS = 'produtos-videos'
+
+// Extensão por MIME, usada quando o nome do arquivo não traz uma aproveitável.
+const EXT_POR_MIME = {
+  'image/jpeg': 'jpg',  'image/jpg': 'jpg',   'image/png': 'png',
+  'image/webp': 'webp', 'image/gif': 'gif',   'image/heic': 'heic',
+  'image/heif': 'heif', 'image/avif': 'avif',
+  'video/mp4': 'mp4',   'video/quicktime': 'mov', 'video/webm': 'webm',
+}
+
+/**
+ * Extensão do arquivo, com o MIME como fonte de reserva.
+ *
+ * `file.name.split('.').pop()` devolve o NOME INTEIRO quando não existe ponto
+ * (uma foto chamada "IMG_4567" viraria a "extensão" img_4567) e string vazia
+ * quando o nome termina em ponto — os dois casos entram no path e produzem um
+ * objeto de nome estranho no bucket. O MIME já foi validado antes (FotosSection
+ * só aceita image/*), então serve bem de fallback.
+ */
+export function extensaoDe(file) {
+  const partes = String(file?.name ?? '').split('.')
+  const doNome = partes.length > 1 ? partes.pop().toLowerCase() : ''
+  if (/^[a-z0-9]{2,5}$/.test(doNome)) return doNome
+  return EXT_POR_MIME[String(file?.type ?? '').toLowerCase()] || 'bin'
+}
+
+/**
+ * Caminho no bucket: {loja_id}/{prefixo}_{timestamp}.{ext}.
+ *
+ * A PRIMEIRA PASTA PRECISA SER O loja_id. As policies de storage.objects deste
+ * projeto autorizam por
+ *   (storage.foldername(name))[1] = auth.jwt() -> 'app_metadata' ->> 'loja_id'
+ * (mesmo desenho documentado em supabase/migration_fiscal.sql). Com lojaId
+ * vazio o caminho viraria "undefined/..." e o Postgres recusaria o INSERT com
+ * "new row violates row-level security policy" — mensagem que não diz nada
+ * sobre a causa real. Falhar aqui, antes da rede, deixa o motivo explícito.
+ */
+export function caminhoMidia(lojaId, prefix, file, agora = Date.now()) {
+  if (!lojaId) throw new Error('Loja não identificada. Recarregue a página e tente de novo.')
+  return `${lojaId}/${prefix}_${agora}.${extensaoDe(file)}`
+}
+
+/**
+ * Traduz o erro do Storage para algo acionável.
+ *
+ * O texto "new row violates row-level security policy" é idêntico nos dois
+ * cenários que causam 403 aqui — request sem sessão (o supabase-js cai na anon
+ * key) e policy faltando/incorreta no bucket — então a mensagem crua não
+ * permite distinguir nem agir.
+ */
+export function erroDeUpload(error, bucket, lojaId) {
+  const msg = String(error?.message ?? error ?? '')
+  if (/row-level security/i.test(msg)) {
+    return `permissão negada pelo Storage ao gravar em ${bucket}/${lojaId}/. `
+      + 'Confira se o bucket tem policy de INSERT para o papel "authenticated" nessa pasta.'
+  }
+  return msg
+}
+
 // ── Grade form (shared between Novo e Editar) ────────────────
 function GradeForm({ grade, setGrade, theme }) {
   function addTamanho() {
@@ -230,7 +296,7 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
 }
 
 // ── Seção de upload de fotos (múltiplas por produto) ─────────
-function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, theme }) {
+function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, error, theme }) {
   const MAX = 10 * 1024 * 1024
   function pick(files) {
     const validos = Array.from(files).filter(f => f.size <= MAX && f.type.startsWith('image/'))
@@ -269,6 +335,7 @@ function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onR
         </div>
       </label>
       {uploading && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary }}>Enviando fotos...</p>}
+      {error && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)' }}>{error}</p>}
     </div>
   )
 }
@@ -312,9 +379,11 @@ export default function ProdutosB2BPro({
 
   // Fotos — novo produto
   const [newFotoFiles, setNewFotoFiles]   = useState([])
+  const [newFotoError, setNewFotoError]   = useState('')
   // Fotos — editar produto
   const [editFotos, setEditFotos]         = useState([])
   const [editFotoFiles, setEditFotoFiles] = useState([])
+  const [editFotoError, setEditFotoError] = useState('')
 
   const [uploadingFotos, setUploadingFotos] = useState(false)
 
@@ -363,26 +432,39 @@ export default function ProdutosB2BPro({
     setTimeout(() => setLinkCopiado(false), 2000)
   }
 
-  async function uploadVideo(file, prefix) {
-    const ext = file.name.split('.').pop().toLowerCase()
-    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
+  // Sem sessão viva o supabase-js NÃO falha: ele manda a anon key no lugar do
+  // token (SupabaseClient._getAccessToken → `session?.access_token ?? supabaseKey`).
+  // Como as tabelas lf_* estão sem RLS, uma sessão expirada passa despercebida
+  // no painel inteiro e só aparece no Storage, como 403 "new row violates
+  // row-level security policy" — texto idêntico ao de policy faltando. Conferir
+  // (e tentar renovar) antes de subir separa um caso do outro.
+  async function garantirSessao() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) return session
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data?.session) {
+      throw new Error('sua sessão expirou. Entre de novo para enviar arquivos.')
+    }
+    return data.session
+  }
+
+  async function uploadMidia(bucket, file, prefix) {
+    await garantirSessao()
+    const path = caminhoMidia(LOJA_ID, prefix, file)
     const { error } = await supabase.storage
-      .from('produtos-videos')
+      .from(bucket)
       .upload(path, file, { upsert: true, contentType: file.type })
-    if (error) throw new Error(error.message)
-    const { data: { publicUrl } } = supabase.storage.from('produtos-videos').getPublicUrl(path)
+    if (error) throw new Error(erroDeUpload(error, bucket, LOJA_ID))
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path)
     return publicUrl
   }
 
+  async function uploadVideo(file, prefix) {
+    return uploadMidia(BUCKET_VIDEOS, file, prefix)
+  }
+
   async function uploadFoto(file, prefix) {
-    const ext = file.name.split('.').pop().toLowerCase()
-    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
-    const { error } = await supabase.storage
-      .from('produtos-fotos')
-      .upload(path, file, { upsert: true, contentType: file.type })
-    if (error) throw new Error(error.message)
-    const { data: { publicUrl } } = supabase.storage.from('produtos-fotos').getPublicUrl(path)
-    return publicUrl
+    return uploadMidia(BUCKET_FOTOS, file, prefix)
   }
 
   function openEdit(produto) {
@@ -397,6 +479,7 @@ export default function ProdutosB2BPro({
     setEditVideoError('')
     setEditFotos(produto.fotos || [])
     setEditFotoFiles([])
+    setEditFotoError('')
     setEditModal({ produto })
   }
 
@@ -425,11 +508,16 @@ export default function ProdutosB2BPro({
     const fotoUrls = []
     if (newFotoFiles.length > 0) {
       setUploadingFotos(true)
+      setNewFotoError('')
       try {
         for (const { file } of newFotoFiles) {
           fotoUrls.push(await uploadFoto(file, `prod_${Date.now()}`))
         }
       } catch (e) {
+        // Antes este catch só dava return: o botão voltava de "Enviando
+        // fotos..." para "Salvar Produto" sem dizer nada, e o produto não era
+        // criado. Falha silenciosa é o pior desfecho possível aqui.
+        setNewFotoError('Erro no upload de foto: ' + e.message)
         setNewSaving(false)
         setUploadingFotos(false)
         return
@@ -481,6 +569,7 @@ export default function ProdutosB2BPro({
     let finalFotos = editFotos
     if (editFotoFiles.length > 0) {
       setUploadingFotos(true)
+      setEditFotoError('')
       try {
         const newUrls = []
         for (const { file } of editFotoFiles) {
@@ -488,7 +577,9 @@ export default function ProdutosB2BPro({
         }
         finalFotos = [...finalFotos, ...newUrls]
       } catch (e) {
-        setEditVideoError('Erro no upload de foto: ' + e.message)
+        // O erro de foto ia parar em setEditVideoError, e portanto aparecia
+        // embaixo da seção de VÍDEO — longe do campo que falhou.
+        setEditFotoError('Erro no upload de foto: ' + e.message)
         setEditSaving(false)
         setUploadingFotos(false)
         return
@@ -600,7 +691,7 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewTamanhosSel([]); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewProdOpen(true) }}
+          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewTamanhosSel([]); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewFotoError(''); setNewProdOpen(true) }}
           onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewTamanhosSel([]), setNewProdOpen(true))}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
@@ -787,6 +878,7 @@ export default function ProdutosB2BPro({
                   onRemoveUrl={() => {}}
                   onRemoveFile={i => setNewFotoFiles(p => p.filter((_, j) => j !== i))}
                   uploading={uploadingFotos}
+                  error={newFotoError}
                   theme={theme}
                 />
               </div>
@@ -869,6 +961,7 @@ export default function ProdutosB2BPro({
                 onRemoveUrl={i => setEditFotos(p => p.filter((_, j) => j !== i))}
                 onRemoveFile={i => setEditFotoFiles(p => p.filter((_, j) => j !== i))}
                 uploading={uploadingFotos}
+                error={editFotoError}
                 theme={theme}
               />
             </div>
