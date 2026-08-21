@@ -893,8 +893,12 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function DrawerPedido({
   linhas, produtosPorId, minimo, loja, aoFechar, aoMudarQtd, aoEnviar, aoPagar,
+  aoCopiarPix,
 }) {
   const painelRef = useRef(null)
+  // Feedback local do botão de copiar. Fica aqui, e não no componente pai,
+  // porque é estado de UI de um botão só — não interessa a mais ninguém.
+  const [pixCopiado, setPixCopiado] = useState(false)
   useTravaScroll(true)
   useFocoPreso(painelRef, true, aoFechar)
 
@@ -1032,7 +1036,48 @@ export function DrawerPedido({
             >{TEXTOS.enviarWhatsapp}</button>
           )}
 
-          {loja.checkoutOnline && (
+          {/* Pix copia-e-cola. Só aparece com o checkout ligado E chave
+              cadastrada; sem chave o caminho antigo continua igual, e o botão
+              do WhatsApp acima segue sendo como o pedido se fecha. Não tem QR
+              Code nem gateway de propósito — a cliente copia e paga no banco
+              dela. */}
+          {loja.checkoutOnline && loja.chavePix ? (
+            <div style={{
+              border: `1px solid ${C.linhaInput}`, borderRadius: 14,
+              background: C.superficie, padding: '14px 15px',
+            }}>
+              <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: C.tinta }}>
+                {TEXTOS.pixTitulo}
+              </p>
+              <p style={{ margin: '0 0 11px', fontSize: 13.5, lineHeight: 1.45, color: C.texto3 }}>
+                {TEXTOS.pixInstrucao}
+              </p>
+              <p style={{
+                margin: '0 0 11px', padding: '11px 12px', borderRadius: 10,
+                background: C.superficie3, border: `1px solid ${C.linha}`,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                fontSize: 13.5, color: C.tinta,
+                // Chave aleatória do Pix tem 36 caracteres e não tem espaço:
+                // sem isto ela estoura a largura do drawer no celular.
+                wordBreak: 'break-all',
+              }}>{loja.chavePix}</p>
+              <button
+                onClick={async () => {
+                  const ok = await aoCopiarPix?.(loja.chavePix)
+                  if (ok === false) return
+                  setPixCopiado(true)
+                  setTimeout(() => setPixCopiado(false), 2200)
+                }}
+                style={{
+                  width: '100%', height: 48, borderRadius: 12, cursor: 'pointer',
+                  border: `1px solid ${C.tinta}`,
+                  background: pixCopiado ? C.tinta : C.superficie,
+                  color: pixCopiado ? C.fundo : C.tinta,
+                  fontSize: 15, fontWeight: 600,
+                }}
+              >{pixCopiado ? TEXTOS.pixCopiado : TEXTOS.pixCopiar}</button>
+            </div>
+          ) : loja.checkoutOnline ? (
             <button
               onClick={aoPagar}
               style={{
@@ -1040,7 +1085,7 @@ export function DrawerPedido({
                 background: C.superficie, color: C.tinta, fontSize: 16, fontWeight: 600, cursor: 'pointer',
               }}
             >{TEXTOS.pagarSite}</button>
-          )}
+          ) : null}
         </div>
       </aside>
     </>
@@ -1078,6 +1123,9 @@ export default function CatalogoPublicoV2({ lojaId }) {
   const [produtoAberto, setProdutoAberto] = useState(null)
   const [toast, setToast] = useState('')
 
+  // Trava do registro do pedido no fluxo Pix: copiar a chave duas vezes não
+  // pode virar dois pedidos em lf_pedidos.
+  const pixRegistrado = useRef(false)
   const timerToast = useRef(null)
   const mostrarToast = useCallback(texto => {
     setToast(texto)
@@ -1195,6 +1243,38 @@ export default function CatalogoPublicoV2({ lojaId }) {
 
     await registrarPedido('aguardando_contato')
     window.open(linkWhatsApp(loja.whatsapp, mensagem), '_blank', 'noopener,noreferrer')
+  }
+
+  /**
+   * Copia a chave Pix e registra o pedido como aguardando pagamento.
+   *
+   * O registro é o mesmo que o antigo "Pagar agora pelo site" fazia — sem ele
+   * a lojista perderia a intenção de compra no painel. Roda UMA vez por
+   * pedido: copiar de novo (porque errou o Ctrl+V) não pode gerar um segundo
+   * registro.
+   *
+   * Devolve false quando não deu para seguir, e aí o botão não pisca
+   * "Chave copiada!" — confirmar uma cópia que não aconteceu é pior do que
+   * não dar retorno nenhum.
+   */
+  async function copiarChavePix(chave) {
+    if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return false }
+    if (!linhas.length) return false
+
+    try {
+      await navigator.clipboard.writeText(chave)
+    } catch {
+      // Safari em contexto sem permissão de clipboard: a chave continua
+      // visível na tela para copiar na mão, então não é um beco sem saída.
+      return false
+    }
+
+    if (!pixRegistrado.current) {
+      pixRegistrado.current = true
+      await registrarPedido('aguardando_pagamento')
+    }
+    mostrarToast(TEXTOS.toastPixCopiado)
+    return true
   }
 
   async function pagarNoSite() {
@@ -1344,6 +1424,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
           aoMudarQtd={(chave, qtd) => setCarrinho(c => definirQtd(c, chave, qtd))}
           aoEnviar={enviarNoWhatsApp}
           aoPagar={pagarNoSite}
+          aoCopiarPix={copiarChavePix}
         />
       )}
 

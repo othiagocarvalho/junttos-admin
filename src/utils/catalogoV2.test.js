@@ -636,3 +636,38 @@ describe('o catálogo funciona ANTES da migration rodar', () => {
     expect(telefoneE164('5591980669061')).toBe('5591980669061')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pix copia-e-cola no checkout do catálogo (sem gateway, sem QR Code).
+// A chave morava só no CatalogoPublico V1, que ficou sem rota; o V2 não lia
+// chave_pix nenhuma. Estes casos travam o contrato que o drawer usa.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('lojaDaConfig — chave Pix', () => {
+  it('expõe a chave cadastrada', () => {
+    expect(lojaDaConfig({ chave_pix: 'loja@exemplo.com' }).chavePix).toBe('loja@exemplo.com')
+  })
+
+  it('sem chave devolve string vazia, nunca null', () => {
+    // O drawer decide por `loja.chavePix` puro; null quebraria a comparação
+    // com '' em qualquer teste e deixaria o bloco de Pix num estado ambíguo.
+    expect(lojaDaConfig(null).chavePix).toBe('')
+    expect(lojaDaConfig({}).chavePix).toBe('')
+    expect(lojaDaConfig({ chave_pix: null }).chavePix).toBe('')
+  })
+
+  it('apara espaço em volta — chave copiada de app de banco costuma vir com sobra', () => {
+    expect(lojaDaConfig({ chave_pix: '  85999990000  ' }).chavePix).toBe('85999990000')
+    // Só espaço é o mesmo que não ter chave.
+    expect(lojaDaConfig({ chave_pix: '   ' }).chavePix).toBe('')
+  })
+
+  it('chave e checkout são independentes — quem combina os dois é o drawer', () => {
+    const so_chave = lojaDaConfig({ chave_pix: 'x@y.com' })
+    expect(so_chave.chavePix).toBe('x@y.com')
+    expect(so_chave.checkoutOnline).toBe(false)
+
+    const ambos = lojaDaConfig({ chave_pix: 'x@y.com', catalogo_checkout_online: true })
+    expect(ambos.checkoutOnline).toBe(true)
+    expect(ambos.chavePix).toBe('x@y.com')
+  })
+})

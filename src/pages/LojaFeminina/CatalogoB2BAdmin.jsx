@@ -235,7 +235,11 @@ function UsuariosB2B({ lojaId, theme }) {
   )
 }
 
-function ConfigB2B({ config, saveConfig, theme, nivel }) {
+// Exportado para o CatalogoB2BModulo (dashboard completo) reaproveitar o mesmo
+// formulário: antes ele só existia dentro deste admin reduzido, que só abre
+// para loja com features.apenas_catalogo_b2b — ou seja, a Chave Pix ficava
+// inalcançável para todas as outras.
+export function ConfigB2B({ config, saveConfig, theme, nivel }) {
   const [nome,      setNome]      = useState(config?.nome            || '')
   const [chavePix,  setChavePix]  = useState(config?.chave_pix       || '')
   const [whatsapp,  setWhatsapp]  = useState(config?.whatsapp_loja   || '')
@@ -244,6 +248,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
   const [pmTipo,    setPmTipo]    = useState(config?.pedido_minimo_tipo  || 'nenhum')
   const [pmValor,   setPmValor]   = useState(config?.pedido_minimo_valor || '')
   const [pmQtd,     setPmQtd]     = useState(config?.pedido_minimo_qtd   || '')
+  const [checkout,  setCheckout]  = useState(config?.catalogo_checkout_online === true)
   const [saving,    setSaving]    = useState(false)
   const [saved,     setSaved]     = useState(false)
 
@@ -257,6 +262,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
     setPmTipo(config.pedido_minimo_tipo   || 'nenhum')
     setPmValor(config.pedido_minimo_valor || '')
     setPmQtd(config.pedido_minimo_qtd     || '')
+    setCheckout(config.catalogo_checkout_online === true)
   }, [config])
 
   async function handleSave() {
@@ -270,6 +276,7 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
       pedido_minimo_tipo:  pmTipo   || 'nenhum',
       pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
       pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
+      catalogo_checkout_online: checkout,
     })
     setSaving(false)
     setSaved(true)
@@ -342,6 +349,25 @@ function ConfigB2B({ config, saveConfig, theme, nivel }) {
               type="tel"
             />
           </div>
+          {/* Sem este toggle a Chave Pix não aparece para ninguém: o catálogo
+              só mostra o bloco de Pix quando catalogo_checkout_online é true,
+              e até agora nenhuma tela escrevia esse campo. */}
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={checkout}
+              onChange={e => setCheckout(e.target.checked)}
+              style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+            />
+            <span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                Mostrar Pix no catálogo
+              </span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
+                A cliente copia a chave e paga no banco dela. Precisa da Chave Pix preenchida acima.
+              </span>
+            </span>
+          </label>
         </div>
       </div>
 

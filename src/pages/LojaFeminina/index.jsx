@@ -11,7 +11,7 @@ import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
-import CatalogoB2BAdmin from './CatalogoB2BAdmin'
+import CatalogoB2BAdmin, { ConfigB2B } from './CatalogoB2BAdmin'
 import CatalogoB2BAdminDesktop from './CatalogoB2BAdminDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
@@ -410,6 +410,10 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
         {[
           { id: 'produtos', label: 'Produtos' },
           { id: 'pedidos',  label: 'Pedidos'  },
+          // A aba de config existia só no admin reduzido (CatalogoB2BAdmin),
+          // que nenhuma loja alcança hoje — é por isso que a Chave Pix não
+          // tinha onde ser editada a não ser por SQL.
+          { id: 'config',   label: 'Configurações' },
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id)} style={{
             flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
@@ -420,7 +424,14 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
           }}>{st.label}</button>
         ))}
       </div>
-      {subTab === 'produtos'
+      {subTab === 'config' ? (
+        <ConfigB2B
+          config={data.config}
+          saveConfig={data.saveConfig}
+          theme={theme}
+          nivel={nivel}
+        />
+      ) : subTab === 'produtos'
         ? nivel === 'pro'
           ? <ProdutosB2BPro
               produtosData={data.produtosData}
