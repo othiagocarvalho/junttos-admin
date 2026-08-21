@@ -54,6 +54,17 @@ export const TEXTOS = {
   pedidoNenhumaPeca: 'Nenhuma peça ainda',
   pedidoResumo: '{pecas} peças · {variacoes} variações',
   total: 'Total',
+  // Identificação da cliente — obrigatória desde que o V2 passou a gravar
+  // pedido sem contato nenhum.
+  seusDados: 'Seus dados',
+  seusDadosTexto: 'A loja precisa disso para falar com você sobre o pedido.',
+  campoNome: 'Seu nome',
+  campoNomePlaceholder: 'Como a loja deve te chamar',
+  campoWhatsapp: 'Seu WhatsApp',
+  campoWhatsappPlaceholder: '(85) 99999-0000',
+  erroNomeObrigatorio: 'Escreva seu nome.',
+  erroWhatsappInvalido: 'Escreva um WhatsApp com DDD.',
+  erroDadosIncompletos: 'Preencha seu nome e WhatsApp para finalizar.',
   enviarWhatsapp: 'Enviar pedido no WhatsApp',
   pagarSite: 'Pagar agora pelo site',
   // Pix copia-e-cola — sem gateway e sem QR Code: a cliente copia a chave,

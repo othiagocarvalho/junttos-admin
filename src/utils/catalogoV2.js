@@ -332,6 +332,63 @@ export function telefoneE164(bruto) {
   return so
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Identificação da cliente no checkout
+//
+// O catálogo V1 tinha nome e WhatsApp obrigatórios (CatalogoPublico.jsx:555,
+// `disabled={... || !form.nome.trim() || !form.whatsapp.trim()}`). O V2 nasceu
+// sem os campos e gravava `cliente_nome: ''` e `cliente_whatsapp: ''` fixos —
+// pedido chegava no painel sem nenhum jeito de contatar quem pediu.
+//
+// A ideia original do V2 era que a cliente se identificasse ao mandar a
+// mensagem no WhatsApp. Isso até funciona nesse caminho, mas quebra de vez nos
+// dois caminhos de Pix: ela pode pagar e nunca mandar mensagem nenhuma, e aí
+// o pedido fica pago e anônimo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Nome mínimo aceitável: 2 caracteres depois de aparar. */
+export function nomeValido(nome) {
+  return String(nome ?? '').trim().length >= 2
+}
+
+/**
+ * Telefone brasileiro: 10 dígitos (fixo com DDD) ou 11 (celular com DDD).
+ *
+ * Aceita máscara — `(85) 99999-0000` e `85999990000` são o mesmo número. Não
+ * tenta validar operadora nem nono dígito: recusar número real por regra
+ * esperta demais custa a venda.
+ */
+export function whatsappValido(bruto) {
+  const so = String(bruto ?? '').replace(/\D/g, '')
+  return so.length === 10 || so.length === 11
+}
+
+/**
+ * Valida os dados da cliente antes de registrar o pedido.
+ *
+ * Devolve `{ ok, erros: { nome, whatsapp } }` com a mensagem por campo, para a
+ * tela marcar exatamente o que falta em vez de um alerta genérico.
+ */
+export function validarDadosCliente({ nome, whatsapp } = {}) {
+  const erros = {}
+  if (!nomeValido(nome))         erros.nome     = TEXTOS.erroNomeObrigatorio
+  if (!whatsappValido(whatsapp)) erros.whatsapp = TEXTOS.erroWhatsappInvalido
+  return { ok: Object.keys(erros).length === 0, erros }
+}
+
+/**
+ * Normaliza para gravar em lf_pedidos: nome aparado, telefone só com dígitos.
+ *
+ * Guardar o telefone sem máscara é o que o resto do sistema já espera —
+ * telefoneE164 e linkWhatsApp trabalham em cima de dígitos.
+ */
+export function dadosClienteParaPedido({ nome, whatsapp } = {}) {
+  return {
+    cliente_nome: String(nome ?? '').trim(),
+    cliente_whatsapp: String(whatsapp ?? '').replace(/\D/g, ''),
+  }
+}
+
 /** URL do wa.me com a mensagem já codificada; '' se não houver telefone. */
 export function linkWhatsApp(telefone, mensagem) {
   const fone = telefoneE164(telefone)
