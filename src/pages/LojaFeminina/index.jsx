@@ -430,6 +430,7 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
           saveConfig={data.saveConfig}
           theme={theme}
           nivel={nivel}
+          lojaId={lojaId}
         />
       ) : subTab === 'produtos'
         ? nivel === 'pro'

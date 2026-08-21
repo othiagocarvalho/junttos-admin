@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
+import { salvarCredencialMercadoPago, podeAtivarMercadoPago } from '../../utils/credenciaisPagamento'
 import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
@@ -239,7 +240,7 @@ function UsuariosB2B({ lojaId, theme }) {
 // formulário: antes ele só existia dentro deste admin reduzido, que só abre
 // para loja com features.apenas_catalogo_b2b — ou seja, a Chave Pix ficava
 // inalcançável para todas as outras.
-export function ConfigB2B({ config, saveConfig, theme, nivel }) {
+export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
   const [nome,      setNome]      = useState(config?.nome            || '')
   const [chavePix,  setChavePix]  = useState(config?.chave_pix       || '')
   const [whatsapp,  setWhatsapp]  = useState(config?.whatsapp_loja   || '')
@@ -249,6 +250,13 @@ export function ConfigB2B({ config, saveConfig, theme, nivel }) {
   const [pmValor,   setPmValor]   = useState(config?.pedido_minimo_valor || '')
   const [pmQtd,     setPmQtd]     = useState(config?.pedido_minimo_qtd   || '')
   const [checkout,  setCheckout]  = useState(config?.catalogo_checkout_online === true)
+  // Token e segredo nascem SEMPRE vazios: a tabela de credenciais não tem
+  // policy de SELECT, então nem esta tela consegue lê-los de volta. Campo
+  // vazio + loja já configurada significa "manter o que está gravado".
+  const [mpToken,   setMpToken]   = useState('')
+  const [mpSecret,  setMpSecret]  = useState('')
+  const [mpAtivo,   setMpAtivo]   = useState(config?.mercadopago_ativo === true)
+  const [mpErro,    setMpErro]    = useState('')
   const [saving,    setSaving]    = useState(false)
   const [saved,     setSaved]     = useState(false)
 
@@ -263,10 +271,28 @@ export function ConfigB2B({ config, saveConfig, theme, nivel }) {
     setPmValor(config.pedido_minimo_valor || '')
     setPmQtd(config.pedido_minimo_qtd     || '')
     setCheckout(config.catalogo_checkout_online === true)
+    setMpAtivo(config.mercadopago_ativo === true)
   }, [config])
+
+  const mpJaConfigurado = config?.mercadopago_ativo === true
 
   async function handleSave() {
     setSaving(true)
+    setMpErro('')
+
+    // A credencial vai numa tabela própria, protegida por RLS — nunca em
+    // lf_config, que o catálogo público lê inteira sem autenticação.
+    let mpOk = true
+    if (mpToken.trim() || mpSecret.trim()) {
+      const { error } = await salvarCredencialMercadoPago(supabase, lojaId, {
+        token: mpToken, webhookSecret: mpSecret,
+      })
+      if (error) {
+        mpOk = false
+        setMpErro('Não foi possível salvar a credencial do Mercado Pago: ' + error.message)
+      }
+    }
+
     await saveConfig({
       nome:                nome     || 'Catálogo',
       chave_pix:           chavePix || null,
@@ -277,10 +303,19 @@ export function ConfigB2B({ config, saveConfig, theme, nivel }) {
       pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
       pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
       catalogo_checkout_online: checkout,
+      // Só liga a flag se houver credencial de verdade: ligada sem token, o
+      // catálogo tenta o QR, falha e cai no copia-e-cola — funciona, mas
+      // gasta um round-trip e um toast de erro a cada pedido.
+      mercadopago_ativo: mpOk && mpAtivo && podeAtivarMercadoPago({
+        token: mpToken, jaConfigurado: mpJaConfigurado,
+      }),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2200)
+    if (mpOk) {
+      setMpToken(''); setMpSecret('')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2200)
+    }
   }
 
   return (
@@ -368,6 +403,69 @@ export function ConfigB2B({ config, saveConfig, theme, nivel }) {
               </span>
             </span>
           </label>
+        </div>
+      </div>
+
+      <div style={card}>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+          Mercado Pago (Pix com QR Code)
+        </p>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
+          Com o Mercado Pago o catálogo mostra QR Code e confirma o pagamento sozinho.
+          Sem isso, o Pix continua funcionando no modo copia-e-cola acima.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={lbl}>
+              Access token {mpJaConfigurado && <span style={{ color: 'var(--status-ok-tx)' }}>· configurado</span>}
+            </label>
+            <input
+              value={mpToken}
+              onChange={e => setMpToken(e.target.value)}
+              style={inp}
+              type="password"
+              autoComplete="off"
+              placeholder={mpJaConfigurado ? 'Deixe vazio para manter o atual' : 'APP_USR-...'}
+            />
+          </div>
+          <div>
+            <label style={lbl}>Chave secreta do webhook</label>
+            <input
+              value={mpSecret}
+              onChange={e => setMpSecret(e.target.value)}
+              style={inp}
+              type="password"
+              autoComplete="off"
+              placeholder={mpJaConfigurado ? 'Deixe vazio para manter a atual' : 'Mercado Pago -> Webhooks'}
+            />
+          </div>
+          {/* Por segurança o token não volta do banco: a tabela não tem policy
+              de SELECT nem para a própria lojista. Por isso o campo abre vazio
+              e "configurado" é a única confirmação que dá para mostrar. */}
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+            Por segurança estas chaves não são exibidas depois de salvas.
+          </p>
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={mpAtivo}
+              onChange={e => setMpAtivo(e.target.checked)}
+              style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+            />
+            <span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+                Usar QR Code do Mercado Pago
+              </span>
+              <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
+                Se o Mercado Pago falhar, o catálogo volta sozinho para o copia-e-cola.
+              </span>
+            </span>
+          </label>
+          {mpErro && (
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)', lineHeight: 1.45 }}>
+              {mpErro}
+            </p>
+          )}
         </div>
       </div>
 
@@ -581,6 +679,7 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
             saveConfig={data.saveConfig}
             theme={theme}
             nivel={nivel}
+            lojaId={lojaId}
           />
         )}
       </main>

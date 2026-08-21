@@ -428,6 +428,12 @@ export function lojaDaConfig(config) {
     // usa isso para decidir entre mostrar o bloco de Pix e manter o caminho
     // antigo, então nunca pode virar null.
     chavePix: (config?.chave_pix || '').trim(),
+    // Só a FLAG, nunca o token: lf_config não tem RLS e é lida pelo catálogo
+    // público com select('*'), então qualquer segredo aqui vaza para o
+    // visitante. O access token do Mercado Pago mora em
+    // lf_credenciais_pagamento, que só a service_role lê (ver
+    // supabase/migration_mercadopago_pix.sql).
+    mercadopagoAtivo: config?.mercadopago_ativo === true,
     textoEnvio: config?.catalogo_texto_envio || TEXTOS.envioPadrao,
     videoTopo: {
       ativo: video.ativo === true,

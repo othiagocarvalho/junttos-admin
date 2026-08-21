@@ -63,6 +63,18 @@ export const TEXTOS = {
   pixCopiar: 'Copiar chave Pix',
   pixCopiado: 'Chave copiada!',
   toastPixCopiado: 'Chave Pix copiada',
+  // Pix dinâmico (Mercado Pago): QR Code + confirmação automática.
+  pixQrTitulo: 'Pague com Pix',
+  pixQrInstrucao: 'Abra o app do seu banco, escaneie o QR Code e confirme. A confirmação aparece aqui sozinha.',
+  pixQrGerar: 'Gerar QR Code Pix',
+  pixQrGerando: 'Gerando QR Code...',
+  pixQrCopiar: 'Copiar código Pix',
+  pixQrCopiado: 'Código copiado!',
+  pixQrAlt: 'QR Code para pagamento via Pix',
+  pixQrAguardando: 'Aguardando o pagamento...',
+  pixQrPago: 'Pagamento confirmado!',
+  pixQrPagoTexto: 'Recebemos seu pagamento. A loja já foi avisada.',
+  pixQrErro: 'Não foi possível gerar o QR Code agora.',
   avisoMinimo: 'Faltam {valor} para o pedido mínimo. Adicione mais peças para finalizar.',
   avisoMinimoQtd: 'Faltam {qtd} peças para o pedido mínimo. Adicione mais peças para finalizar.',
 
