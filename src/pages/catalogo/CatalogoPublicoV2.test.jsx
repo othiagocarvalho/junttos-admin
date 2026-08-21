@@ -9,6 +9,7 @@ const {
   default: CatalogoPublicoV2,
   Cabecalho, TresPassos, BlocoApresentacao, FaixaMinimo, Filtros,
   CardProduto, EstadoVazio, Rodape, ModalProduto, DrawerPedido, FaixaVideo,
+  PixDinamico,
 } = await import('./CatalogoPublicoV2')
 
 const { normalizarProduto, lojaDaConfig, estadoMinimo, linhasDoCarrinho } =
@@ -398,6 +399,70 @@ describe('13.8 — drawer soma, avisa e bloqueia abaixo do mínimo', () => {
     const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
     expect(s).toContain(chave)
     expect(s).toContain('word-break:break-all')
+  })
+
+  // ── Mercado Pago: QR dinâmico com o copia-e-cola como rede de segurança ──
+  const lojaMp = extra => lojaDaConfig({
+    whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+    chave_pix: 'estatico@exemplo.com', mercadopago_ativo: true, ...extra,
+  })
+
+  it('com Mercado Pago ativo, o caminho principal é o QR dinâmico', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{}} />)
+    expect(s).toContain('Gerar QR Code Pix')
+    // O estático some enquanto o dinâmico está de pé.
+    expect(s).not.toContain('estatico@exemplo.com')
+  })
+
+  it('QR gerado mostra imagem, copia-e-cola do MP e aviso de espera', () => {
+    const pixMp = { qrCode: '00020126BR.GOV.BCB.PIX', qrBase64: 'iVBORw0KGgo=' }
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={pixMp} />)
+    expect(s).toContain('data:image/png;base64,iVBORw0KGgo=')
+    expect(s).toContain('00020126BR.GOV.BCB.PIX')
+    expect(s).toContain('Copiar código Pix')
+    expect(s).toContain('Aguardando o pagamento...')
+  })
+
+  it('se o Mercado Pago falhar, cai no copia-e-cola estático', () => {
+    // É a garantia de que ninguém fica sem forma de pagar quando a Edge
+    // Function está fora do ar ou a credencial foi recusada.
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{ erro: true }} />)
+    expect(s).toContain('Pague com Pix')
+    expect(s).toContain('estatico@exemplo.com')
+    expect(s).not.toContain('Gerar QR Code Pix')
+  })
+
+  it('MP falhando em loja SEM chave estática cai no botão antigo, nunca em nada', () => {
+    const loja = lojaMp({ chave_pix: null })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} pixMp={{ erro: true }} />)
+    expect(s).toContain('Pagar agora pelo site')
+  })
+
+  it('sem mercadopago_ativo o comportamento anterior fica idêntico', () => {
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+      chave_pix: 'estatico@exemplo.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} pixMp={{}} />)
+    expect(s).toContain('estatico@exemplo.com')
+    expect(s).not.toContain('Gerar QR Code Pix')
+  })
+
+  it('pagamento confirmado troca o QR pelo aviso de sucesso', () => {
+    const s = html(<PixDinamico estado={{ pago: true, qrCode: 'x' }} />)
+    expect(s).toContain('Pagamento confirmado!')
+    expect(s).not.toContain('Copiar código Pix')
+  })
+
+  it('enquanto gera, o botão desabilita e avisa', () => {
+    const s = html(<PixDinamico estado={{ carregando: true }} />)
+    expect(s).toContain('Gerando QR Code...')
+    expect(s).toContain('disabled')
+  })
+
+  it('o WhatsApp continua disponível junto com o QR dinâmico', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{ qrCode: 'abc' }} />)
+    expect(s).toContain('Enviar pedido no WhatsApp')
   })
 
   it('sem WhatsApp cadastrado o botão verde não é desenhado', () => {

@@ -889,11 +889,114 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Pix dinâmico (Mercado Pago) — QR Code + confirmação automática.
+//
+// Só entra quando a loja tem mercadopago_ativo. Se qualquer coisa falhar
+// (função fora do ar, credencial recusada, loja sem token), `aoFalhar` avisa o
+// drawer e ele volta para o Pix copia-e-cola — o caminho antigo continua sendo
+// a rede de segurança, nunca é removido.
+// ─────────────────────────────────────────────────────────────────────────────
+export function PixDinamico({ estado, aoGerar, aoCopiar, primeiroPlano = false }) {
+  const [copiado, setCopiado] = useState(false)
+
+  if (estado?.pago) {
+    return (
+      <div style={{
+        border: `1px solid ${C.whatsapp}`, borderRadius: 14,
+        background: 'rgba(15,123,69,.06)', padding: '16px 15px', textAlign: 'center',
+      }} role="status" aria-live="polite">
+        <p style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600, color: C.whatsapp }}>
+          {TEXTOS.pixQrPago}
+        </p>
+        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.45, color: C.texto3 }}>
+          {TEXTOS.pixQrPagoTexto}
+        </p>
+      </div>
+    )
+  }
+
+  if (!estado?.qrCode) {
+    return (
+      <button
+        onClick={aoGerar}
+        disabled={estado?.carregando}
+        style={{
+          width: '100%', height: 54, borderRadius: 14,
+          border: primeiroPlano ? 'none' : `1px solid ${C.tinta}`,
+          background: primeiroPlano ? C.tinta : C.superficie,
+          color: primeiroPlano ? C.fundo : C.tinta,
+          fontSize: 16, fontWeight: 600,
+          cursor: estado?.carregando ? 'progress' : 'pointer',
+          opacity: estado?.carregando ? 0.7 : 1,
+        }}
+      >{estado?.carregando ? TEXTOS.pixQrGerando : TEXTOS.pixQrGerar}</button>
+    )
+  }
+
+  return (
+    <div style={{
+      border: `1px solid ${C.linhaInput}`, borderRadius: 14,
+      background: C.superficie, padding: '14px 15px',
+    }}>
+      <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: C.tinta }}>
+        {TEXTOS.pixQrTitulo}
+      </p>
+      <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.45, color: C.texto3 }}>
+        {TEXTOS.pixQrInstrucao}
+      </p>
+
+      {estado.qrBase64 && (
+        <img
+          src={`data:image/png;base64,${estado.qrBase64}`}
+          alt={TEXTOS.pixQrAlt}
+          style={{
+            display: 'block', width: 200, height: 200, margin: '0 auto 12px',
+            borderRadius: 10, background: '#fff', padding: 8,
+            border: `1px solid ${C.linha}`,
+          }}
+        />
+      )}
+
+      {/* O copia-e-cola do próprio Mercado Pago: em banco que não lê QR na
+          tela (ou quando a cliente está no celular olhando o próprio app), é
+          por aqui que ela paga. */}
+      <p style={{
+        margin: '0 0 11px', padding: '11px 12px', borderRadius: 10,
+        background: C.superficie3, border: `1px solid ${C.linha}`,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+        fontSize: 11.5, lineHeight: 1.5, color: C.tinta,
+        wordBreak: 'break-all', maxHeight: 96, overflow: 'auto',
+      }}>{estado.qrCode}</p>
+
+      <button
+        onClick={async () => {
+          const ok = await aoCopiar?.(estado.qrCode)
+          if (ok === false) return
+          setCopiado(true)
+          setTimeout(() => setCopiado(false), 2200)
+        }}
+        style={{
+          width: '100%', height: 48, borderRadius: 12, cursor: 'pointer',
+          border: `1px solid ${C.tinta}`,
+          background: copiado ? C.tinta : C.superficie,
+          color: copiado ? C.fundo : C.tinta,
+          fontSize: 15, fontWeight: 600,
+        }}
+      >{copiado ? TEXTOS.pixQrCopiado : TEXTOS.pixQrCopiar}</button>
+
+      <p style={{
+        margin: '10px 0 0', fontSize: 12.5, color: C.texto4, textAlign: 'center',
+      }} role="status" aria-live="polite">{TEXTOS.pixQrAguardando}</p>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 7. Drawer "Meu pedido"
 // ─────────────────────────────────────────────────────────────────────────────
 export function DrawerPedido({
   linhas, produtosPorId, minimo, loja, aoFechar, aoMudarQtd, aoEnviar, aoPagar,
-  aoCopiarPix,
+  aoCopiarPix, pixMp, aoGerarPixMp, aoCopiarTexto,
 }) {
   const painelRef = useRef(null)
   // Feedback local do botão de copiar. Fica aqui, e não no componente pai,
@@ -1041,7 +1144,20 @@ export function DrawerPedido({
               do WhatsApp acima segue sendo como o pedido se fecha. Não tem QR
               Code nem gateway de propósito — a cliente copia e paga no banco
               dela. */}
-          {loja.checkoutOnline && loja.chavePix ? (
+          {/* Ordem de preferência no checkout:
+                1. Mercado Pago ligado e sem falha  → QR dinâmico
+                2. Chave Pix cadastrada             → copia-e-cola estático
+                3. Só checkout ligado               → botão antigo
+              O passo 2 é fallback do 1: se a Edge Function falhar, `pixMp.erro`
+              liga e o bloco estático assume sem a cliente ficar sem caminho. */}
+          {loja.checkoutOnline && loja.mercadopagoAtivo && !pixMp?.erro ? (
+            <PixDinamico
+              estado={pixMp}
+              aoGerar={aoGerarPixMp}
+              aoCopiar={aoCopiarTexto}
+              primeiroPlano={!loja.chavePix}
+            />
+          ) : loja.checkoutOnline && loja.chavePix ? (
             <div style={{
               border: `1px solid ${C.linhaInput}`, borderRadius: 14,
               background: C.superficie, padding: '14px 15px',
@@ -1126,6 +1242,11 @@ export default function CatalogoPublicoV2({ lojaId }) {
   // Trava do registro do pedido no fluxo Pix: copiar a chave duas vezes não
   // pode virar dois pedidos em lf_pedidos.
   const pixRegistrado = useRef(false)
+  // Pix dinâmico do Mercado Pago. `erro` ligado faz o drawer voltar para o
+  // copia-e-cola estático — o caminho antigo é a rede de segurança.
+  const [pixMp, setPixMp] = useState({
+    carregando: false, qrCode: '', qrBase64: '', pago: false, erro: false, pedidoId: null,
+  })
   const timerToast = useRef(null)
   const mostrarToast = useCallback(texto => {
     setToast(texto)
@@ -1164,6 +1285,24 @@ export default function CatalogoPublicoV2({ lojaId }) {
     if (!lojaId) return
     salvarCarrinho(window.localStorage, lojaId, carrinho)
   }, [lojaId, carrinho])
+
+  // Confirmação automática: enquanto o QR está na tela, consulta o pedido a
+  // cada 5s até o webhook (mp-webhook) marcar 'pago'. É só leitura, e para
+  // sozinho quando confirma, quando o drawer fecha ou ao desmontar.
+  useEffect(() => {
+    if (!pixMp.pedidoId || !pixMp.qrCode || pixMp.pago || !drawerAberto) return
+    let vivo = true
+    const timer = setInterval(async () => {
+      const { data } = await supabase
+        .from('lf_pedidos').select('status').eq('id', pixMp.pedidoId).maybeSingle()
+      if (!vivo) return
+      if (data?.status === 'pago') {
+        setPixMp(p => ({ ...p, pago: true }))
+        setCarrinho({})
+      }
+    }, 5000)
+    return () => { vivo = false; clearInterval(timer) }
+  }, [pixMp.pedidoId, pixMp.qrCode, pixMp.pago, drawerAberto])
 
   // ── Derivados ──
   const loja = useMemo(() => lojaDaConfig(config), [config])
@@ -1211,7 +1350,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
    */
   async function registrarPedido(status) {
     try {
-      await supabase.from('lf_pedidos').insert({
+      const { data, error } = await supabase.from('lf_pedidos').insert({
         loja_id: lojaId,
         cliente_nome: '',
         cliente_whatsapp: '',
@@ -1224,8 +1363,15 @@ export default function CatalogoPublicoV2({ lojaId }) {
         valor_total: soma.valor,
         status,
       })
+        // O id volta porque o Pix dinâmico precisa dele para criar a cobrança.
+        // Os outros chamadores ignoram o retorno, como antes.
+        .select('id')
+        .maybeSingle()
+      if (error) throw error
+      return data?.id ?? null
     } catch (e) {
       console.error('[catalogo] não foi possível registrar o pedido:', e)
+      return null
     }
   }
 
@@ -1275,6 +1421,62 @@ export default function CatalogoPublicoV2({ lojaId }) {
     }
     mostrarToast(TEXTOS.toastPixCopiado)
     return true
+  }
+
+  /**
+   * Copia qualquer texto para a área de transferência.
+   *
+   * Usado pelo copia-e-cola do Mercado Pago, que já tem o pedido registrado
+   * quando o QR foi gerado — por isso não repete o registrarPedido daqui.
+   */
+  async function copiarTexto(texto) {
+    try {
+      await navigator.clipboard.writeText(texto)
+    } catch {
+      return false
+    }
+    mostrarToast(TEXTOS.toastPixCopiado)
+    return true
+  }
+
+  /**
+   * Registra o pedido e pede um Pix dinâmico à Edge Function mp-criar-pix.
+   *
+   * Qualquer falha liga `erro`, e o drawer cai no Pix copia-e-cola estático.
+   * Isso cobre de uma vez: loja com a flag ligada mas sem token gravado
+   * (409 semCredencial), token recusado pelo Mercado Pago (409
+   * credencialRuim), função fora do ar e rede caindo. Em nenhum desses casos
+   * a cliente pode ficar sem um jeito de pagar.
+   */
+  async function gerarPixMercadoPago() {
+    if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return }
+    if (!linhas.length) return
+
+    setPixMp(p => ({ ...p, carregando: true }))
+
+    try {
+      // Precisa do pedido no banco antes: é o pedido_id que amarra a cobrança.
+      let pedidoId = pixMp.pedidoId
+      if (!pedidoId) {
+        pedidoId = await registrarPedido('aguardando_pagamento')
+        if (!pedidoId) throw new Error('pedido não registrado')
+        pixRegistrado.current = true
+      }
+
+      const { data, error } = await supabase.functions.invoke('mp-criar-pix', {
+        body: { pedido_id: pedidoId },
+      })
+      if (error || !data?.qr_code) throw new Error(data?.error || error?.message || 'sem QR')
+
+      setPixMp({
+        carregando: false, erro: false, pago: false, pedidoId,
+        qrCode: data.qr_code, qrBase64: data.qr_code_base64 || '',
+      })
+    } catch (e) {
+      console.warn('[catalogo] Pix dinâmico indisponível, usando copia-e-cola:', e.message)
+      setPixMp(p => ({ ...p, carregando: false, erro: true }))
+      mostrarToast(TEXTOS.pixQrErro)
+    }
   }
 
   async function pagarNoSite() {
@@ -1425,6 +1627,9 @@ export default function CatalogoPublicoV2({ lojaId }) {
           aoEnviar={enviarNoWhatsApp}
           aoPagar={pagarNoSite}
           aoCopiarPix={copiarChavePix}
+          pixMp={pixMp}
+          aoGerarPixMp={gerarPixMercadoPago}
+          aoCopiarTexto={copiarTexto}
         />
       )}
 
