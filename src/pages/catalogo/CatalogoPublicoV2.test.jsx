@@ -9,6 +9,7 @@ const {
   default: CatalogoPublicoV2,
   Cabecalho, TresPassos, BlocoApresentacao, FaixaMinimo, Filtros,
   CardProduto, EstadoVazio, Rodape, ModalProduto, DrawerPedido, FaixaVideo,
+  PixDinamico,
 } = await import('./CatalogoPublicoV2')
 
 const { normalizarProduto, lojaDaConfig, estadoMinimo, linhasDoCarrinho } =
@@ -343,6 +344,127 @@ describe('13.8 — drawer soma, avisa e bloqueia abaixo do mínimo', () => {
     expect(html(<DrawerPedido {...props} loja={comCheckout} />)).toContain('Pagar agora pelo site')
   })
 
+  // ── Pix copia-e-cola ──────────────────────────────────────────────────────
+  // Sem gateway e sem QR Code: a chave aparece em texto com um botão de copiar.
+  const propsDrawer = () => ({
+    linhas, produtosPorId: mapa, minimo: null,
+    aoFechar: () => {}, aoMudarQtd: () => {}, aoEnviar: () => {}, aoPagar: () => {},
+  })
+
+  it('com checkout ligado E chave cadastrada, mostra o bloco de Pix', () => {
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+      chave_pix: 'tropicale@exemplo.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Pague com Pix')
+    expect(s).toContain('tropicale@exemplo.com')   // a chave em si, copiável
+    expect(s).toContain('Copiar chave Pix')
+    // O bloco SUBSTITUI o botão antigo, não convive com ele.
+    expect(s).not.toContain('Pagar agora pelo site')
+  })
+
+  it('com checkout ligado e SEM chave, o comportamento antigo fica intacto', () => {
+    const loja = lojaDaConfig({ whatsapp_loja: '85999990000', catalogo_checkout_online: true })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Pagar agora pelo site')
+    expect(s).not.toContain('Pague com Pix')
+  })
+
+  it('chave cadastrada mas checkout desligado não mostra Pix nenhum', () => {
+    // Quem manda é o toggle: chave preenchida sozinha não publica nada.
+    const loja = lojaDaConfig({ whatsapp_loja: '85999990000', chave_pix: 'x@y.com' })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).not.toContain('Pague com Pix')
+    expect(s).not.toContain('x@y.com')
+    expect(s).not.toContain('Pagar agora pelo site')
+  })
+
+  it('o WhatsApp continua disponível junto com o Pix', () => {
+    // O Pix é um caminho a mais, não um substituto: quem paga ainda precisa
+    // mandar o comprovante.
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true, chave_pix: 'x@y.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Enviar pedido no WhatsApp')
+    expect(s).toContain('Pague com Pix')
+  })
+
+  it('chave aleatória longa quebra linha em vez de estourar o drawer', () => {
+    const chave = '7f3a1c2e-9b4d-4a6f-8e1b-2c5d7a9f0e3b'   // 36 caracteres, sem espaço
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true, chave_pix: chave,
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain(chave)
+    expect(s).toContain('word-break:break-all')
+  })
+
+  // ── Mercado Pago: QR dinâmico com o copia-e-cola como rede de segurança ──
+  const lojaMp = extra => lojaDaConfig({
+    whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+    chave_pix: 'estatico@exemplo.com', mercadopago_ativo: true, ...extra,
+  })
+
+  it('com Mercado Pago ativo, o caminho principal é o QR dinâmico', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{}} />)
+    expect(s).toContain('Gerar QR Code Pix')
+    // O estático some enquanto o dinâmico está de pé.
+    expect(s).not.toContain('estatico@exemplo.com')
+  })
+
+  it('QR gerado mostra imagem, copia-e-cola do MP e aviso de espera', () => {
+    const pixMp = { qrCode: '00020126BR.GOV.BCB.PIX', qrBase64: 'iVBORw0KGgo=' }
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={pixMp} />)
+    expect(s).toContain('data:image/png;base64,iVBORw0KGgo=')
+    expect(s).toContain('00020126BR.GOV.BCB.PIX')
+    expect(s).toContain('Copiar código Pix')
+    expect(s).toContain('Aguardando o pagamento...')
+  })
+
+  it('se o Mercado Pago falhar, cai no copia-e-cola estático', () => {
+    // É a garantia de que ninguém fica sem forma de pagar quando a Edge
+    // Function está fora do ar ou a credencial foi recusada.
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{ erro: true }} />)
+    expect(s).toContain('Pague com Pix')
+    expect(s).toContain('estatico@exemplo.com')
+    expect(s).not.toContain('Gerar QR Code Pix')
+  })
+
+  it('MP falhando em loja SEM chave estática cai no botão antigo, nunca em nada', () => {
+    const loja = lojaMp({ chave_pix: null })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} pixMp={{ erro: true }} />)
+    expect(s).toContain('Pagar agora pelo site')
+  })
+
+  it('sem mercadopago_ativo o comportamento anterior fica idêntico', () => {
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+      chave_pix: 'estatico@exemplo.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} pixMp={{}} />)
+    expect(s).toContain('estatico@exemplo.com')
+    expect(s).not.toContain('Gerar QR Code Pix')
+  })
+
+  it('pagamento confirmado troca o QR pelo aviso de sucesso', () => {
+    const s = html(<PixDinamico estado={{ pago: true, qrCode: 'x' }} />)
+    expect(s).toContain('Pagamento confirmado!')
+    expect(s).not.toContain('Copiar código Pix')
+  })
+
+  it('enquanto gera, o botão desabilita e avisa', () => {
+    const s = html(<PixDinamico estado={{ carregando: true }} />)
+    expect(s).toContain('Gerando QR Code...')
+    expect(s).toContain('disabled')
+  })
+
+  it('o WhatsApp continua disponível junto com o QR dinâmico', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaMp()} pixMp={{ qrCode: 'abc' }} />)
+    expect(s).toContain('Enviar pedido no WhatsApp')
+  })
+
   it('sem WhatsApp cadastrado o botão verde não é desenhado', () => {
     const semWa = lojaDaConfig({ nome: 'X' })
     const s = html(
@@ -466,26 +588,39 @@ describe('estado vazio de busca', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px', () => {
   /**
-   * Reproduz a regra do grid, que é pura aritmética de CSS:
-   *   grid-template-columns: repeat(auto-fill, minmax(min(46%, 258px), 258px))
+   * Reproduz a regra do grid:
+   *   grid-template-columns: repeat(auto-fill, min(46%, 258px))
    *   gap: clamp(12px, 1.4vw, 22px)
    *   justify-content: center
    *
-   * auto-fill cabe N colunas quando N*minimo + (N-1)*gap <= disponivel; as
-   * trilhas então crescem do mínimo até o máximo (258px), e o que sobrar vira
-   * respiro centralizado.
+   * ─── O MODELO ANTERIOR ESTAVA ERRADO ──────────────────────────────────────
+   * A versão de 20/08/2026 usava `minmax(min(46%, 258px), 258px)` e este teste
+   * modelava o auto-fill contando pelo MÍNIMO da trilha. Com esse modelo a
+   * conta dava 2 colunas e o teste passava — mas o navegador entregava UMA
+   * coluna em todo celular, confirmado em device físico (Safari e webview do
+   * WhatsApp) e depois no Chrome headless, onde getComputedStyle devolvia
+   * `grid-template-columns: 258px` em 375, 390 e 430px.
+   *
+   * CSS Grid §7.2.3.1: para decidir quantas vezes repetir, o auto-fill usa a
+   * função de tamanho MÁXIMA da trilha quando ela é definida — não a mínima.
+   * Com máximo `258px` fixo a pergunta virava "quantas colunas de 258px cabem
+   * em 350px de conteúdo?", e a resposta é uma.
+   *
+   * Com trilha única `min(46%, 258px)` não há mínimo e máximo divergentes: o
+   * tamanho da trilha é um só, e é ele que conta. Os números abaixo foram
+   * conferidos contra o Chrome (CDP, Emulation.setDeviceMetricsOverride) na
+   * página real da tropicaleatacado — ver o relatório do fix.
    */
   function grade(larguraViewport) {
     const gap = Math.min(22, Math.max(12, larguraViewport * 0.014))
     const disponivel = Math.min(larguraViewport, 1280) - 40  // max-width 1280 + padding 20px
-    const minimo = Math.min(disponivel * 0.46, 258)
-    const n = Math.max(1, Math.floor((disponivel + gap) / (minimo + gap)))
-    const largura = Math.min(258, (disponivel - gap * (n - 1)) / n)
-    return { n, gap, largura, sobra: disponivel - (largura * n + gap * (n - 1)) }
+    const trilha = Math.min(disponivel * 0.46, 258)
+    const n = Math.max(1, Math.floor((disponivel + gap) / (trilha + gap)))
+    return { n, gap, largura: trilha, sobra: disponivel - (trilha * n + gap * (n - 1)) }
   }
 
-  // ── A5: 2 colunas garantidas a partir de 320px ──
-  it('320px — o caso que falhava antes — agora dá 2 colunas', () => {
+  // ── A5: 2 colunas garantidas em toda a faixa de celular ──
+  it('320px — a largura que estava dando 1 coluna no device real — dá 2 colunas', () => {
     expect(grade(320).n).toBe(2)
   })
 
@@ -495,68 +630,81 @@ describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px
     }
   })
 
-  it('390px continua com 2 colunas de 169px (critério 13.1)', () => {
-    const { n, largura } = grade(390)
-    expect(n).toBe(2)
-    expect(Math.round(largura)).toBe(169)
+  it('bate com o que o Chrome mediu na página real', () => {
+    // Valores lidos de getComputedStyle().gridTemplateColumns com emulação
+    // mobile. Se o modelo desta função divergir do navegador de novo, é aqui
+    // que aparece.
+    const medidoNoChrome = { 320: 128.8, 375: 154.1, 390: 161, 430: 179.4 }
+    for (const [w, largura] of Object.entries(medidoNoChrome)) {
+      const g = grade(Number(w))
+      expect(g.n, `${w}px colunas`).toBe(2)
+      expect(+g.largura.toFixed(1), `${w}px largura`).toBe(largura)
+    }
   })
 
-  it('a folga em 320px é de ~10px, não de fração de pixel', () => {
-    // Duas colunas ocupam 2×46% = 92%; sobram 8% do conteúdo para o gap.
-    const { sobra, gap } = grade(320)
-    const disponivel = 320 - 40
-    expect(disponivel * 0.08 - gap).toBeGreaterThan(10)
-    expect(sobra).toBe(0)  // as trilhas crescem e preenchem a linha
+  it('3 colunas nunca cabem enquanto a porcentagem é quem manda', () => {
+    // 3 × 46% = 138% > 100%, então no celular o teto é 2 — sem depender do gap.
+    for (const w of [200, 320, 400, 500]) expect(grade(w).n).toBeLessThanOrEqual(2)
   })
 
-  it('a regra aguenta muito além do necessário — só quebraria abaixo de 190px', () => {
-    expect(grade(200).n).toBe(2)
-    // 46% nunca deixa caber uma 3ª coluna enquanto a porcentagem é quem manda:
-    // 3×46% = 138% > 100%.
-    for (const w of [320, 400, 500]) expect(grade(w).n).toBeLessThanOrEqual(2)
+  it('em celular a trilha é a porcentagem, não o cap de 258px', () => {
+    // É o que diferencia o comportamento novo do antigo: em 390px a trilha
+    // vale 46% (161px), e não 258px.
+    expect(grade(390).largura).toBeCloseTo(161, 1)
+    expect(grade(390).largura).toBeLessThan(258)
   })
 
-  // ── A6: card travado em 258px ──
+  // ── A6: card travado em 258px (decisão preservada) ──
   it('o card nunca passa de 258px, por mais larga que seja a tela', () => {
     for (const w of [600, 768, 900, 1024, 1280, 1440, 1920, 2560]) {
       expect(grade(w).largura, `${w}px`).toBeLessThanOrEqual(258)
     }
   })
 
-  it('no desktop o card fica exatamente em 258px e a sobra vira respiro', () => {
-    const d = grade(1440)
-    expect(d.n).toBe(4)
-    expect(d.largura).toBe(258)
-    expect(Math.round(d.sobra)).toBe(148)  // ~74px de cada lado, centralizado
+  it('no desktop o card fica exatamente em 258px', () => {
+    for (const w of [768, 1024, 1280, 1440]) {
+      expect(grade(w).largura, `${w}px`).toBe(258)
+    }
   })
 
   it('a grade abre 2 → 3 → 4 colunas conforme a tela cresce', () => {
-    expect(grade(700).n).toBe(2)
-    expect(grade(838).n).toBe(3)
+    // Conferido no Chrome: 600→2, 768→2, 1024→3, 1280→4, 1440→4.
+    expect(grade(600).n).toBe(2)
+    expect(grade(768).n).toBe(2)
     expect(grade(1024).n).toBe(3)
     expect(grade(1280).n).toBe(4)
+    expect(grade(1440).n).toBe(4)
   })
 
-  it('pior sobra é em 768px — 200px, aceito junto com o cap de 258px', () => {
-    const t = grade(768)
-    expect(t.n).toBe(2)
-    expect(Math.round(t.sobra)).toBe(200)
-  })
-
-  it('em celular não sobra nada: as trilhas crescem e preenchem a linha', () => {
-    for (const w of [320, 375, 390, 430]) {
-      expect(Math.round(grade(w).sobra), `${w}px`).toBe(0)
+  it('a sobra vira respiro centralizado, nunca negativa (sem overflow)', () => {
+    for (const w of [320, 375, 390, 430, 600, 768, 1024, 1280, 1440]) {
+      expect(grade(w).sobra, `${w}px`).toBeGreaterThanOrEqual(0)
     }
   })
 
   it('a regra do grid no componente é exatamente a calibrada aqui', async () => {
     const fs = await import('node:fs/promises')
     const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
-    expect(fonte).toContain("'repeat(auto-fill, minmax(min(46%, 258px), 258px))'")
+    expect(fonte).toContain("'repeat(auto-fill, min(46%, 258px))'")
     expect(fonte).toContain("'clamp(12px, 1.4vw, 22px)'")
     expect(fonte).toContain("justifyContent: 'center'")
-    // O 1fr que esticava o card não pode ter voltado.
-    expect(fonte).not.toContain('minmax(min(48%, 258px), 1fr)')
+    // Regressão: nenhuma das duas regras antigas pode voltar. A primeira
+    // esticava o card no desktop; a segunda dava 1 coluna no celular.
+    // A checagem é sobre a REGRA, não sobre o arquivo: o comentário que
+    // explica o bug cita as duas de propósito.
+    const regra = fonte.match(/gridTemplateColumns: '(repeat\(auto-fill[^']+)'/)?.[1]
+    expect(regra).toBe('repeat(auto-fill, min(46%, 258px))')
+  })
+
+  it('a grade não usa minmax com máximo fixo — é o que quebrava o auto-fill', async () => {
+    const fs = await import('node:fs/promises')
+    const fonte = await fs.readFile(new URL('./CatalogoPublicoV2.jsx', import.meta.url), 'utf8')
+    const regra = fonte.match(/gridTemplateColumns: '(repeat\(auto-fill[^']+)'/)?.[1]
+    expect(regra).toBeTruthy()
+    // minmax(..., <length>) faz o auto-fill contar pelo máximo. Só é seguro
+    // com máximo flexível (1fr/auto) — ou sem minmax nenhum, como agora.
+    const maximoFixo = /minmax\([^)]*,\s*[\d.]+px\s*\)/.test(regra)
+    expect(maximoFixo, `regra atual: ${regra}`).toBe(false)
   })
 
   it('não existe nenhuma media query de layout — só a de acessibilidade', async () => {

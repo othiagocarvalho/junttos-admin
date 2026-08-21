@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
+import { salvarCredencialMercadoPago, podeAtivarMercadoPago } from '../../utils/credenciaisPagamento'
 import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
@@ -353,7 +354,9 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
 }
 
 // ── Config Desktop (2 colunas) ─────────────────────────────────
-function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
+// Exportado para o CatalogoB2BModuloDesktop (dashboard completo) reaproveitar
+// o mesmo formulário — ver a nota equivalente em CatalogoB2BAdmin.jsx.
+export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
   const [nome,     setNome]     = useState(config?.nome           || '')
   const [chavePix, setChavePix] = useState(config?.chave_pix      || '')
   const [whatsapp, setWhatsapp] = useState(config?.whatsapp_loja  || '')
@@ -362,6 +365,13 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   const [pmTipo,   setPmTipo]   = useState(config?.pedido_minimo_tipo  || 'nenhum')
   const [pmValor,  setPmValor]  = useState(config?.pedido_minimo_valor || '')
   const [pmQtd,    setPmQtd]    = useState(config?.pedido_minimo_qtd   || '')
+  const [checkout, setCheckout] = useState(config?.catalogo_checkout_online === true)
+  // Nascem vazios: a tabela de credenciais não tem policy de SELECT, então nem
+  // esta tela lê o token de volta. Vazio + já configurado = manter o gravado.
+  const [mpToken,  setMpToken]  = useState('')
+  const [mpSecret, setMpSecret] = useState('')
+  const [mpAtivo,  setMpAtivo]  = useState(config?.mercadopago_ativo === true)
+  const [mpErro,   setMpErro]   = useState('')
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
 
@@ -375,10 +385,29 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
     setPmTipo(config.pedido_minimo_tipo   || 'nenhum')
     setPmValor(config.pedido_minimo_valor || '')
     setPmQtd(config.pedido_minimo_qtd     || '')
+    setCheckout(config.catalogo_checkout_online === true)
+    setMpAtivo(config.mercadopago_ativo === true)
   }, [config])
+
+  const mpJaConfigurado = config?.mercadopago_ativo === true
 
   async function handleSave() {
     setSaving(true)
+    setMpErro('')
+
+    // Credencial vai em tabela própria com RLS — nunca em lf_config, que o
+    // catálogo público lê inteira sem autenticação.
+    let mpOk = true
+    if (mpToken.trim() || mpSecret.trim()) {
+      const { error } = await salvarCredencialMercadoPago(supabase, lojaId, {
+        token: mpToken, webhookSecret: mpSecret,
+      })
+      if (error) {
+        mpOk = false
+        setMpErro('Não foi possível salvar a credencial do Mercado Pago: ' + error.message)
+      }
+    }
+
     await saveConfig({
       nome:                nome     || 'Catálogo',
       chave_pix:           chavePix || null,
@@ -388,10 +417,17 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       pedido_minimo_tipo:  pmTipo   || 'nenhum',
       pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
       pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
+      catalogo_checkout_online: checkout,
+      mercadopago_ativo: mpOk && mpAtivo && podeAtivarMercadoPago({
+        token: mpToken, jaConfigurado: mpJaConfigurado,
+      }),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2200)
+    if (mpOk) {
+      setMpToken(''); setMpSecret('')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2200)
+    }
   }
 
   const lbl = {
@@ -465,6 +501,77 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
               <label style={lbl}>WhatsApp da Loja</label>
               <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} style={inp} placeholder="(85) 99999-0000" type="tel" />
             </div>
+            {/* Sem este toggle a Chave Pix não aparece para ninguém: o catálogo
+                só mostra o bloco de Pix quando catalogo_checkout_online é true,
+                e até agora nenhuma tela escrevia esse campo. */}
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={checkout}
+                onChange={e => setCheckout(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+              />
+              <span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+                  Mostrar Pix no catálogo
+                </span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  A cliente copia a chave e paga no banco dela. Precisa da Chave Pix preenchida acima.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div style={section}>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+            Mercado Pago (Pix com QR Code)
+          </p>
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 18 }}>
+            Com o Mercado Pago o catálogo mostra QR Code e confirma o pagamento sozinho.
+            Sem isso, o Pix continua funcionando no modo copia-e-cola acima.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={lbl}>
+                Access token {mpJaConfigurado && <span style={{ color: 'var(--status-ok-tx)' }}>· configurado</span>}
+              </label>
+              <input
+                value={mpToken} onChange={e => setMpToken(e.target.value)} style={inp}
+                type="password" autoComplete="off"
+                placeholder={mpJaConfigurado ? 'Deixe vazio para manter o atual' : 'APP_USR-...'}
+              />
+            </div>
+            <div>
+              <label style={lbl}>Chave secreta do webhook</label>
+              <input
+                value={mpSecret} onChange={e => setMpSecret(e.target.value)} style={inp}
+                type="password" autoComplete="off"
+                placeholder={mpJaConfigurado ? 'Deixe vazio para manter a atual' : 'Mercado Pago -> Webhooks'}
+              />
+            </div>
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
+              Por segurança estas chaves não são exibidas depois de salvas.
+            </p>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+              <input
+                type="checkbox" checked={mpAtivo} onChange={e => setMpAtivo(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+              />
+              <span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+                  Usar QR Code do Mercado Pago
+                </span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Se o Mercado Pago falhar, o catálogo volta sozinho para o copia-e-cola.
+                </span>
+              </span>
+            </label>
+            {mpErro && (
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--status-bad-tx)', lineHeight: 1.45 }}>
+                {mpErro}
+              </p>
+            )}
           </div>
         </div>
 
@@ -640,6 +747,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
         saveConfig={data.saveConfig}
         theme={theme}
         nivel={nivel}
+        lojaId={lojaId}
       />
     ),
   }
