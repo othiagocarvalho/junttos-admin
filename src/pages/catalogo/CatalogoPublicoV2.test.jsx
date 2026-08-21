@@ -465,6 +465,59 @@ describe('13.8 — drawer soma, avisa e bloqueia abaixo do mínimo', () => {
     expect(s).toContain('Enviar pedido no WhatsApp')
   })
 
+  // ── Identificação da cliente (bug do pedido sem contato) ─────────────────
+  it('com itens no carrinho, pede nome e WhatsApp', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaAtacado} cliente={{ nome: '', whatsapp: '' }} />)
+    expect(s).toContain('Seus dados')
+    expect(s).toContain('Como a loja deve te chamar')
+    expect(s).toContain('(85) 99999-0000')
+  })
+
+  it('carrinho vazio não pede dado nenhum', () => {
+    // Pedir contato antes de existir pedido é atrito à toa.
+    const s = html(
+      <DrawerPedido
+        linhas={[]} produtosPorId={mapa} minimo={null} loja={lojaAtacado}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    expect(s).not.toContain('Seus dados')
+  })
+
+  it('mostra a mensagem de erro no campo que falta', () => {
+    const s = html(
+      <DrawerPedido {...propsDrawer()} loja={lojaAtacado}
+        cliente={{ nome: '', whatsapp: '85999990000' }}
+        errosCliente={{ nome: 'Escreva seu nome.' }} />,
+    )
+    expect(s).toContain('Escreva seu nome.')
+    expect(s).not.toContain('Escreva um WhatsApp com DDD.')
+  })
+
+  it('campo com erro é marcado para leitor de tela', () => {
+    const s = html(
+      <DrawerPedido {...propsDrawer()} loja={lojaAtacado}
+        cliente={{ nome: '', whatsapp: '' }}
+        errosCliente={{ nome: 'x', whatsapp: 'y' }} />,
+    )
+    expect(s.match(/aria-invalid="true"/g)).toHaveLength(2)
+  })
+
+  it('o que a cliente já digitou reaparece no campo', () => {
+    const s = html(
+      <DrawerPedido {...propsDrawer()} loja={lojaAtacado}
+        cliente={{ nome: 'Ana Paula', whatsapp: '85999990000' }} />,
+    )
+    expect(s).toContain('value="Ana Paula"')
+    expect(s).toContain('value="85999990000"')
+  })
+
+  it('os campos usam fonte 16px — abaixo disso o iOS dá zoom no foco', () => {
+    const s = html(<DrawerPedido {...propsDrawer()} loja={lojaAtacado} cliente={{ nome: '', whatsapp: '' }} />)
+    // Mesmo cuidado já aplicado na busca do cabeçalho.
+    expect(s).toContain('font-size:16px')
+  })
+
   it('sem WhatsApp cadastrado o botão verde não é desenhado', () => {
     const semWa = lojaDaConfig({ nome: 'X' })
     const s = html(

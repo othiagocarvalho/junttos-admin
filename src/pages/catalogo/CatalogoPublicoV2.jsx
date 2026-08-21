@@ -33,6 +33,7 @@ import {
   estadoMinimo, categoriasDe, filtrarProdutos, ordenarProdutos,
   mensagemWhatsApp, linkWhatsApp,
   carregarCarrinho, salvarCarrinho, TAMANHO_UNICO,
+  validarDadosCliente, dadosClienteParaPedido,
 } from '../../utils/catalogoV2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,6 +68,9 @@ const C = {
 const UI = "'Instrument Sans', system-ui, -apple-system, sans-serif"
 const DISPLAY = "'Instrument Serif', Georgia, serif"
 const LARGURA = 1280
+// Vermelho de erro de formulário. Fora do objeto C de propósito: C é a paleta
+// literal da spec (seção 3), e isto é um token novo, não algo que veio de lá.
+const ERRO = '#B4381F'
 
 const PASSOS = [TEXTOS.passo1, TEXTOS.passo2, TEXTOS.passo3]
 
@@ -997,6 +1001,7 @@ export function PixDinamico({ estado, aoGerar, aoCopiar, primeiroPlano = false }
 export function DrawerPedido({
   linhas, produtosPorId, minimo, loja, aoFechar, aoMudarQtd, aoEnviar, aoPagar,
   aoCopiarPix, pixMp, aoGerarPixMp, aoCopiarTexto,
+  cliente, aoMudarCliente, errosCliente = {},
 }) {
   const painelRef = useRef(null)
   // Feedback local do botão de copiar. Fica aqui, e não no componente pai,
@@ -1114,6 +1119,65 @@ export function DrawerPedido({
         <div style={{
           borderTop: `1px solid ${C.linha}`, padding: '18px 20px 22px', background: C.superficie2,
         }}>
+          {/* Nome e WhatsApp são obrigatórios: sem eles o pedido chega no
+              painel sem ninguém para contatar. Ficam escondidos com o carrinho
+              vazio para não pedir dado antes de haver pedido. */}
+          {linhas.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 600, color: C.tinta }}>
+                {TEXTOS.seusDados}
+              </p>
+              <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45, color: C.texto4 }}>
+                {TEXTOS.seusDadosTexto}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div>
+                  <input
+                    className="cat-input"
+                    value={cliente?.nome ?? ''}
+                    onChange={e => aoMudarCliente?.('nome', e.target.value)}
+                    placeholder={TEXTOS.campoNomePlaceholder}
+                    aria-label={TEXTOS.campoNome}
+                    aria-invalid={errosCliente.nome ? 'true' : undefined}
+                    autoComplete="name"
+                    style={{
+                      width: '100%', height: 50, borderRadius: 14, boxSizing: 'border-box',
+                      border: `1px solid ${errosCliente.nome ? ERRO : C.linhaInput}`,
+                      background: C.superficie, padding: '0 15px',
+                      // 16px é obrigatório: menos que isso e o iOS dá zoom no foco.
+                      fontSize: 16, fontFamily: UI, color: C.tinta,
+                    }}
+                  />
+                  {errosCliente.nome && (
+                    <p style={{ margin: '5px 0 0', fontSize: 12.5, color: ERRO }}>{errosCliente.nome}</p>
+                  )}
+                </div>
+                <div>
+                  <input
+                    className="cat-input"
+                    value={cliente?.whatsapp ?? ''}
+                    onChange={e => aoMudarCliente?.('whatsapp', e.target.value)}
+                    placeholder={TEXTOS.campoWhatsappPlaceholder}
+                    aria-label={TEXTOS.campoWhatsapp}
+                    aria-invalid={errosCliente.whatsapp ? 'true' : undefined}
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    style={{
+                      width: '100%', height: 50, borderRadius: 14, boxSizing: 'border-box',
+                      border: `1px solid ${errosCliente.whatsapp ? ERRO : C.linhaInput}`,
+                      background: C.superficie, padding: '0 15px',
+                      fontSize: 16, fontFamily: UI, color: C.tinta,
+                    }}
+                  />
+                  {errosCliente.whatsapp && (
+                    <p style={{ margin: '5px 0 0', fontSize: 12.5, color: ERRO }}>{errosCliente.whatsapp}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {minimo && !minimo.atingido && (
             <div style={{
               background: C.alertaFundo, border: `1px solid ${C.alertaBorda}`, color: C.alertaTexto,
@@ -1236,6 +1300,11 @@ export default function CatalogoPublicoV2({ lojaId }) {
   // salvo na primeira render é correto e evita render em cascata.
   const [carrinho, setCarrinho] = useState(() => carregarCarrinho(window.localStorage, lojaId))
   const [drawerAberto, setDrawerAberto] = useState(false)
+  // Identificação da cliente. Obrigatória nos TRÊS caminhos que criam pedido
+  // (WhatsApp, Pix copia-e-cola e Pix do Mercado Pago) — antes disso o V2
+  // gravava cliente_nome e cliente_whatsapp vazios em todos eles.
+  const [cliente, setCliente] = useState({ nome: '', whatsapp: '' })
+  const [errosCliente, setErrosCliente] = useState({})
   const [produtoAberto, setProdutoAberto] = useState(null)
   const [toast, setToast] = useState('')
 
@@ -1332,6 +1401,31 @@ export default function CatalogoPublicoV2({ lojaId }) {
   const temApresentacao = !!(loja.apresentacao.etiqueta || loja.apresentacao.titulo || loja.apresentacao.descricao)
 
   // ── Ações ──
+
+  /**
+   * Porta única para os três caminhos que registram pedido.
+   *
+   * Fica antes de qualquer efeito colateral: nada de abrir o WhatsApp, copiar
+   * chave ou criar cobrança no Mercado Pago com pedido que não dá para
+   * contatar depois.
+   */
+  function clienteOk() {
+    const { ok, erros } = validarDadosCliente(cliente)
+    setErrosCliente(erros)
+    if (!ok) {
+      setDrawerAberto(true)   // traz os campos para a tela junto com o aviso
+      mostrarToast(TEXTOS.erroDadosIncompletos)
+    }
+    return ok
+  }
+
+  function mudarCliente(campo, valor) {
+    setCliente(c => ({ ...c, [campo]: valor }))
+    // Limpa o erro do campo assim que ela começa a corrigir — deixar o texto
+    // vermelho enquanto digita é ruído.
+    setErrosCliente(e => (e[campo] ? { ...e, [campo]: undefined } : e))
+  }
+
   function confirmarDoModal(rascunho) {
     const { carrinho: novo, adicionadas } = aplicarRascunho(carrinho, produtoAberto.id, rascunho)
     if (adicionadas === 0) { mostrarToast(TEXTOS.toastEscolhaUma); return }
@@ -1352,8 +1446,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
     try {
       const { data, error } = await supabase.from('lf_pedidos').insert({
         loja_id: lojaId,
-        cliente_nome: '',
-        cliente_whatsapp: '',
+        ...dadosClienteParaPedido(cliente),
         produtos: linhas.map(l => ({
           nome: l.nome,
           variacao: [l.cor, l.tamanho !== TAMANHO_UNICO ? l.tamanho : ''].filter(Boolean).join(' / '),
@@ -1377,6 +1470,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
 
   async function enviarNoWhatsApp() {
     if (!loja.whatsapp) { mostrarToast(TEXTOS.toastSemWhatsapp); return }
+    if (!clienteOk()) return
     if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return }
     if (!linhas.length) return
 
@@ -1406,6 +1500,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
   async function copiarChavePix(chave) {
     if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return false }
     if (!linhas.length) return false
+    if (!clienteOk()) return false
 
     try {
       await navigator.clipboard.writeText(chave)
@@ -1451,6 +1546,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
   async function gerarPixMercadoPago() {
     if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return }
     if (!linhas.length) return
+    if (!clienteOk()) return
 
     setPixMp(p => ({ ...p, carregando: true }))
 
@@ -1482,6 +1578,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
   async function pagarNoSite() {
     if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return }
     if (!linhas.length) return
+    if (!clienteOk()) return
     await registrarPedido('aguardando_pagamento')
     // O provedor de pagamento ainda não está plugado — ver seção 8.2 da spec.
     mostrarToast('Pagamento online em breve')
@@ -1630,6 +1727,9 @@ export default function CatalogoPublicoV2({ lojaId }) {
           pixMp={pixMp}
           aoGerarPixMp={gerarPixMercadoPago}
           aoCopiarTexto={copiarTexto}
+          cliente={cliente}
+          aoMudarCliente={mudarCliente}
+          errosCliente={errosCliente}
         />
       )}
 

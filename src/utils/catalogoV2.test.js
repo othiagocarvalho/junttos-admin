@@ -7,6 +7,7 @@ import {
   linhaMensagem, mensagemWhatsApp, telefoneE164, linkWhatsApp,
   chaveCarrinho, carregarCarrinho, salvarCarrinho, TTL_CARRINHO_MS, TAMANHO_UNICO,
   lojaDaConfig,
+  nomeValido, whatsappValido, validarDadosCliente, dadosClienteParaPedido,
 } from './catalogoV2'
 
 // ── Fixtures espelhando os dados reais da tropicaleatacado ───────────────────
@@ -669,5 +670,103 @@ describe('lojaDaConfig — chave Pix', () => {
     const ambos = lojaDaConfig({ chave_pix: 'x@y.com', catalogo_checkout_online: true })
     expect(ambos.checkoutOnline).toBe(true)
     expect(ambos.chavePix).toBe('x@y.com')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identificação da cliente no checkout.
+//
+// Bug real: um pedido da Tropicale chegou com cliente_nome e cliente_whatsapp
+// vazios. O V2 gravava string vazia fixa — não era validação frouxa, era
+// ausência total dos campos, que o V1 tinha e a migração para o V2 perdeu.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('nomeValido', () => {
+  it('aceita nome de verdade', () => {
+    expect(nomeValido('Ana')).toBe(true)
+    expect(nomeValido('Bia')).toBe(true)
+  })
+
+  it('recusa vazio, espaço e uma letra só', () => {
+    expect(nomeValido('')).toBe(false)
+    expect(nomeValido('   ')).toBe(false)
+    expect(nomeValido('A')).toBe(false)
+    expect(nomeValido(null)).toBe(false)
+    expect(nomeValido(undefined)).toBe(false)
+  })
+
+  it('nome com espaço em volta conta pelo conteúdo', () => {
+    expect(nomeValido('  Jo  ')).toBe(true)
+  })
+})
+
+describe('whatsappValido', () => {
+  it('aceita celular com DDD, com e sem máscara', () => {
+    expect(whatsappValido('(85) 99999-0000')).toBe(true)
+    expect(whatsappValido('85999990000')).toBe(true)
+  })
+
+  it('aceita fixo com DDD (10 dígitos)', () => {
+    expect(whatsappValido('8533334444')).toBe(true)
+  })
+
+  it('recusa curto demais, longo demais e vazio', () => {
+    expect(whatsappValido('999990000')).toBe(false)   // 9, sem DDD
+    expect(whatsappValido('859999900001')).toBe(false) // 12
+    expect(whatsappValido('')).toBe(false)
+    expect(whatsappValido(null)).toBe(false)
+  })
+
+  it('texto sem dígito nenhum é recusado', () => {
+    expect(whatsappValido('meu zap')).toBe(false)
+  })
+})
+
+describe('validarDadosCliente', () => {
+  it('dados completos passam sem erro', () => {
+    const r = validarDadosCliente({ nome: 'Ana', whatsapp: '(85) 99999-0000' })
+    expect(r.ok).toBe(true)
+    expect(r.erros).toEqual({})
+  })
+
+  it('aponta o campo exato que falta, não um erro genérico', () => {
+    const semNome = validarDadosCliente({ nome: '', whatsapp: '85999990000' })
+    expect(semNome.ok).toBe(false)
+    expect(semNome.erros.nome).toBeTruthy()
+    expect(semNome.erros.whatsapp).toBeUndefined()
+
+    const semZap = validarDadosCliente({ nome: 'Ana', whatsapp: '' })
+    expect(semZap.ok).toBe(false)
+    expect(semZap.erros.whatsapp).toBeTruthy()
+    expect(semZap.erros.nome).toBeUndefined()
+  })
+
+  it('os dois vazios acusam os dois', () => {
+    const r = validarDadosCliente({ nome: '', whatsapp: '' })
+    expect(Object.keys(r.erros).sort()).toEqual(['nome', 'whatsapp'])
+  })
+
+  it('sem argumento nenhum não estoura', () => {
+    expect(validarDadosCliente().ok).toBe(false)
+    expect(validarDadosCliente({}).ok).toBe(false)
+  })
+})
+
+describe('dadosClienteParaPedido', () => {
+  it('apara o nome e tira a máscara do telefone', () => {
+    expect(dadosClienteParaPedido({ nome: '  Ana Paula ', whatsapp: '(85) 99999-0000' }))
+      .toEqual({ cliente_nome: 'Ana Paula', cliente_whatsapp: '85999990000' })
+  })
+
+  it('nunca devolve undefined — as colunas do banco são NOT NULL na prática', () => {
+    expect(dadosClienteParaPedido()).toEqual({ cliente_nome: '', cliente_whatsapp: '' })
+  })
+
+  it('o que sai daqui passa na validação de novo', () => {
+    // Fecha o ciclo: normalizar não pode invalidar o que já era válido.
+    const bruto = { nome: ' Ana ', whatsapp: '(85) 99999-0000' }
+    const gravado = dadosClienteParaPedido(bruto)
+    expect(validarDadosCliente({
+      nome: gravado.cliente_nome, whatsapp: gravado.cliente_whatsapp,
+    }).ok).toBe(true)
   })
 })
