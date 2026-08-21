@@ -16,7 +16,7 @@ import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../uti
 import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
-import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
+import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
@@ -1738,6 +1738,10 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
         {[
           { id: 'produtos', label: 'Produtos' },
           { id: 'pedidos',  label: 'Pedidos'  },
+          // A aba de config existia só no admin reduzido
+          // (CatalogoB2BAdminDesktop), que nenhuma loja alcança hoje — é por
+          // isso que a Chave Pix não tinha onde ser editada a não ser por SQL.
+          { id: 'config',   label: 'Configurações' },
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id)} style={{
             padding: '10px 24px', borderRadius: 12, cursor: 'pointer',
@@ -1749,7 +1753,15 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
           }}>{st.label}</button>
         ))}
       </div>
-      {subTab === 'produtos'
+      {subTab === 'config' ? (
+        <ConfigB2BDesktop
+          config={data.config}
+          saveConfig={data.saveConfig}
+          theme={theme}
+          nivel={nivel}
+          lojaId={lojaId}
+        />
+      ) : subTab === 'produtos'
         ? nivel === 'pro'
           ? <ProdutosB2BPro
               produtosData={data.produtosData}

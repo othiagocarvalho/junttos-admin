@@ -1,4 +1,5 @@
 import { isErroAuth } from './authErro'
+import { renovarSessao } from '../lib/authRefresh'
 
 // Extracts the display label from a variacao JSONB object
 export function getVarLabel(v) {
@@ -133,7 +134,7 @@ export async function checarTravaBalanco(supabase, lojaId) {
   let renovou = false
 
   if (result?.error && isErroAuth(result.error)) {
-    const { error: refreshErr } = await supabase.auth.refreshSession()
+    const { error: refreshErr } = await renovarSessao(supabase)
     if (!refreshErr) {
       renovou = true
       result = await consultar()

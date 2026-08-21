@@ -186,11 +186,25 @@ Textos: **"Escolha o produto" → "Confira o pedido" → "Pagamento"**.
 ### 4.7 Grade de produtos
 ```css
 display: grid;
-grid-template-columns: repeat(auto-fill, minmax(min(48%, 258px), 1fr));
+grid-template-columns: repeat(auto-fill, min(46%, 258px));
 gap: clamp(12px, 1.4vw, 22px);
+justify-content: center;
 padding-bottom: 64px;
 ```
-> Esse `min(48%,258px)` é o coração da responsividade: garante **exatamente 2 colunas no celular** (≈163px cada em tela de 390px) e cards de até 258px no desktop, **sem media query e sem JavaScript**. Não substituir por breakpoints.
+> Esse `min(46%,258px)` é o coração da responsividade: garante **exatamente 2 colunas no celular** (161px cada em tela de 390px) e cards travados em 258px no desktop, **sem media query e sem JavaScript**. Não substituir por breakpoints.
+
+> **Trilha única, nunca `minmax()` com máximo fixo.** Duas versões anteriores erraram aqui e a segunda chegou a produção:
+> | versão | regra | resultado |
+> |---|---|---|
+> | original | `minmax(min(48%, 258px), 1fr)` | 2 colunas ok, mas o card esticava até ~294px no desktop |
+> | 20/08/2026 | `minmax(min(46%, 258px), 258px)` | card travado ok, mas **1 coluna em todo celular** |
+> | atual | `min(46%, 258px)` | 2 colunas de 320px a ~600px, card travado em 258px |
+>
+> O motivo é o CSS Grid §7.2.3.1: para decidir quantas vezes repetir, o `auto-fill` usa a função de tamanho **máxima** da trilha quando ela é definida — não a mínima. Com máximo `258px` fixo o navegador pergunta "quantas colunas de 258px cabem?", e em 350px de conteúdo cabe uma só; o `min(46%, 258px)` do mínimo nunca era consultado. Com trilha única não existe essa divergência.
+>
+> Medido no Chrome (CDP, `Emulation.setDeviceMetricsOverride`) na página real da tropicaleatacado: 320→2 colunas de 128,8px · 375→2 de 154,1px · 390→2 de 161px · 430→2 de 179,4px · 768→2 de 258px · 1024→3 de 258px · 1280 e 1440→4 de 258px. Sem overflow horizontal em nenhuma.
+>
+> Valores de **layout** não se validam por aritmética: o modelo do `auto-fill` usado no teste da versão 20/08/2026 contava pelo mínimo, dava 2 colunas na conta e passava verde enquanto o device real mostrava 1. Qualquer recalibragem daqui precisa de medição em navegador.
 
 **Card** (`<article>` inteiro clicável, `cursor:pointer`, abre o modal):
 `background:#FFFDF9; border:1px solid #EBE5D9; border-radius:20px; overflow:hidden; display:flex; flex-direction:column`; hover → `border-color:#D6CCB6`.
@@ -343,11 +357,11 @@ Derivados: `totalPecas`, `totalValor`, `linhasDoCarrinho`, `faltaMinimo`, `progr
 
 | Faixa | Comportamento |
 |---|---|
-| ≤ 430px (celular) | Cabeçalho em 2 linhas (≈141px). Grade **2 colunas** (~163px). Chips e 3 passos com rolagem horizontal. Modal empilhado (foto em cima, ≥340px de altura). Drawer ocupa 100vw. Faixa de vídeo ≈210px. Espaço total antes do 1º produto ≈ 300px com vídeo desligado. |
+| ≤ 430px (celular) | Cabeçalho em 2 linhas (≈141px). Grade **2 colunas** (128,8px em 320 · 161px em 390 · 179,4px em 430). Chips e 3 passos com rolagem horizontal. Modal empilhado (foto em cima, ≥340px de altura). Drawer ocupa 100vw. Faixa de vídeo ≈210px. Espaço total antes do 1º produto ≈ 300px com vídeo desligado. |
 | 431–819px | Grade 2–3 colunas conforme largura. Modal ainda pode empilhar. |
 | ≥ 820px | Cabeçalho em 1 linha. Grade 3–5 colunas (cards ≤258px). Modal em 2 colunas (máx. 1020px). Drawer 430px. |
 
-Nada disso usa media query: `min(48%,258px)`, `clamp()` e `flex-wrap` resolvem. **Não introduza breakpoints** — o layout precisa funcionar dentro de iframes e webviews de qualquer largura.
+Nada disso usa media query: `min(46%,258px)`, `clamp()` e `flex-wrap` resolvem. **Não introduza breakpoints** — o layout precisa funcionar dentro de iframes e webviews de qualquer largura.
 
 ---
 

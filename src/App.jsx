@@ -27,6 +27,7 @@ import Redes from './pages/admin/Redes'
 import SimuladorPlano from './pages/SimuladorPlano'
 import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
+import { renovarSessao } from './lib/authRefresh'
 import { isErroAuth } from './utils/authErro'
 import { isSlugReservado } from './utils/rotasReservadas'
 import { isLojaExcluida } from './utils/lojaStatus'
@@ -224,7 +225,9 @@ export default function App() {
       if (isErroAuth(error)) {
         // Tenta salvar a sessão antes de descartá-la: se o refresh token ainda
         // presta, a lojista segue logada e só perdeu um round-trip.
-        const { error: refreshErr } = await supabase.auth.refreshSession()
+        // Pelo single-flight: se a renovação da volta-para-a-aba estiver em
+        // voo, esta espera aquela em vez de gastar um segundo refresh token.
+        const { error: refreshErr } = await renovarSessao(supabase)
         if (refreshErr) {
           // scope 'local': o token já está morto, o signOut remoto falharia —
           // e derrubaria as outras sessões da conta se não falhasse.
