@@ -663,10 +663,16 @@ export function useLojaData(lojaId = 'estrada') {
       .maybeSingle()
     if (error) throw error
     // data nulo = nenhuma linha transitou (já estava cancelado, ou é de outra
-    // loja). Vale enquanto lf_pedidos estiver sem RLS: se um dia ligarem, o
-    // select pós-update pode voltar vazio com o update tendo funcionado
-    // (PGRST116, o mesmo caso tratado em addVenda) e a devolução seria pulada
-    // em silêncio.
+    // loja).
+    //
+    // Este comentário avisava que ligar RLS em lf_pedidos poderia fazer o
+    // select pós-update voltar vazio com o update tendo funcionado, pulando a
+    // devolução de estoque em silêncio. A migration de RLS
+    // (supabase/migration_rls_pedidos.sql) foi desenhada com isso em mente: a
+    // lojista tem policy de SELECT *e* de UPDATE sobre os pedidos da própria
+    // loja, então a linha atualizada continua visível para o select seguinte.
+    // Se um dia a policy de SELECT for estreitada, esta função volta a ser um
+    // dos pontos a reconferir.
     if (!data) return null
 
     // Só itens com variação foram baixados no checkout, e é exatamente esse
