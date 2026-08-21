@@ -56,6 +56,13 @@ export const TEXTOS = {
   total: 'Total',
   enviarWhatsapp: 'Enviar pedido no WhatsApp',
   pagarSite: 'Pagar agora pelo site',
+  // Pix copia-e-cola — sem gateway e sem QR Code: a cliente copia a chave,
+  // paga no banco dela e volta pelo WhatsApp com o comprovante.
+  pixTitulo: 'Pague com Pix',
+  pixInstrucao: 'Copie a chave, pague no seu banco e mande o comprovante no WhatsApp.',
+  pixCopiar: 'Copiar chave Pix',
+  pixCopiado: 'Chave copiada!',
+  toastPixCopiado: 'Chave Pix copiada',
   avisoMinimo: 'Faltam {valor} para o pedido mínimo. Adicione mais peças para finalizar.',
   avisoMinimoQtd: 'Faltam {qtd} peças para o pedido mínimo. Adicione mais peças para finalizar.',
 

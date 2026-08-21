@@ -424,6 +424,10 @@ export function lojaDaConfig(config) {
     // digitou "(85) 99999-0000".
     whatsapp: telefoneE164(config?.whatsapp_loja),
     checkoutOnline: config?.catalogo_checkout_online === true,
+    // Chave Pix copia-e-cola. String vazia quando não cadastrada — o drawer
+    // usa isso para decidir entre mostrar o bloco de Pix e manter o caminho
+    // antigo, então nunca pode virar null.
+    chavePix: (config?.chave_pix || '').trim(),
     textoEnvio: config?.catalogo_texto_envio || TEXTOS.envioPadrao,
     videoTopo: {
       ativo: video.ativo === true,

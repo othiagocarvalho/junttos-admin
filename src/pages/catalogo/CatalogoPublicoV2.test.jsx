@@ -343,6 +343,63 @@ describe('13.8 — drawer soma, avisa e bloqueia abaixo do mínimo', () => {
     expect(html(<DrawerPedido {...props} loja={comCheckout} />)).toContain('Pagar agora pelo site')
   })
 
+  // ── Pix copia-e-cola ──────────────────────────────────────────────────────
+  // Sem gateway e sem QR Code: a chave aparece em texto com um botão de copiar.
+  const propsDrawer = () => ({
+    linhas, produtosPorId: mapa, minimo: null,
+    aoFechar: () => {}, aoMudarQtd: () => {}, aoEnviar: () => {}, aoPagar: () => {},
+  })
+
+  it('com checkout ligado E chave cadastrada, mostra o bloco de Pix', () => {
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+      chave_pix: 'tropicale@exemplo.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Pague com Pix')
+    expect(s).toContain('tropicale@exemplo.com')   // a chave em si, copiável
+    expect(s).toContain('Copiar chave Pix')
+    // O bloco SUBSTITUI o botão antigo, não convive com ele.
+    expect(s).not.toContain('Pagar agora pelo site')
+  })
+
+  it('com checkout ligado e SEM chave, o comportamento antigo fica intacto', () => {
+    const loja = lojaDaConfig({ whatsapp_loja: '85999990000', catalogo_checkout_online: true })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Pagar agora pelo site')
+    expect(s).not.toContain('Pague com Pix')
+  })
+
+  it('chave cadastrada mas checkout desligado não mostra Pix nenhum', () => {
+    // Quem manda é o toggle: chave preenchida sozinha não publica nada.
+    const loja = lojaDaConfig({ whatsapp_loja: '85999990000', chave_pix: 'x@y.com' })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).not.toContain('Pague com Pix')
+    expect(s).not.toContain('x@y.com')
+    expect(s).not.toContain('Pagar agora pelo site')
+  })
+
+  it('o WhatsApp continua disponível junto com o Pix', () => {
+    // O Pix é um caminho a mais, não um substituto: quem paga ainda precisa
+    // mandar o comprovante.
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true, chave_pix: 'x@y.com',
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain('Enviar pedido no WhatsApp')
+    expect(s).toContain('Pague com Pix')
+  })
+
+  it('chave aleatória longa quebra linha em vez de estourar o drawer', () => {
+    const chave = '7f3a1c2e-9b4d-4a6f-8e1b-2c5d7a9f0e3b'   // 36 caracteres, sem espaço
+    const loja = lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true, chave_pix: chave,
+    })
+    const s = html(<DrawerPedido {...propsDrawer()} loja={loja} />)
+    expect(s).toContain(chave)
+    expect(s).toContain('word-break:break-all')
+  })
+
   it('sem WhatsApp cadastrado o botão verde não é desenhado', () => {
     const semWa = lojaDaConfig({ nome: 'X' })
     const s = html(
