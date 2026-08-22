@@ -10,6 +10,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import JsBarcode from 'jsbarcode'
+// A matemática dos três modos mora fora daqui: é a regra que decide o que a
+// impressora cospe, e o ambiente de teste do repo não tem DOM para simular a
+// troca de modo dentro do componente.
+import {
+  ROTULO_MODO, QTD_MAX, normalizarQtd, copiasDe, expandirEtiquetas, qtdsIniciais,
+} from '../../utils/etiquetasQtd'
 import { X, Printer } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
 
@@ -189,9 +195,15 @@ function ReguaCalibracao() {
  * @param theme      só para a cor do botão principal
  */
 export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
-  // Quantas cópias de cada etiqueta. O padrão é 1; "por quantidade em estoque"
-  // é o caso real de quem acabou de receber um lote e vai etiquetar peça a peça.
+  // Quantas cópias de cada etiqueta. Três modos mutuamente exclusivos:
+  //   'uma'           1 por variação — o padrão
+  //   'estoque'       1 por peça em estoque, para quem acabou de receber lote
+  //   'personalizada' a lojista digita a quantidade de cada variação
   const [modo, setModo] = useState('uma')
+  // Só o modo 'personalizada' usa isto. Chaveado pelo código da variação, que
+  // é único por (loja, produto, rótulo) — índice do array não serve, porque a
+  // ordem pode mudar se a seleção do Estoque mudar.
+  const [qtdPorVariacao, setQtdPorVariacao] = useState({})
   const [mostrarPreco, setMostrarPreco] = useState(true)
   // Decisão do momento da impressão, não configuração da loja — por isso
   // estado local e nada de persistir no banco.
@@ -208,12 +220,27 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
     return () => document.removeEventListener('keydown', aoTeclar)
   }, [aoFechar])
 
-  const expandidas = etiquetas.flatMap(et => {
-    const n = modo === 'estoque' ? Math.max(1, et.quantidade || 1) : 1
-    return Array.from({ length: n }, (_, i) => ({ ...et, _k: `${et.codigo}-${i}` }))
-  })
+  /**
+   * Troca de modo SEMPRE parte do zero.
+   *
+   * Entrar em 'personalizada' semeia 1 para cada variação; sair descarta o
+   * mapa inteiro. Sem isso, mexer nas quantidades, voltar para "1 por
+   * variação" e retornar traria os números antigos de volta em silêncio — e a
+   * lojista imprimiria uma quantidade que não pediu nesta sessão.
+   */
+  function trocarModo(novo) {
+    setModo(novo)
+    setQtdPorVariacao(qtdsIniciais(etiquetas, novo))
+  }
+
+  function definirQtd(codigo, bruto) {
+    setQtdPorVariacao(prev => ({ ...prev, [codigo]: normalizarQtd(bruto) }))
+  }
+
+  const expandidas = expandirEtiquetas(etiquetas, modo, qtdPorVariacao)
 
   const semEtiqueta = etiquetas.length === 0
+  const nadaParaImprimir = !calibracao && expandidas.length === 0
 
   return (
     <div className="etq-overlay" onClick={e => e.target === e.currentTarget && aoFechar?.()}>
@@ -231,6 +258,46 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           border-bottom: 1px solid var(--line);
         }
         .etq-corpo { padding: 16px 20px; overflow: auto; background: var(--bg); }
+        /* Painel de quantidades do modo personalizado. Some na impressão pela
+           regra geral de "esconde tudo que não é .etq-folha" mais abaixo. */
+        .etq-qtds {
+          background: var(--surface); border: 1px solid var(--line);
+          border-radius: 12px; padding: 10px; margin-bottom: 14px;
+        }
+        .etq-qtds-lista { display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+        .etq-qtd-linha {
+          display: flex; align-items: center; gap: 10px;
+          padding: 6px 4px; border-radius: 8px;
+        }
+        .etq-qtd-linha + .etq-qtd-linha { border-top: 1px solid var(--line); }
+        .etq-qtd-txt { flex: 1; min-width: 0; }
+        .etq-qtd-nome {
+          margin: 0; font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+          color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .etq-qtd-var { margin: 0; font-family: var(--font-ui); font-size: 12px; color: var(--muted); }
+        .etq-stepper { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .etq-stepper button {
+          width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+          border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+          font-family: var(--font-ui); font-size: 17px; line-height: 1;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .etq-stepper button:disabled { opacity: .4; cursor: default; }
+        .etq-stepper input {
+          width: 58px; height: 34px; border-radius: 8px; text-align: center;
+          border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+          font-family: var(--font-ui); font-size: 14px; font-weight: 700;
+        }
+        /* Some o spinner nativo: ele encavala no stepper e, no mobile, é
+           pequeno demais para acertar com o dedo. */
+        .etq-stepper input::-webkit-outer-spin-button,
+        .etq-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .etq-stepper input { -moz-appearance: textfield; appearance: textfield; }
+        @media (max-width: 560px) {
+          .etq-qtd-linha { gap: 8px; }
+          .etq-stepper input { width: 50px; }
+        }
         .etq-folha {
           display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46%, 200px), 200px));
           gap: 8px; justify-content: center;
@@ -361,7 +428,9 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           /* O aviso da calibração é orientação de tela. Impresso, ele ocupava
              duas páginas de 121×30mm antes da régua — a calibração saía com 3
              páginas em vez de 1. */
-          .etq-topo, .etq-rodape, .etq-aviso-calib { display: none !important; }
+          /* .etq-qtds é controle de tela: impresso, empurraria as etiquetas
+             para baixo e gastaria fileira de rolo térmico. */
+          .etq-topo, .etq-rodape, .etq-aviso-calib, .etq-qtds { display: none !important; }
           .etq-corpo { padding: 0 !important; overflow: visible !important; background: #fff !important; }
         }
 
@@ -442,7 +511,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 ? 'Nenhuma variação para etiquetar'
                 : calibracao
                   ? `Régua de teste · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm · 1 página`
-                  : `${expandidas.length} etiqueta${expandidas.length > 1 ? 's' : ''} · uma por variação`
+                  : `${expandidas.length} etiqueta${expandidas.length === 1 ? '' : 's'} · ${ROTULO_MODO[modo]}`
                     + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
             </p>
           </div>
@@ -480,6 +549,65 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
               carrega a variação, que é o que dá baixa no estoque.
             </p>
           ) : (
+            <>
+            {/* Só no modo personalizado, e nunca na calibração — lá não sai
+                etiqueta de produto nenhuma, então quantidade não significa
+                nada e o painel só confundiria. */}
+            {modo === 'personalizada' && !calibracao && (
+              <div className="etq-qtds">
+                <p style={{
+                  margin: '0 4px 8px', fontFamily: 'var(--font-ui)',
+                  fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5,
+                }}>
+                  Quantas etiquetas de cada variação. Deixe em <strong>0</strong> para
+                  pular a variação.
+                </p>
+                <div className="etq-qtds-lista">
+                  {etiquetas.map(et => {
+                    const n = copiasDe(et, modo, qtdPorVariacao)
+                    return (
+                      <div className="etq-qtd-linha" key={et.codigo}>
+                        <div className="etq-qtd-txt">
+                          <p className="etq-qtd-nome" title={et.nome}>{et.nome}</p>
+                          <p className="etq-qtd-var">
+                            {et.rotulo} · {et.quantidade} em estoque
+                          </p>
+                        </div>
+                        <div className="etq-stepper">
+                          <button
+                            type="button"
+                            onClick={() => definirQtd(et.codigo, n - 1)}
+                            disabled={n <= 0}
+                            aria-label={`Menos uma etiqueta de ${et.nome} ${et.rotulo}`}
+                          >−</button>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={QTD_MAX}
+                            value={n}
+                            aria-label={`Quantidade de etiquetas de ${et.nome} ${et.rotulo}`}
+                            /* Campo controlado lendo de e.target.value, não do
+                               estado: se o blur chegasse antes de o React
+                               reprocessar a última tecla, a digitação sumiria. */
+                            onChange={e => definirQtd(et.codigo, e.target.value)}
+                            /* Apagar o campo inteiro deixa '' -> vira 0 pelo
+                               definirQtd. Ao sair, normaliza para o número. */
+                            onFocus={e => e.target.select()}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => definirQtd(et.codigo, n + 1)}
+                            disabled={n >= QTD_MAX}
+                            aria-label={`Mais uma etiqueta de ${et.nome} ${et.rotulo}`}
+                          >+</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             <div className="etq-folha">
               {calibracao
                 ? (
@@ -502,6 +630,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                       <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
                     ))}
             </div>
+            </>
           )}
         </div>
 
@@ -510,15 +639,24 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
             padding: '14px 20px', borderTop: '1px solid var(--line)',
           }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--ink)' }}>
-              <input
-                type="checkbox"
-                checked={modo === 'estoque'}
-                onChange={e => setModo(e.target.checked ? 'estoque' : 'uma')}
-                style={{ width: 16, height: 16, cursor: 'pointer', accentColor: theme?.primary }}
-              />
-              Uma por peça em estoque
-            </label>
+            {/* Era um checkbox "Uma por peça em estoque" — dois estados. Com
+                três modos exclusivos o checkbox não serve mais: viraria uma
+                combinação impossível de marcar. As duas opções antigas
+                continuam aqui, com os mesmos valores de estado. */}
+            <select
+              value={modo}
+              onChange={e => trocarModo(e.target.value)}
+              aria-label="Quantidade de etiquetas"
+              style={{
+                height: 36, borderRadius: 9, cursor: 'pointer', padding: '0 9px',
+                border: '1px solid var(--line)', background: 'var(--bg)',
+                fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--ink)',
+              }}
+            >
+              <option value="uma">1 por variação</option>
+              <option value="estoque">1 por peça em estoque</option>
+              <option value="personalizada">Quantidade personalizada</option>
+            </select>
             <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--ink)' }}>
               <input
                 type="checkbox"
@@ -563,11 +701,17 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 também <strong>Margens: Nenhuma</strong> e <strong>Escala: 100%</strong>.
               </p>
             )}
+            {/* Zerar tudo no modo personalizado mandaria uma folha vazia
+                para a impressora. Na calibração não vale: lá a régua sai
+                sempre, independente de etiqueta. */}
             <button
               onClick={() => window.print()}
+              disabled={nadaParaImprimir}
               style={{
                 marginLeft: 'auto', height: 42, padding: '0 20px', borderRadius: 10, border: 'none',
-                background: theme?.primary || 'var(--ink)', color: '#fff', cursor: 'pointer',
+                background: theme?.primary || 'var(--ink)', color: '#fff',
+                cursor: nadaParaImprimir ? 'default' : 'pointer',
+                opacity: nadaParaImprimir ? 0.5 : 1,
                 fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}
