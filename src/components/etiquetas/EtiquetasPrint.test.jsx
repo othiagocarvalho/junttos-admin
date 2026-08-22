@@ -154,3 +154,90 @@ describe('EtiquetasPrint — o painel de quantidades não pode ir para o papel',
     expect(painel).toBeLessThan(folha)
   })
 })
+
+// ─── Preview em tela não pode cortar card na borda ──────────────────────────
+// Bug real: no modo térmica, .etq-folha continuava em tela com o grid do A4
+// (auto-fill de 200px), mas os filhos ali são FILEIRAS de 121mm (~457px). Oito
+// fileiras num grid de quatro colunas de 200px vazavam para fora do container
+// — medido em 1109px de conteúdo dentro de 880px de caixa, seis cards cortados
+// e o pior 249px para fora. Com 3 etiquetas (uma fileira só) o sintoma sumia,
+// que é por que parecia intermitente.
+
+const soUM = () => etiquetasDoProduto(UM, 'tropicaleatacado')
+const cssDe = props => html(<EtiquetasPrint etiquetas={soUM()} aoFechar={() => {}} theme={{}} {...props} />)
+// O CSS de tela é tudo que vem ANTES do primeiro @media print de cada bloco.
+const regra = (fonte, seletor) => {
+  const i = fonte.indexOf(seletor + ' {')
+  return i === -1 ? '' : fonte.slice(i, fonte.indexOf('}', i))
+}
+
+describe('EtiquetasPrint — preview em tela', () => {
+  it('o grid do A4 quebra em linhas e não centraliza de forma insegura', () => {
+    const r = regra(cssDe(), '.etq-folha')
+    // auto-fill = várias linhas sozinho; nunca uma tira de rolagem lateral.
+    expect(r).toContain('auto-fill')
+    // "safe": com "center" puro, um card mais largo que o container transborda
+    // para os dois lados e a metade esquerda fica inalcançável pela rolagem.
+    expect(r).toContain('justify-content: safe center')
+  })
+
+  it('a linha do painel de quantidades pode encolher — o "+" ficava cortado', () => {
+    // Item de grid nasce com min-width:auto = min-content, e o min-content
+    // inclui o nome inteiro porque ele é nowrap. Medido: 322px de linha em
+    // 288px de caixa, com os três botões "+" fora da borda.
+    // Âncora na DECLARAÇÃO (linha própria, com ponto e vírgula), não na
+    // string solta: o comentário logo acima cita "min-width: 0" e fazia este
+    // teste passar mesmo com a regra removida.
+    expect(regra(cssDe(), '.etq-qtd-linha')).toMatch(/^\s*min-width: 0;$/m)
+  })
+})
+
+describe('EtiquetasPrint — modo térmica em tela empilha fileiras', () => {
+  // Não há como trocar o formato sem DOM; o bloco térmico do <style> só é
+  // emitido quando `termica` é true. Então a checagem é na fonte, no ramo
+  // condicional — que é onde o bug morava.
+  const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+  // O ramo térmico vai do "${termica ? `" até o "` : `" que abre o ramo A4.
+  // Recortar errado aqui é pior que não testar: as asserções passariam
+  // casando com regras do bloco A4.
+  const ini = fonte.indexOf('${termica ? `')
+  const fim = fonte.indexOf('` : `', ini)
+  const ramoTermico = fonte.slice(ini, fim)
+  it('o recorte do ramo térmico é válido — senão as asserções abaixo mentem', () => {
+    expect(ini).toBeGreaterThan(-1)
+    expect(fim).toBeGreaterThan(ini)
+    // O ramo A4 não pode ter entrado no recorte.
+    expect(ramoTermico).not.toContain('Impressão A4 (padrão)')
+  })
+
+  it('a folha vira coluna de fileiras, uma por linha, como no papel', () => {
+    expect(ramoTermico).toContain('flex-direction: column')
+  })
+
+  it('alinha com "safe" — senão a fileira larga corta na esquerda no celular', () => {
+    expect(ramoTermico).toContain('align-items: safe center')
+  })
+
+  it('a rolagem horizontal é da folha, com padding e snap por etiqueta', () => {
+    expect(ramoTermico).toContain('overflow-x: auto')
+    expect(ramoTermico).toContain('scroll-snap-type: x proximity')
+    // Snap na ETIQUETA, não na fileira: prender só nas pontas da fileira
+    // deixaria a rolagem parar no meio de um card.
+    expect(ramoTermico).toMatch(/\.etq-fileira \.etq-item \{ scroll-snap-align: start/)
+  })
+
+  it('a fileira perde o "margin: 0 auto" da regra base', () => {
+    // Margem automática em flex absorve o espaço livre e ANULA o align-items,
+    // inclusive o "safe" — o corte à esquerda voltaria.
+    expect(ramoTermico).toMatch(/\.etq-fileira \{[^}]*margin: 0;/)
+  })
+
+  it('a impressão desfaz o container de rolagem da tela', () => {
+    // overflow no papel corta conteúdo, e o padding empurraria a fileira para
+    // fora do picote.
+    const print = ramoTermico.slice(ramoTermico.indexOf('@media print'))
+    expect(print).toMatch(/\.etq-folha \{[^}]*overflow: visible !important/)
+    expect(print).toMatch(/\.etq-folha \{[^}]*padding: 0 !important/)
+    expect(print).toMatch(/\.etq-folha \{[^}]*display: block !important/)
+  })
+})
