@@ -268,6 +268,14 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         .etq-qtd-linha {
           display: flex; align-items: center; gap: 10px;
           padding: 6px 4px; border-radius: 8px;
+          /* Item de grid nasce com "min-width: auto", que é o min-content da
+             linha — e o min-content inclui o nome inteiro, porque ele é
+             "white-space: nowrap". Resultado medido no celular: linha de 322px
+             dentro de caixa de 288px, rolagem lateral no painel e os três
+             botões "+" cortados na borda. O "min-width: 0" solta a linha para
+             encolher até a faixa, e aí o flex reduz o texto (que já tem o seu
+             próprio min-width: 0) e o ellipsis do nome funciona como devia. */
+          min-width: 0;
         }
         .etq-qtd-linha + .etq-qtd-linha { border-top: 1px solid var(--line); }
         .etq-qtd-txt { flex: 1; min-width: 0; }
@@ -298,9 +306,22 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           .etq-qtd-linha { gap: 8px; }
           .etq-stepper input { width: 50px; }
         }
+        /* Preview do A4: grid que quebra em várias linhas sozinho, nunca
+           rolagem horizontal. Com dezenas de etiquetas (o caso do modo
+           "quantidade personalizada") ler em linhas é mais limpo do que
+           arrastar uma tira lateral, e a rolagem vertical do .etq-corpo já
+           existe e é a que a pessoa espera num modal.
+
+           "safe center" no lugar de "center": se um dia um card ficar mais
+           largo que o container, "center" puro o faz transbordar para os DOIS
+           lados e a metade esquerda vira inalcançável pela rolagem. Com
+           "safe", nesse caso o alinhamento cai para o início e nada some. */
         .etq-folha {
           display: grid; grid-template-columns: repeat(auto-fill, minmax(min(46%, 200px), 200px));
-          gap: 8px; justify-content: center;
+          gap: 8px; justify-content: safe center;
+          /* Respiro para a borda do card não encostar no fim do container. 4px
+             é de propósito: acima disso o grid perde uma coluna em 880px. */
+          padding: 2px 4px;
         }
         .etq-item {
           background: #fff; border: 1px solid #ddd; border-radius: 6px;
@@ -466,9 +487,72 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
            o papel em vez de desperdiçar uma folha por fileira. O
            "break-inside: avoid" fica: fileira cortada ao meio é etiqueta
            partida em duas. */
+        /* ── Preview em tela do modo térmica ──────────────────────────────
+           O corte vinha daqui. Em tela, .etq-folha continuava com o grid do
+           A4 (auto-fill de 200px), mas no térmico os filhos não são etiquetas
+           soltas: são FILEIRAS de ${PAPER_WIDTH_MM}mm (~457px). Oito fileiras
+           dessas entravam num grid de quatro colunas de 200px e vazavam para
+           fora do container — medido em 1109px de conteúdo dentro de 880px de
+           caixa, com seis cards cortados e o pior deles 249px para fora.
+
+           Com 3 etiquetas o sintoma some (uma fileira só, centrada), que é
+           por que o problema aparecia "às vezes".
+
+           Na impressão isso nunca aconteceu porque o bloco abaixo já faz
+           "display: block". A tela é que nunca recebeu o mesmo tratamento.
+           Agora recebe: uma fileira por linha, empilhadas, igual ao papel. */
+        .etq-folha {
+          display: flex; flex-direction: column; gap: 6px;
+          /* "safe" é o que impede o corte quando a fileira é mais larga que a
+             tela (celular): com "center" puro ela transborda para os dois
+             lados e a metade esquerda fica inalcançável pela rolagem. */
+          align-items: safe center;
+          /* A rolagem horizontal passa a ser DESTE elemento, não do
+             .etq-corpo. Além de isolar o eixo X do resto do modal, um
+             container flex respeita o padding no fim da rolagem — um
+             container de bloco não respeita, e a etiqueta encostaria na borda
+             direita exatamente como no relato. */
+          overflow-x: auto;
+          padding: 2px 20px;
+          /* Fileira tem largura fixa; a rolagem para alinhada nela em vez de
+             parar no meio de uma etiqueta. "proximity" e não "mandatory":
+             mandatory sequestraria a rolagem quando tudo já cabe. */
+          scroll-snap-type: x proximity;
+          scroll-padding-inline: 20px;
+        }
+        .etq-fileira {
+          flex: none;
+          /* O "margin: 0 auto" da regra base tem de sair: margem automática em
+             flex absorve o espaço livre e ANULA o align-items, inclusive o
+             "safe" — o corte à esquerda voltaria. O espaçamento vertical agora
+             é o gap. */
+          margin: 0;
+        }
+        /* O snap prende em cada ETIQUETA, não na fileira inteira. No celular a
+           fileira de ${PAPER_WIDTH_MM}mm não cabe na tela, e prender só nas
+           pontas dela deixaria a rolagem parar no meio de um card — que é
+           exatamente a aparência de bagunça do relato.
+
+           "start" e não "center": com "center", o primeiro card seria puxado
+           para o meio e a metade esquerda dele sumiria na borda. Com "start"
+           mais o scroll-padding, cada parada encosta a etiqueta na margem de
+           20px, inteira. */
+        .etq-fileira .etq-item { scroll-snap-align: start; }
+
+        /* A calibração tem UMA etiqueta de ${LABEL_WIDTH_MM}mm, mas herdava a
+           largura de fileira de ${PAPER_WIDTH_MM}mm — no celular isso criava
+           rolagem horizontal para arrastar espaço vazio. No papel a largura
+           volta pelo bloco de impressão abaixo, que é quem manda no @page. */
+        .etq-fileira--calib { width: auto !important; }
+
         @media print {
           @page { size: ${PAPER_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }
-          .etq-folha { display: block !important; gap: 0 !important; }
+          .etq-folha {
+            display: block !important; gap: 0 !important;
+            /* Desfaz o container de rolagem da tela: overflow no papel corta
+               conteúdo, e o padding empurraria a fileira para fora do picote. */
+            overflow: visible !important; padding: 0 !important;
+          }
           .etq-fileira {
             width: ${PAPER_WIDTH_MM}mm !important;
             height: ${LABEL_HEIGHT_MM}mm !important;
@@ -493,6 +577,8 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           .etq-folha {
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 4mm !important; justify-content: start !important;
+            /* O respiro é de tela; no papel ele comeria margem útil. */
+            padding: 0 !important;
           }
           .etq-item { border: 1px dashed #999 !important; }
           @page { margin: 8mm; }
