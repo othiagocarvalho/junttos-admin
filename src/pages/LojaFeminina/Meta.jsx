@@ -48,7 +48,7 @@ function BusinessBadge() {
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false }) {
+export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false, semCorrida = false }) {
   const temPro      = temAcesso(plano, 'pro')
   const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
@@ -471,24 +471,30 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
         )}
       </div>
 
-      {/* ══ Corrida (Business) ══ */}
-      <div>
-        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-          Corrida<BusinessBadge />
-        </p>
-        {!temBusiness ? (
-          <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="corrida" theme={theme} />
-        ) : (
-          <CorridaSection
-            vendas={vendas}
-            corridas={corridas}
-            salvarCorrida={salvarCorrida}
-            excluirCorrida={excluirCorrida}
-            produtosData={produtosData}
-            mobile={mobile}
-          />
-        )}
-      </div>
+      {/* ══ Corrida (Business) ══
+          Escondida quando este Meta é montado dentro da gaveta "Metas do mês"
+          de MetasResultados: lá a corrida tem gaveta própria (a 4ª), e sem o
+          semCorrida ela apareceria duas vezes na mesma tela. Fora da gaveta —
+          se alguém montar Meta direto — continua exatamente como era. */}
+      {!semCorrida && (
+        <div>
+          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+            Corrida<BusinessBadge />
+          </p>
+          {!temBusiness ? (
+            <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="corrida" theme={theme} />
+          ) : (
+            <CorridaSection
+              vendas={vendas}
+              corridas={corridas}
+              salvarCorrida={salvarCorrida}
+              excluirCorrida={excluirCorrida}
+              produtosData={produtosData}
+              mobile={mobile}
+            />
+          )}
+        </div>
+      )}
 
       {/* ══ Comparativo Mês a Mês (Pro) ══ */}
       <div>

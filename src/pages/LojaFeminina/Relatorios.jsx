@@ -333,28 +333,10 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
   }, [filtered])
   const maxDia = porDia.length > 0 ? Math.max(...porDia.map(d => d.total)) : 0
 
-  const curvABC = useMemo(() => {
-    if (!temAcessoPro || filtered.length === 0) return []
-    const mapa = {}
-    filtered.forEach(v => {
-      const nProd = (v.produtos || []).length
-      const valorPorProd = nProd > 0 ? Number(v.valor) / nProd : 0
-      ;(v.produtos || []).forEach(p => {
-        if (!mapa[p.nome]) mapa[p.nome] = { nome: p.nome, qtd: 0, valor: 0 }
-        mapa[p.nome].qtd += 1
-        mapa[p.nome].valor += valorPorProd
-      })
-    })
-    const lista = Object.values(mapa).sort((a, b) => b.valor - a.valor)
-    const totalV = lista.reduce((s, p) => s + p.valor, 0)
-    let acum = 0
-    return lista.map(p => {
-      acum += p.valor
-      const pctAcum = totalV > 0 ? (acum / totalV) * 100 : 0
-      const classe = pctAcum <= 80 ? 'A' : pctAcum <= 95 ? 'B' : 'C'
-      return { ...p, classe }
-    })
-  }, [filtered, temAcessoPro])
+  // A Curva ABC saiu daqui para a gaveta "Curva ABC" em Metas & Resultados.
+  // O cálculo virou src/utils/curvaABC.js e a tabela
+  // components/relatorios/CurvaABC.jsx — mesma regra, agora num lugar só, para
+  // não repetir o que aconteceu com a comissão (duas telas, duas contas).
 
   // O cálculo saiu daqui para src/utils/comissao.js, e a renderização para
   // ComissaoVendedores — o mesmo bloco passa a servir mobile e desktop, que
@@ -503,34 +485,6 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         )}
       </div>
         </>
-      )}
-
-      {/* Curva ABC de produtos — Pro+ */}
-      {temAcessoPro && curvABC.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
-            Curva ABC de produtos
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0 12px', padding: '0 4px 8px', borderBottom: '1px solid var(--line)', marginBottom: 6 }}>
-              {['Produto', 'Qtd', 'Total', 'Classe'].map(h => (
-                <span key={h} style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{h}</span>
-              ))}
-            </div>
-            {curvABC.map(p => {
-              const badgeBg = p.classe === 'A' ? 'rgba(22,163,74,0.12)' : p.classe === 'B' ? 'rgba(202,138,4,0.12)' : 'rgba(107,114,128,0.12)'
-              const badgeColor = p.classe === 'A' ? '#16a34a' : p.classe === 'B' ? '#ca8a04' : '#6b7280'
-              return (
-                <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0 12px', padding: '8px 4px', borderBottom: '1px solid var(--line)', alignItems: 'center' }}>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
-                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>{p.qtd}×</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: theme.primary, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtR(p.valor)}</span>
-                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: badgeBg, color: badgeColor, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>{p.classe}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
       )}
 
       {/* Comissão por vendedor(a) — Pro+ */}
