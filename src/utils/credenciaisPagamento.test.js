@@ -8,17 +8,29 @@ import {
 // do Mercado Pago NÃO pode ir para lf_config, que não tem RLS e é lida pelo
 // catálogo público com select('*') direto do navegador.
 
-function clientFake({ erroInsert = null, erroUpdate = null } = {}) {
-  const c = { inserts: [], updates: [] }
+// `sessao` e `count` entraram junto com a correção da falha silenciosa:
+//   • sessao: null simula a sessão expirada do relato;
+//   • count: quantas linhas o UPDATE pegou. 0 é o no-op silencioso — o
+//     PostgREST devolve 204 SEM erro nesse caso, e era assim que a tela
+//     mostrava sucesso sem ter gravado nada.
+function clientFake({
+  erroInsert = null, erroUpdate = null, count = 1,
+  sessao = { access_token: 'jwt-de-teste' }, erroSessao = null,
+} = {}) {
+  const c = { inserts: [], updates: [], opcoesUpdate: null }
+  c.auth = {
+    getSession: async () => ({ data: { session: sessao }, error: erroSessao }),
+  }
   c.from = tabela => ({
     insert: linha => {
       c.inserts.push({ tabela, linha })
       return Promise.resolve({ error: erroInsert })
     },
-    update: linha => ({
+    update: (linha, opcoes) => ({
       eq: (col, val) => {
+        c.opcoesUpdate = opcoes
         c.updates.push({ tabela, linha, filtro: { [col]: val } })
-        return Promise.resolve({ error: erroUpdate })
+        return Promise.resolve({ error: erroUpdate, count })
       },
     }),
   })
@@ -161,5 +173,82 @@ describe('pareceTokenDeTeste', () => {
   it('token de produção não dispara o aviso', () => {
     expect(pareceTokenDeTeste('APP_USR-abc-def-ghi-jkl')).toBe(false)
     expect(pareceTokenDeTeste('')).toBe(false)
+  })
+})
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A falha silenciosa relatada em 25/08/2026
+//
+// A Tropicale preenchia o Access Token, salvava, via a confirmação na tela — e
+// `atualizado_em` no banco ficava com o mesmo timestamp. Causa: no PostgREST,
+// UPDATE que não casa nenhuma linha é 204 SEM ERRO, e esta tabela filtra por
+// RLS contra o claim do JWT. Sessão ruim = linha invisível = no-op silencioso.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('falha silenciosa: UPDATE que não pega linha nenhuma', () => {
+  it('count 0 vira ERRO — era isto que a tela engolia', async () => {
+    const c = clientFake({ erroInsert: UNIQUE, count: 0 })
+    const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-x' })
+    expect(error).toBeTruthy()
+    expect(error.message).toMatch(/não encontrou a credencial/i)
+    // E o UPDATE chegou a ser tentado: o erro é sobre o resultado, não sobre
+    // ter desistido antes.
+    expect(c.updates).toHaveLength(1)
+  })
+
+  it('count 1 é sucesso, como sempre foi', async () => {
+    const c = clientFake({ erroInsert: UNIQUE, count: 1 })
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+  })
+
+  it('count null NÃO vira erro — desconhecido não é falha', async () => {
+    // Se um dia o PostgREST não mandar o Content-Range, o comportamento volta
+    // a ser o de antes em vez de recusar uma gravação que funcionou.
+    const c = clientFake({ erroInsert: UNIQUE, count: null })
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+  })
+
+  it('pede a contagem exata ao PostgREST', async () => {
+    // Sem o Prefer: count=exact o supabase-js nem tenta ler o Content-Range,
+    // e `count` chega sempre null — a defesa acima viraria decoração.
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })
+    expect(c.opcoesUpdate).toEqual({ count: 'exact' })
+  })
+
+  it('INSERT que passa de primeira não precisa de contagem', async () => {
+    const c = clientFake()
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+    expect(c.updates).toHaveLength(0)
+  })
+})
+
+describe('sessão expirada — não manda escrita condenada', () => {
+  it('sem sessão devolve erro explicando, e NÃO escreve nada', async () => {
+    const c = clientFake({ sessao: null })
+    const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-x' })
+    expect(error).toBeTruthy()
+    expect(error.message).toMatch(/sessão expirou/i)
+    expect(c.inserts).toHaveLength(0)
+    expect(c.updates).toHaveLength(0)
+  })
+
+  it('sessão sem access_token conta como sem sessão', async () => {
+    const c = clientFake({ sessao: {} })
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeTruthy()
+    expect(c.inserts).toHaveLength(0)
+  })
+
+  it('erro ao ler a sessão sobe, não é engolido', async () => {
+    const c = clientFake({ erroSessao: new Error('storage indisponível') })
+    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })
+    expect(error.message).toBe('storage indisponível')
+    expect(c.inserts).toHaveLength(0)
+  })
+
+  it('com sessão válida o caminho normal continua igual', async () => {
+    const c = clientFake()
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+    expect(c.inserts).toHaveLength(1)
   })
 })

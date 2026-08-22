@@ -375,6 +375,10 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
   const [mpSecret, setMpSecret] = useState('')
   const [mpAtivo,  setMpAtivo]  = useState(config?.mercadopago_ativo === true)
   const [mpErro,   setMpErro]   = useState('')
+  // Erro do salvamento em lf_config. Separado de mpErro porque são duas
+  // gravações independentes: a credencial pode falhar e o resto passar, e a
+  // pessoa precisa saber exatamente o que não foi.
+  const [erroSalvar, setErroSalvar] = useState('')
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
 
@@ -397,6 +401,7 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
   async function handleSave() {
     setSaving(true)
     setMpErro('')
+    setErroSalvar('')
 
     // Credencial vai em tabela própria com RLS — nunca em lf_config, que o
     // catálogo público lê inteira sem autenticação.
@@ -420,7 +425,11 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
       }
     }
 
-    await saveConfig({
+    // saveConfig DEVOLVE o erro (useLojaData.js) — e este retorno era jogado
+    // fora. Era metade do "a tela finge que salvou": mesmo com o upsert de
+    // lf_config falhando, o botão ficava verde escrito "Configurações
+    // salvas!".
+    const erroConfig = await saveConfig({
       nome:                nome     || 'Catálogo',
       chave_pix:           chavePix || null,
       whatsapp_loja:       whatsapp || null,
@@ -435,7 +444,15 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
       }),
     })
     setSaving(false)
-    if (mpOk) {
+
+    if (erroConfig) {
+      setErroSalvar('Não foi possível salvar as configurações: ' + (erroConfig.message || erroConfig))
+    }
+
+    // Só limpa os campos e comemora quando as DUAS gravações deram certo.
+    // Limpar o token depois de uma falha seria pior ainda: a pessoa perderia o
+    // valor colado e não teria o que repetir.
+    if (mpOk && !erroConfig) {
       setMpToken(''); setMpSecret('')
       setSaved(true)
       setTimeout(() => setSaved(false), 2200)
@@ -647,6 +664,14 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
           </div>
         )}
 
+        {erroSalvar && (
+          <p role="alert" style={{
+            fontFamily: 'var(--font-ui)', fontSize: 12.5, lineHeight: 1.5,
+            color: 'var(--status-bad-tx)', background: 'rgba(180,56,31,.08)',
+            border: '1px solid var(--status-bad-tx)', borderRadius: 'var(--r-input)',
+            padding: '10px 12px', margin: '0 0 10px',
+          }}>{erroSalvar}</p>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
