@@ -7,8 +7,6 @@ import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import Toggle from '../../components/studio/Toggle'
-import VendedoresConfig from '../../components/vendedores/VendedoresConfig'
-import { temAcesso } from '../../utils/planos'
 
 const PRESETS = [
   { label: 'Junttos',   primary: '#5E2BD0', accent: '#FF6F5E' },
@@ -592,14 +590,10 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
         </div>
       </Card>
 
-      {/* Vendedores — Pro+, o MESMO critério que libera a comissão automática
-          nos Relatórios (index.jsx e ClientDashboardDesktop passam
-          temAcesso(plano, 'pro') para lá). Não inventei gate novo: cadastrar
-          vendedor só faz sentido para quem tem o relatório que soma por
-          vendedor. */}
-      {temAcesso(config?.plano || 'starter', 'pro') && (
-        <VendedoresConfig lojaId={config?.loja_id} theme={theme} />
-      )}
+      {/* O cadastro de vendedores e comissão saiu daqui para a gaveta
+          "Vendedores e comissão" em Metas & Resultados — fica ao lado dos
+          números que o percentual alimenta, em vez de escondido em
+          Configurações. */}
     </div>
   )
 }

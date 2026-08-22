@@ -15,7 +15,7 @@ import CatalogoB2BAdmin, { ConfigB2B } from './CatalogoB2BAdmin'
 import CatalogoB2BAdminDesktop from './CatalogoB2BAdminDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
-import Meta from './Meta'
+import MetasResultados from './MetasResultados'
 import Fechamento from './Fechamento'
 import Faturamento from './Faturamento'
 import Relatorios from './Relatorios'
@@ -650,9 +650,11 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
-    meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} plano={plano} mobile />
-      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+    // As 4 gavetas cuidam do próprio gate (UpgradeWall dentro de cada uma),
+    // então a tela abre para qualquer plano — quem não tem Starter vê o muro
+    // na primeira gaveta em vez de uma tela inteira bloqueada, e ainda enxerga
+    // que Curva ABC e Corrida existem.
+    meta: <MetasResultados data={data} theme={theme} plano={plano} legado={legado} mobile />,
     crm: (legado || temAcesso(plano, 'starter'))
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
