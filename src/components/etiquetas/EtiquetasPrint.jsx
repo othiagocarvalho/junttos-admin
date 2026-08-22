@@ -17,6 +17,13 @@ import {
   ROTULO_MODO, QTD_MAX, normalizarQtd, copiasDe, expandirEtiquetas, qtdsIniciais,
 } from '../../utils/etiquetasQtd'
 import { X, Printer } from 'lucide-react'
+// Impressão direta pelo agente local. Tudo aqui é carregado sob demanda —
+// ver a nota sobre import() dinâmico no cabeçalho de lib/qzTray.js.
+import {
+  URL_DOWNLOAD, conectar, desconectar, listarImpressoras,
+  impressoraSalva, salvarImpressora, imprimir as imprimirNoQz, mensagemDeErro,
+} from '../../lib/qzTray'
+import { documentosParaQz } from '../../utils/etiquetasHtml'
 import { fmtR } from '../../utils/formatters'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -209,10 +216,89 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
   // estado local e nada de persistir no banco.
   const [formato, setFormato] = useState('a4')
   const calibracao = formato === 'calibracao'
+  // Destino "direto": o trabalho vai para o QZ Tray e o navegador nem abre
+  // diálogo. O LAYOUT é o mesmo da térmica, e é isso que a linha abaixo diz.
+  const qzDireto = formato === 'qz'
   // A calibração imprime no mesmo papel e com o mesmo @page da térmica — ela
   // só troca o CONTEÚDO da etiqueta pela régua. Por isso as duas compartilham
-  // todo o CSS de impressão térmica.
-  const termica = formato === 'termica' || calibracao
+  // todo o CSS de impressão térmica. O destino direto entra na mesma família:
+  // reaproveitar o preview e as medidas é o que garante que sai igual.
+  const termica = formato === 'termica' || calibracao || qzDireto
+
+  // ── Estado do agente local ──────────────────────────────────────────────
+  // 'ocioso' | 'procurando' | 'pronto' | 'falhou'
+  const [qz, setQz] = useState({ fase: 'ocioso', impressoras: [], erro: null })
+  const [impressora, setImpressora] = useState(() => impressoraSalva())
+  const [enviando, setEnviando] = useState(false)
+  // Serializa as fileiras que JÁ estão na tela: o SVG que o QZ Tray imprime é
+  // o mesmo nó que o JsBarcode desenhou no preview, não um redesenho.
+  const folhaRef = useRef(null)
+
+  const MEDIDAS = {
+    larguraMm: LABEL_WIDTH_MM, alturaMm: LABEL_HEIGHT_MM,
+    papelMm: PAPER_WIDTH_MM, colunas: LABEL_COLUMNS, gapMm: LABEL_GAP_MM,
+  }
+
+  /**
+   * Procura o agente e lista as impressoras.
+   *
+   * Roda a partir do evento (troca do destino ou clique em "Procurar de
+   * novo"), nunca de um efeito: efeito que chama setState no meio da render é
+   * exatamente o que a regra react-hooks/set-state-in-effect proíbe, e aqui
+   * não há motivo — a conexão é consequência de uma ação da pessoa.
+   */
+  async function procurarAgente(preferida) {
+    setQz({ fase: 'procurando', impressoras: [], erro: null })
+    try {
+      await conectar()
+      const lista = await listarImpressoras()
+      setQz({ fase: 'pronto', impressoras: lista, erro: null })
+      // Mantém a escolha anterior se ela ainda existe; senão cai na primeira,
+      // que listarImpressoras já devolve como a padrão do sistema.
+      const escolhida = lista.includes(preferida) ? preferida : (lista[0] || '')
+      setImpressora(escolhida)
+    } catch (e) {
+      setQz({ fase: 'falhou', impressoras: [], erro: mensagemDeErro(e) })
+    }
+  }
+
+  function trocarFormato(novo) {
+    setFormato(novo)
+    // Só procura o agente quando o destino direto é escolhido. Quem usa A4 ou
+    // térmica pelo navegador não pode nem perceber que o QZ Tray existe.
+    if (novo === 'qz' && qz.fase !== 'pronto') {
+      procurarAgente(impressoraSalva())
+    }
+  }
+
+  // Fecha a conexão ao desmontar. Sem setState aqui — é só limpeza.
+  useEffect(() => () => { desconectar() }, [])
+
+  /**
+   * Manda as etiquetas pelo agente.
+   *
+   * Falhar aqui NÃO fecha o modal nem apaga o preview: a pessoa continua a um
+   * clique de trocar o destino para "via navegador" e imprimir do jeito
+   * antigo. Esse é o requisito de não travar a tela.
+   */
+  async function imprimirDireto() {
+    const fileiras = [...(folhaRef.current?.querySelectorAll('.etq-fileira') || [])]
+      .map(el => el.outerHTML)
+    setEnviando(true)
+    try {
+      await imprimirNoQz({
+        impressora,
+        documentos: documentosParaQz(fileiras, MEDIDAS),
+        medidas: MEDIDAS,
+      })
+      salvarImpressora(impressora)
+      setQz(q => ({ ...q, erro: null, enviado: fileiras.length }))
+    } catch (e) {
+      setQz(q => ({ ...q, erro: mensagemDeErro(e) }))
+    } finally {
+      setEnviando(false)
+    }
+  }
 
   useEffect(() => {
     function aoTeclar(e) { if (e.key === 'Escape') aoFechar?.() }
@@ -241,6 +327,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
 
   const semEtiqueta = etiquetas.length === 0
   const nadaParaImprimir = !calibracao && expandidas.length === 0
+  // No destino direto o botão também espera o agente responder e uma
+  // impressora existir — mandar trabalho sem destino só produziria erro.
+  const travado = nadaParaImprimir || enviando
+    || (qzDireto && (qz.fase !== 'pronto' || !impressora))
 
   return (
     <div className="etq-overlay" onClick={e => e.target === e.currentTarget && aoFechar?.()}>
@@ -694,7 +784,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 </div>
               </div>
             )}
-            <div className="etq-folha">
+            <div className="etq-folha" ref={folhaRef}>
               {calibracao
                 ? (
                   <div className="etq-fileira etq-fileira--calib">
@@ -756,7 +846,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 hora, e a mesma loja pode ter as duas impressoras. */}
             <select
               value={formato}
-              onChange={e => setFormato(e.target.value)}
+              onChange={e => trocarFormato(e.target.value)}
               aria-label="Formato de impressão"
               style={{
                 height: 36, borderRadius: 9, cursor: 'pointer', padding: '0 9px',
@@ -766,6 +856,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             >
               <option value="a4">Folha A4 (padrão)</option>
               <option value="termica">Impressora térmica (rolo {LABEL_COLUMNS} colunas)</option>
+              {/* Destino ADICIONAL, não substituto: quem não instalou o QZ
+                  Tray continua com as opções acima, iguais ao que sempre
+                  foram. Ver o cabeçalho de lib/qzTray.js. */}
+              <option value="qz">Impressora térmica (direto, sem diálogo)</option>
               {/* Modo de teste: não imprime produto nenhum, só a régua. Fica
                   na mesma lista para ninguém precisar caçar um botão escondido
                   na hora de calibrar. */}
@@ -775,7 +869,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 do botão, porque é o último momento antes de a pessoa abrir o
                 diálogo — e as duas opções abaixo são do CHROME, não nossas:
                 nenhuma linha de CSS consegue desligá-las. */}
-            {termica && (
+            {termica && !qzDireto && (
               <p style={{
                 flexBasis: '100%', order: 9, margin: '4px 0 0',
                 fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.5,
@@ -787,21 +881,114 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 também <strong>Margens: Nenhuma</strong> e <strong>Escala: 100%</strong>.
               </p>
             )}
+            {/* ── Painel do destino direto ─────────────────────────────────
+                Ocupa a linha inteira abaixo dos seletores. Some por completo
+                nos outros destinos: quem imprime em A4 não precisa saber que
+                existe um agente. */}
+            {qzDireto && (
+              <div className="etq-qz" style={{
+                flexBasis: '100%', order: 8, margin: '4px 0 0',
+                fontFamily: 'var(--font-ui)', fontSize: 12.5, lineHeight: 1.5,
+              }}>
+                {qz.fase === 'procurando' && (
+                  <p style={{ margin: 0, color: 'var(--muted)' }}>Procurando o QZ Tray nesta máquina…</p>
+                )}
+
+                {qz.fase === 'pronto' && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--muted)' }}>Impressora:</span>
+                    <select
+                      value={impressora}
+                      onChange={e => { setImpressora(e.target.value); salvarImpressora(e.target.value) }}
+                      aria-label="Impressora do QZ Tray"
+                      style={{
+                        height: 32, borderRadius: 8, cursor: 'pointer', padding: '0 8px',
+                        maxWidth: 300,
+                        border: '1px solid var(--line)', background: 'var(--bg)',
+                        fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--ink)',
+                      }}
+                    >
+                      {qz.impressoras.length === 0 && <option value="">Nenhuma impressora encontrada</option>}
+                      {qz.impressoras.map(nome => <option key={nome} value={nome}>{nome}</option>)}
+                    </select>
+                    <span style={{ color: 'var(--muted)' }}>
+                      Sai direto, sem diálogo e sem configuração para conferir.
+                    </span>
+                  </div>
+                )}
+
+                {/* Agente ausente. NÃO trava nada: os outros destinos seguem
+                    na lista acima e imprimem como sempre. */}
+                {qz.fase === 'falhou' && qz.erro && (
+                  <div style={{
+                    color: '#b45309', background: 'rgba(202,138,4,0.08)',
+                    border: '1px solid rgba(202,138,4,0.25)', borderRadius: 10,
+                    padding: '10px 12px',
+                  }}>
+                    <p style={{ margin: 0 }}>{qz.erro.texto}</p>
+                    <p style={{ margin: '6px 0 0' }}>
+                      {qz.erro.mostrarDownload && (
+                        <>
+                          <a
+                            href={URL_DOWNLOAD}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#b45309', fontWeight: 700 }}
+                          >Baixar o QZ Tray</a>
+                          {' · '}
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => procurarAgente(impressora)}
+                        style={{
+                          border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                          font: 'inherit', color: '#b45309', textDecoration: 'underline',
+                        }}
+                      >Procurar de novo</button>
+                      {' · '}
+                      <button
+                        type="button"
+                        onClick={() => trocarFormato('termica')}
+                        style={{
+                          border: 'none', background: 'none', padding: 0, cursor: 'pointer',
+                          font: 'inherit', color: '#b45309', textDecoration: 'underline',
+                        }}
+                      >Imprimir pelo navegador</button>
+                    </p>
+                  </div>
+                )}
+
+                {/* Erro DEPOIS de conectar (impressora recusou, agente
+                    bloqueou o site). Fica separado do estado 'falhou' porque
+                    aqui a lista de impressoras continua válida na tela. */}
+                {qz.fase === 'pronto' && qz.erro && (
+                  <p style={{ margin: '6px 0 0', color: '#b4381f' }}>{qz.erro.texto}</p>
+                )}
+
+                {qz.fase === 'pronto' && !qz.erro && qz.enviado > 0 && (
+                  <p style={{ margin: '6px 0 0', color: 'var(--muted)' }} role="status">
+                    {qz.enviado} fileira{qz.enviado === 1 ? '' : 's'} enviada{qz.enviado === 1 ? '' : 's'} para {impressora}.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Zerar tudo no modo personalizado mandaria uma folha vazia
                 para a impressora. Na calibração não vale: lá a régua sai
                 sempre, independente de etiqueta. */}
             <button
-              onClick={() => window.print()}
-              disabled={nadaParaImprimir}
+              onClick={qzDireto ? imprimirDireto : () => window.print()}
+              disabled={travado}
               style={{
                 marginLeft: 'auto', height: 42, padding: '0 20px', borderRadius: 10, border: 'none',
                 background: theme?.primary || 'var(--ink)', color: '#fff',
-                cursor: nadaParaImprimir ? 'default' : 'pointer',
-                opacity: nadaParaImprimir ? 0.5 : 1,
+                cursor: travado ? 'default' : 'pointer',
+                opacity: travado ? 0.5 : 1,
                 fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}
-            ><Printer size={15} /> Imprimir</button>
+            ><Printer size={15} /> {qzDireto ? (enviando ? 'Enviando…' : 'Imprimir direto') : 'Imprimir'}</button>
           </div>
         )}
       </div>
