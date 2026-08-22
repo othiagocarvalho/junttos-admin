@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { normalizarNomeVendedor } from '../../utils/vendedores'
+import { normalizarPercentual } from '../../utils/comissao'
 
 export function useVendedores(lojaId, { apenasAtivos = false } = {}) {
   const [vendedores, setVendedores] = useState([])
@@ -37,9 +38,24 @@ export function useVendedores(lojaId, { apenasAtivos = false } = {}) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { carregar() }, [carregar])
 
-  async function adicionar(nomeBruto) {
+  async function adicionar(nomeBruto, comissaoBruta = 0) {
     const nome = normalizarNomeVendedor(nomeBruto)
-    const { error } = await supabase.from('lf_vendedores').insert({ loja_id: lojaId, nome })
+    const { error } = await supabase.from('lf_vendedores').insert({
+      loja_id: lojaId,
+      nome,
+      comissao_percentual: normalizarPercentual(comissaoBruta),
+    })
+    if (!error) await carregar()
+    return error
+  }
+
+  /** Só o percentual — o nome não muda por aqui, para não órfãos as vendas
+   *  já lançadas com a grafia antiga. */
+  async function definirComissao(id, percentualBruto) {
+    const { error } = await supabase
+      .from('lf_vendedores')
+      .update({ comissao_percentual: normalizarPercentual(percentualBruto) })
+      .eq('id', id)
     if (!error) await carregar()
     return error
   }
@@ -53,5 +69,5 @@ export function useVendedores(lojaId, { apenasAtivos = false } = {}) {
     return error
   }
 
-  return { vendedores, carregando, erro, recarregar: carregar, adicionar, definirAtivo }
+  return { vendedores, carregando, erro, recarregar: carregar, adicionar, definirAtivo, definirComissao }
 }

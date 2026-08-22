@@ -5,6 +5,7 @@ import { StatGrid } from '../../components/studio/StatCard'
 import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -313,7 +314,7 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
   )
 }
 
-export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme }) {
+export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '' }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -532,6 +533,14 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
           </svg>
         </div>
       </div>
+
+      {/* Comissão por vendedor(a) — Pro+.
+          O desktop NÃO tinha este bloco: a comissão automática existia só no
+          relatório mobile. Com o cálculo agora compartilhado, as duas telas
+          mostram o mesmo número. */}
+      {temAcessoPro && (
+        <ComissaoVendedores lojaId={lojaId} vendas={filtered} theme={theme} />
+      )}
     </div>
   )
 }

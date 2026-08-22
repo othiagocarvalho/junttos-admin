@@ -1768,6 +1768,7 @@ function DesktopRelatorios({ data, theme, temAcessoPro }) {
       updateVenda={data.updateVenda}
       theme={theme}
       temAcessoPro={temAcessoPro}
+      lojaId={data.LOJA_ID}
     />
   )
 }
