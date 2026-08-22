@@ -26,6 +26,7 @@ import CorridaSection from './CorridaSection'
 import Gaveta from '../../components/studio/Gaveta'
 import UpgradeWall from '../../components/UpgradeWall'
 import VendedoresConfig from '../../components/vendedores/VendedoresConfig'
+import { useVendedores } from '../../components/vendedores/useVendedores'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import CurvaABC from '../../components/relatorios/CurvaABC'
 import { temAcesso } from '../../utils/planos'
@@ -50,6 +51,11 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
   const doMes = vendasDoMes(data?.vendas)
   const lojaId = data?.LOJA_ID || ''
 
+  // A gaveta 1 (Meta por vendedor) precisa do cadastro, não só do histórico de
+  // vendas — senão só reconhece quem já vendeu. Buscado aqui e passado por
+  // prop para o Meta seguir sem I/O próprio.
+  const { vendedores } = useVendedores(lojaId)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24 }}>
 
@@ -65,7 +71,7 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
         {temStarter ? (
           // semCorrida: a corrida virou a gaveta 4. Sem isto ela apareceria
           // duas vezes na mesma tela.
-          <Meta {...data} theme={theme} plano={plano} mobile={mobile} semCorrida />
+          <Meta {...data} theme={theme} plano={plano} mobile={mobile} semCorrida vendedoresCadastrados={vendedores} />
         ) : (
           <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} />
         )}

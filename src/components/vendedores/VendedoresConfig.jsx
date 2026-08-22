@@ -75,7 +75,13 @@ export default function VendedoresConfig({ lojaId, theme }) {
         tipo: 'erro',
         texto: e.code === '23505'
           ? 'Já existe um vendedor com esse nome nesta loja.'
-          : 'Não foi possível salvar: ' + e.message,
+          // 42501 aqui é sempre RLS: a tabela ficou com row level security
+          // ligada sem policy, e nesse estado a LEITURA devolve lista vazia
+          // sem erro nenhum — foi o que escondeu o bug do dropdown vazio.
+          // Dizer isso na tela evita caçar o problema no lugar errado.
+          : e.code === '42501'
+            ? 'O banco recusou a gravação (row level security). Rode supabase/migrations/20260822_lf_vendedores_rls_fix.sql.'
+            : 'Não foi possível salvar: ' + e.message,
       })
       return
     }
