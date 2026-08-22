@@ -40,10 +40,51 @@
  * bateria na ausência de policy de SELECT e faria a tela mostrar erro depois
  * de uma gravação bem-sucedida.
  *
+ * ─── A FALHA SILENCIOSA QUE ISTO CORRIGE ───────────────────────────────────
+ * Relato de 25/08/2026: a Tropicale preenchia o Access Token, salvava, via a
+ * confirmação verde na tela — e `atualizado_em` no banco continuava com o
+ * mesmo timestamp. Nada era gravado, e ninguém era avisado.
+ *
+ * O motivo é uma característica do PostgREST que morde exatamente aqui: um
+ * UPDATE que não casa NENHUMA linha é 204 SEM ERRO. Como esta tabela filtra
+ * por RLS (`loja_id` tem de bater com o claim do JWT), basta a sessão estar
+ * ruim para o UPDATE virar um no-op perfeitamente silencioso — e o
+ * `error` que esta função devolvia vinha null.
+ *
+ * Combina com a outra pista do relato, o
+ * "[auth] refresh ao voltar para a aba falhou": sessão instável no momento do
+ * salvamento é justamente o que faz a linha sumir de dentro da policy.
+ *
+ * Duas defesas, nesta ordem:
+ *   1. sem sessão, nem tenta — devolve erro explicando que precisa entrar de
+ *      novo, em vez de mandar uma escrita que já se sabe condenada;
+ *   2. o UPDATE pede `count: 'exact'`, e zero linha vira ERRO. O count vem do
+ *      header Content-Range e não depende de policy de SELECT (que esta tabela
+ *      não tem, de propósito).
+ *
+ * `count` null é tratado como DESCONHECIDO, não como falha: se um dia o
+ * PostgREST não mandar o header, o comportamento volta a ser o de antes em vez
+ * de recusar uma gravação que funcionou.
+ *
  * @returns {Promise<{error: Error|null}>}
  */
 export async function salvarCredencialMercadoPago(client, lojaId, { token, webhookSecret }) {
   if (!lojaId) return { error: new Error('Loja não identificada.') }
+
+  // ── Defesa 1: sessão ────────────────────────────────────────────────────
+  // As policies desta tabela são `to authenticated`. Sem sessão, o
+  // supabase-js manda a anon key (ver src/lib/authRefresh.js) e a escrita não
+  // tem como dar certo — o INSERT é recusado e o UPDATE não acha linha.
+  const { data: sessao, error: erroSessao } = await client.auth.getSession()
+  if (erroSessao) return { error: erroSessao }
+  if (!sessao?.session?.access_token) {
+    return {
+      error: new Error(
+        'Sua sessão expirou. Entre de novo e repita o salvamento — '
+        + 'sem sessão válida o banco recusa a gravação da credencial.',
+      ),
+    }
+  }
 
   const linha = {
     mercadopago_access_token: token?.trim() || null,
@@ -57,16 +98,31 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
 
   if (!erroInsert) return { error: null }
 
-  // 23505 = unique_violation: a loja já tem credencial gravada. Qualquer
-  // outro erro é real e sobe.
+  // 23505 = unique_violation: a loja já tem credencial gravada. É o caminho
+  // NORMAL de toda gravação depois da primeira, e é ele que produz o 409 que
+  // aparece no console — 409 aqui é esperado, não é o defeito. Qualquer outro
+  // erro é real e sobe.
   if (erroInsert.code !== '23505') return { error: erroInsert }
 
-  const { error: erroUpdate } = await client
+  // ── Defesa 2: UPDATE que não pegou linha nenhuma ────────────────────────
+  const { error: erroUpdate, count } = await client
     .from('lf_credenciais_pagamento')
-    .update(linha)
+    .update(linha, { count: 'exact' })
     .eq('loja_id', lojaId)
 
-  return { error: erroUpdate ?? null }
+  if (erroUpdate) return { error: erroUpdate }
+
+  if (count === 0) {
+    return {
+      error: new Error(
+        'O banco não encontrou a credencial desta loja para atualizar. '
+        + 'Normalmente é sessão expirada: saia, entre de novo e repita. '
+        + 'Se continuar, avise o suporte — nada foi gravado.',
+      ),
+    }
+  }
+
+  return { error: null }
 }
 
 /**

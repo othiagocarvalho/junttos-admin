@@ -75,15 +75,37 @@ export function useClientAuth() {
 export function ClientPrivateRoute({ children, lojaId }) {
   const { session, loading } = useClientAuth()
 
+  const userLojaId  = session?.user?.app_metadata?.loja_id
+  const isConsultor = !!session?.user?.app_metadata?.consultant_id
+  // Loja errada = tem sessão, mas ela não é desta loja.
+  const lojaErrada  = !!session && (!userLojaId || userLojaId !== lojaId)
+
+  // O signOut ficava SOLTO NA RENDER, dentro do if abaixo.
+  //
+  // Chamada de rede na render é disparada quantas vezes o React resolver
+  // renderizar — inclusive no render duplo do StrictMode e em re-renders
+  // concorrentes. Quando isso cai em cima do refresh que o
+  // criarRenovadorAoVoltar acabou de começar, o auth-js descarta o resultado
+  // e loga exatamente o que apareceu no console do relato:
+  //
+  //   Refresh result discarded: session state changed mid-flight
+  //   (e.g., concurrent signOut)
+  //
+  // E sessão instável no meio de um salvamento é o que faz a linha sair de
+  // dentro da policy de RLS e o UPDATE não pegar nada — a falha silenciosa
+  // que esta tarefa está corrigindo do outro lado, em
+  // utils/credenciaisPagamento.js.
+  //
+  // O comportamento visível não muda: quem está na loja errada continua sendo
+  // deslogado e mandado para a raiz. O que muda é QUANDO — depois do commit,
+  // uma vez só, em vez de no meio da render.
+  useEffect(() => {
+    if (lojaErrada && !isConsultor) supabase.auth.signOut()
+  }, [lojaErrada, isConsultor])
+
   if (loading) return <Spinner />
   if (!session) return <Navigate to="/" replace />
-
-  const userLojaId    = session.user?.app_metadata?.loja_id
-  const isConsultor   = !!session.user?.app_metadata?.consultant_id
-  if (!userLojaId || userLojaId !== lojaId) {
-    if (!isConsultor) supabase.auth.signOut()
-    return <Navigate to="/" replace />
-  }
+  if (lojaErrada) return <Navigate to="/" replace />
 
   return children
 }
