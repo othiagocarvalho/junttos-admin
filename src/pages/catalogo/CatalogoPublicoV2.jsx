@@ -23,7 +23,10 @@
 //    `decoding` estão implementados.
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { supabase } from '../../lib/supabase'
+// Client SEM sessão, de propósito: esta é uma página pública, e falar como
+// `authenticated` (quando a lojista está logada no mesmo navegador) fazia o
+// INSERT em lf_pedidos voltar 403. Ver o cabeçalho de supabasePublico.js.
+import { supabasePublico as supabase } from '../../lib/supabasePublico'
 import { produtoVisivelNoCatalogo } from '../../utils/catalogo'
 import { fmtR } from '../../utils/formatters'
 import { t, TEXTOS } from '../../i18n/catalogo'
