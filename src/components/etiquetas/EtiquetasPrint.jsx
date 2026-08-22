@@ -372,7 +372,31 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
            picote, e a impressora térmica não tem área não-imprimível para
            absorver isso como a laser tem.
 
-           Todas as medidas vêm das constantes no topo do arquivo. */
+           Todas as medidas vêm das constantes no topo do arquivo.
+
+           ─── SOBRE A FILEIRA VAZIA COM O LINK DA JUNTTOS ───────────────
+           Relato do Daniel: a cada N fileiras saía uma faixa em branco com a
+           URL da página e "página X/Y". Medido aqui com 60 etiquetas / 20
+           fileiras, em quatro configurações de papel: o número de páginas bate
+           sempre com o número de fileiras (20), e nenhuma quebra espontânea
+           aparece. Ou seja, não é o nosso layout gerando página extra.
+
+           Esse texto é o CABEÇALHO/RODAPÉ AUTOMÁTICO DO CHROME. Ele é
+           desenhado na margem da página FÍSICA do driver, e o CSS da página
+           não alcança isso — "@page { margin: 0 }" só suprime o rodapé quando
+           o Chrome está usando o nosso tamanho de página. Se o driver da
+           térmica impõe um papel maior que os 30mm da fileira, sobra papel em
+           cada avanço, e é nessa sobra que o Chrome escreve. Quem desliga é a
+           pessoa, no diálogo de impressão — está escrito no rodapé do modal.
+
+           O "break-after: page" que havia em cada fileira foi REMOVIDO. Ele
+           forçava uma quebra por fileira independentemente do papel: com papel
+           A4, cada página saía com 30mm de etiqueta e 267mm de branco. Sem
+           ele o @page continua paginando igual quando é respeitado (medido:
+           mesmas 20 páginas), e quando não é, as fileiras fluem e aproveitam
+           o papel em vez de desperdiçar uma folha por fileira. O
+           "break-inside: avoid" fica: fileira cortada ao meio é etiqueta
+           partida em duas. */
         @media print {
           @page { size: ${PAPER_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }
           .etq-folha { display: block !important; gap: 0 !important; }
@@ -380,11 +404,11 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             width: ${PAPER_WIDTH_MM}mm !important;
             height: ${LABEL_HEIGHT_MM}mm !important;
             margin: 0 !important;
-            break-after: page; page-break-after: always;
+            /* SEM break-after aqui, de propósito — ver a nota abaixo.
+               break-inside continua: fileira cortada ao meio é etiqueta
+               partida em duas, o pior desfecho possível. */
             break-inside: avoid; page-break-inside: avoid;
           }
-          /* Sem isto a última fileira cospe uma etiqueta em branco no fim. */
-          .etq-fileira:last-child { break-after: auto; page-break-after: auto; }
           .etq-item {
             border: none !important; border-radius: 0 !important;
             background: #fff !important;
@@ -523,6 +547,22 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                   na hora de calibrar. */}
               <option value="calibracao">Régua de calibração (teste)</option>
             </select>
+            {/* Orientação de impressão para o modo térmica. Fica aqui, junto
+                do botão, porque é o último momento antes de a pessoa abrir o
+                diálogo — e as duas opções abaixo são do CHROME, não nossas:
+                nenhuma linha de CSS consegue desligá-las. */}
+            {termica && (
+              <p style={{
+                flexBasis: '100%', order: 9, margin: '4px 0 0',
+                fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.5,
+                color: 'var(--muted)',
+              }}>
+                No diálogo de impressão, abra <strong>Mais configurações</strong> e
+                desmarque <strong>Cabeçalhos e rodapés</strong> — é o que faz sair uma
+                fileira em branco com o link do site a cada tantas etiquetas. Deixe
+                também <strong>Margens: Nenhuma</strong> e <strong>Escala: 100%</strong>.
+              </p>
+            )}
             <button
               onClick={() => window.print()}
               style={{
