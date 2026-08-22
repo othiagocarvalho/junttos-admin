@@ -51,41 +51,72 @@ export function rotuloVariacao(v) {
   return valor || null
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POR QUE O CÓDIGO É SÓ DE DÍGITOS
+//
+// O formato anterior era `PRE-XXXXXXXX-YYYY` (17 caracteres, ex.
+// TRO-16C37D44-W0E2). Legível, mas impossível de imprimir na etiqueta térmica:
+//
+//   medido com o próprio JsBarcode, largura útil de 31mm (33mm da etiqueta
+//   menos 2mm de padding) e 20 módulos de quiet zone:
+//
+//     TRO-16C37D44-W0E2   17c · 222 módulos → 0,128 mm por barra estreita
+//     16C37D44W0E2        12c · 167 módulos → 0,166 mm
+//     482913605744        12 dígitos · 101 módulos → 0,256 mm
+//
+// O piso seguro para leitor de mão comum é ~0,19 mm. Encurtar o alfanumérico
+// NÃO resolve: 12 caracteres ainda ficam em 0,166.
+//
+// O que resolve é o alfabeto. Com só dígitos, o Code128 entra em modo Code C e
+// empacota DOIS dígitos por símbolo — 12 dígitos custam 101 módulos contra 167
+// de 12 alfanuméricos. É a única mudança que tira a barra do vermelho dentro
+// dos 33mm medidos.
+//
+// Aumentar a altura das barras (a outra alternativa considerada) melhora a
+// tolerância de mira, mas não resolve NADA aqui: um leitor que não resolve
+// 0,128mm de barra não passa a resolver porque a barra ficou mais alta.
+//
+// 12 dígitos dão 10^12 combinações. Numa loja com algumas centenas de
+// variações a chance de colisão é desprezível, e a busca (buscarPorCodigo) é
+// sempre dentro de uma loja só.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Quantos dígitos o código tem. Par, porque o Code C consome de dois em dois. */
+export const CODIGO_DIGITOS = 12
+
 /**
- * Hash FNV-1a de 32 bits, em base36 e com 4 caracteres.
+ * Hash determinístico em dígitos decimais.
  *
- * Determinístico e igual em qualquer motor JS — o código impresso hoje precisa
- * bater com o calculado daqui a um ano, em outro navegador.
+ * Dois FNV-1a com constantes diferentes, cada um respondendo por metade dos
+ * dígitos. Evita de propósito combinar os dois num único número: acima de 2^53
+ * o Number perde precisão e o código deixaria de ser reprodutível.
+ *
+ * Precisa dar o mesmo resultado em qualquer motor JS e daqui a um ano — a
+ * etiqueta impressa hoje é conferida contra o cálculo de amanhã.
  */
-function hash4(texto) {
-  let h = 0x811c9dc5
+function hashDigitos(texto, nDigitos = CODIGO_DIGITOS) {
+  const metade = Math.floor(nDigitos / 2)
+  const mod = 10 ** metade
+  let h1 = 0x811c9dc5
+  let h2 = 0xcbf29ce4
   const s = String(texto)
   for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193) >>> 0
+    const c = s.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0
   }
-  return h.toString(36).toUpperCase().padStart(4, '0').slice(-4)
-}
-
-/** Prefixo legível da loja: 3 letras, só para a etiqueta dizer de onde veio. */
-export function prefixoLoja(lojaId) {
-  const so = String(lojaId ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
-  return (so.slice(0, 3) || 'LOJ').padEnd(3, 'X')
+  return String(h1 % mod).padStart(metade, '0') + String(h2 % mod).padStart(metade, '0')
 }
 
 /**
- * Código da variação. Formato: PRE-XXXXXXXX-YYYY
+ * Código da variação: 12 dígitos.
  *
- * Só maiúsculas, dígitos e hífen: o Code128 aceita ASCII inteiro, mas manter o
- * alfabeto estreito evita problema com leitor configurado em teclado ABNT2,
- * onde símbolo acentuado ou caractere exótico chega trocado.
+ * O loja_id entra no hash para duas lojas com o mesmo produto importado não
+ * colidirem — o produto pode ter o mesmo uuid nas duas.
  */
 export function codigoDaVariacao(lojaId, produtoId, rotulo) {
   if (!produtoId || !rotulo) return ''
-  const id8 = String(produtoId).replace(/-/g, '').slice(0, 8).toUpperCase()
-  // O loja_id entra no hash (e não só no prefixo) para duas lojas com o mesmo
-  // produto importado não colidirem.
-  return `${prefixoLoja(lojaId)}-${id8}-${hash4(`${lojaId}|${produtoId}|${rotulo}`)}`
+  return hashDigitos(`${lojaId}|${produtoId}|${rotulo}`)
 }
 
 /** Normaliza o que o leitor mandou: espaço em volta, caixa, aspas do scanner. */

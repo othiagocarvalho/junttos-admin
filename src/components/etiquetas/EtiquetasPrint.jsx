@@ -16,24 +16,33 @@ import { fmtR } from '../../utils/formatters'
 // ─────────────────────────────────────────────────────────────────────────────
 // Impressora térmica de rolo (Elgin / Bematech L42 Pro Full).
 //
-// ⚠️ ESTIMADO — confirmar com teste de impressão real antes de considerar
-// definitivo. Estas medidas vieram de estimativa visual por foto, NÃO de
-// medição física do rolo. Estão isoladas aqui de propósito: corrigir depois é
-// trocar um número, não reescrever layout — todo o CSS de impressão térmica
-// deriva destas cinco constantes.
+// Todo o CSS de impressão térmica deriva destas cinco constantes — corrigir
+// uma medida é trocar um número, não reescrever layout.
 //
-// Como ajustar depois do teste na loja:
-//   • etiqueta saindo cortada na largura   → LABEL_WIDTH_MM
-//   • etiqueta cortada em cima/embaixo     → LABEL_HEIGHT_MM
-//   • colunas desalinhadas do picote       → LABEL_GAP_MM
-//   • sobra ou falta papel na lateral      → PAPER_WIDTH_MM
+// Como ajustar depois de um teste na loja:
+//   • etiqueta saindo cortada na largura    → LABEL_WIDTH_MM
+//   • etiqueta cortada em cima/embaixo      → LABEL_HEIGHT_MM
+//   • colunas desalinhadas do picote        → LABEL_GAP_MM
+//   • sobra ou falta papel na lateral       → PAPER_WIDTH_MM
 //   • rolo com 2 ou 4 etiquetas por fileira → LABEL_COLUMNS
 // ─────────────────────────────────────────────────────────────────────────────
-const LABEL_WIDTH_MM  = 30   // ESTIMADO — confirmar com teste de impressão real
-const LABEL_HEIGHT_MM = 40   // ESTIMADO — confirmar com teste de impressão real
-const LABEL_GAP_MM    = 2    // ESTIMADO — confirmar com teste de impressão real
-const LABEL_COLUMNS   = 3    // ESTIMADO — confirmar com teste de impressão real
-const PAPER_WIDTH_MM  = 100  // ESTIMADO — confirmar com teste de impressão real
+
+// ✅ MEDIDO com régua física na etiqueta da Tropicale em 22/08/2026.
+const LABEL_WIDTH_MM  = 33
+const LABEL_COLUMNS   = 3
+const PAPER_WIDTH_MM  = 100
+
+// ⚠️ AINDA ESTIMADO — a régua mediu só a LARGURA. A altura continua sendo
+// chute e precisa de medição física antes de virar definitiva. É a única
+// destas cinco que ainda não foi conferida.
+const LABEL_HEIGHT_MM = 25
+
+// Derivado, não medido: 3 × 33mm = 99mm, e sobra 1mm para os dois vãos.
+// O valor anterior (2mm) foi ajustado porque não fechava — 3×33 + 2×2 = 103mm
+// estouraria os 100mm do rolo e empurraria a terceira coluna para fora.
+//   LABEL_COLUMNS × LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) × LABEL_GAP_MM
+//   = 3 × 33 + 2 × 0,5 = 100mm ✓
+const LABEL_GAP_MM    = 0.5
 
 /** Quebra a lista em fileiras físicas do rolo — cada fileira vira uma página. */
 function emFileiras(lista, porFileira) {
@@ -51,12 +60,23 @@ function Etiqueta({ dados, mostrarPreco }) {
     try {
       JsBarcode(svgRef.current, dados.codigo, {
         format: 'CODE128',
-        // Code128 aceita ASCII inteiro; o código só usa A-Z, 0-9 e hífen.
+        // O código é só de dígitos (ver src/utils/codigoBarras.js), o que faz
+        // o Code128 entrar em modo Code C e empacotar dois dígitos por
+        // símbolo — 101 módulos em vez dos 167 de um alfanumérico do mesmo
+        // tamanho. É o que mantém a barra estreita acima de 0,19mm dentro dos
+        // 33mm da etiqueta térmica.
         width: 1.6,        // largura da barra mais fina, em px
         height: 42,
         displayValue: true,
         fontSize: 11,
-        margin: 0,
+        // Quiet zone. Estava em `margin: 0`, o que é um erro clássico: o
+        // Code128 exige ~10 módulos de área limpa de cada lado, e sem ela
+        // muitos leitores recusam a leitura mesmo com as barras no tamanho
+        // certo. 10 × width = 16px, e escala junto com o SVG.
+        marginLeft: 16,
+        marginRight: 16,
+        marginTop: 0,
+        marginBottom: 0,
         textMargin: 2,
         background: '#ffffff',
         lineColor: '#000000',

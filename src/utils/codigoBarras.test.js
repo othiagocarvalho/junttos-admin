@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  rotuloVariacao, prefixoLoja, codigoDaVariacao, normalizarCodigo,
+  rotuloVariacao, codigoDaVariacao, normalizarCodigo, CODIGO_DIGITOS,
   etiquetasDoProduto, etiquetasDeProdutos, buscarPorCodigo, pareceLeitura,
 } from './codigoBarras'
 
@@ -43,9 +43,23 @@ describe('codigoDaVariacao', () => {
     expect(a).toBeTruthy()
   })
 
-  it('usa só maiúscula, dígito e hífen (seguro em leitor ABNT2)', () => {
+  it('é só de dígitos — é isso que ativa o Code C do Code128', () => {
+    // Medido com o JsBarcode: 12 dígitos custam 101 módulos (Code C, dois
+    // dígitos por símbolo) contra 167 de 12 alfanuméricos. Em 31mm úteis, a
+    // diferença é 0,256mm por barra contra 0,166mm — o piso seguro para leitor
+    // de mão é ~0,19mm. Qualquer letra no código derruba para o modo B e a
+    // etiqueta térmica volta a ficar ilegível.
     const c = codigoDaVariacao('tropicaleatacado', prodCor.id, 'ROSA')
-    expect(c).toMatch(/^[A-Z0-9-]+$/)
+    expect(c).toMatch(/^[0-9]+$/)
+  })
+
+  it('tem sempre CODIGO_DIGITOS dígitos, com zero à esquerda quando precisa', () => {
+    // Comprimento fixo importa: o Code C exige quantidade par de dígitos para
+    // não gastar um símbolo extra trocando de modo no fim.
+    expect(CODIGO_DIGITOS % 2).toBe(0)
+    for (const rot of ['ROSA', 'NUDE', 'M', 'Único', 'A']) {
+      expect(codigoDaVariacao('l', prodCor.id, rot)).toHaveLength(CODIGO_DIGITOS)
+    }
   })
 
   it('variações diferentes do mesmo produto têm códigos diferentes', () => {
@@ -68,23 +82,13 @@ describe('codigoDaVariacao', () => {
   })
 })
 
-describe('prefixoLoja', () => {
-  it('3 letras maiúsculas do slug', () => {
-    expect(prefixoLoja('tropicaleatacado')).toBe('TRO')
-    expect(prefixoLoja('sualoja')).toBe('SUA')
-  })
-
-  it('slug curto ou estranho ainda produz 3 caracteres', () => {
-    expect(prefixoLoja('ab')).toHaveLength(3)
-    expect(prefixoLoja('')).toBe('LOJ')
-    expect(prefixoLoja('a-b')).toHaveLength(3)
-  })
-})
-
 describe('normalizarCodigo', () => {
   it('tira espaço e sobe a caixa — leitor às vezes manda com sujeira', () => {
-    expect(normalizarCodigo('  tro-a1b2-9f2e  ')).toBe('TRO-A1B2-9F2E')
-    expect(normalizarCodigo('TRO A1B2')).toBe('TROA1B2')
+    expect(normalizarCodigo('  482913605744  ')).toBe('482913605744')
+    expect(normalizarCodigo('4829 1360 5744')).toBe('482913605744')
+    // Segue subindo a caixa: leitor mal configurado ainda pode mandar letra,
+    // e normalizar antes de comparar não custa nada.
+    expect(normalizarCodigo(' ab12 ')).toBe('AB12')
   })
 
   it('vazio continua vazio', () => {
@@ -147,7 +151,7 @@ describe('buscarPorCodigo', () => {
   })
 
   it('código desconhecido devolve null — quem chama decide o que fazer', () => {
-    expect(buscarPorCodigo(produtos, lojaId, 'XXX-00000000-0000')).toBeNull()
+    expect(buscarPorCodigo(produtos, lojaId, '000000000000')).toBeNull()
     expect(buscarPorCodigo(produtos, lojaId, '')).toBeNull()
   })
 
