@@ -178,12 +178,40 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         }
 
         /* ── Impressão: base comum aos dois formatos ──────────────────────
-           Sem isto o navegador imprime a página inteira por baixo do modal:
-           cabeçalho, menu lateral e o overlay escuro virariam um retângulo
-           cinza gastando tinta. */
+           Esconde a página que está atrás do modal.
+
+           A versão anterior fazia "body * { visibility: hidden }", e esse era
+           o bug das 159 páginas: "visibility: hidden" NÃO tira do fluxo. Os
+           37 cards do Estoque continuavam ocupando altura, geravam dezenas de
+           páginas em branco, e o modal — que o "position: static" logo abaixo
+           tira do "fixed" e joga no fluxo normal — só aparecia DEPOIS de tudo
+           isso, lá na última página. No modo térmica era pior ainda: com
+           página de 100×25mm, o mesmo fundo virava 75 páginas.
+
+           "display: none" tira do fluxo de verdade. O :has() preserva a cadeia
+           de ancestrais do modal, que é onde moram as variáveis de tema
+           (--surface, --line, --ink...): escondê-las quebraria as cores da
+           etiqueta. Então some tudo, MENOS o overlay, o que está dentro dele e
+           quem o contém. */
         @media print {
-          body * { visibility: hidden !important; }
-          .etq-folha, .etq-folha * { visibility: visible !important; }
+          /* Margem padrão do html/body some: com @page margin:0 na térmica,
+             os 8px do body empurravam a fileira além dos 25mm da página e
+             cuspiam uma segunda página em branco a cada etiqueta. */
+          html, body {
+            margin: 0 !important; padding: 0 !important;
+            background: #fff !important; height: auto !important;
+          }
+          body *:not(.etq-overlay):not(.etq-overlay *):not(:has(.etq-overlay)) {
+            display: none !important;
+          }
+          /* Ancestrais ficam, mas não podem contribuir com espaço nem fundo. */
+          body *:has(.etq-overlay) {
+            display: block !important;
+            margin: 0 !important; padding: 0 !important;
+            background: none !important; border: none !important;
+            min-height: 0 !important; height: auto !important;
+            max-width: none !important; width: auto !important;
+          }
           .etq-overlay {
             position: static !important; background: none !important;
             padding: 0 !important; display: block !important;
