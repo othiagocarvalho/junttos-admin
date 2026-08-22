@@ -13,6 +13,35 @@ import JsBarcode from 'jsbarcode'
 import { X, Printer } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Impressora térmica de rolo (Elgin / Bematech L42 Pro Full).
+//
+// ⚠️ ESTIMADO — confirmar com teste de impressão real antes de considerar
+// definitivo. Estas medidas vieram de estimativa visual por foto, NÃO de
+// medição física do rolo. Estão isoladas aqui de propósito: corrigir depois é
+// trocar um número, não reescrever layout — todo o CSS de impressão térmica
+// deriva destas cinco constantes.
+//
+// Como ajustar depois do teste na loja:
+//   • etiqueta saindo cortada na largura   → LABEL_WIDTH_MM
+//   • etiqueta cortada em cima/embaixo     → LABEL_HEIGHT_MM
+//   • colunas desalinhadas do picote       → LABEL_GAP_MM
+//   • sobra ou falta papel na lateral      → PAPER_WIDTH_MM
+//   • rolo com 2 ou 4 etiquetas por fileira → LABEL_COLUMNS
+// ─────────────────────────────────────────────────────────────────────────────
+const LABEL_WIDTH_MM  = 30   // ESTIMADO — confirmar com teste de impressão real
+const LABEL_HEIGHT_MM = 40   // ESTIMADO — confirmar com teste de impressão real
+const LABEL_GAP_MM    = 2    // ESTIMADO — confirmar com teste de impressão real
+const LABEL_COLUMNS   = 3    // ESTIMADO — confirmar com teste de impressão real
+const PAPER_WIDTH_MM  = 100  // ESTIMADO — confirmar com teste de impressão real
+
+/** Quebra a lista em fileiras físicas do rolo — cada fileira vira uma página. */
+function emFileiras(lista, porFileira) {
+  const out = []
+  for (let i = 0; i < lista.length; i += porFileira) out.push(lista.slice(i, i + porFileira))
+  return out
+}
+
 /** Uma etiqueta. O SVG é preenchido por efeito, depois do nó existir. */
 function Etiqueta({ dados, mostrarPreco }) {
   const svgRef = useRef(null)
@@ -60,6 +89,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
   // é o caso real de quem acabou de receber um lote e vai etiquetar peça a peça.
   const [modo, setModo] = useState('uma')
   const [mostrarPreco, setMostrarPreco] = useState(true)
+  // Decisão do momento da impressão, não configuração da loja — por isso
+  // estado local e nada de persistir no banco.
+  const [formato, setFormato] = useState('a4')
+  const termica = formato === 'termica'
 
   useEffect(() => {
     function aoTeclar(e) { if (e.key === 'Escape') aoFechar?.() }
@@ -108,7 +141,23 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         .etq-svg { display: block; width: 100%; height: auto; }
         .etq-erro { margin: 0; font-family: monospace; font-size: 10px; }
 
-        /* ── Impressão ────────────────────────────────────────────────────
+        /* Fileira: só existe no modo térmica. Na tela mostra a etiqueta no
+           tamanho físico real, para o preview valer alguma coisa. */
+        .etq-fileira {
+          display: grid;
+          grid-template-columns: repeat(${LABEL_COLUMNS}, ${LABEL_WIDTH_MM}mm);
+          gap: 0 ${LABEL_GAP_MM}mm;
+          justify-content: center;
+          width: ${PAPER_WIDTH_MM}mm;
+          margin: 0 auto 6px;
+        }
+        .etq-fileira .etq-item {
+          width: ${LABEL_WIDTH_MM}mm; height: ${LABEL_HEIGHT_MM}mm;
+          box-sizing: border-box; display: flex; flex-direction: column;
+          justify-content: center; padding: 1.5mm 1mm;
+        }
+
+        /* ── Impressão: base comum aos dois formatos ──────────────────────
            Sem isto o navegador imprime a página inteira por baixo do modal:
            cabeçalho, menu lateral e o overlay escuro virariam um retângulo
            cinza gastando tinta. */
@@ -125,6 +174,40 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           }
           .etq-topo, .etq-rodape { display: none !important; }
           .etq-corpo { padding: 0 !important; overflow: visible !important; background: #fff !important; }
+        }
+
+        ${termica ? `
+        /* ── Impressão térmica (rolo pré-cortado) ─────────────────────────
+           Uma "página" = uma fileira física do rolo. @page com size exato e
+           margin zero: qualquer margem empurraria a etiqueta para fora do
+           picote, e a impressora térmica não tem área não-imprimível para
+           absorver isso como a laser tem.
+
+           Todas as medidas vêm das constantes no topo do arquivo. */
+        @media print {
+          @page { size: ${PAPER_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }
+          .etq-folha { display: block !important; gap: 0 !important; }
+          .etq-fileira {
+            width: ${PAPER_WIDTH_MM}mm !important;
+            height: ${LABEL_HEIGHT_MM}mm !important;
+            margin: 0 !important;
+            break-after: page; page-break-after: always;
+            break-inside: avoid; page-break-inside: avoid;
+          }
+          /* Sem isto a última fileira cospe uma etiqueta em branco no fim. */
+          .etq-fileira:last-child { break-after: auto; page-break-after: auto; }
+          .etq-item {
+            border: none !important; border-radius: 0 !important;
+            background: #fff !important;
+          }
+          /* Texto encolhe para caber em ${LABEL_WIDTH_MM}mm; o código de
+             barras é o mesmo dos dois modos e escala pelo width:100% do SVG. */
+          .etq-nome { font-size: 6.5pt !important; }
+          .etq-var  { font-size: 6pt !important; }
+        }
+        ` : `
+        /* ── Impressão A4 (padrão) — inalterada ───────────────────────────── */
+        @media print {
           .etq-folha {
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 4mm !important; justify-content: start !important;
@@ -132,6 +215,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           .etq-item { border: 1px dashed #999 !important; }
           @page { margin: 8mm; }
         }
+        `}
       `}</style>
 
       <div className="etq-painel">
@@ -143,7 +227,8 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)' }}>
               {semEtiqueta
                 ? 'Nenhuma variação para etiquetar'
-                : `${expandidas.length} etiqueta${expandidas.length > 1 ? 's' : ''} · uma por variação`}
+                : `${expandidas.length} etiqueta${expandidas.length > 1 ? 's' : ''} · uma por variação`
+                  + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
             </p>
           </div>
           <button
@@ -165,9 +250,20 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             </p>
           ) : (
             <div className="etq-folha">
-              {expandidas.map(et => (
-                <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
-              ))}
+              {termica
+                // Fileiras explícitas em vez de deixar o grid quebrar sozinho:
+                // no rolo, cada fileira precisa cair exatamente numa página, e
+                // page-break dentro de grid é inconsistente entre navegadores.
+                ? emFileiras(expandidas, LABEL_COLUMNS).map((fileira, i) => (
+                    <div className="etq-fileira" key={`f${i}`}>
+                      {fileira.map(et => (
+                        <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
+                      ))}
+                    </div>
+                  ))
+                : expandidas.map(et => (
+                    <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
+                  ))}
             </div>
           )}
         </div>
@@ -195,6 +291,21 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
               />
               Mostrar preço
             </label>
+            {/* Formato de impressão. Não persiste: quem imprime escolhe na
+                hora, e a mesma loja pode ter as duas impressoras. */}
+            <select
+              value={formato}
+              onChange={e => setFormato(e.target.value)}
+              aria-label="Formato de impressão"
+              style={{
+                height: 36, borderRadius: 9, cursor: 'pointer', padding: '0 9px',
+                border: '1px solid var(--line)', background: 'var(--bg)',
+                fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--ink)',
+              }}
+            >
+              <option value="a4">Folha A4 (padrão)</option>
+              <option value="termica">Impressora térmica (rolo {LABEL_COLUMNS} colunas)</option>
+            </select>
             <button
               onClick={() => window.print()}
               style={{
