@@ -48,7 +48,7 @@ function BusinessBadge() {
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false, semCorrida = false }) {
+export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false, semCorrida = false, vendedoresCadastrados = [] }) {
   const temPro      = temAcesso(plano, 'pro')
   const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
@@ -89,7 +89,18 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   }
 
   // ── Meta por vendedora state ──
-  const vendedoras = [...new Set(vendas.filter(v => v.vendedora).map(v => v.vendedora))].sort()
+  // Antes esta lista saía SÓ das vendas já lançadas, e por isso a seção dizia
+  // "Nenhum(a) vendedor(a) registrado(a)" mesmo com gente cadastrada: enquanto
+  // a pessoa não vendesse, ela não existia aqui. Fazia sentido antes de
+  // lf_vendedores existir; virou bug depois. A lojista precisa definir a meta
+  // da Brenda ANTES da Brenda vender.
+  //
+  // A união com o histórico continua: nome digitado à mão antes do cadastro
+  // (ou vendedor já desativado) não pode sumir e levar junto a meta dele.
+  const vendedoras = [...new Set([
+    ...(vendedoresCadastrados || []).filter(v => v?.ativo !== false && v?.nome).map(v => String(v.nome).trim()),
+    ...vendas.filter(v => v.vendedora).map(v => v.vendedora),
+  ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'))
   const [mesVend, setMesVend] = useState(currentYM)
   const [vendedoraSel, setVendedoraSel] = useState('')
   const [valorVend, setValorVend] = useState('')
@@ -260,7 +271,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
             <Card style={{ marginBottom: 10 }}>
               {vendedoras.length === 0 ? (
                 <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>
-                  Nenhum(a) vendedor(a) registrado(a). Adicione o campo vendedor(a) ao lançar vendas.
+                  Nenhum(a) vendedor(a) registrado(a). Cadastre em "Vendedores e comissão", logo abaixo.
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
