@@ -768,3 +768,169 @@ describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px
     expect(queries[0]).toContain('prefers-reduced-motion')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Redesenho da seleção: chips + lista compacta
+//
+// A tela anterior era uma lista vertical com um bloco por cor, cada um com
+// steppers por tamanho. No celular isso obrigava a rolar até o fim para achar
+// "Adicionar ao pedido". Agora: bolinha de cor → pill de tamanho → quantidade
+// → Adicionar → lista compacta.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const semVariacao = normalizarProduto({
+  id: 'p5', nome: 'BOLSA UNICA', preco_venda: 25, ativo: true, fotos: ['f.jpg'], variacoes: [],
+})
+const corETamanho = normalizarProduto({
+  id: 'p6', nome: 'VESTIDO GRADE', preco_venda: 30, ativo: true, fotos: ['f.jpg'],
+  variacoes: [{ cor: 'ROSA' }, { cor: 'NUDE' }], tamanhos: ['P', 'M'],
+})
+const modal = produto => html(
+  <ModalProduto produto={produto} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />,
+)
+const contar = (s, re) => (s.match(re) || []).length
+const CHIP_COR = /aria-label="Escolher a cor /g
+const CHIP_TAM = /aria-label="Escolher o tamanho /g
+// O botão certo, não a string solta: "disabled" também aparece no "−" da
+// quantidade, que nasce desabilitado em 1.
+const addDesabilitado = s => /<button[^>]*\sdisabled[^>]*>Adicionar<\/button>/.test(s)
+
+describe('seleção por chips — cor', () => {
+  it('produto multicor vira uma bolinha por cor', () => {
+    expect(contar(modal(multicor), CHIP_COR)).toBe(3)
+  })
+
+  it('cor única não vira chip: não é escolha', () => {
+    // temCor() já trata 1 opção como ausência de escolha. Forçar um chip
+    // sozinho criaria uma etapa que não decide nada.
+    expect(contar(modal(umaCor), CHIP_COR)).toBe(0)
+  })
+
+  it('produto sem cor nenhuma também não tem chip', () => {
+    expect(contar(modal(semVariacao), CHIP_COR)).toBe(0)
+  })
+})
+
+describe('seleção por chips — tamanho', () => {
+  it('produto com grade vira uma pill por tamanho', () => {
+    expect(contar(modal(comTamanho), CHIP_TAM)).toBe(3)
+  })
+
+  it('sem grade de tamanho a etapa não existe — nada de passo vazio', () => {
+    // É o caso de TODO produto do sistema hoje: variacoes só tem cor, então
+    // normalizarProduto devolve ["Único"] e temTamanho() é false.
+    expect(contar(modal(multicor), CHIP_TAM)).toBe(0)
+    expect(contar(modal(umaCor), CHIP_TAM)).toBe(0)
+  })
+
+  it('cor e tamanho juntos mostram as duas etapas', () => {
+    const s = modal(corETamanho)
+    expect(contar(s, CHIP_COR)).toBe(2)
+    expect(contar(s, CHIP_TAM)).toBe(2)
+  })
+})
+
+describe('seleção por chips — trava do botão Adicionar', () => {
+  it('multicor começa travado: falta escolher a cor', () => {
+    expect(addDesabilitado(modal(multicor))).toBe(true)
+  })
+
+  it('com cor e tamanho, começa travado pelas duas', () => {
+    expect(addDesabilitado(modal(corETamanho))).toBe(true)
+  })
+
+  it('sem escolha nenhuma, já nasce liberado', () => {
+    // Produto de cor única ou sem variação não tem o que escolher: exigir um
+    // clique antes de poder adicionar seria fricção sem informação.
+    expect(addDesabilitado(modal(umaCor))).toBe(false)
+    expect(addDesabilitado(modal(semVariacao))).toBe(false)
+  })
+})
+
+describe('seleção por chips — o que não pode ter mudado', () => {
+  it('o rótulo da quantidade continua "Quantidade"', () => {
+    expect(modal(semVariacao)).toContain('Quantidade')
+  })
+
+  it('"Adicionar ao pedido" continua sendo a ação que fecha o modal', () => {
+    expect(modal(multicor)).toContain('Adicionar ao pedido')
+  })
+
+  it('o rodapé fica grudado na base do que rola', () => {
+    // No celular o modal vira uma coluna só e QUEM rola é o painel inteiro;
+    // sem o sticky o botão de finalizar caía abaixo da dobra.
+    expect(modal(multicor)).toMatch(/position:sticky;bottom:0/)
+  })
+
+  it('a foto encolhe por clamp, sem media query (seção 10)', () => {
+    expect(modal(multicor)).toContain('min-height:clamp(160px, 21vh, 340px)')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Checkout reordenado: Pix em destaque primeiro, WhatsApp depois
+// ─────────────────────────────────────────────────────────────────────────────
+describe('checkout — Pix primeiro, WhatsApp depois', () => {
+  const base = {
+    linhas: linhasDoCarrinho({ 'p1|ROSA BEBÊ|Único': 2 }, { p1: multicor }),
+    produtosPorId: { p1: multicor }, minimo: null,
+    aoFechar: () => {}, aoMudarQtd: () => {}, aoEnviar: () => {}, aoPagar: () => {},
+  }
+  const drawer = (loja, pixMp) => html(<DrawerPedido {...base} loja={loja} pixMp={pixMp} />)
+  // Exige que os DOIS existam antes de comparar posição: com `a` ausente,
+  // indexOf devolve -1 e "-1 < posição do b" passaria de graça, escondendo
+  // justamente o caso em que o bloco de pagamento sumiu da tela.
+  const antes = (s, a, b) => {
+    expect(s).toContain(a)
+    expect(s).toContain(b)
+    return s.indexOf(a) < s.indexOf(b)
+  }
+
+  const comMp = lojaDaConfig({
+    whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+    chave_pix: 'x@y.com', mercadopago_ativo: true,
+  })
+  const comChave = lojaDaConfig({
+    whatsapp_loja: '85999990000', catalogo_checkout_online: true, chave_pix: 'x@y.com',
+  })
+  const semChave = lojaDaConfig({ whatsapp_loja: '85999990000', catalogo_checkout_online: true })
+  const semCheckout = lojaDaConfig({ whatsapp_loja: '85999990000' })
+
+  it('QR dinâmico vem antes do WhatsApp', () => {
+    const s = drawer(comMp, { qrCode: 'abc', qrBase64: 'aaa' })
+    expect(antes(s, 'Copiar código Pix', 'Enviar pedido no WhatsApp')).toBe(true)
+  })
+
+  it('copia-e-cola estático vem antes do WhatsApp', () => {
+    const s = drawer(comChave, {})
+    expect(antes(s, 'Pague com Pix', 'Enviar pedido no WhatsApp')).toBe(true)
+  })
+
+  it('o botão antigo "Pagar agora pelo site" também vem antes', () => {
+    const s = drawer(semChave, {})
+    expect(antes(s, 'Pagar agora pelo site', 'Enviar pedido no WhatsApp')).toBe(true)
+  })
+
+  it('com pagamento na tela, o WhatsApp é contorno, não preenchido', () => {
+    const s = drawer(comChave, {})
+    // Âncora no botão de verdade: o verde preenchido também aparece no rodapé
+    // e no estado sem catálogo, que não mudaram.
+    expect(s).toMatch(/<button[^>]*background:transparent[^>]*>Enviar pedido no WhatsApp<\/button>/)
+  })
+
+  it('SEM pagamento na tela, o WhatsApp volta a ser o verde cheio', () => {
+    // Aí ele é a única forma de fechar o pedido; rebaixá-lo deixaria o drawer
+    // sem ação principal nenhuma.
+    const s = drawer(semCheckout, {})
+    expect(s).toMatch(/<button[^>]*background:#0F7B45[^>]*>Enviar pedido no WhatsApp<\/button>/)
+  })
+
+  it('a cascata de fallback continua inteira', () => {
+    // MP ok → QR; MP falhou → estático; sem chave → botão antigo.
+    expect(drawer(comMp, {})).toContain('Gerar QR Code Pix')
+    expect(drawer(comMp, { erro: true })).toContain('x@y.com')
+    expect(drawer(lojaDaConfig({
+      whatsapp_loja: '85999990000', catalogo_checkout_online: true, mercadopago_ativo: true,
+    }), { erro: true })).toContain('Pagar agora pelo site')
+  })
+})

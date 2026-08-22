@@ -95,6 +95,20 @@ export const TEXTOS = {
   notaAtacado: 'Você pode misturar cores e tamanhos livremente. Não há grade fechada.',
   notaVarejo: 'Selecione a quantidade desejada de cada tamanho.',
   quantidade: 'Quantidade',
+
+  // Seleção por chips (cor em bolinha, tamanho em pill) + lista compacta.
+  // Substitui a lista vertical de um bloco por cor: no celular ela obrigava a
+  // rolar a tela inteira até o botão de finalizar.
+  rotuloCor: 'Cor',
+  rotuloTamanho: 'Tamanho',
+  adicionarItem: 'Adicionar',
+  // Guia do que falta escolher. Aparece no lugar do nome da escolha, então
+  // ocupa a mesma linha e não empurra nada.
+  escolhaUmaCor: 'escolha uma',
+  escolhaUmTamanho: 'escolha um',
+  itensEscolhidos: 'Neste produto',
+  itensResumo: '{pecas} peças em {itens} opções',
+  itensResumoUm: '{pecas} peças em 1 opção',
   escolhaQuantidades: 'Escolha as quantidades',
   pecasSelecionadas: '{n} peças selecionadas',
   resumoPecas: '{n} peças',
@@ -125,6 +139,9 @@ export const TEXTOS = {
   ariaAumentar: 'Aumentar quantidade',
   ariaDiminuir: 'Diminuir quantidade',
   ariaVerFoto: 'Ver foto {n}',
+  ariaEscolherCor: 'Escolher a cor {nome}',
+  ariaEscolherTamanho: 'Escolher o tamanho {nome}',
+  ariaRemoverItem: 'Remover {item} do produto',
   ariaAbrirProduto: 'Abrir {nome}',
 
   // subtítulo padrão do cabeçalho
