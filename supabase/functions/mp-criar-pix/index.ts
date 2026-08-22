@@ -36,6 +36,23 @@ function json(body: unknown, status: number) {
 
 const MP_API = 'https://api.mercadopago.com'
 
+/**
+ * Impressão digital do token para diagnóstico, SEM expor o segredo.
+ *
+ * Devolve só o prefixo antes do primeiro hífen e o comprimento. É o suficiente
+ * para separar as três confusões que respondem pela maioria dos 401 do Mercado
+ * Pago, e nenhuma delas exige ver o token:
+ *   APP_USR-…  access token de produção  (o certo)
+ *   TEST-…     credencial de teste usada em produção
+ *   qualquer outro prefixo, ou comprimento muito curto → provavelmente a
+ *              PUBLIC KEY colada no lugar do access token
+ */
+function digitalDoToken(token: string) {
+  const t = String(token ?? '')
+  const prefixo = t.includes('-') ? t.slice(0, t.indexOf('-')) : '(sem prefixo)'
+  return { prefixo, comprimento: t.length }
+}
+
 type PagamentoMP = {
   id: number
   status: string
@@ -122,6 +139,8 @@ serve(async (req) => {
     // ── Cria o pagamento ─────────────────────────────────────────────────────
     const notificationUrl = `${Deno.env.get('SUPABASE_URL') ?? ''}/functions/v1/mp-webhook`
 
+    const digital = digitalDoToken(token)
+
     const resp = await fetch(`${MP_API}/v1/payments`, {
       method: 'POST',
       headers: {
@@ -154,11 +173,38 @@ serve(async (req) => {
       // 401/403 do MP quase sempre é token errado ou revogado — vale
       // distinguir para a lojista não caçar bug no lugar errado.
       const credencialRuim = resp.status === 401 || resp.status === 403
+
+      // Sem isto o erro chegava como "recusou a credencial" e ponto, e não
+      // dava para saber SE era token de teste, public key no lugar do access
+      // token, escopo faltando ou conta com pendência — cada um se resolve num
+      // lugar diferente do painel do Mercado Pago. Vai para o log da function
+      // e também na resposta: nenhum campo aqui expõe o segredo.
+      const diagnostico = {
+        mp_status: resp.status,
+        mp_code: corpo?.error ?? null,
+        mp_message: corpo?.message ?? null,
+        mp_cause: Array.isArray(corpo?.cause)
+          ? corpo.cause.map((c: { code?: unknown; description?: unknown }) =>
+              ({ code: c?.code ?? null, description: c?.description ?? null }))
+          : null,
+        token_prefixo: digital.prefixo,
+        token_comprimento: digital.comprimento,
+        loja_id: pedido.loja_id,
+      }
+      console.error('[mp-criar-pix] Mercado Pago recusou:', JSON.stringify(diagnostico))
+
+      const pista = digital.prefixo === 'TEST'
+        ? ' O token cadastrado é de TESTE (prefixo TEST-); em produção o Mercado Pago exige o de produção (APP_USR-).'
+        : digital.prefixo !== 'APP_USR'
+          ? ` O token cadastrado não começa com APP_USR- (começa com "${digital.prefixo}"), o que costuma ser a public key colada no lugar do access token.`
+          : ''
+
       return json({
         error: credencialRuim
-          ? 'O Mercado Pago recusou a credencial desta loja. Confira o access token nas Configurações.'
+          ? `O Mercado Pago recusou a credencial desta loja (HTTP ${resp.status}).${pista} Confira o access token em Configurações.`
           : `Mercado Pago recusou a cobrança: ${msg}`,
         credencialRuim,
+        diagnostico,
       }, credencialRuim ? 409 : 502)
     }
 

@@ -9,7 +9,10 @@ import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
-import { salvarCredencialMercadoPago, podeAtivarMercadoPago } from '../../utils/credenciaisPagamento'
+import {
+  salvarCredencialMercadoPago, podeAtivarMercadoPago,
+  validarAccessTokenMP, pareceTokenDeTeste,
+} from '../../utils/credenciaisPagamento'
 import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
@@ -397,6 +400,15 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
 
     // Credencial vai em tabela própria com RLS — nunca em lf_config, que o
     // catálogo público lê inteira sem autenticação.
+    // Barra na origem o valor que não é access token — foi assim que a
+    // Tropicale ficou com 14 caracteres gravados e o MP devolvendo 403.
+    const problemaToken = validarAccessTokenMP(mpToken)
+    if (problemaToken) {
+      setMpErro(problemaToken)
+      setSaving(false)
+      return
+    }
+
     let mpOk = true
     if (mpToken.trim() || mpSecret.trim()) {
       const { error } = await salvarCredencialMercadoPago(supabase, lojaId, {
@@ -550,6 +562,12 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
                 placeholder={mpJaConfigurado ? 'Deixe vazio para manter a atual' : 'Mercado Pago -> Webhooks'}
               />
             </div>
+            {pareceTokenDeTeste(mpToken) && (
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: '#b45309', lineHeight: 1.45 }}>
+                Esse é um token de TESTE. Em produção o Mercado Pago recusa, e o catálogo
+                volta sozinho para o Pix copia-e-cola.
+              </p>
+            )}
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
               Por segurança estas chaves não são exibidas depois de salvas.
             </p>

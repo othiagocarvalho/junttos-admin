@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { salvarCredencialMercadoPago, podeAtivarMercadoPago } from './credenciaisPagamento'
+import {
+  salvarCredencialMercadoPago, podeAtivarMercadoPago,
+  validarAccessTokenMP, pareceTokenDeTeste,
+} from './credenciaisPagamento'
 
 // O ponto destes testes é uma decisão de segurança, não de UI: o access token
 // do Mercado Pago NÃO pode ir para lf_config, que não tem RLS e é lida pelo
@@ -122,5 +125,41 @@ describe('podeAtivarMercadoPago', () => {
     expect(podeAtivarMercadoPago({ token: '', jaConfigurado: false })).toBe(false)
     expect(podeAtivarMercadoPago({ token: '   ', jaConfigurado: false })).toBe(false)
     expect(podeAtivarMercadoPago({})).toBe(false)
+  })
+})
+
+describe('validarAccessTokenMP', () => {
+  // O valor que estava gravado na Tropicale: 14 caracteres, sem hífen. O MP
+  // respondia 403 e a cliente via "Não foi possível gerar o QR Code agora".
+  it('barra o valor curto e sem hífen que causou o bug', () => {
+    expect(validarAccessTokenMP('12345678901234')).toBeTruthy()
+    expect(validarAccessTokenMP('1234567890')).toBeTruthy()
+    expect(validarAccessTokenMP('semhifenmasbemcomprido')).toBeTruthy()
+  })
+
+  it('aceita access token de produção', () => {
+    expect(validarAccessTokenMP('APP_USR-1234567890123456-082215-abc123def456abc123def456abc12345-123456789')).toBeNull()
+  })
+
+  it('aceita token de teste — é legítimo em sandbox', () => {
+    expect(validarAccessTokenMP('TEST-1234567890123456-082215-abcdef1234567890abcdef1234567890-123456789')).toBeNull()
+  })
+
+  it('vazio é válido: significa "manter o que já está gravado"', () => {
+    // O campo abre sempre em branco porque a tabela não tem policy de SELECT.
+    expect(validarAccessTokenMP('')).toBeNull()
+    expect(validarAccessTokenMP('   ')).toBeNull()
+    expect(validarAccessTokenMP(null)).toBeNull()
+  })
+})
+
+describe('pareceTokenDeTeste', () => {
+  it('reconhece o prefixo TEST-', () => {
+    expect(pareceTokenDeTeste('TEST-abc-def-ghi-jkl')).toBe(true)
+  })
+
+  it('token de produção não dispara o aviso', () => {
+    expect(pareceTokenDeTeste('APP_USR-abc-def-ghi-jkl')).toBe(false)
+    expect(pareceTokenDeTeste('')).toBe(false)
   })
 })

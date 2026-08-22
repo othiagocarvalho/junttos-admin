@@ -9,7 +9,10 @@ import { supabase } from '../../lib/supabase'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
-import { salvarCredencialMercadoPago, podeAtivarMercadoPago } from '../../utils/credenciaisPagamento'
+import {
+  salvarCredencialMercadoPago, podeAtivarMercadoPago,
+  validarAccessTokenMP, pareceTokenDeTeste,
+} from '../../utils/credenciaisPagamento'
 import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
@@ -282,6 +285,15 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
 
     // A credencial vai numa tabela própria, protegida por RLS — nunca em
     // lf_config, que o catálogo público lê inteira sem autenticação.
+    // Barra na origem o valor que não é access token — foi assim que a
+    // Tropicale ficou com 14 caracteres gravados e o MP devolvendo 403.
+    const problemaToken = validarAccessTokenMP(mpToken)
+    if (problemaToken) {
+      setMpErro(problemaToken)
+      setSaving(false)
+      return
+    }
+
     let mpOk = true
     if (mpToken.trim() || mpSecret.trim()) {
       const { error } = await salvarCredencialMercadoPago(supabase, lojaId, {
@@ -442,6 +454,12 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
           {/* Por segurança o token não volta do banco: a tabela não tem policy
               de SELECT nem para a própria lojista. Por isso o campo abre vazio
               e "configurado" é a única confirmação que dá para mostrar. */}
+          {pareceTokenDeTeste(mpToken) && (
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5, color: '#b45309', lineHeight: 1.45 }}>
+              Esse é um token de TESTE. Em produção o Mercado Pago recusa, e o catálogo
+              volta sozinho para o Pix copia-e-cola.
+            </p>
+          )}
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.45 }}>
             Por segurança estas chaves não são exibidas depois de salvas.
           </p>
