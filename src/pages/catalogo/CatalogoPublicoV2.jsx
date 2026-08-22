@@ -31,7 +31,7 @@ import { produtoVisivelNoCatalogo } from '../../utils/catalogo'
 import { fmtR } from '../../utils/formatters'
 import { t, TEXTOS } from '../../i18n/catalogo'
 import {
-  normalizarProduto, temCor, legendaCard, perguntaModal, rotuloCelula,
+  normalizarProduto, temCor, temTamanho, legendaCard, perguntaModal,
   linhasDoCarrinho, totais, qtdPorProduto, aplicarRascunho, definirQtd, lojaDaConfig,
   estadoMinimo, categoriasDe, filtrarProdutos, ordenarProdutos,
   mensagemWhatsApp, linkWhatsApp,
@@ -99,6 +99,9 @@ function EstiloGlobal() {
       .cat-card:hover { border-color: ${C.linhaHover} !important }
       .cat-btn-tinta:hover { background: ${C.tintaHover} !important }
       .cat-btn-wa:hover { background: ${C.whatsappHover} !important }
+      /* O verde preenchido escurece no hover; o de contorno não pode usar a
+         mesma regra — ficaria fundo escuro com texto verde. */
+      .cat-btn-wa-out:hover { background: rgba(15,123,69,.09) !important }
       .cat-input:focus { border-color: ${C.tinta} !important; outline: none }
 
       @media (prefers-reduced-motion: reduce) {
@@ -652,6 +655,28 @@ export function Rodape({ loja, aoChamar }) {
   )
 }
 
+/**
+ * Cabeçalho de uma etapa de escolha: "Cor  ·  Verde" ou "Cor  ·  escolha uma".
+ *
+ * O valor escolhido fica na MESMA linha do título, e não numa linha própria:
+ * é o que mantém a etapa com uma altura só, que é o ponto do redesenho.
+ */
+export function RotuloEscolha({ titulo, valor, vazio }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 9 }}>
+      <span style={{
+        fontSize: 12, fontWeight: 600, letterSpacing: '.1em',
+        textTransform: 'uppercase', color: C.etiqueta,
+      }}>{titulo}</span>
+      <span style={{
+        fontSize: 14, fontWeight: valor ? 600 : 400,
+        color: valor ? C.tinta : C.texto4,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{valor || vazio}</span>
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. Modal do produto — rascunho local, só entra no pedido ao confirmar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -671,30 +696,71 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
   // isso é o `key={produto.id}` lá no render — trocar de produto remonta o
   // modal inteiro, sem efeito de reset e sem render em cascata.
   const comCor = temCor(produto)
-  // Produto sem escolha de cor ainda precisa de UMA caixa para os steppers.
+  const comTam = temTamanho(produto)
+  // Produto sem escolha de cor ainda precisa de UM valor para a chave.
   const cores = produto.cores.length ? produto.cores : [null]
   const tamanhos = produto.tamanhos.length ? produto.tamanhos : [TAMANHO_UNICO]
 
-  const parDe = (cor, tam) => `${comCor && cor ? cor.nome : ''}|${tam}`
-  const qtdDe = (cor, tam) => rascunho[parDe(cor, tam)] || 0
+  // ── Escolha corrente (chips) ────────────────────────────────────────────
+  // Dimensão que NÃO é escolha já nasce resolvida: produto de cor única ou
+  // sem tamanho não pode ganhar uma etapa vazia só para manter simetria.
+  // temCor/temTamanho já tratam "1 opção" como ausência de escolha, então
+  // quando os chips aparecem há sempre 2+ opções.
+  const [corSel, setCorSel] = useState(comCor ? null : (cores[0] ?? null))
+  const [tamSel, setTamSel] = useState(comTam ? null : tamanhos[0])
+  const [qtd, setQtd] = useState(1)
 
-  function mudarQtd(cor, tam, delta) {
-    const par = parDe(cor, tam)
+  // A chave do rascunho é EXATAMENTE a de antes — `${cor}|${tamanho}`, com cor
+  // vazia quando o produto não oferece escolha de cor. aplicarRascunho e
+  // chaveItem continuam recebendo o mesmo formato, então carrinho, drawer,
+  // mensagem do WhatsApp e lf_pedidos não enxergam diferença nenhuma.
+  const parDe = (cor, tam) => `${comCor && cor ? cor.nome : ''}|${tam}`
+
+  const podeAdicionar = (!comCor || corSel) && (!comTam || tamSel) && qtd > 0
+
+  /**
+   * Joga a escolha atual na lista compacta.
+   *
+   * SOMA ao que já existe em vez de sobrescrever: repetir a mesma combinação é
+   * a forma natural de dizer "mais duas dessas", e o comportamento casa com o
+   * aplicarRascunho lá no carrinho, que também soma.
+   *
+   * A cor e o tamanho ficam selecionados de propósito — quem acabou de somar
+   * Verde/M costuma querer Verde/G em seguida, e limpar obrigaria a reescolher
+   * a cor toda vez. A quantidade volta para 1, que é o palpite seguro.
+   */
+  function adicionarItem() {
+    if (!podeAdicionar) return
+    const par = parDe(corSel, tamSel)
+    setRascunho(prev => ({ ...prev, [par]: (prev[par] || 0) + qtd }))
+    setQtd(1)
+  }
+
+  /** Edita ou remove uma linha da lista compacta. 0 apaga. */
+  function definirItem(par, n) {
     setRascunho(prev => {
-      const nova = Math.max(0, (prev[par] || 0) + delta)
       const copia = { ...prev }
-      if (nova > 0) copia[par] = nova
+      if (n > 0) copia[par] = n
       else delete copia[par]
       return copia
     })
   }
 
-  const totalRascunho = Object.values(rascunho).reduce((s, n) => s + n, 0)
-  const subtotal = totalRascunho * produto.preco
+  // Lista compacta, derivada do rascunho — sem estado paralelo para
+  // dessincronizar. A cor é reencontrada pelo nome para desenhar a bolinha.
+  const itens = Object.entries(rascunho)
+    .filter(([, n]) => n > 0)
+    .map(([par, n]) => {
+      const [nomeCor, tam] = String(par).split('|')
+      return {
+        par, n, tam,
+        cor: cores.find(c => c?.nome === nomeCor) || null,
+        rotulo: [nomeCor, comTam ? tam : ''].filter(Boolean).join(' · ') || TEXTOS.quantidade,
+      }
+    })
 
-  function totalDaCor(cor) {
-    return tamanhos.reduce((s, tam) => s + qtdDe(cor, tam), 0)
-  }
+  const totalRascunho = itens.reduce((s, i) => s + i.n, 0)
+  const subtotal = totalRascunho * produto.preco
 
   // Zoom: clique alterna, mouse move a origem, sair desliga.
   function alternarZoom() { setZoom(z => !z) }
@@ -731,7 +797,16 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
         }}
       >
         {/* ── Coluna da foto ── */}
-        <div style={{ position: 'relative', overflow: 'hidden', minHeight: 340, minWidth: 0 }}>
+        {/* No desktop esta coluna fica lado a lado e a altura quem manda é a
+            coluna de escolha, então o minHeight quase nunca vale. Quem ele
+            atende é o celular, onde o modal vira UMA coluna e a foto ficava
+            com 340px fixos empurrando a etapa de tamanho para fora da tela.
+            clamp com vh encolhe a foto em tela baixa e a mantém generosa em
+            tela alta — e continua sem media query, como manda a seção 10. */}
+        <div style={{
+          position: 'relative', overflow: 'hidden',
+          minHeight: 'clamp(160px, 21vh, 340px)', minWidth: 0,
+        }}>
           <div
             ref={fotoRef}
             onClick={alternarZoom}
@@ -808,86 +883,209 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
               {perguntaModal(produto)}
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {cores.map((cor, idx) => {
-                const nDaCor = totalDaCor(cor)
-                return (
-                  <div key={cor?.nome || `sem-cor-${idx}`} style={{
-                    border: `1px solid ${C.linhaCard}`, borderRadius: 16,
-                    background: C.superficie, padding: 14,
-                  }}>
-                    {cor && comCor && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                        <span style={{
-                          width: 22, height: 22, borderRadius: 99, background: cor.hex, flex: 'none',
-                          border: '1px solid rgba(0,0,0,.14)', boxShadow: `inset 0 0 0 2px ${C.superficie}`,
-                        }} />
-                        <span style={{ fontSize: 15, fontWeight: 600, color: C.tinta, flex: 1, minWidth: 0 }}>
-                          {cor.nome}
-                        </span>
-                        <span style={{ fontSize: 13.5, color: C.texto4 }}>
-                          {nDaCor > 0 ? t('resumoPecas', { n: nDaCor }) : ''}
-                        </span>
-                      </div>
-                    )}
+            {/* ── 1. Cor ─────────────────────────────────────────────────
+                Bolinha com a cor real do produto. Só existe quando cor é
+                ESCOLHA: com uma cor só, temCor é false e a etapa some — o
+                produto vai direto para a quantidade. */}
+            {comCor && (
+              <div style={{ marginBottom: 16 }}>
+                <RotuloEscolha titulo={TEXTOS.rotuloCor} valor={corSel?.nome} vazio={TEXTOS.escolhaUmaCor} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  {cores.map(cor => {
+                    const ativo = corSel?.nome === cor?.nome
+                    return (
+                      <button
+                        key={cor?.nome}
+                        onClick={() => setCorSel(cor)}
+                        aria-pressed={ativo}
+                        aria-label={t('ariaEscolherCor', { nome: cor?.nome })}
+                        title={cor?.nome}
+                        style={{
+                          width: 42, height: 42, borderRadius: 99, padding: 0, cursor: 'pointer',
+                          background: cor?.hex, flex: 'none',
+                          // O anel por fora (box-shadow) em vez de borda mais
+                          // grossa: borda encolheria a área de cor e cores
+                          // claras ficariam ainda mais difíceis de distinguir.
+                          border: '1px solid rgba(0,0,0,.16)',
+                          boxShadow: ativo
+                            ? `0 0 0 2px ${C.fundo}, 0 0 0 4px ${C.tinta}`
+                            : `inset 0 0 0 2px ${C.superficie}`,
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
-                    <div style={{
-                      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 10,
-                    }}>
-                      {tamanhos.map(tam => {
-                        const qtd = qtdDe(cor, tam)
-                        return (
-                          <div key={tam} style={{
-                            borderRadius: 12, padding: '9px 10px',
-                            background: qtd > 0 ? C.superficie3 : 'transparent',
-                            border: `1px solid ${qtd > 0 ? C.tinta : C.linhaInput}`,
-                          }}>
-                            <p style={{
-                              margin: '0 0 7px', fontSize: 12.5, fontWeight: 600,
-                              letterSpacing: '.06em', color: C.texto3,
-                            }}>{rotuloCelula(produto, tam)}</p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <button
-                                onClick={() => mudarQtd(cor, tam, -1)}
-                                disabled={qtd === 0}
-                                aria-label={TEXTOS.ariaDiminuir}
-                                style={{
-                                  width: 32, height: 32, borderRadius: 10, flex: 'none',
-                                  border: `1px solid ${C.linhaInput}`, background: C.superficie,
-                                  color: qtd === 0 ? C.texto5 : C.tinta, fontSize: 16,
-                                  cursor: qtd === 0 ? 'not-allowed' : 'pointer',
-                                  opacity: qtd === 0 ? 0.5 : 1,
-                                }}
-                              >−</button>
-                              <span style={{
-                                flex: 1, textAlign: 'center', fontSize: 15.5, fontWeight: 700, color: C.tinta,
-                              }}>{qtd}</span>
-                              <button
-                                onClick={() => mudarQtd(cor, tam, 1)}
-                                aria-label={TEXTOS.ariaAumentar}
-                                style={{
-                                  width: 32, height: 32, borderRadius: 10, flex: 'none', border: 'none',
-                                  background: C.tinta, color: C.fundo, fontSize: 16, cursor: 'pointer',
-                                }}
-                              >+</button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+            {/* ── 2. Tamanho ────────────────────────────────────────────────
+                Pill retangular. Mesma regra: sem escolha de tamanho
+                (o caso de hoje, em que tudo é "Único"), a etapa não existe. */}
+            {comTam && (
+              <div style={{ marginBottom: 16 }}>
+                <RotuloEscolha titulo={TEXTOS.rotuloTamanho} valor={tamSel} vazio={TEXTOS.escolhaUmTamanho} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {tamanhos.map(tam => {
+                    const ativo = tamSel === tam
+                    return (
+                      <button
+                        key={tam}
+                        onClick={() => setTamSel(tam)}
+                        aria-pressed={ativo}
+                        aria-label={t('ariaEscolherTamanho', { nome: tam })}
+                        style={{
+                          minWidth: 52, height: 42, padding: '0 15px', borderRadius: 99,
+                          flex: 'none', cursor: 'pointer', fontSize: 14.5, fontWeight: 600,
+                          background: ativo ? C.tinta : C.superficie,
+                          border: `1px solid ${ativo ? C.tinta : C.linhaInput}`,
+                          color: ativo ? C.fundo : C.texto2,
+                        }}
+                      >{tam}</button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── 3. Quantidade + Adicionar ─────────────────────────────────
+                flex-wrap resolve os dois tamanhos de tela sem media query
+                (seção 10): no desktop sobra largura e tudo cabe numa linha;
+                no celular o botão desce sozinho para a linha de baixo. */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              padding: 12, borderRadius: 16,
+              background: C.superficie, border: `1px solid ${C.linhaCard}`,
+            }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: C.texto3, flex: 'none' }}>
+                {TEXTOS.quantidade}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                <button
+                  onClick={() => setQtd(n => Math.max(1, n - 1))}
+                  disabled={qtd <= 1}
+                  aria-label={TEXTOS.ariaDiminuir}
+                  style={{
+                    width: 40, height: 40, borderRadius: 12, flex: 'none',
+                    border: `1px solid ${C.linhaInput}`, background: C.fundo,
+                    color: qtd <= 1 ? C.texto5 : C.tinta, fontSize: 17,
+                    cursor: qtd <= 1 ? 'not-allowed' : 'pointer', opacity: qtd <= 1 ? 0.5 : 1,
+                  }}
+                >−</button>
+                <span style={{
+                  minWidth: 30, textAlign: 'center', fontSize: 16.5, fontWeight: 700, color: C.tinta,
+                }}>{qtd}</span>
+                <button
+                  onClick={() => setQtd(n => n + 1)}
+                  aria-label={TEXTOS.ariaAumentar}
+                  style={{
+                    width: 40, height: 40, borderRadius: 12, flex: 'none', border: 'none',
+                    background: C.tinta, color: C.fundo, fontSize: 17, cursor: 'pointer',
+                  }}
+                >+</button>
+              </div>
+              {/* Contorno, não preenchido: o botão cheio é o "Adicionar ao
+                  pedido" do rodapé, que é a ação que fecha o modal. Dois
+                  botões pretos iguais fariam a pessoa clicar no errado. */}
+              <button
+                onClick={adicionarItem}
+                disabled={!podeAdicionar}
+                style={{
+                  flex: '1 1 130px', minWidth: 120, height: 44, borderRadius: 12,
+                  border: `1.5px solid ${podeAdicionar ? C.tinta : C.linhaInput}`,
+                  background: 'transparent',
+                  color: podeAdicionar ? C.tinta : C.texto5,
+                  fontSize: 15, fontWeight: 600,
+                  cursor: podeAdicionar ? 'pointer' : 'not-allowed',
+                }}
+              >{TEXTOS.adicionarItem}</button>
             </div>
+
+            {/* ── 4. Lista compacta do que já foi escolhido ─────────────────
+                Fica DENTRO do modal, antes do rodapé: é a confirmação de que
+                o clique em Adicionar fez alguma coisa. Cada linha edita a
+                quantidade ou sai. */}
+            {itens.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                  gap: 10, marginBottom: 8,
+                }}>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: C.tinta }}>
+                    {TEXTOS.itensEscolhidos}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12.5, color: C.texto4 }}>
+                    {t(itens.length === 1 ? 'itensResumoUm' : 'itensResumo',
+                      { pecas: totalRascunho, itens: itens.length })}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {itens.map(item => (
+                    <div key={item.par} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 10px', borderRadius: 12,
+                      background: C.superficie3, border: `1px solid ${C.linha}`,
+                    }}>
+                      {item.cor && comCor && (
+                        <span aria-hidden="true" style={{
+                          width: 18, height: 18, borderRadius: 99, flex: 'none',
+                          background: item.cor.hex, border: '1px solid rgba(0,0,0,.16)',
+                        }} />
+                      )}
+                      <span style={{
+                        flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: C.tinta,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{item.rotulo}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 'none' }}>
+                        <button
+                          onClick={() => definirItem(item.par, item.n - 1)}
+                          aria-label={TEXTOS.ariaDiminuir}
+                          style={{
+                            width: 32, height: 32, borderRadius: 9, flex: 'none',
+                            border: `1px solid ${C.linhaInput}`, background: C.fundo,
+                            color: C.tinta, fontSize: 15, cursor: 'pointer',
+                          }}
+                        >−</button>
+                        <span style={{
+                          minWidth: 24, textAlign: 'center', fontSize: 14.5, fontWeight: 700, color: C.tinta,
+                        }}>{item.n}</span>
+                        <button
+                          onClick={() => definirItem(item.par, item.n + 1)}
+                          aria-label={TEXTOS.ariaAumentar}
+                          style={{
+                            width: 32, height: 32, borderRadius: 9, flex: 'none', border: 'none',
+                            background: C.tinta, color: C.fundo, fontSize: 15, cursor: 'pointer',
+                          }}
+                        >+</button>
+                        <button
+                          onClick={() => definirItem(item.par, 0)}
+                          aria-label={t('ariaRemoverItem', { item: item.rotulo })}
+                          style={{
+                            width: 32, height: 32, borderRadius: 9, flex: 'none',
+                            border: `1px solid ${C.linhaInput}`, background: 'transparent',
+                            color: C.texto4, fontSize: 14, cursor: 'pointer',
+                          }}
+                        >✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <p style={{ margin: '16px 0 0', fontSize: 14, lineHeight: 1.55, color: C.texto3 }}>
               {modoAtacado ? TEXTOS.notaAtacado : TEXTOS.notaVarejo}
             </p>
           </div>
 
+          {/* Rodapé grudado na base do que estiver rolando. No desktop a
+              coluna de escolha já tem rolagem própria e ele nunca saía da
+              tela; no celular o modal vira uma coluna só e QUEM rola é o
+              painel inteiro — sem o sticky, "Adicionar ao pedido" ficava
+              abaixo da dobra, que é a reclamação de origem. */}
           <div style={{
             borderTop: `1px solid ${C.linha}`, padding: '16px 24px 20px', background: C.superficie2,
             display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center',
+            position: 'sticky', bottom: 0, zIndex: 1,
           }}>
             <div style={{ flex: '1 1 140px', minWidth: 0 }}>
               <p style={{ margin: '0 0 2px', fontSize: 13, color: C.texto4 }}>
@@ -1027,6 +1225,11 @@ export function DrawerPedido({
   const [pixCopiado, setPixCopiado] = useState(false)
   useTravaScroll(true)
   useFocoPreso(painelRef, true, aoFechar)
+
+  // Existe ALGUM caminho de pagamento no site? É a condição que já governava
+  // os três ramos do checkout, agora com nome: ela decide se a caixa de
+  // destaque aparece e se o WhatsApp desce para contorno.
+  const temPagamento = !!loja.checkoutOnline
 
   const { pecas, valor } = totais(linhas)
   const resumo = linhas.length
@@ -1210,80 +1413,102 @@ export function DrawerPedido({
             <span style={{ fontFamily: DISPLAY, fontSize: 32, color: C.tinta }}>{fmtR(valor)}</span>
           </div>
 
-          {loja.whatsapp && (
-            <button
-              className="cat-btn-wa"
-              onClick={aoEnviar}
-              style={{
-                width: '100%', height: 54, borderRadius: 14, border: 'none', background: C.whatsapp,
-                color: '#fff', fontSize: 16, fontWeight: 600, cursor: 'pointer', marginBottom: 10,
-              }}
-            >{TEXTOS.enviarWhatsapp}</button>
-          )}
+          {/* ── Pagamento primeiro, com destaque ────────────────────────
+              A ordem anterior era WhatsApp (verde, preenchido) e só depois o
+              Pix. Quem chega no checkout já decidiu comprar; pagar na hora é o
+              caminho que fecha a venda sozinho, e o WhatsApp é o plano B (e o
+              caminho de quem quer combinar frete antes).
 
-          {/* Pix copia-e-cola. Só aparece com o checkout ligado E chave
-              cadastrada; sem chave o caminho antigo continua igual, e o botão
-              do WhatsApp acima segue sendo como o pedido se fecha. Não tem QR
-              Code nem gateway de propósito — a cliente copia e paga no banco
-              dela. */}
-          {/* Ordem de preferência no checkout:
+              A CASCATA DE FALLBACK NÃO MUDOU — é a mesma condição de antes,
+              apenas movida para cima e embrulhada:
                 1. Mercado Pago ligado e sem falha  → QR dinâmico
                 2. Chave Pix cadastrada             → copia-e-cola estático
                 3. Só checkout ligado               → botão antigo
-              O passo 2 é fallback do 1: se a Edge Function falhar, `pixMp.erro`
-              liga e o bloco estático assume sem a cliente ficar sem caminho. */}
-          {loja.checkoutOnline && loja.mercadopagoAtivo && !pixMp?.erro ? (
-            <PixDinamico
-              estado={pixMp}
-              aoGerar={aoGerarPixMp}
-              aoCopiar={aoCopiarTexto}
-              primeiroPlano={!loja.chavePix}
-            />
-          ) : loja.checkoutOnline && loja.chavePix ? (
+              O passo 2 continua sendo o fallback do 1: se a Edge Function
+              falhar, `pixMp.erro` liga e o bloco estático assume. */}
+          {temPagamento && (
             <div style={{
-              border: `1px solid ${C.linhaInput}`, borderRadius: 14,
-              background: C.superficie, padding: '14px 15px',
+              border: `2px solid ${C.tinta}`, borderRadius: 18,
+              background: C.superficie3, padding: 12, marginBottom: 14,
             }}>
-              <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: C.tinta }}>
-                {TEXTOS.pixTitulo}
-              </p>
-              <p style={{ margin: '0 0 11px', fontSize: 13.5, lineHeight: 1.45, color: C.texto3 }}>
-                {TEXTOS.pixInstrucao}
-              </p>
-              <p style={{
-                margin: '0 0 11px', padding: '11px 12px', borderRadius: 10,
-                background: C.superficie3, border: `1px solid ${C.linha}`,
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                fontSize: 13.5, color: C.tinta,
-                // Chave aleatória do Pix tem 36 caracteres e não tem espaço:
-                // sem isto ela estoura a largura do drawer no celular.
-                wordBreak: 'break-all',
-              }}>{loja.chavePix}</p>
-              <button
-                onClick={async () => {
-                  const ok = await aoCopiarPix?.(loja.chavePix)
-                  if (ok === false) return
-                  setPixCopiado(true)
-                  setTimeout(() => setPixCopiado(false), 2200)
-                }}
-                style={{
-                  width: '100%', height: 48, borderRadius: 12, cursor: 'pointer',
-                  border: `1px solid ${C.tinta}`,
-                  background: pixCopiado ? C.tinta : C.superficie,
-                  color: pixCopiado ? C.fundo : C.tinta,
-                  fontSize: 15, fontWeight: 600,
-                }}
-              >{pixCopiado ? TEXTOS.pixCopiado : TEXTOS.pixCopiar}</button>
+              {loja.checkoutOnline && loja.mercadopagoAtivo && !pixMp?.erro ? (
+                <PixDinamico
+                  estado={pixMp}
+                  aoGerar={aoGerarPixMp}
+                  aoCopiar={aoCopiarTexto}
+                  // Sempre em primeiro plano agora: antes o botão só era
+                  // preenchido quando não havia chave estática atrás dele.
+                  // Como o Pix passou a ser a ação principal do checkout, um
+                  // botão de contorno dentro da caixa de destaque brigaria
+                  // com a própria caixa.
+                  primeiroPlano
+                />
+              ) : loja.checkoutOnline && loja.chavePix ? (
+                <div style={{
+                  border: `1px solid ${C.linhaInput}`, borderRadius: 14,
+                  background: C.superficie, padding: '14px 15px',
+                }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: C.tinta }}>
+                    {TEXTOS.pixTitulo}
+                  </p>
+                  <p style={{ margin: '0 0 11px', fontSize: 13.5, lineHeight: 1.45, color: C.texto3 }}>
+                    {TEXTOS.pixInstrucao}
+                  </p>
+                  <p style={{
+                    margin: '0 0 11px', padding: '11px 12px', borderRadius: 10,
+                    background: C.superficie3, border: `1px solid ${C.linha}`,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                    fontSize: 13.5, color: C.tinta,
+                    // Chave aleatória do Pix tem 36 caracteres e não tem espaço:
+                    // sem isto ela estoura a largura do drawer no celular.
+                    wordBreak: 'break-all',
+                  }}>{loja.chavePix}</p>
+                  <button
+                    onClick={async () => {
+                      const ok = await aoCopiarPix?.(loja.chavePix)
+                      if (ok === false) return
+                      setPixCopiado(true)
+                      setTimeout(() => setPixCopiado(false), 2200)
+                    }}
+                    style={{
+                      width: '100%', height: 52, borderRadius: 12, cursor: 'pointer',
+                      border: 'none',
+                      background: pixCopiado ? C.whatsapp : C.tinta,
+                      color: C.fundo, fontSize: 16, fontWeight: 600,
+                    }}
+                  >{pixCopiado ? TEXTOS.pixCopiado : TEXTOS.pixCopiar}</button>
+                </div>
+              ) : (
+                <button
+                  onClick={aoPagar}
+                  style={{
+                    width: '100%', height: 54, borderRadius: 14, border: 'none',
+                    background: C.tinta, color: C.fundo, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >{TEXTOS.pagarSite}</button>
+              )}
             </div>
-          ) : loja.checkoutOnline ? (
+          )}
+
+          {/* ── WhatsApp depois, com menos ênfase ────────────────────────────
+              Contorno em vez de preenchido QUANDO existe bloco de pagamento
+              acima. Sem checkout ligado ele volta a ser o botão verde cheio de
+              sempre: aí ele é a única forma de fechar o pedido, e rebaixá-lo
+              deixaria o drawer sem ação principal nenhuma. */}
+          {loja.whatsapp && (
             <button
-              onClick={aoPagar}
-              style={{
-                width: '100%', height: 54, borderRadius: 14, border: `1px solid ${C.tinta}`,
-                background: C.superficie, color: C.tinta, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+              className={temPagamento ? 'cat-btn-wa-out' : 'cat-btn-wa'}
+              onClick={aoEnviar}
+              style={temPagamento ? {
+                width: '100%', height: 50, borderRadius: 14,
+                border: `1.5px solid ${C.whatsapp}`, background: 'transparent',
+                color: C.whatsapp, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+              } : {
+                width: '100%', height: 54, borderRadius: 14, border: 'none', background: C.whatsapp,
+                color: '#fff', fontSize: 16, fontWeight: 600, cursor: 'pointer',
               }}
-            >{TEXTOS.pagarSite}</button>
-          ) : null}
+            >{TEXTOS.enviarWhatsapp}</button>
+          )}
         </div>
       </aside>
     </>
