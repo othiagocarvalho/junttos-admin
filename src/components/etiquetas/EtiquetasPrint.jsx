@@ -27,22 +27,55 @@ import { fmtR } from '../../utils/formatters'
 //   • rolo com 2 ou 4 etiquetas por fileira → LABEL_COLUMNS
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ✅ MEDIDO com régua física na etiqueta da Tropicale em 22/08/2026.
-const LABEL_WIDTH_MM  = 33
+// ⚠️ AJUSTE EMPÍRICO DE 23/08/2026, AINDA NÃO CONFIRMADO.
+//
+// O teste físico na Elgin/Bematech mostrou a etiqueta saindo VISIVELMENTE
+// MENOR que a célula pré-cortada do rolo, com sobra de branco em volta — e a
+// sobra era em todos os lados, não só num. Encolhimento uniforme assim é
+// assinatura de escala: a impressora (ou o driver) reduz a página para caber
+// na área imprimível dela, em vez de a nossa medida estar errada por acaso.
+//
+// Primeira tentativa: subir as três medidas ~21% de forma proporcional. Se o
+// driver reduz por um fator fixo, declarar uma página maior faz o resultado
+// impresso chegar no tamanho da célula.
+//
+//   LABEL_WIDTH_MM   33 → 40   (+21,2%)
+//   LABEL_HEIGHT_MM  25 → 30   (+20,0%)
+//   PAPER_WIDTH_MM  100 → 121  (+21,0%)
+//
+// A medição anterior (33mm com régua, em 22/08) NÃO foi descartada: ela mede a
+// CÉLULA FÍSICA, que continua com 33mm. O 40 daqui é o valor que mandamos
+// imprimir para que 33mm cheguem ao papel. São coisas diferentes, e por isso o
+// modo "Régua de calibração" abaixo existe: ele imprime uma escala real para
+// medir quanto o papel de fato recebeu, e aí estes números param de ser chute.
+//
+// Se a calibração mostrar que a escala é 1:1 e o problema era outro, o
+// caminho é voltar os três para 33/25/100 e investigar o driver.
+const LABEL_WIDTH_MM  = 40
+const LABEL_HEIGHT_MM = 30
+const PAPER_WIDTH_MM  = 121
+
+// ✅ MEDIDO: o rolo tem 3 células por fileira.
 const LABEL_COLUMNS   = 3
-const PAPER_WIDTH_MM  = 100
 
-// ⚠️ AINDA ESTIMADO — a régua mediu só a LARGURA. A altura continua sendo
-// chute e precisa de medição física antes de virar definitiva. É a única
-// destas cinco que ainda não foi conferida.
-const LABEL_HEIGHT_MM = 25
-
-// Derivado, não medido: 3 × 33mm = 99mm, e sobra 1mm para os dois vãos.
-// O valor anterior (2mm) foi ajustado porque não fechava — 3×33 + 2×2 = 103mm
-// estouraria os 100mm do rolo e empurraria a terceira coluna para fora.
+// Derivado, não medido. A conta tem de fechar com PAPER_WIDTH_MM, senão a
+// terceira coluna cai fora do papel:
 //   LABEL_COLUMNS × LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) × LABEL_GAP_MM
-//   = 3 × 33 + 2 × 0,5 = 100mm ✓
+//   = 3 × 40 + 2 × 0,5 = 121mm ✓
 const LABEL_GAP_MM    = 0.5
+
+// Espessura da borda da régua de calibração. Entra numa constante porque as
+// marcas precisam compensá-la: elemento posicionado tem como referência a
+// caixa de padding, que começa DEPOIS da borda — sem o desconto, a marca do
+// "0" cairia a 0,25mm da borda real e a régua mediria tudo deslocado.
+const CALIB_BORDA_MM  = 0.25
+
+/** Marcações da régua de calibração: 0, 5, 10... até cobrir a medida. */
+function marcasRegua(totalMm, passo = 5) {
+  const out = []
+  for (let mm = 0; mm <= totalMm; mm += passo) out.push(mm)
+  return out
+}
 
 /** Quebra a lista em fileiras físicas do rolo — cada fileira vira uma página. */
 function emFileiras(lista, porFileira) {
@@ -100,6 +133,57 @@ function Etiqueta({ dados, mostrarPreco }) {
 }
 
 /**
+ * Etiqueta de calibração: uma régua impressa no tamanho que o código acredita
+ * ser a célula do rolo.
+ *
+ * Existe para tirar a medida do campo do chute. Impressa e posta ao lado da
+ * etiqueta pré-cortada de verdade, ela responde duas perguntas de uma vez:
+ *   • a borda bate com o picote? (se não, LABEL_WIDTH/HEIGHT estão errados)
+ *   • onde cai a marca dos 30mm na régua da própria etiqueta? (se cair nos
+ *     25mm, a impressora está reduzindo em ~17%, e aí o problema é escala)
+ *
+ * As dimensões saem em unidade `mm` do CSS, exatamente como o resto do layout
+ * térmico — nenhuma conversão própria de mm→px, senão a régua mediria uma
+ * escala diferente da que a etiqueta usa e não serviria de referência.
+ */
+function ReguaCalibracao() {
+  const marcasH = marcasRegua(LABEL_WIDTH_MM)
+  const marcasV = marcasRegua(LABEL_HEIGHT_MM)
+  return (
+    <div className="etq-calib">
+      {/* Cantos reforçados: é neles que se compara com o picote. */}
+      <span className="etq-calib-canto etq-calib-canto--tl" />
+      <span className="etq-calib-canto etq-calib-canto--tr" />
+      <span className="etq-calib-canto etq-calib-canto--bl" />
+      <span className="etq-calib-canto etq-calib-canto--br" />
+
+      {/* A última marca de cada eixo escreve o número para DENTRO. Solto, ele
+          cairia fora da caixa — numa etiqueta física isso é tinta passando do
+          picote, na vizinha. */}
+      {marcasH.map((mm, i) => (
+        <span
+          key={`h${mm}`}
+          className={`etq-calib-th${i === marcasH.length - 1 ? ' etq-calib-th--fim' : ''}`}
+          style={{ left: `calc(${mm}mm - ${CALIB_BORDA_MM}mm)` }}
+        ><i>{mm}</i></span>
+      ))}
+      {marcasV.map((mm, i) => (
+        <span
+          key={`v${mm}`}
+          className={`etq-calib-tv${i === marcasV.length - 1 ? ' etq-calib-tv--fim' : ''}`}
+          style={{ top: `calc(${mm}mm - ${CALIB_BORDA_MM}mm)` }}
+        ><i>{mm}</i></span>
+      ))}
+
+      <span className="etq-calib-centro">
+        {LABEL_WIDTH_MM}mm × {LABEL_HEIGHT_MM}mm
+        <br />compare com a etiqueta física
+      </span>
+    </div>
+  )
+}
+
+/**
  * @param etiquetas  saída de etiquetasDoProduto / etiquetasDeProdutos
  * @param aoFechar   fecha o modal
  * @param theme      só para a cor do botão principal
@@ -112,7 +196,11 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
   // Decisão do momento da impressão, não configuração da loja — por isso
   // estado local e nada de persistir no banco.
   const [formato, setFormato] = useState('a4')
-  const termica = formato === 'termica'
+  const calibracao = formato === 'calibracao'
+  // A calibração imprime no mesmo papel e com o mesmo @page da térmica — ela
+  // só troca o CONTEÚDO da etiqueta pela régua. Por isso as duas compartilham
+  // todo o CSS de impressão térmica.
+  const termica = formato === 'termica' || calibracao
 
   useEffect(() => {
     function aoTeclar(e) { if (e.key === 'Escape') aoFechar?.() }
@@ -177,6 +265,56 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           justify-content: center; padding: 1.5mm 1mm;
         }
 
+        /* ── Régua de calibração ──────────────────────────────────────────
+           Tudo em mm, igual ao layout térmico: a régua precisa medir na mesma
+           escala que a etiqueta, senão não serve de referência. */
+        .etq-calib {
+          position: relative; box-sizing: border-box;
+          width: ${LABEL_WIDTH_MM}mm; height: ${LABEL_HEIGHT_MM}mm;
+          border: ${CALIB_BORDA_MM}mm solid #000; background: #fff; color: #000;
+        }
+        .etq-calib-canto {
+          position: absolute; width: 3mm; height: 3mm; border: 0 solid #000;
+        }
+        .etq-calib-canto--tl { top: 0; left: 0;  border-top-width: 0.6mm; border-left-width: 0.6mm; }
+        .etq-calib-canto--tr { top: 0; right: 0; border-top-width: 0.6mm; border-right-width: 0.6mm; }
+        .etq-calib-canto--bl { bottom: 0; left: 0;  border-bottom-width: 0.6mm; border-left-width: 0.6mm; }
+        .etq-calib-canto--br { bottom: 0; right: 0; border-bottom-width: 0.6mm; border-right-width: 0.6mm; }
+        /* Traço da régua no topo, a cada 5mm, contado da borda esquerda. */
+        .etq-calib-th {
+          position: absolute; top: calc(0mm - ${CALIB_BORDA_MM}mm);
+          width: 0; height: 2mm; border-left: 0.2mm solid #000;
+        }
+        .etq-calib-th i {
+          position: absolute; left: 0.3mm; top: 1.8mm;
+          font-family: ui-monospace, Menlo, monospace; font-size: 4pt;
+          font-style: normal; line-height: 1;
+        }
+        /* Idem na borda esquerda, contado do topo. */
+        .etq-calib-tv {
+          position: absolute; left: calc(0mm - ${CALIB_BORDA_MM}mm);
+          height: 0; width: 2mm; border-top: 0.2mm solid #000;
+        }
+        .etq-calib-tv i {
+          position: absolute; top: 0.3mm; left: 2.3mm;
+          font-family: ui-monospace, Menlo, monospace; font-size: 4pt;
+          font-style: normal; line-height: 1;
+        }
+        .etq-calib-th--fim i { left: auto; right: 0.3mm; }
+        .etq-calib-tv--fim i { top: auto; bottom: 0.3mm; }
+        .etq-calib-centro {
+          position: absolute; inset: 0; display: flex; flex-direction: column;
+          align-items: center; justify-content: center; text-align: center;
+          font-family: var(--font-ui); font-size: 5.5pt; line-height: 1.35;
+          padding: 0 4mm; color: #000;
+        }
+        /* A fileira da calibração leva UMA etiqueta, encostada à esquerda —
+           é onde fica a primeira célula do rolo. */
+        .etq-fileira--calib {
+          grid-template-columns: ${LABEL_WIDTH_MM}mm !important;
+          justify-content: start !important;
+        }
+
         /* ── Impressão: base comum aos dois formatos ──────────────────────
            Esconde a página que está atrás do modal.
 
@@ -220,7 +358,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             max-height: none !important; border-radius: 0 !important;
             width: 100% !important; box-shadow: none !important;
           }
-          .etq-topo, .etq-rodape { display: none !important; }
+          /* O aviso da calibração é orientação de tela. Impresso, ele ocupava
+             duas páginas de 121×30mm antes da régua — a calibração saía com 3
+             páginas em vez de 1. */
+          .etq-topo, .etq-rodape, .etq-aviso-calib { display: none !important; }
           .etq-corpo { padding: 0 !important; overflow: visible !important; background: #fff !important; }
         }
 
@@ -275,8 +416,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)' }}>
               {semEtiqueta
                 ? 'Nenhuma variação para etiquetar'
-                : `${expandidas.length} etiqueta${expandidas.length > 1 ? 's' : ''} · uma por variação`
-                  + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
+                : calibracao
+                  ? `Régua de teste · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm · 1 página`
+                  : `${expandidas.length} etiqueta${expandidas.length > 1 ? 's' : ''} · uma por variação`
+                    + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
             </p>
           </div>
           <button
@@ -291,6 +434,22 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         </div>
 
         <div className="etq-corpo">
+          {/* Deixa claro que NADA de produto está sendo impresso agora — o
+              risco desse modo é alguém esquecer nele e achar que mandou as
+              etiquetas de verdade. */}
+          {calibracao && (
+            <p className="etq-aviso-calib" style={{
+              fontFamily: 'var(--font-ui)', fontSize: 12.5, lineHeight: 1.5,
+              color: '#b45309', background: 'rgba(202,138,4,0.08)',
+              border: '1px solid rgba(202,138,4,0.25)', borderRadius: 10,
+              padding: '10px 12px', marginBottom: 12,
+            }}>
+              Modo de teste: imprime <strong>só a régua</strong>, nenhuma etiqueta de
+              produto. Imprima, encoste numa etiqueta do rolo e veja se a borda bate
+              com o picote — os números marcam milímetros a partir do canto superior
+              esquerdo. Para voltar a imprimir etiquetas, troque o formato de novo.
+            </p>
+          )}
           {semEtiqueta ? (
             <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13.5, color: 'var(--muted)', padding: '30px 10px', textAlign: 'center', lineHeight: 1.5 }}>
               Só é possível etiquetar produto que tenha grade cadastrada — a etiqueta
@@ -298,7 +457,13 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             </p>
           ) : (
             <div className="etq-folha">
-              {termica
+              {calibracao
+                ? (
+                  <div className="etq-fileira etq-fileira--calib">
+                    <ReguaCalibracao />
+                  </div>
+                )
+                : termica
                 // Fileiras explícitas em vez de deixar o grid quebrar sozinho:
                 // no rolo, cada fileira precisa cair exatamente numa página, e
                 // page-break dentro de grid é inconsistente entre navegadores.
@@ -309,9 +474,9 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                       ))}
                     </div>
                   ))
-                : expandidas.map(et => (
-                    <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
-                  ))}
+                  : expandidas.map(et => (
+                      <Etiqueta key={et._k} dados={et} mostrarPreco={mostrarPreco} />
+                    ))}
             </div>
           )}
         </div>
@@ -353,6 +518,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             >
               <option value="a4">Folha A4 (padrão)</option>
               <option value="termica">Impressora térmica (rolo {LABEL_COLUMNS} colunas)</option>
+              {/* Modo de teste: não imprime produto nenhum, só a régua. Fica
+                  na mesma lista para ninguém precisar caçar um botão escondido
+                  na hora de calibrar. */}
+              <option value="calibracao">Régua de calibração (teste)</option>
             </select>
             <button
               onClick={() => window.print()}
