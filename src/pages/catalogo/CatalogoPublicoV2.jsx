@@ -1577,7 +1577,22 @@ export default function CatalogoPublicoV2({ lojaId }) {
       const { data, error } = await supabase.functions.invoke('mp-criar-pix', {
         body: { pedido_id: pedidoId },
       })
-      if (error || !data?.qr_code) throw new Error(data?.error || error?.message || 'sem QR')
+
+      // Em resposta não-2xx o supabase-js devolve só "Edge Function returned a
+      // non-2xx status code" e guarda o corpo em error.context — que é onde
+      // mora o diagnóstico útil (status do Mercado Pago, prefixo do token).
+      // Sem desembrulhar isso, quem investiga não tem nada para seguir.
+      if (error || !data?.qr_code) {
+        let detalhe = data?.error || error?.message || 'sem QR'
+        try {
+          const corpo = await error?.context?.json?.()
+          if (corpo?.error) detalhe = corpo.error
+          if (corpo?.diagnostico) {
+            console.warn('[catalogo] diagnóstico do mp-criar-pix:', corpo.diagnostico)
+          }
+        } catch { /* corpo não era JSON — segue com a mensagem que já tem */ }
+        throw new Error(detalhe)
+      }
 
       setPixMp({
         carregando: false, erro: false, pago: false, pedidoId,

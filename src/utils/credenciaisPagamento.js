@@ -79,3 +79,37 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
 export function podeAtivarMercadoPago({ token, jaConfigurado }) {
   return !!(token?.trim() || jaConfigurado)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validação do access token do Mercado Pago.
+//
+// Nasceu de um bug real: o QR Code Pix da Tropicale falhava com "Não foi
+// possível gerar o QR Code agora", e o diagnóstico da Edge Function mostrou que
+// o valor salvo tinha 14 caracteres e nenhum hífen — o Mercado Pago devolvia
+// 403. Não era access token: access token de produção é
+// `APP_USR-<8 díg>-<data>-<32 hex>-<9 díg>`, uns 70 caracteres com 4 hífens.
+// Provavelmente foi colado o número da conta, ou metade de outra credencial.
+//
+// Barrar na hora de salvar evita que a loja descubra o erro só quando a
+// primeira cliente tenta pagar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Erro bloqueante, ou null se o valor é aceitável. Vazio = manter o atual. */
+export function validarAccessTokenMP(bruto) {
+  const t = String(bruto ?? '').trim()
+  if (!t) return null
+  if (!t.includes('-') || t.length < 20) {
+    return 'Isso não parece um access token do Mercado Pago. '
+      + 'O de produção começa com "APP_USR-" e tem mais de 60 caracteres — '
+      + 'não confunda com a Public Key nem com o número da conta.'
+  }
+  return null
+}
+
+/**
+ * Aviso não bloqueante: credencial de teste é legítima em sandbox, mas em
+ * produção o Mercado Pago recusa com 401/403 e o catálogo cai no copia-e-cola.
+ */
+export function pareceTokenDeTeste(bruto) {
+  return String(bruto ?? '').trim().startsWith('TEST-')
+}
