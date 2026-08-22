@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
 
 // JsBarcode toca no DOM do SVG; no ambiente 'node' do vitest não existe. Aqui
 // só interessa a CONTAGEM de etiquetas e fileiras, não o desenho das barras.
@@ -87,5 +88,69 @@ describe('EtiquetasPrint — CSS de impressão não pode voltar a gerar páginas
 
   it('zera a margem de html/body — na térmica ela empurrava para uma 2ª página', () => {
     expect(s).toMatch(/html,\s*body\s*\{[^}]*margin:\s*0\s*!important/)
+  })
+})
+
+// ─── Terceiro modo: quantidade personalizada ────────────────────────────────
+// A matemática dos modos vive em src/utils/etiquetasQtd.js e é testada lá (o
+// ambiente 'node' não tem DOM para simular a troca de modo). Aqui ficam só as
+// garantias de RENDERIZAÇÃO que o util não alcança.
+
+describe('EtiquetasPrint — o seletor dos três modos', () => {
+  const so1 = () => etiquetasDoProduto(UM, 'tropicaleatacado')
+
+  it('oferece os três modos, e só eles', () => {
+    const s = html(<EtiquetasPrint etiquetas={so1()} aoFechar={() => {}} theme={{}} />)
+    expect(s).toContain('value="uma"')
+    expect(s).toContain('value="estoque"')
+    expect(s).toContain('value="personalizada"')
+    expect(s).toContain('Quantidade personalizada')
+    // Um <select> só pode ter um valor: a exclusividade é estrutural, não uma
+    // regra que dá para esquecer de aplicar.
+    expect(contar(s, 'etq-qtds')).toBeLessThanOrEqual(1)
+  })
+
+  it('as duas opções que já existiam continuam disponíveis', () => {
+    // O controle mudou de checkbox para select; o COMPORTAMENTO não podia sumir.
+    const s = html(<EtiquetasPrint etiquetas={so1()} aoFechar={() => {}} theme={{}} />)
+    expect(s).toContain('1 por variação')
+    expect(s).toContain('1 por peça em estoque')
+  })
+
+  it('abre no modo padrão: 1 por variação, sem painel de quantidades', () => {
+    const s = html(<EtiquetasPrint etiquetas={so1()} aoFechar={() => {}} theme={{}} />)
+    expect(contar(s, 'etq-item')).toBe(3)
+    // `contar` casa com class="...": o nome da classe aparece sempre no
+    // <style>, então procurar a string solta passaria de graça.
+    expect(contar(s, 'etq-qtd-linha')).toBe(0)
+    expect(contar(s, 'etq-qtds')).toBe(0)
+  })
+
+  it('o subtítulo diz qual modo está valendo', () => {
+    const s = html(<EtiquetasPrint etiquetas={so1()} aoFechar={() => {}} theme={{}} />)
+    expect(s).toContain('3 etiquetas · uma por variação')
+  })
+})
+
+describe('EtiquetasPrint — o painel de quantidades não pode ir para o papel', () => {
+  const css = html(<EtiquetasPrint etiquetas={etiquetasDoProduto(UM, 'tropicaleatacado')} aoFechar={() => {}} theme={{}} />)
+
+  it('.etq-qtds é escondido no @media print', () => {
+    // Impresso, ele empurraria as etiquetas para baixo e gastaria uma fileira
+    // inteira de rolo térmico.
+    const bloco = css.slice(css.indexOf('@media print'))
+    expect(bloco).toMatch(/\.etq-qtds\s*{\s*display:\s*none\s*!important/)
+  })
+
+  it('o painel fica FORA da .etq-folha, que é o que a impressora enxerga', () => {
+    // Se ele nascesse dentro da folha, viraria uma "etiqueta" no grid — e o
+    // display:none acima não salvaria, porque o grid já teria contado a
+    // célula. A ordem só aparece na fonte: em tela o painel só existe no modo
+    // personalizado, que este ambiente sem DOM não consegue ativar.
+    const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+    const painel = fonte.indexOf('className="etq-qtds"')
+    const folha = fonte.indexOf('className="etq-folha"')
+    expect(painel).toBeGreaterThan(-1)
+    expect(painel).toBeLessThan(folha)
   })
 })
