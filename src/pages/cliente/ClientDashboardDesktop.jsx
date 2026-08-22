@@ -17,6 +17,8 @@ import { contemBusca } from '../../utils/texto'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/CatalogoB2BAdminDesktop'
+import CampoScanner from '../../components/etiquetas/CampoScanner'
+import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
@@ -778,6 +780,22 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
   }
+  /**
+   * Adiciona ao carrinho a variação bipada. Mesma lógica do mobile
+   * (NovaVenda.jsx) — a busca manual abaixo continua intacta.
+   */
+  function lerCodigoBarras(codigo) {
+    const achado = buscarPorCodigo(produtosData, LOJA_ID, codigo)
+    if (!achado) return { ok: false, texto: 'Código não encontrado nesta loja' }
+    setForm(f => ({
+      ...f,
+      produtos: adicionarAoCarrinho(f.produtos, {
+        nome: achado.produto.nome, variacao: achado.rotulo,
+      }),
+    }))
+    return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
+  }
+
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome && !p.variacao)
     setForm({ ...form, produtos: exists ? form.produtos.filter(p => !(p.nome === nome && !p.variacao)) : [...form.produtos, { nome, obs: '', quantidade: 1 }] })
@@ -1470,6 +1488,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             onRemover={removerSelecionado}
             primary={theme.primary}
           />
+        </div>
+
+        {/* Leitor de código de barras — caminho rápido para peça etiquetada.
+            No desktop abre com foco: o leitor USB costuma ficar plugado na
+            máquina do caixa, e quem abre a venda já vai bipar. */}
+        <div style={{ marginBottom: 10 }}>
+          <CampoScanner aoLer={lerCodigoBarras} theme={theme} dica="Ou busque pelo nome abaixo" />
         </div>
 
         {/* Busca por nome — estoque grande fica impraticável de rolar. */}

@@ -1,0 +1,93 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Etiquetas com código de barras — DECISÃO DE SCHEMA
+--
+-- NENHUMA ALTERAÇÃO DE SCHEMA É NECESSÁRIA. Este arquivo existe para registrar
+-- por quê, e para deixar pronto (comentado) o caminho alternativo, caso um dia
+-- se queira código persistido.
+--
+-- Não há nada para rodar aqui. Nenhum DDL foi executado.
+--
+-- ─── O QUE FOI MEDIDO NA BASE REAL (22/08/2026) ─────────────────────────────
+-- lf_produtos.variacoes é um array JSONB. Formatos em uso, em 426 variações:
+--
+--     {cor, quantidade}                264
+--     {cor, custo, quantidade}          93
+--     {quantidade, tamanho}             69
+--
+-- O `quantidade` mora DENTRO de cada variação, e a baixa de estoque acontece
+-- por decrementar_estoque_variacao(p_produto_id, p_label, p_qtd). Ou seja: o
+-- estoque é controlado por variação, não pelo produto genérico.
+--
+-- Consequência direta: a etiqueta precisa ser POR VARIAÇÃO. Uma etiqueta por
+-- produto não diria qual peça saiu — bipar um vestido que existe em Rosa e
+-- Nude ainda exigiria escolher a cor na mão, que é exatamente o trabalho que
+-- o leitor deveria eliminar.
+--
+-- ─── POR QUE NÃO GRAVAR O CÓDIGO ────────────────────────────────────────────
+-- Duas opções foram descartadas por evidência no próprio código:
+--
+-- 1. Coluna nova em lf_produtos (ex: `codigo_barras text`).
+--    Não serve: seria um código por PRODUTO, e o estoque é por variação.
+--
+-- 2. Campo `codigo` dentro de cada item de `variacoes`.
+--    Não sobrevive. Dois caminhos reescrevem o array inteiro:
+--      • supabase/migration_estoque_mov.sql, lf_set_variacoes:
+--            UPDATE lf_produtos SET variacoes = p_variacoes
+--      • src/pages/LojaFeminina/ProdutosB2BPro.jsx, buildVariacoes():
+--            .map(t => ({ tamanho: ..., quantidade: ... }))
+--        reconstrói cada item do zero, descartando chaves extras.
+--    Um código gravado ali seria apagado em silêncio na primeira edição de
+--    grade, e etiquetas já coladas nas peças parariam de casar com o banco
+--    sem ninguém perceber. Falha silenciosa em cima de etiqueta física é o
+--    pior desfecho possível.
+--
+-- ─── O QUE FOI FEITO ────────────────────────────────────────────────────────
+-- O código é DERIVADO, em src/utils/codigoBarras.js:
+--
+--     codigo = PRE-XXXXXXXX-YYYY
+--       PRE       3 letras do loja_id (legibilidade na etiqueta)
+--       XXXXXXXX  8 primeiros hex do uuid do produto
+--       YYYY      hash FNV-1a de (loja_id | produto_id | rótulo), base36
+--
+-- A trinca (loja_id, produto_id, rótulo) é exatamente a identidade que o
+-- sistema já usa para baixar estoque, então o código não tem como divergir do
+-- que o estoque enxerga. Alfabeto restrito a A-Z, 0-9 e hífen — compatível
+-- com Code128 e seguro em leitor configurado como teclado ABNT2.
+--
+-- Custo assumido: renomear uma cor muda o código e invalida etiquetas já
+-- impressas daquela variação. É raro, é visível (a peça não bipa e cai na
+-- busca manual, que continua funcionando) e se resolve reimprimindo.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CAMINHO ALTERNATIVO (não aplicar sem necessidade real)
+--
+-- Se um dia for preciso um código IMUTÁVEL — por exemplo, se renomear cor
+-- virar rotina —, a forma segura NÃO é o JSONB, e sim uma tabela própria, que
+-- nenhum rewrite de `variacoes` alcança:
+--
+--   -- rodar manualmente no SQL Editor
+--   create table if not exists public.lf_produto_codigos (
+--     id          uuid primary key default gen_random_uuid(),
+--     loja_id     text not null,
+--     produto_id  uuid not null references public.lf_produtos (id) on delete cascade,
+--     rotulo      text not null,
+--     codigo      text not null,
+--     criado_em   timestamptz not null default now(),
+--     unique (produto_id, rotulo),
+--     unique (loja_id, codigo)
+--   );
+--
+--   create index if not exists lf_produto_codigos_codigo_idx
+--     on public.lf_produto_codigos (loja_id, codigo);
+--
+--   alter table public.lf_produto_codigos enable row level security;
+--
+--   create policy "codigos_rw_own_loja"
+--   on public.lf_produto_codigos for all
+--   to authenticated
+--   using      (loja_id = (auth.jwt() -> 'app_metadata' ->> 'loja_id'))
+--   with check (loja_id = (auth.jwt() -> 'app_metadata' ->> 'loja_id'));
+--
+-- Nesse cenário, buscarPorCodigo() passaria a consultar esta tabela e a
+-- derivação viraria só o fallback para produto ainda sem código gravado.
+-- ─────────────────────────────────────────────────────────────────────────────
