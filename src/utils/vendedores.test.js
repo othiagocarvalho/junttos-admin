@@ -3,6 +3,7 @@ import {
   SEM_VENDEDOR, normalizarNomeVendedor, chaveVendedor,
   validarNovoVendedor, opcoesVendedor, vendedorParaVenda,
 } from './vendedores'
+import { calcularComissoes } from './comissao'
 
 describe('SEM_VENDEDOR', () => {
   it('tem valor VAZIO, não o texto "Sem vendedor"', () => {
@@ -139,29 +140,35 @@ describe('vendedorParaVenda', () => {
 })
 
 // Fecha o ciclo com a regra real do relatório.
-describe('integração com o agrupamento da comissão', () => {
-  const agrupar = vendas => {
-    const mapa = {}
-    vendas.forEach(v => {
-      const nome = v.vendedora || 'Sem vendedor(a)'
-      mapa[nome] = (mapa[nome] || 0) + Number(v.valor)
-    })
-    return mapa
-  }
+//
+// Este bloco reproduzia a mão o agrupamento antigo (igualdade exata de string
+// + linha "Sem vendedor(a)"). Essa regra deixou de existir: quem calcula agora
+// é calcularComissoes(), e o teste passa a exercitar a função de verdade em vez
+// de uma cópia dela — cópia em teste envelhece sem avisar, que foi exatamente
+// o que aconteceu aqui.
+describe('integração: o que vendedorParaVenda grava alimenta o cálculo real', () => {
+  const cadastro = [{ nome: 'Ana Lívia', comissao_percentual: 5 }]
 
-  it('duas vendas do mesmo vendedor caem na MESMA linha', () => {
+  it('variações de digitação da mesma pessoa caem na MESMA linha', () => {
     const vendas = [
       { vendedora: vendedorParaVenda('Ana Lívia'), valor: 100 },
       { vendedora: vendedorParaVenda('  Ana   Lívia '), valor: 50 },
     ]
-    expect(agrupar(vendas)).toEqual({ 'Ana Lívia': 150 })
+    const linhas = calcularComissoes(vendas, cadastro)
+    expect(linhas).toHaveLength(1)
+    expect(linhas[0]).toMatchObject({ nome: 'Ana Lívia', total: 150, pct: 5, comissao: 7.5 })
   })
 
-  it('"Sem vendedor" cai na linha que já existia', () => {
+  it('"Sem vendedor" grava null e NÃO entra na comissão', () => {
+    // Mudança deliberada: antes virava uma linha "Sem vendedor(a)" com
+    // comissão calculada, inflando o total a pagar sem ter quem receber.
     const vendas = [
       { vendedora: vendedorParaVenda(SEM_VENDEDOR.valor), valor: 30 },
-      { vendedora: null, valor: 20 },   // venda antiga, sem vendedor
+      { vendedora: null, valor: 20 },
+      { vendedora: vendedorParaVenda('Ana Lívia'), valor: 100 },
     ]
-    expect(agrupar(vendas)).toEqual({ 'Sem vendedor(a)': 50 })
+    const linhas = calcularComissoes(vendas, cadastro)
+    expect(linhas).toHaveLength(1)
+    expect(linhas[0].nome).toBe('Ana Lívia')
   })
 })

@@ -18,18 +18,56 @@ import Button from '../studio/Button'
 import Toggle from '../studio/Toggle'
 import { useVendedores } from './useVendedores'
 import { validarNovoVendedor } from '../../utils/vendedores'
+import { validarPercentual, normalizarPercentual } from '../../utils/comissao'
+
+/** Percentual editável de uma linha da lista. */
+function ComissaoInput({ valor, aoSalvar }) {
+  const [texto, setTexto] = useState(String(valor ?? 0))
+  const [erro, setErro] = useState(false)
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <input
+        value={texto}
+        onChange={e => { setTexto(e.target.value); setErro(!!validarPercentual(e.target.value)) }}
+        onBlur={e => {
+          // Lê do DOM, não do estado: se o blur chegar antes de o React
+          // reprocessar a última tecla, `texto` ainda seria o valor anterior e
+          // a alteração se perderia em silêncio.
+          const bruto = e.target.value
+          if (validarPercentual(bruto)) { setTexto(String(valor ?? 0)); setErro(false); return }
+          const limpo = normalizarPercentual(bruto)
+          setTexto(String(limpo))
+          setErro(false)
+          if (limpo !== Number(valor ?? 0)) aoSalvar(limpo)
+        }}
+        type="number" min="0" max="100" step="0.5" inputMode="decimal"
+        aria-label="Percentual de comissão"
+        style={{
+          width: 62, height: 34, textAlign: 'right', boxSizing: 'border-box',
+          border: `1px solid ${erro ? 'var(--status-bad-dot, #fca5a5)' : 'var(--line)'}`,
+          borderRadius: 8, padding: '0 7px', background: 'var(--surface)',
+          fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink)',
+        }}
+      />
+      <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)' }}>%</span>
+    </div>
+  )
+}
 
 export default function VendedoresConfig({ lojaId, theme }) {
-  const { vendedores, carregando, erro, adicionar, definirAtivo } = useVendedores(lojaId)
+  const { vendedores, carregando, erro, adicionar, definirAtivo, definirComissao } = useVendedores(lojaId)
   const [novo, setNovo] = useState('')
+  const [novaComissao, setNovaComissao] = useState('')
   const [msg, setMsg] = useState(null)
   const [salvando, setSalvando] = useState(false)
 
   async function handleAdicionar() {
     const problema = validarNovoVendedor(novo, vendedores.map(v => v.nome))
+      || validarPercentual(novaComissao)
     if (problema) { setMsg({ tipo: 'erro', texto: problema }); return }
     setSalvando(true)
-    const e = await adicionar(novo)
+    const e = await adicionar(novo, novaComissao)
     setSalvando(false)
     if (e) {
       // 23505 = o índice único (loja_id, lower(btrim(nome))) da migration.
@@ -42,6 +80,7 @@ export default function VendedoresConfig({ lojaId, theme }) {
       return
     }
     setNovo('')
+    setNovaComissao('')
     setMsg({ tipo: 'ok', texto: 'Vendedor adicionado.' })
     setTimeout(() => setMsg(null), 2600)
   }
@@ -60,7 +99,8 @@ export default function VendedoresConfig({ lojaId, theme }) {
       <p style={{ margin: '0 0 16px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5 }}>
         Quem aparece na lista da Nova Venda. Com o nome escolhido em vez de digitado,
         a comissão nos Relatórios para de se dividir em linhas por causa de espaço
-        ou letra maiúscula.
+        ou letra maiúscula. Cada um tem o seu percentual — quem fica em 0% aparece
+        no relatório com o faturamento, mas sem valor a receber.
       </p>
 
       {erro ? (
@@ -71,13 +111,22 @@ export default function VendedoresConfig({ lojaId, theme }) {
       ) : (
         <>
           <Label>Adicionar vendedor</Label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 160px', minWidth: 140 }}>
               <Input
                 value={novo}
                 onChange={e => { setNovo(e.target.value); setMsg(null) }}
                 onKeyDown={e => e.key === 'Enter' && handleAdicionar()}
                 placeholder="Nome do vendedor"
+              />
+            </div>
+            <div style={{ flex: '0 0 104px' }}>
+              <Input
+                value={novaComissao}
+                onChange={e => { setNovaComissao(e.target.value); setMsg(null) }}
+                onKeyDown={e => e.key === 'Enter' && handleAdicionar()}
+                placeholder="% comissão"
+                type="number" min="0" max="100" step="0.5" inputMode="decimal"
               />
             </div>
             <Button onClick={handleAdicionar} disabled={salvando || !novo.trim()}>
@@ -119,6 +168,12 @@ export default function VendedoresConfig({ lojaId, theme }) {
                             textDecoration: v.ativo ? 'none' : 'line-through',
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           }}>{v.nome}</span>
+                          {/* Grava no blur, não a cada tecla: digitar "10" passaria
+                              por "1" e mandaria um UPDATE intermediário. */}
+                          <ComissaoInput
+                            valor={v.comissao_percentual}
+                            aoSalvar={pct => definirComissao(v.id, pct)}
+                          />
                           <Toggle on={v.ativo} onClick={() => definirAtivo(v.id, !v.ativo)} />
                         </div>
                       ))}

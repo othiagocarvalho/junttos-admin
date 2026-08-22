@@ -5,6 +5,7 @@ import { StatGrid } from '../../components/studio/StatCard'
 import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -292,7 +293,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, config, temAcessoPro }) {
+export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '' }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -355,19 +356,11 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
     })
   }, [filtered, temAcessoPro])
 
-  const comissaoVendedoras = useMemo(() => {
-    if (!temAcessoPro || filtered.length === 0) return []
-    const mapa = {}
-    filtered.forEach(v => {
-      const nome = v.vendedora || 'Sem vendedor(a)'
-      if (!mapa[nome]) mapa[nome] = { nome, total: 0 }
-      mapa[nome].total += Number(v.valor)
-    })
-    const pct = Number(config?.comissao_percentual || 0)
-    return Object.values(mapa)
-      .sort((a, b) => b.total - a.total)
-      .map(v => ({ ...v, comissao: v.total * (pct / 100), pct }))
-  }, [filtered, config, temAcessoPro])
+  // O cálculo saiu daqui para src/utils/comissao.js, e a renderização para
+  // ComissaoVendedores — o mesmo bloco passa a servir mobile e desktop, que
+  // antes não tinha comissão nenhuma. O percentual agora é de cada vendedor
+  // (lf_vendedores.comissao_percentual); lf_config.comissao_percentual deixou
+  // de ser lido, mas continua no banco, intocado.
 
   if (showDetalhadas) {
     return (
@@ -540,29 +533,9 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         </div>
       )}
 
-      {/* Comissão por vendedora — Pro+ */}
-      {temAcessoPro && comissaoVendedoras.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: '20px 18px' }}>
-          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 16 }}>
-            Comissão por vendedor(a)
-          </p>
-          {comissaoVendedoras[0]?.pct === 0 && (
-            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#ca8a04', background: 'rgba(202,138,4,0.08)', border: '1px solid rgba(202,138,4,0.2)', borderRadius: 'var(--r-input)', padding: '8px 12px', marginBottom: 12 }}>
-              Configure o percentual de comissão em Configurações
-            </p>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {comissaoVendedoras.map(v => (
-              <div key={v.nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.nome}</p>
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>{fmtR(v.total)} vendido · {v.pct}% comissão</p>
-                </div>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: theme.primary, flexShrink: 0 }}>{fmtR(v.comissao)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Comissão por vendedor(a) — Pro+ */}
+      {temAcessoPro && (
+        <ComissaoVendedores lojaId={LOJA_ID} vendas={filtered} theme={theme} compacto />
       )}
 
       {/* Vendas detalhadas card */}
