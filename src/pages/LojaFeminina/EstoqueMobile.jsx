@@ -75,6 +75,9 @@ export function buildProdPayload(form) {
   }
 }
 
+import EtiquetasPrint from '../../components/etiquetas/EtiquetasPrint'
+import { etiquetasDoProduto, etiquetasDeProdutos } from '../../utils/codigoBarras'
+
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
   // Balanço que está travando as vendas desta loja. Fica aqui porque o Estoque
   // é a única tela que a lojista alcança — o /balanco é do admin, então sem
@@ -91,6 +94,10 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
   const [newProdSaving, setNewProdSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null) // { produto }
+  // Etiquetas com código de barras. `etiquetas` aberto = modal de impressão.
+  // `selecao` é o modo lote: um Set de ids marcados na lista.
+  const [etiquetas, setEtiquetas] = useState(null)
+  const [selecao, setSelecao] = useState(null)   // null = modo lote desligado
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const [deleteToast, setDeleteToast] = useState('')
@@ -209,6 +216,23 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     setDeleteToast('Produto excluído.')
     setTimeout(() => setDeleteToast(''), 2500)
     if (fetchAll) fetchAll()
+  }
+
+  function abrirEtiquetasDoProduto(produto) {
+    setEtiquetas(etiquetasDoProduto(produto, LOJA_ID || produto.loja_id))
+  }
+
+  function alternarSelecao(id) {
+    setSelecao(prev => {
+      const s = new Set(prev || [])
+      if (s.has(id)) s.delete(id); else s.add(id)
+      return s
+    })
+  }
+
+  function abrirEtiquetasDoLote() {
+    const escolhidos = filtered.filter(p => selecao?.has(p.id))
+    setEtiquetas(etiquetasDeProdutos(escolhidos, LOJA_ID))
   }
 
   function openEditProd(produto) {
@@ -396,6 +420,47 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       </div>
 
       {/* Busca + botão novo produto */}
+      {/* Modo lote de etiquetas: marca vários produtos e imprime de uma vez.
+          Fica desligado por padrão para não poluir a lista de quem só quer
+          conferir estoque. */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setSelecao(selecao ? null : new Set())}
+          style={{
+            height: 34, padding: '0 12px', borderRadius: 99, cursor: 'pointer',
+            border: `1px solid ${selecao ? theme.primary : 'var(--line)'}`,
+            background: selecao ? `${theme.primary}14` : 'var(--surface)',
+            color: selecao ? theme.primary : 'var(--muted)',
+            fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 700,
+          }}
+        >
+          {selecao ? 'Cancelar seleção' : 'Etiquetas em lote'}
+        </button>
+        {selecao && (
+          <>
+            <button
+              onClick={() => setSelecao(new Set(filtered.map(p => p.id)))}
+              style={{ height: 34, padding: '0 12px', borderRadius: 99, cursor: 'pointer', border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 600 }}
+            >
+              Marcar todos ({filtered.length})
+            </button>
+            <button
+              onClick={abrirEtiquetasDoLote}
+              disabled={!selecao.size}
+              style={{
+                height: 34, padding: '0 14px', borderRadius: 99, marginLeft: 'auto',
+                border: 'none', background: selecao.size ? theme.primary : 'var(--line)',
+                color: selecao.size ? '#fff' : 'var(--muted)',
+                cursor: selecao.size ? 'pointer' : 'not-allowed',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 700,
+              }}
+            >
+              Gerar ({selecao.size})
+            </button>
+          </>
+        )}
+      </div>
+
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -448,6 +513,19 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             <div key={produto.id} style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)', overflow: 'hidden' }}>
 
               {/* Cabeçalho colapsável */}
+              {selecao && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 18px 0', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selecao.has(produto.id)}
+                    onChange={() => alternarSelecao(produto.id)}
+                    style={{ width: 17, height: 17, cursor: 'pointer', accentColor: theme.primary }}
+                  />
+                  <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                    Incluir nas etiquetas
+                  </span>
+                </label>
+              )}
               <div
                 onClick={() => toggleExpand(produto.id)}
                 role="button"
@@ -595,7 +673,20 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     </div>
                   )}
 
-                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+                  <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Etiquetas: uma por variação. Sem gate de plano — vale
+                        para Starter, Pro e Business. */}
+                    <button
+                      onClick={() => abrirEtiquetasDoProduto(produto)}
+                      style={{
+                        width: '100%', height: 36, borderRadius: 10,
+                        border: `1px solid ${theme.primary}`, background: 'transparent',
+                        cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        fontSize: 12, fontWeight: 700, color: theme.primary,
+                      }}
+                    >
+                      Gerar etiquetas
+                    </button>
                     <button
                       onClick={() => setDeleteConfirm({ produto })}
                       style={{
@@ -1159,6 +1250,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             </div>
           </div>
         </div>
+      )}
+
+      {etiquetas && (
+        <EtiquetasPrint
+          etiquetas={etiquetas}
+          aoFechar={() => setEtiquetas(null)}
+          theme={theme}
+        />
       )}
     </div>
   )

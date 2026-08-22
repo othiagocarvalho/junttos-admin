@@ -138,6 +138,20 @@ function useTravaScroll(ativo) {
  * Sem isso o Tab do teclado escapa para a página atrás do modal.
  */
 function useFocoPreso(ref, ativo, aoFechar) {
+  // aoFechar fica numa ref, e NÃO nas dependências do efeito abaixo.
+  //
+  // Os dois chamadores passam arrow inline (`aoFechar={() => setDrawerAberto(false)}`),
+  // que ganha identidade nova a cada render do pai. Com aoFechar nas deps, o
+  // efeito rodava de novo a cada tecla digitada nos campos de nome e WhatsApp
+  // do drawer — e como a primeira coisa que ele faz é `focaveis()[0].focus()`,
+  // o foco saltava do input para o botão ✕ a cada caractere. A cliente tinha
+  // de clicar no campo de novo a cada letra.
+  //
+  // A ref mantém o handler de Escape sempre atualizado sem ressuscitar o
+  // efeito. Vale igual para o ModalProduto, que usa o mesmo hook.
+  const aoFecharRef = useRef(aoFechar)
+  useEffect(() => { aoFecharRef.current = aoFechar })
+
   useEffect(() => {
     if (!ativo || !ref.current) return
     const painel = ref.current
@@ -148,7 +162,7 @@ function useFocoPreso(ref, ativo, aoFechar) {
     focaveis()[0]?.focus()
 
     function aoTeclar(e) {
-      if (e.key === 'Escape') { e.preventDefault(); aoFechar?.(); return }
+      if (e.key === 'Escape') { e.preventDefault(); aoFecharRef.current?.(); return }
       if (e.key !== 'Tab') return
       const lista = focaveis()
       if (!lista.length) return
@@ -160,7 +174,8 @@ function useFocoPreso(ref, ativo, aoFechar) {
 
     painel.addEventListener('keydown', aoTeclar)
     return () => painel.removeEventListener('keydown', aoTeclar)
-  }, [ativo, ref, aoFechar])
+    // aoFechar de fora de propósito — ver a nota no topo da função.
+  }, [ativo, ref])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

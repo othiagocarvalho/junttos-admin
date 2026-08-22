@@ -3,6 +3,8 @@ import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, Che
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
+import CampoScanner from '../../components/etiquetas/CampoScanner'
+import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
@@ -142,6 +144,24 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
+  }
+
+  /**
+   * Adiciona ao carrinho a variação bipada no leitor.
+   *
+   * Convive com a busca manual — não substitui: peça sem etiqueta continua
+   * entrando pela lista de produtos, como sempre.
+   */
+  function lerCodigoBarras(codigo) {
+    const achado = buscarPorCodigo(produtosData, LOJA_ID, codigo)
+    if (!achado) return { ok: false, texto: 'Código não encontrado nesta loja' }
+    setForm(f => ({
+      ...f,
+      produtos: adicionarAoCarrinho(f.produtos, {
+        nome: achado.produto.nome, variacao: achado.rotulo,
+      }),
+    }))
+    return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
   }
 
   function toggleProd(nome) {
@@ -650,6 +670,18 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               onRemover={removerSelecionado}
               primary={theme.primary}
             />
+
+            {/* Leitor de código de barras. Fica ACIMA da busca porque é o
+                caminho rápido de quem tem a peça etiquetada na mão; a busca
+                manual continua logo abaixo, intacta, para o resto. */}
+            <div style={{ marginBottom: 10 }}>
+              <CampoScanner
+                aoLer={lerCodigoBarras}
+                theme={theme}
+                autoFoco={false}
+                dica="Ou busque pelo nome abaixo"
+              />
+            </div>
 
             {/* Busca por nome — estoque grande fica impraticável de rolar. */}
             <div style={{ position: 'relative' }}>
