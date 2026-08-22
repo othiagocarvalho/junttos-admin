@@ -3,6 +3,9 @@ import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, Che
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
+import SelectVendedor from '../../components/vendedores/SelectVendedor'
+import { vendedorParaVenda } from '../../utils/vendedores'
+import { temAcesso } from '../../utils/planos'
 import CampoScanner from '../../components/etiquetas/CampoScanner'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
@@ -45,7 +48,10 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '' }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null }) {
+  // Mesmo critério que libera a comissão automática nos Relatórios
+  // (index.jsx: temAcesso(plano, 'pro')). Sem gate novo.
+  const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   // Lido uma única vez, na montagem: o initializer preguiçoso do useState não
   // roda de novo a cada render (useRef(lerRascunho(...)) reabriria o
   // localStorage a cada tecla digitada) e o valor pode ser lido durante o render.
@@ -245,7 +251,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
-      vendedora: form.vendedora || null,
+      // Normaliza na gravação: o nome guardado tem de ser idêntico ao que
+      // Relatorios.jsx soma, que agrupa por igualdade exata de string.
+      vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -487,8 +495,22 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             </Field>
             <Field label="Vendedor(a)">
-              <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
-                placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              {/* Pro+ escolhe de uma lista cadastrada; abaixo disso o campo de
+                  texto continua EXATAMENTE como era. O campo nunca teve gate,
+                  e é lido pelo recibo (recibo.js, ReciboVenda.jsx), pela busca
+                  do histórico e pela corrida de vendedoras (corrida.js) —
+                  tirá-lo de quem não é Pro removeria função que já existe. */}
+              {temAcessoVendedores ? (
+                <SelectVendedor
+                  lojaId={LOJA_ID}
+                  valor={form.vendedora}
+                  aoMudar={v => setForm({ ...form, vendedora: v })}
+                  style={inputBase}
+                />
+              ) : (
+                <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
+                  placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              )}
             </Field>
             <Field label="Observações">
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}

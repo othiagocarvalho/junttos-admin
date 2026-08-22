@@ -18,6 +18,8 @@ import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '..
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/CatalogoB2BAdminDesktop'
 import CampoScanner from '../../components/etiquetas/CampoScanner'
+import SelectVendedor from '../../components/vendedores/SelectVendedor'
+import { vendedorParaVenda } from '../../utils/vendedores'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import Meta from '../LojaFeminina/Meta'
 import Fechamento from '../LojaFeminina/Fechamento'
@@ -689,7 +691,9 @@ const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{
 // tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
 const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '' }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
+  // Mesmo critério da comissão automática nos Relatórios (temAcesso(plano, 'pro')).
+  const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   const isDark = theme.primary === '#D4A017'
   // Ver NovaVenda mobile: initializer preguiçoso, lido uma vez na montagem.
   const [rascunho] = useState(() => lerRascunho(LOJA_ID))
@@ -859,7 +863,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
-      vendedora: form.vendedora || null,
+      // Normaliza na gravação — o nome tem de bater exatamente com o que
+      // Relatorios.jsx agrupa.
+      vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -1088,7 +1094,20 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             </div>
             <div>
               <label style={lbl}>Vendedor(a)</label>
-              <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
+              {/* Pro+ escolhe da lista; abaixo disso o texto livre continua
+                  como era. O campo nunca teve gate e alimenta recibo, busca do
+                  histórico e corrida de vendedoras — remover seria tirar
+                  função existente de quem não é Pro. */}
+              {temAcessoVendedores ? (
+                <SelectVendedor
+                  lojaId={LOJA_ID}
+                  valor={form.vendedora}
+                  aoMudar={v => setForm({ ...form, vendedora: v })}
+                  style={inputS}
+                />
+              ) : (
+                <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
+              )}
             </div>
             <div>
               <label style={lbl}>Observações</label>
