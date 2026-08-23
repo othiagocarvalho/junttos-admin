@@ -1833,6 +1833,9 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
@@ -1933,7 +1936,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={data.LOJA_ID} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
-      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={data.LOJA_ID} />
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     financeiro: temAcesso(plano, 'business')
       ? <FinanceiroDesktop data={data} theme={theme} />

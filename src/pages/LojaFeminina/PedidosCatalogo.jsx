@@ -201,6 +201,10 @@ export default function PedidosCatalogo({
    */
   async function salvarEdicao() {
     if (!editando) return
+    if (typeof updatePedido !== 'function') {
+      setErroEdicao('A edição não está disponível nesta tela. Atualize a página.')
+      return
+    }
     setSalvandoEdicao(true)
     setErroEdicao('')
     try {
@@ -219,6 +223,18 @@ export default function PedidosCatalogo({
 
   async function confirmarExclusao() {
     if (!confirmandoExclusao) return
+    // Prop não passada = chamada de uma função inexistente, e no bundle
+    // minificado isso vira "r is not a function" na cara da lojista. Foi
+    // exatamente o que aconteceu: ClientDashboardDesktop montava este
+    // componente sem excluirPedido. O guarda transforma um erro críptico numa
+    // frase que diz o que houve, e nunca deixa a exclusão parecer que tentou.
+    if (typeof excluirPedido !== 'function') {
+      setErroExclusao(
+        'A exclusão não está disponível nesta tela. Atualize a página; se '
+        + 'continuar, avise o suporte. Nada foi alterado.',
+      )
+      return
+    }
     setExcluindo(true)
     setErroExclusao('')
     try {
