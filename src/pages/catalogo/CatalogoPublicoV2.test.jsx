@@ -1039,3 +1039,56 @@ describe('logo da loja — nunca cortada, em qualquer proporção', () => {
     expect(card).toContain('object-fit:cover')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Nome da loja duplicado abaixo da logo
+//
+// A logo da loja quase sempre já traz o nome escrito, e a tela de catálogo
+// despublicado mostrava "Tropicale Atacado" duas vezes seguidas: na imagem e
+// num texto logo abaixo.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('CatalogoForaDoAr — nome não repete a logo', () => {
+  const comLogo = lojaDaConfig({
+    nome: 'TropicaleAtacado', whatsapp_loja: '85999990000', logo_url: 'https://x/logo.png',
+  })
+  const semLogo = lojaDaConfig({ nome: 'TropicaleAtacado', whatsapp_loja: '85999990000' })
+
+  /** Quantas vezes o nome aparece como TEXTO (o alt da img não conta). */
+  const vezesNoTexto = s => (s.replace(/alt="[^"]*"/g, '').match(/TropicaleAtacado/g) || []).length
+
+  it('com logo, o nome NÃO aparece como texto — quem diz é a imagem', () => {
+    const s = html(<CatalogoForaDoAr loja={comLogo} aoChamar={() => {}} />)
+    expect(vezesNoTexto(s)).toBe(0)
+    // A logo continua lá, e o alt continua carregando o nome para leitor de
+    // tela e para quando a imagem não carrega.
+    expect(s).toContain('alt="TropicaleAtacado"')
+  })
+
+  it('SEM logo, o nome continua — é a única identificação da tela', () => {
+    // Sem logo o LogoLoja desenha só a inicial; tirar o nome deixaria a
+    // pessoa sem saber em que loja entrou.
+    const s = html(<CatalogoForaDoAr loja={semLogo} aoChamar={() => {}} />)
+    expect(vezesNoTexto(s)).toBe(1)
+    expect(s).not.toContain('<img')
+  })
+
+  it('o espaço até o título não muda com o nome fora', () => {
+    // A linha do nome somava 10px de margem própria; sem ela a logo assume
+    // esse espaço, para não sobrar buraco nem apertar.
+    expect(html(<CatalogoForaDoAr loja={comLogo} aoChamar={() => {}} />)).toContain('margin:0 auto 28px')
+    expect(html(<CatalogoForaDoAr loja={semLogo} aoChamar={() => {}} />)).toContain('margin:0 auto 20px')
+  })
+
+  it('o resto da tela continua inteiro', () => {
+    const s = html(<CatalogoForaDoAr loja={comLogo} aoChamar={() => {}} />)
+    expect(s).toContain('Estamos preparando a próxima coleção')
+    expect(s).toContain('Falar no WhatsApp')
+  })
+
+  it('no CABEÇALHO o nome fica — lá ele ancora o subtítulo', () => {
+    // Decisão consciente: no cabeçalho o nome está ao LADO da logo e forma um
+    // bloco de marca com "Catálogo online". Removê-lo orfanaria o subtítulo.
+    const s = html(<Cabecalho loja={comLogo} busca="" setBusca={() => {}} totalPecas={0} aoAbrirPedido={() => {}} />)
+    expect(vezesNoTexto(s)).toBe(1)
+  })
+})
