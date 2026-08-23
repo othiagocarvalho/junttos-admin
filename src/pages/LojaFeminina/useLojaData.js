@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 import { checarTravaBalanco } from '../../utils/balanco'
-import { normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
+import { precisaDevolverEstoque, normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
 const _DEMO_MULT_DIA = [
@@ -251,10 +251,24 @@ export function useLojaData(lojaId = 'estrada') {
    *
    * @param produtosItens itens no formato de lf_vendas.produtos ou lf_pedidos.produtos
    * @param modo 'baixa' | 'restauro'
+   *
+   * ─── O RETORNO É NOVO, O COMPORTAMENTO NÃO ──────────────────────────────
+   * Antes esta função engolia a falha: dava console.error e seguia para o
+   * próximo produto, devolvendo undefined sempre. Isso serve para venda e
+   * troca, onde travar o fluxo por um produto seria pior do que registrar o
+   * erro — e continua igual, porque todos os chamadores antigos ignoram o
+   * retorno.
+   *
+   * O que mudou é que agora ela DIZ o que falhou, numa lista. Quem precisa
+   * decidir em cima disso — excluirPedido, que não pode apagar o pedido sem
+   * ter devolvido as peças — passa a conseguir.
+   *
+   * @returns {Promise<Array<{nome, mensagem}>>} vazia quando tudo gravou
    */
   async function aplicarEstoque(produtosItens, { modo, tipo, origemTipo = null, origemId = null, motivo = null }) {
+    const falhas = []
     const itens = normalizarItensEstoque(produtosItens)
-    if (itens.length === 0) return
+    if (itens.length === 0) return falhas
 
     for (const grupo of agruparPorNome(itens)) {
       const { data: prod } = await supabase
@@ -263,6 +277,10 @@ export function useLojaData(lojaId = 'estrada') {
         .eq('loja_id', lojaId)
         .eq('nome', grupo.nome)
         .maybeSingle()
+      // Produto sumiu do catálogo: não há estoque para mexer, então não é
+      // falha de gravação — é ausência de alvo. Bloquear por isso deixaria o
+      // pedido impossível de excluir para sempre. Mesmo comportamento que
+      // cancelarPedido já tinha.
       if (!prod) continue
 
       const novasVariacoes = modo === 'baixa'
@@ -270,8 +288,12 @@ export function useLojaData(lojaId = 'estrada') {
         : restaurarVariacoes(prod.variacoes, grupo.itens)
 
       const error = await gravarVariacoes(prod.id, novasVariacoes, { tipo, origemTipo, origemId, motivo })
-      if (error) console.error('[estoque] gravação de variações falhou:', error.message, grupo.nome)
+      if (error) {
+        console.error('[estoque] gravação de variações falhou:', error.message, grupo.nome)
+        falhas.push({ nome: grupo.nome, mensagem: error.message })
+      }
     }
+    return falhas
   }
 
   // Update de variacoes com o contexto de movimentação. Cai no update direto
@@ -779,13 +801,29 @@ export function useLojaData(lojaId = 'estrada') {
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
   /**
-   * Apaga um pedido do catálogo, de vez.
+   * Apaga um pedido do catálogo, de vez — devolvendo o estoque antes.
    *
-   * ─── NÃO É O MESMO QUE CANCELAR ─────────────────────────────────────────
-   * cancelarPedido muda o status e DEVOLVE ao estoque o que o checkout tinha
-   * baixado. Excluir apaga a linha e não devolve nada — se o pedido chegou a
-   * baixar estoque, cancele ANTES de excluir, ou a peça fica reservada num
-   * pedido que não existe mais. A tela avisa isso na confirmação.
+   * ─── POR QUE DEVOLVE ────────────────────────────────────────────────────
+   * A baixa acontece na CRIAÇÃO do pedido (lf_pedido_baixa_estoque), não no
+   * pagamento. A primeira versão desta função só apagava a linha, e quem
+   * excluísse um pedido sem cancelar antes deixava a peça reservada num
+   * pedido que não existe mais: furo de estoque silencioso.
+   *
+   * Agora a devolução é a MESMA de cancelarPedido — aplicarEstoque em modo
+   * 'restauro'. Nada de lógica paralela: um caminho só para devolver peça.
+   *
+   * ─── QUANDO NÃO DEVOLVE ─────────────────────────────────────────────────
+   * Pedido já cancelado teve o estoque devolvido no cancelamento. Devolver de
+   * novo duplicaria peças — o erro oposto, igualmente caro. Quem decide é
+   * precisaDevolverEstoque(status), em utils/estoqueMov.js.
+   *
+   * ─── A ORDEM IMPORTA ────────────────────────────────────────────────────
+   * Devolve PRIMEIRO, apaga depois. Se a devolução falhar, o DELETE não
+   * acontece e o pedido continua lá — é sempre melhor um pedido a mais na
+   * lista do que uma peça a menos no estoque.
+   *
+   * E se a devolução der certo mas o DELETE falhar, o estoque ficaria inflado
+   * com o pedido ainda vivo. Esse caso é compensado: refaz a baixa e avisa.
    *
    * Serve para pedido de teste e pedido duplicado, que hoje ficam para sempre
    * poluindo a lista e as somas.
@@ -802,11 +840,65 @@ export function useLojaData(lojaId = 'estrada') {
    * acusar erro numa exclusão que funcionou.
    */
   async function excluirPedido(id) {
+    // ── 1. Lê o pedido ANTES de apagar ────────────────────────────────────
+    // Depois do DELETE não há mais de onde tirar os itens nem o status.
+    const { data: pedido, error: erroLeitura } = await supabase
+      .from('lf_pedidos')
+      .select('status, produtos')
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+      .maybeSingle()
+
+    if (erroLeitura) throw erroLeitura
+    if (!pedido) {
+      throw new Error(
+        'Pedido não encontrado. Ele pode já ter sido excluído — atualize a '
+        + 'lista. Nada foi alterado.',
+      )
+    }
+
+    // ── 2. Devolve o estoque, se ainda não foi devolvido ──────────────────
+    const devolveu = precisaDevolverEstoque(pedido.status)
+    if (devolveu) {
+      const falhas = await aplicarEstoque(pedido.produtos, {
+        modo:       'restauro',
+        tipo:       'devolucao',
+        origemTipo: 'pedido',
+        origemId:   id,
+        motivo:     'Pedido excluído',
+      })
+      // Aborta ANTES do DELETE: apagar o pedido sem ter devolvido as peças é
+      // exatamente o furo que esta função existe para não abrir.
+      if (falhas.length > 0) {
+        throw new Error(
+          'Não foi possível devolver ao estoque: '
+          + falhas.map(f => f.nome).join(', ')
+          + '. O pedido NÃO foi excluído — nada foi alterado.',
+        )
+      }
+    }
+
+    // ── 3. Só então apaga ─────────────────────────────────────────────────
     const { error, count } = await supabase
       .from('lf_pedidos')
       .delete({ count: 'exact' })
       .eq('id', id)
       .eq('loja_id', lojaId)
+
+    // O DELETE falhou DEPOIS de a devolução ter passado: o pedido continua
+    // vivo e o estoque já subiu. Refaz a baixa para o banco voltar ao estado
+    // anterior — sem isso, tentar excluir de novo somaria peça a cada
+    // tentativa.
+    const falhouDelete = !!error || count === 0
+    if (falhouDelete && devolveu) {
+      await aplicarEstoque(pedido.produtos, {
+        modo:       'baixa',
+        tipo:       'venda',
+        origemTipo: 'pedido',
+        origemId:   id,
+        motivo:     'Exclusão desfeita — estoque devolvido à reserva',
+      })
+    }
 
     if (error) throw error
     if (count === 0) {
