@@ -7,169 +7,142 @@ import {
 // O ponto destes testes é uma decisão de segurança, não de UI: o access token
 // do Mercado Pago NÃO pode ir para lf_config, que não tem RLS e é lida pelo
 // catálogo público com select('*') direto do navegador.
-
-// `sessao` e `count` entraram junto com a correção da falha silenciosa:
-//   • sessao: null simula a sessão expirada do relato;
-//   • count: quantas linhas o UPDATE pegou. 0 é o no-op silencioso — o
-//     PostgREST devolve 204 SEM erro nesse caso, e era assim que a tela
-//     mostrava sucesso sem ter gravado nada.
+//
+// A gravação deixou de ser UPDATE via PostgREST e virou a função
+// public.salvar_credencial_mercadopago (SECURITY DEFINER). Motivo: sem policy
+// de SELECT nesta tabela — que é o que mantém o token ilegível pelo navegador
+// — os dois caminhos de UPDATE morrem, e por causas opostas:
+//
+//   com WHERE  → o Postgres aplica policies de SELECT para ler a coluna do
+//                filtro, não acha nenhuma, esconde a linha: 0 linhas, 204,
+//                nenhum erro. (medido no banco em 23/08/2026)
+//   sem WHERE  → 400 21000 "UPDATE requires a WHERE clause", trava nativa do
+//                PostgREST. (confirmado em produção em 23/08/2026)
+//
+// Por isso o fake abaixo NÃO expõe `.from`: se o código voltar a mandar
+// insert/update daqui, vira TypeError e o teste quebra na hora.
 function clientFake({
-  erroInsert = null, erroUpdate = null, count = 1,
-  sessao = { access_token: 'jwt-de-teste' }, erroSessao = null,
+  erroRpc = null,
+  sessao  = { access_token: 'jwt-de-teste' }, erroSessao = null,
 } = {}) {
-  const c = { inserts: [], updates: [], opcoesUpdate: null }
+  const c = { rpcs: [] }
   c.auth = {
     getSession: async () => ({ data: { session: sessao }, error: erroSessao }),
   }
-  c.from = tabela => ({
-    insert: linha => {
-      c.inserts.push({ tabela, linha })
-      return Promise.resolve({ error: erroInsert })
-    },
-    // Sem `.eq` de propósito: o UPDATE não pode ter WHERE (ver o teste
-    // "o UPDATE não pode ter WHERE"). Se o código voltar a encadear um
-    // filtro, isto vira TypeError e o teste quebra na hora.
-    update: (linha, opcoes) => {
-      c.opcoesUpdate = opcoes
-      c.updates.push({ tabela, linha })
-      return Promise.resolve({ error: erroUpdate, count })
-    },
-  })
+  c.rpc = (fn, params) => {
+    c.rpcs.push({ fn, params })
+    return Promise.resolve({ data: null, error: erroRpc })
+  }
   return c
 }
 
-const UNIQUE = { code: '23505', message: 'duplicate key value violates unique constraint' }
+const RPC = 'salvar_credencial_mercadopago'
 
 describe('salvarCredencialMercadoPago', () => {
-  it('grava em lf_credenciais_pagamento, nunca em lf_config', async () => {
+  it('chama a função de gravação, e não uma escrita direta em tabela', async () => {
     const c = clientFake()
     await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-1', webhookSecret: 's3g' })
-    expect(c.inserts).toHaveLength(1)
-    expect(c.inserts[0].tabela).toBe('lf_credenciais_pagamento')
-    expect(c.inserts[0].tabela).not.toBe('lf_config')
+    expect(c.rpcs).toHaveLength(1)
+    expect(c.rpcs[0].fn).toBe(RPC)
+    // Nunca em lf_config, que não tem RLS e o catálogo público lê inteira.
+    expect(c.rpcs[0].fn).not.toMatch(/lf_config/)
   })
 
-  it('NÃO usa upsert — ON CONFLICT exige policy de SELECT, que a tabela não tem', async () => {
-    // Este é o bug que quebrou produção: `.upsert(..., {onConflict})` vira
-    // INSERT ... ON CONFLICT DO UPDATE, e o Postgres precisa enxergar a linha
-    // conflitante por uma policy de SELECT para resolver. A tabela não tem
-    // nenhuma, de propósito, para o token não voltar ao navegador.
+  it('NÃO manda insert nem update daqui — os dois caminhos estão fechados', async () => {
+    // Substitui o antigo "NÃO usa upsert". A raiz é a mesma dos três bugs:
+    // upsert precisava enxergar a linha para resolver ON CONFLICT, o UPDATE
+    // com WHERE precisava enxergá-la para o filtro, e sem WHERE o PostgREST
+    // recusa. Quem faz ON CONFLICT agora é a função, onde não há RLS
+    // escondendo nada.
     const c = clientFake()
-    expect(c.from('lf_credenciais_pagamento').upsert).toBeUndefined()
+    expect(c.from).toBeUndefined()
     await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
-    expect(c.inserts).toHaveLength(1)
+    expect(c.rpcs).toHaveLength(1)
   })
 
-  it('grava token e segredo na linha da loja', async () => {
+  it('manda loja, token e segredo como parâmetros da função', async () => {
     const c = clientFake()
     await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-1', webhookSecret: 's3g' })
-    expect(c.inserts[0].linha).toMatchObject({
-      loja_id: 'tropicaleatacado',
-      mercadopago_access_token: 'APP_USR-1',
-      mercadopago_webhook_secret: 's3g',
+    expect(c.rpcs[0].params).toEqual({
+      p_loja_id:        'tropicaleatacado',
+      p_access_token:   'APP_USR-1',
+      p_webhook_secret: 's3g',
     })
   })
 
-  it('loja que já tem credencial cai no UPDATE, sem erro para a usuária', async () => {
-    const c = clientFake({ erroInsert: UNIQUE })
+  it('não manda atualizado_em — o carimbo é do relógio do servidor', async () => {
+    // Antes ia `new Date().toISOString()` do navegador. A função usa now(),
+    // que não depende do relógio da máquina da lojista estar certo.
+    const c = clientFake()
+    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })
+    expect('atualizado_em' in c.rpcs[0].params).toBe(false)
+  })
+
+  it('primeira gravação e regravação são a mesma chamada', async () => {
+    // O ON CONFLICT mora na função: o cliente não precisa mais tentar INSERT,
+    // levar 409 e cair num UPDATE. Aquele 409 no console some junto.
+    const c = clientFake()
     const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'novo' })
     expect(error).toBeNull()
-    expect(c.updates).toHaveLength(1)
-    expect(c.updates[0].linha.mercadopago_access_token).toBe('novo')
-    // O UPDATE não pode tentar reescrever a chave primária.
-    expect(c.updates[0].linha.loja_id).toBeUndefined()
-  })
-
-  it('erro que não é 23505 sobe, em vez de virar UPDATE às cegas', async () => {
-    const rls = { code: '42501', message: 'new row violates row-level security policy' }
-    const c = clientFake({ erroInsert: rls })
-    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
-    expect(error).toBe(rls)
-    expect(c.updates).toHaveLength(0)
-  })
-
-  it('falha no UPDATE também é propagada', async () => {
-    const c = clientFake({ erroInsert: UNIQUE, erroUpdate: { message: 'permission denied' } })
-    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
-    expect(error.message).toBe('permission denied')
+    expect(c.rpcs).toHaveLength(1)
   })
 
   it('apara espaço — token colado do painel do MP vem com sobra', async () => {
     const c = clientFake()
     await salvarCredencialMercadoPago(c, 'x', { token: '  APP_USR-1  ', webhookSecret: '  s  ' })
-    expect(c.inserts[0].linha.mercadopago_access_token).toBe('APP_USR-1')
-    expect(c.inserts[0].linha.mercadopago_webhook_secret).toBe('s')
+    expect(c.rpcs[0].params.p_access_token).toBe('APP_USR-1')
+    expect(c.rpcs[0].params.p_webhook_secret).toBe('s')
   })
 
   // ── Campo vazio MANTÉM o que está gravado ───────────────────────────────
-  // Este bloco substitui um teste que cristalizava o bug: ele afirmava que
-  // "campo vazio grava null, o que desconfigura a loja" — e era exatamente
-  // isso que impedia a Tropicale de ter token e segredo salvos ao mesmo
-  // tempo. O placeholder dos dois campos promete "Deixe vazio para manter o
-  // atual"; agora o código cumpre a promessa.
+  // `null` no parâmetro é o contrato de "não mexe nesta coluna": a função faz
+  // coalesce(excluded.x, cred.x). Verificado contra o banco em 23/08/2026, em
+  // transação abortada — gravando só o token, o segredo ficou intacto.
 
-  it('só o access token digitado: o segredo do webhook NÃO é tocado', async () => {
-    const c = clientFake({ erroInsert: UNIQUE })
+  it('só o access token digitado: o segredo do webhook vai NULL (preserva)', async () => {
+    const c = clientFake()
     await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-1', webhookSecret: '' })
-    const linha = c.updates[0].linha
-    expect(linha.mercadopago_access_token).toBe('APP_USR-1')
-    // Ausente, não null: coluna que não vai no PATCH é coluna que o Postgres
-    // não mexe. `null` aqui APAGARIA o segredo já gravado.
-    expect('mercadopago_webhook_secret' in linha).toBe(false)
+    expect(c.rpcs[0].params.p_access_token).toBe('APP_USR-1')
+    expect(c.rpcs[0].params.p_webhook_secret).toBeNull()
   })
 
-  it('só o segredo do webhook digitado: o access token NÃO é tocado', async () => {
+  it('só o segredo do webhook digitado: o access token vai NULL (preserva)', async () => {
     // A sequência exata do relato: token salvo antes, tela limpa os campos,
     // lojista volta e digita só a chave do webhook. Antes, isto apagava o
     // token e derrubava o Pix com QR Code.
-    const c = clientFake({ erroInsert: UNIQUE })
+    const c = clientFake()
     await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: '', webhookSecret: 's3g' })
-    const linha = c.updates[0].linha
-    expect(linha.mercadopago_webhook_secret).toBe('s3g')
-    expect('mercadopago_access_token' in linha).toBe(false)
+    expect(c.rpcs[0].params.p_webhook_secret).toBe('s3g')
+    expect(c.rpcs[0].params.p_access_token).toBeNull()
   })
 
   it('espaço em branco conta como vazio, não como valor', async () => {
-    const c = clientFake({ erroInsert: UNIQUE })
+    const c = clientFake()
     await salvarCredencialMercadoPago(c, 'x', { token: '   ', webhookSecret: 's3g' })
-    expect('mercadopago_access_token' in c.updates[0].linha).toBe(false)
+    expect(c.rpcs[0].params.p_access_token).toBeNull()
   })
 
-  it('nada digitado não gera escrita nenhuma', async () => {
+  it('nada digitado não gera chamada nenhuma', async () => {
     // Salvar a tela de Configurações sem tocar nas chaves não pode mandar um
     // write — no desenho antigo esse write apagava as duas de uma vez.
     const c = clientFake()
     const { error } = await salvarCredencialMercadoPago(c, 'x', { token: '', webhookSecret: '' })
     expect(error).toBeNull()
-    expect(c.inserts).toHaveLength(0)
-    expect(c.updates).toHaveLength(0)
-  })
-
-  it('atualizado_em vai junto mesmo quando só um campo mudou', async () => {
-    const c = clientFake({ erroInsert: UNIQUE })
-    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })
-    expect(c.updates[0].linha.atualizado_em).toBeTruthy()
-  })
-
-  it('loja nova com só um campo: o outro nasce ausente, e o default cuida', async () => {
-    const c = clientFake()
-    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1', webhookSecret: '' })
-    expect(c.inserts[0].linha.mercadopago_access_token).toBe('APP_USR-1')
-    expect('mercadopago_webhook_secret' in c.inserts[0].linha).toBe(false)
+    expect(c.rpcs).toHaveLength(0)
   })
 
   it('sem lojaId nem chega a tocar no banco', async () => {
     const c = clientFake()
     const { error } = await salvarCredencialMercadoPago(c, '', { token: 'a' })
     expect(error).toBeTruthy()
-    expect(c.inserts).toHaveLength(0)
+    expect(c.rpcs).toHaveLength(0)
   })
 
-  it('não encadeia .select() — pedir a linha de volta bateria na falta de policy', async () => {
+  it('sucesso é ausência de erro — não há mais count para interpretar', async () => {
+    // A função ou lança exceção, ou o ON CONFLICT gravou. Não existe caminho
+    // que responda sucesso sem ter escrito, que era o buraco do 204.
     const c = clientFake()
-    expect(c.from('lf_credenciais_pagamento').select).toBeUndefined()
-    await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
-    expect(c.inserts).toHaveLength(1)
+    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })).error).toBeNull()
   })
 })
 
@@ -227,108 +200,66 @@ describe('pareceTokenDeTeste', () => {
   })
 })
 
-
 // ─────────────────────────────────────────────────────────────────────────────
-// A falha silenciosa relatada em 25/08/2026
-//
-// A Tropicale preenchia o Access Token, salvava, via a confirmação na tela — e
-// `atualizado_em` no banco ficava com o mesmo timestamp. Causa: no PostgREST,
-// UPDATE que não casa nenhuma linha é 204 SEM ERRO, e esta tabela filtra por
-// RLS contra o claim do JWT. Sessão ruim = linha invisível = no-op silencioso.
+// Erros que a função devolve — cada um com mensagem que diz o que fazer.
+// A falha silenciosa de 25/08/2026 (204 sem gravar) não tem mais como existir:
+// o caminho de sucesso agora escreve por construção.
 // ─────────────────────────────────────────────────────────────────────────────
-describe('falha silenciosa: UPDATE que não pega linha nenhuma', () => {
-  it('count 0 vira ERRO — era isto que a tela engolia', async () => {
-    const c = clientFake({ erroInsert: UNIQUE, count: 0 })
-    const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-x' })
+describe('erros vindos da função de gravação', () => {
+  it('função ausente no banco: manda rodar a migration, em vez de "não salva"', async () => {
+    // PGRST202 = o PostgREST não achou a função. Acontece se o deploy do
+    // código subir antes de rodar a migration, que é DDL e vai à mão.
+    const c = clientFake({ erroRpc: { code: 'PGRST202', message: 'Could not find the function' } })
+    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })
     expect(error).toBeTruthy()
-    expect(error.message).toMatch(/não encontrou a credencial/i)
-    // E o UPDATE chegou a ser tentado: o erro é sobre o resultado, não sobre
-    // ter desistido antes.
-    expect(c.updates).toHaveLength(1)
+    expect(error.message).toMatch(/migration_rpc_salvar_credencial_mp\.sql/)
+    expect(error.message).toMatch(/nada foi gravado/i)
   })
 
-  it('count 1 é sucesso, como sempre foi', async () => {
-    const c = clientFake({ erroInsert: UNIQUE, count: 1 })
-    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+  it('claim de loja que não bate vira mensagem de sessão, não erro cru', async () => {
+    // 42501 é o errcode que a função lança quando
+    // auth.jwt() -> app_metadata ->> loja_id difere da loja alvo. Verificado
+    // no banco em 23/08/2026: claim de outra loja e claim ausente foram os
+    // dois rejeitados sem escrever.
+    const c = clientFake({ erroRpc: { code: '42501', message: 'insufficient_privilege' } })
+    const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-1' })
+    expect(error.message).toMatch(/não tem permissão para esta loja/i)
+    expect(error.message).toMatch(/nada foi gravado/i)
   })
 
-  it('o UPDATE não pode ter WHERE — foi o WHERE que causou a falha silenciosa', async () => {
-    // Causa raiz medida no banco em 23/08/2026, como `authenticated` com o
-    // claim da Tropicale (transação abortada, nada gravado):
-    //
-    //     select visível                           → 0
-    //     update ... WHERE loja_id = 'tropicale…'  → 0   ← o bug
-    //     update ... (sem WHERE)                   → 1
-    //
-    // Coluna no WHERE exige permissão de SELECT, e isso faz o Postgres
-    // aplicar as policies de SELECT. Esta tabela não tem nenhuma, de
-    // propósito — então a linha some para o WHERE e o UPDATE vira no-op com
-    // resposta 204. Quem recorta por loja é o RLS, não a query.
-    const c = clientFake({ erroInsert: UNIQUE })
-    await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'novo' })
-    expect(c.updates).toHaveLength(1)
-    expect(c.updates[0]).not.toHaveProperty('filtro')
-    // A chave primária também não vai no corpo: o UPDATE não reescreve loja_id.
-    expect(c.updates[0].linha.loja_id).toBeUndefined()
-  })
-
-  it('count acima de 1 vira erro — sem WHERE, quem protege é o RLS', async () => {
-    // Sem filtro na query, o RLS é a única coisa que impede a gravação de
-    // vazar para outras lojas. Se ele parar de recortar, precisa gritar.
-    const c = clientFake({ erroInsert: UNIQUE, count: 3 })
-    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
-    expect(error).toBeTruthy()
-    expect(error.message).toMatch(/3 lojas/)
-  })
-
-  it('count null NÃO vira erro — desconhecido não é falha', async () => {
-    // Se um dia o PostgREST não mandar o Content-Range, o comportamento volta
-    // a ser o de antes em vez de recusar uma gravação que funcionou.
-    const c = clientFake({ erroInsert: UNIQUE, count: null })
-    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
-  })
-
-  it('pede a contagem exata ao PostgREST', async () => {
-    // Sem o Prefer: count=exact o supabase-js nem tenta ler o Content-Range,
-    // e `count` chega sempre null — a defesa acima viraria decoração.
-    const c = clientFake({ erroInsert: UNIQUE })
-    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })
-    expect(c.opcoesUpdate).toEqual({ count: 'exact' })
-  })
-
-  it('INSERT que passa de primeira não precisa de contagem', async () => {
-    const c = clientFake()
-    expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
-    expect(c.updates).toHaveLength(0)
+  it('erro desconhecido sobe como veio, sem ser mascarado', async () => {
+    const cru = { code: '08006', message: 'connection failure' }
+    const c = clientFake({ erroRpc: cru })
+    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })
+    expect(error).toBe(cru)
   })
 })
 
 describe('sessão expirada — não manda escrita condenada', () => {
-  it('sem sessão devolve erro explicando, e NÃO escreve nada', async () => {
+  it('sem sessão devolve erro explicando, e NÃO chama a função', async () => {
     const c = clientFake({ sessao: null })
     const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-x' })
     expect(error).toBeTruthy()
     expect(error.message).toMatch(/sessão expirou/i)
-    expect(c.inserts).toHaveLength(0)
-    expect(c.updates).toHaveLength(0)
+    expect(c.rpcs).toHaveLength(0)
   })
 
   it('sessão sem access_token conta como sem sessão', async () => {
     const c = clientFake({ sessao: {} })
     expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeTruthy()
-    expect(c.inserts).toHaveLength(0)
+    expect(c.rpcs).toHaveLength(0)
   })
 
   it('erro ao ler a sessão sobe, não é engolido', async () => {
     const c = clientFake({ erroSessao: new Error('storage indisponível') })
     const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })
     expect(error.message).toBe('storage indisponível')
-    expect(c.inserts).toHaveLength(0)
+    expect(c.rpcs).toHaveLength(0)
   })
 
   it('com sessão válida o caminho normal continua igual', async () => {
     const c = clientFake()
     expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
-    expect(c.inserts).toHaveLength(1)
+    expect(c.rpcs).toHaveLength(1)
   })
 })

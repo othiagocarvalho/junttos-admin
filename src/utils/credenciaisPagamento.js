@@ -7,92 +7,92 @@
 // visitante do catálogo, e com ele dá para criar cobranças e listar pagamentos
 // da conta do lojista.
 //
-// O token mora em lf_credenciais_pagamento, que tem RLS com policies de
-// INSERT/UPDATE só para a própria loja e NENHUMA policy de SELECT: nem a
-// lojista lê o token de volta. Quem enxerga é a service_role, dentro das Edge
-// Functions. Ver supabase/migration_mercadopago_pix.sql.
+// O token mora em lf_credenciais_pagamento, que tem RLS e NENHUMA policy de
+// SELECT: nem a lojista lê o token de volta. Quem enxerga é a service_role,
+// dentro das Edge Functions. Ver supabase/migration_mercadopago_pix.sql.
+//
+// A gravação não é feita daqui: é a função SECURITY DEFINER
+// public.salvar_credencial_mercadopago, em
+// supabase/migration_rpc_salvar_credencial_mp.sql. O porquê está no bloco da
+// função abaixo — em resumo, a ausência de policy de SELECT fecha os dois
+// caminhos de UPDATE via PostgREST.
 //
 // Em lf_config fica apenas `mercadopago_ativo`, um booleano sem valor de
 // segredo, que é o que o catálogo usa para decidir se oferece o QR dinâmico.
 
 /**
- * Grava (ou limpa) as credenciais do Mercado Pago da loja.
+ * Grava as credenciais do Mercado Pago da loja.
  *
- * ─── POR QUE NÃO É UM upsert ───────────────────────────────────────────────
- * A versão anterior usava `.upsert(..., { onConflict: 'loja_id' })` e quebrava
- * em produção com:
+ * ─── POR QUE É UMA FUNÇÃO NO BANCO, E NÃO UM UPDATE DAQUI ──────────────────
+ * Porque os dois jeitos de mandar UPDATE pelo PostgREST estão fechados, e não
+ * por acidente: os dois esbarram na MESMA decisão de segurança, que é esta
+ * tabela não ter policy de SELECT nenhuma para o token nunca voltar ao
+ * navegador.
  *
- *   new row violates row-level security policy for table
- *   lf_credenciais_pagamento
+ *   com  .eq('loja_id', …)  → coluna citada no WHERE exige permissão de
+ *                             SELECT, e isso faz o Postgres aplicar as
+ *                             policies de SELECT. Não existe nenhuma, então a
+ *                             linha some para o WHERE: 0 linhas afetadas,
+ *                             resposta 204, nenhum erro. Silêncio total.
+ *                             (medido no banco em 23/08/2026)
  *
- * `upsert` vira `INSERT ... ON CONFLICT (loja_id) DO UPDATE`, e o Postgres
- * exige que a linha conflitante seja VISÍVEL por uma policy de SELECT para
- * conseguir resolver o conflito. Esta tabela não tem policy de SELECT
- * nenhuma — é justamente o desenho que impede o token de voltar para o
- * navegador (ver supabase/migration_mercadopago_pix.sql). As duas coisas são
- * incompatíveis: ou a lojista lê o token de volta, ou não dá para usar
- * upsert. Manter o token ilegível vale mais.
+ *   sem  .eq('loja_id', …)  → o PostgREST recusa a operação inteira:
+ *                             400  21000  "UPDATE requires a WHERE clause".
+ *                             (confirmado em produção em 23/08/2026)
  *
- * Então: tenta INSERT; se a loja já tiver linha (23505, unique_violation),
- * faz UPDATE. Nenhum dos dois caminhos precisa de SELECT.
+ * Historicamente isto já tinha mordido uma terceira vez, com outra cara: o
+ * `.upsert(..., { onConflict: 'loja_id' })` original quebrava com "new row
+ * violates row-level security policy", porque `INSERT ... ON CONFLICT DO
+ * UPDATE` também precisa ENXERGAR a linha conflitante para resolver o
+ * conflito. Mesma raiz, terceira manifestação.
  *
- * Nenhum `.select()` encadeado, pelo mesmo motivo: pedir a linha de volta
- * bateria na ausência de policy de SELECT e faria a tela mostrar erro depois
- * de uma gravação bem-sucedida.
+ * Não há lado bom para escolher — o caminho todo está fechado. Então a
+ * gravação sai daqui e vira `public.salvar_credencial_mercadopago`, uma função
+ * SECURITY DEFINER (ver supabase/migration_rpc_salvar_credencial_mp.sql):
  *
- * ─── A FALHA SILENCIOSA QUE ISTO CORRIGE ───────────────────────────────────
+ *   • roda como dona da função, então enxerga a linha sem depender de policy
+ *     de SELECT — e o ON CONFLICT volta a funcionar lá dentro;
+ *   • não é PATCH, então a trava de WHERE do PostgREST não se aplica;
+ *   • confere `auth.jwt() -> 'app_metadata' ->> 'loja_id'` contra o loja_id
+ *     alvo ANTES de escrever, e aborta com 42501 (→ HTTP 403) se não bater.
+ *     É a mesma comparação que a policy de UPDATE fazia; a proteção por loja
+ *     não sumiu, mudou de lugar para onde o Postgres consegue aplicá-la;
+ *   • retorna void. Nunca lê nem devolve token ou segredo do webhook — a
+ *     tabela segue sem policy de SELECT e ilegível pelo navegador.
+ *
+ * ─── A FALHA SILENCIOSA QUE ISTO ENCERRA ───────────────────────────────────
  * Relato de 25/08/2026: a Tropicale preenchia o Access Token, salvava, via a
- * confirmação verde na tela — e `atualizado_em` no banco continuava com o
- * mesmo timestamp. Nada era gravado, e ninguém era avisado.
+ * confirmação na tela — e `atualizado_em` no banco continuava igual. Nada era
+ * gravado e ninguém era avisado, porque um UPDATE que não casa nenhuma linha é
+ * 204 SEM ERRO no PostgREST.
  *
- * O motivo é uma característica do PostgREST que morde exatamente aqui: um
- * UPDATE que não casa NENHUMA linha é 204 SEM ERRO. Como esta tabela filtra
- * por RLS (`loja_id` tem de bater com o claim do JWT), basta a sessão estar
- * ruim para o UPDATE virar um no-op perfeitamente silencioso — e o
- * `error` que esta função devolvia vinha null.
- *
- * Combina com a outra pista do relato, o
- * "[auth] refresh ao voltar para a aba falhou": sessão instável no momento do
- * salvamento é justamente o que faz a linha sumir de dentro da policy.
- *
- * Duas defesas, nesta ordem:
- *   1. sem sessão, nem tenta — devolve erro explicando que precisa entrar de
- *      novo, em vez de mandar uma escrita que já se sabe condenada;
- *   2. o UPDATE pede `count: 'exact'`, e zero linha vira ERRO. O count vem do
- *      header Content-Range e não depende de policy de SELECT (que esta tabela
- *      não tem, de propósito).
- *
- * `count` null é tratado como DESCONHECIDO, não como falha: se um dia o
- * PostgREST não mandar o header, o comportamento volta a ser o de antes em vez
- * de recusar uma gravação que funcionou.
+ * Com a função isso deixa de ser possível: ou ela lança exceção (e o erro
+ * chega aqui), ou o `ON CONFLICT` gravou — não existe caminho do meio que
+ * responda sucesso sem ter escrito. A checagem de `count` que existia aqui
+ * saiu junto com o UPDATE; quem garante agora é o próprio banco.
  *
  * ─── CAMPO VAZIO MANTÉM O QUE ESTÁ GRAVADO ─────────────────────────────────
  * Relato da Tropicale de 23/08/2026: "não consigo salvar o Access Token e a
- * chave do webhook". A tela promete, no placeholder de cada campo,
- * "Deixe vazio para manter o atual" — e o código fazia o contrário:
+ * chave do webhook". A tela promete, no placeholder de cada campo, "Deixe
+ * vazio para manter o atual" — e o código fazia o contrário, mandando NULL e
+ * APAGANDO o valor gravado. Como a tela limpa os dois campos depois de cada
+ * salvamento (o token não volta do banco, então não há o que reexibir):
  *
- *     mercadopago_access_token:   token?.trim()         || null
- *     mercadopago_webhook_secret: webhookSecret?.trim() || null
- *
- * Campo vazio virava NULL, ou seja, APAGAVA o valor gravado. Como a tela
- * limpa os dois campos depois de cada salvamento bem-sucedido (o token não
- * volta do banco, então não há o que reexibir), a sequência natural
- *
- *     1. cola o Access Token, salva          -> token gravado, segredo NULO
- *     2. cola a chave do webhook, salva      -> segredo gravado, TOKEN APAGADO
+ *     1. cola o Access Token, salva      -> token gravado, segredo NULO
+ *     2. cola a chave do webhook, salva  -> segredo gravado, TOKEN APAGADO
  *
  * nunca deixava os dois valores no banco ao mesmo tempo. Para a lojista isso
- * aparece como "não salva", e é recorrente por construção: cada salvamento
- * desfaz o anterior.
+ * aparece como "não salva", e é recorrente por construção.
  *
- * Agora só vai para o banco o campo que foi realmente digitado. Vazio não é
- * enviado, então o UPDATE não toca naquela coluna e o INSERT a deixa no
- * default (NULL, que é o correto quando não havia nada mesmo).
+ * Campo vazio agora vira `null` no parâmetro, e a função trata `null` como
+ * "não mexe nesta coluna" (`coalesce(excluded.x, cred.x)`). Verificado contra
+ * o banco em 23/08/2026, em transação abortada: gravando só o token, o segredo
+ * do webhook ficou intacto.
  *
- * Consequência assumida: não existe mais "apagar limpando o campo". Nunca foi
- * um caminho oferecido pela tela — o placeholder diz o oposto — e apagar uma
- * credencial sem querer é bem pior do que precisar de um botão explícito, que
- * hoje não existe em lugar nenhum da UI.
+ * Consequência assumida, a mesma de antes: não existe "apagar limpando o
+ * campo". Nunca foi um caminho oferecido pela tela — o placeholder diz o
+ * oposto — e apagar uma credencial sem querer é bem pior do que precisar de um
+ * botão explícito, que hoje não existe em lugar nenhum da UI.
  *
  * @returns {Promise<{error: Error|null}>}
  */
@@ -108,9 +108,10 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
   if (!tokenNovo && !segredoNovo) return { error: null }
 
   // ── Defesa 1: sessão ────────────────────────────────────────────────────
-  // As policies desta tabela são `to authenticated`. Sem sessão, o
-  // supabase-js manda a anon key (ver src/lib/authRefresh.js) e a escrita não
-  // tem como dar certo — o INSERT é recusado e o UPDATE não acha linha.
+  // A função é `grant execute ... to authenticated`, e a checagem de loja lá
+  // dentro lê o claim do JWT. Sem sessão o supabase-js manda a anon key (ver
+  // src/lib/authRefresh.js), que não tem permissão de executar nem claim para
+  // conferir. Avisar aqui é melhor do que mandar uma chamada já condenada.
   const { data: sessao, error: erroSessao } = await client.auth.getSession()
   if (erroSessao) return { error: erroSessao }
   if (!sessao?.session?.access_token) {
@@ -122,82 +123,46 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
     }
   }
 
-  // Só o que foi digitado. Coluna ausente = coluna intocada no UPDATE.
-  const linha = { atualizado_em: new Date().toISOString() }
-  if (tokenNovo)   linha.mercadopago_access_token   = tokenNovo
-  if (segredoNovo) linha.mercadopago_webhook_secret = segredoNovo
+  // `null`, não string vazia: é `null` que a função lê como "não mexe nesta
+  // coluna". String vazia viraria null lá dentro também (ela faz
+  // `nullif(btrim(...), '')`), mas mandar explícito deixa o contrato claro dos
+  // dois lados.
+  const { error } = await client.rpc('salvar_credencial_mercadopago', {
+    p_loja_id:        lojaId,
+    p_access_token:   tokenNovo   || null,
+    p_webhook_secret: segredoNovo || null,
+  })
 
-  const { error: erroInsert } = await client
-    .from('lf_credenciais_pagamento')
-    .insert({ loja_id: lojaId, ...linha })
+  if (!error) return { error: null }
 
-  if (!erroInsert) return { error: null }
-
-  // 23505 = unique_violation: a loja já tem credencial gravada. É o caminho
-  // NORMAL de toda gravação depois da primeira, e é ele que produz o 409 que
-  // aparece no console — 409 aqui é esperado, não é o defeito. Qualquer outro
-  // erro é real e sobe.
-  if (erroInsert.code !== '23505') return { error: erroInsert }
-
-  // ── Defesa 2: UPDATE que não pegou linha nenhuma ────────────────────────
-  //
-  // SEM `.eq('loja_id', lojaId)`, e isso é o conserto — não um descuido.
-  //
-  // Medido no banco de produção em 23/08/2026, como `authenticated` e com o
-  // claim da Tropicale, tudo dentro de transação abortada:
-  //
-  //     select visível                            → 0 linhas
-  //     update ... WHERE loja_id = 'tropicale…'   → 0 linhas
-  //     update ... (sem WHERE)                    → 1 linha
-  //
-  // Era o WHERE que matava a gravação. Coluna citada no WHERE exige permissão
-  // de SELECT, e isso faz o Postgres aplicar as policies de SELECT — que esta
-  // tabela NÃO TEM, de propósito, para o token nunca voltar ao navegador. Sem
-  // policy de SELECT a linha fica invisível para o WHERE, o UPDATE casa zero
-  // linhas e o PostgREST responde 204. Silêncio total.
-  //
-  // É a MESMA raiz do bug do upsert descrito lá em cima: `ON CONFLICT DO
-  // UPDATE` também precisava enxergar a linha. Trocar upsert por UPDATE não
-  // resolveu, só trocou um erro barulhento por um no-op mudo.
-  //
-  // Tirar o filtro é seguro porque a policy de UPDATE já faz esse recorte:
-  //
-  //     using (loja_id = (auth.jwt() -> 'app_metadata' ->> 'loja_id'))
-  //
-  // conferida no banco em 23/08/2026, e `loja_id` é a chave primária — no
-  // máximo uma linha casa, a da própria loja. Foi o que o teste sem WHERE
-  // mostrou: exatamente 1. A restrição continua existindo; só mudou de lugar,
-  // da query para o RLS, que é onde o Postgres consegue aplicá-la.
-  const { error: erroUpdate, count } = await client
-    .from('lf_credenciais_pagamento')
-    .update(linha, { count: 'exact' })
-
-  if (erroUpdate) return { error: erroUpdate }
-
-  if (count === 0) {
+  // PGRST202 = o PostgREST não achou a função. Acontece se o deploy do código
+  // subir antes de alguém rodar
+  // supabase/migration_rpc_salvar_credencial_mp.sql, que é DDL e vai à mão.
+  // Sem esta mensagem o sintoma seria "não salva" outra vez, agora por um
+  // motivo novo — e já perdemos tempo demais com esse sintoma.
+  if (error.code === 'PGRST202') {
     return {
       error: new Error(
-        'O banco não encontrou a credencial desta loja para atualizar. '
-        + 'Normalmente é sessão expirada: saia, entre de novo e repita. '
-        + 'Se continuar, avise o suporte — nada foi gravado.',
+        'A função de gravação ainda não existe no banco. '
+        + 'É preciso rodar a migration supabase/migration_rpc_salvar_credencial_mp.sql '
+        + 'no Supabase antes de salvar credenciais. Nada foi gravado.',
       ),
     }
   }
 
-  // Mais de uma linha significa que o RLS parou de recortar por loja — é a
-  // única coisa que separa esta loja das outras agora que a query não tem
-  // WHERE. Não deve acontecer nunca; se acontecer é incidente de segurança e
-  // precisa aparecer, não passar batido.
-  if (count > 1) {
+  // 42501 = a função recusou: o claim de loja da sessão não bate com a loja
+  // que se tentou gravar. Na prática é sessão antiga, emitida antes de a loja
+  // entrar no app_metadata do usuário.
+  if (error.code === '42501') {
     return {
       error: new Error(
-        `A gravação atingiu ${count} lojas em vez de uma. Isso indica falha na `
-        + 'proteção por loja no banco (RLS). Avise o suporte imediatamente.',
+        'O banco recusou a gravação: a sessão atual não tem permissão para '
+        + 'esta loja. Saia, entre de novo e repita. Nada foi gravado.',
       ),
     }
   }
 
-  return { error: null }
+  return { error }
 }
 
 /**

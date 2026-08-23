@@ -1,3 +1,23 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ►► SUPERADO EM 23/08/2026. LEIA ISTO ANTES DO RESTO. ◄◄
+--
+-- A correção descrita na seção B (tirar o `.eq('loja_id', …)` do UPDATE) foi
+-- para produção no commit d81be1a e FALHOU de outro jeito:
+--
+--     400  21000  "UPDATE requires a WHERE clause"
+--
+-- É trava nativa do PostgREST contra UPDATE sem filtro. Ou seja: COM filtro o
+-- RLS esconde a linha (0 linhas, 204 silencioso); SEM filtro o PostgREST
+-- recusa a operação inteira. Os dois lados fechados.
+--
+-- A solução passou a ser uma função SECURITY DEFINER:
+--     supabase/migration_rpc_salvar_credencial_mp.sql   ← rode ESTA
+--
+-- O diagnóstico das seções A e C continua válido e vale a leitura — em
+-- especial a seção C, que segue valendo: NÃO crie policy de SELECT nesta
+-- tabela sem revogar antes o SELECT por coluna dos dois campos de segredo.
+-- ═══════════════════════════════════════════════════════════════════════════
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Tropicale — PATCH 204 com `content-range: */0`, token nunca gravado.
 -- CAUSA RAIZ CONFIRMADA em 23/08/2026, medida no banco de produção.
