@@ -1347,7 +1347,30 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
       {/* Passo 2 — Coluna 1, linha 2: grade de produtos */}
       {step === 1 && (
-      <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
+      /* Cartão de altura LIMITADA, em coluna flex. Quem rola por dentro é só
+         a lista de produtos (flex: 1 mais abaixo); cabeçalho, busca, botões e
+         o bloco "Selecionados" ficam sempre à vista.
+
+         A altura sai da janela, não de um número fixo: um número fixo foi a
+         primeira tentativa e quebrou assim que a faixa "N SELECIONADO"
+         aparecia acima da lista e empurrava o rodapé para fora da tela. Com
+         flex, qualquer bloco que apareça ou suma é absorvido pela lista
+         sozinho — inclusive os que ainda não existem.
+
+         O 140 é o topo do cartão (106px, já com a linha da grade acima) mais
+         a folga de baixo — medido, não estimado. O piso de 420px
+         evita que numa janela muito baixa o cartão vire uma fresta; abaixo
+         disso a página volta a rolar, que é o certo nesse extremo. */
+      <div style={{
+        gridColumn: 1, gridRow: 2, minWidth: 0,
+        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
+        display: 'flex', flexDirection: 'column',
+        // border-box é obrigatório aqui: sem ele o max-height vale só para a
+        // caixa de CONTEÚDO e os 24px de padding de cada lado ficam POR FORA —
+        // o cartão media 832px com o teto em 782 e o rodapé caía da tela.
+        boxSizing: 'border-box',
+        maxHeight: 'max(420px, calc(100dvh - 140px))',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
@@ -1539,14 +1562,44 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           )}
         </div>
 
-        {/* A lista não tem maxHeight própria: com o resumo fixo à direita ela
-            rola junto com a página, em vez de criar um segundo scroll. */}
+        {/* ── Rolagem própria da lista ────────────────────────────────────
+            REVERTE uma decisão anterior, que dizia: "a lista não tem maxHeight
+            própria: com o resumo fixo à direita ela rola junto com a página,
+            em vez de criar um segundo scroll".
+
+            O resumo sticky resolve o botão sair da tela, mas não resolve a
+            página ficar quilométrica: com 37 produtos (Tropicale) a barra de
+            rolagem do navegador vira um fio, e voltar ao topo para usar a
+            busca custa uma rolagem inteira. Contendo a lista, a página quase
+            não rola e o cartão inteiro — busca, "Novo produto" e resumo —
+            fica sempre à vista.
+
+            O que rola é SÓ a lista: o cabeçalho do cartão e a busca ficam
+            fora do container e não saem da tela.
+
+            A altura acompanha a janela em vez de ser um número fixo, que é o
+            que faz isso funcionar tanto em notebook baixo quanto em monitor
+            grande. O piso de 220px evita que numa janela muito baixa a lista
+            vire uma fresta; abaixo disso, a página volta a rolar, que é o
+            comportamento correto nesse extremo. */}
         {produtosFiltrados.length === 0 ? (
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 12px' }}>
             Nenhum produto encontrado
           </p>
         ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column',
+          // Absorve toda a altura que sobrar dentro do cartão.
+          flex: '1 1 auto',
+          // minHeight: 0 é obrigatório: item de flex nasce com min-height auto
+          // e se recusa a encolher abaixo do conteúdo — sem isto o overflow
+          // não vira rolagem e o cartão estoura para fora da tela.
+          minHeight: 0,
+          overflowY: 'auto',
+          // Sem isto o item do fim encosta na borda do container e parece
+          // cortado justamente quando a rolagem chega ao fim.
+          paddingBottom: 2,
+        }}>
           {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
             const vars = (pd?.variacoes || []).map(v => {
