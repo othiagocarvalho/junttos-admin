@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Label } from '../../components/studio/Input'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
@@ -15,6 +15,7 @@ import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { contemBusca } from '../../utils/texto'
+import { revelarBloco } from '../../utils/revelarVariacoes'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
 import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/CatalogoB2BAdminDesktop'
@@ -148,7 +149,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
     <aside
       style={{
         position: 'fixed', left: 0, top: 0,
-        width: 250, height: '100dvh',
+        width: 250, height: '100vh',
         background: 'var(--surface)',
         display: 'flex', flexDirection: 'column',
         zIndex: 50, fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -718,6 +719,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? false)
   const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [varModalTroca,setVarModalTroca]= useState(null)
+
+  // Abrir um produto insere o bloco de variações ABAIXO da linha clicada, e a
+  // lista não se move sozinha — o bloco nascia fora da janela de rolagem e a
+  // variação aparecia cortada na borda, sem clique possível. Um ref só por
+  // lista basta: `varModal` guarda UM nome, então há no máximo um bloco aberto.
+  const refVariacoes      = useRef(null)
+  const refVariacoesTroca = useRef(null)
+  // Depende só de qual produto está aberto: mexer na quantidade de uma
+  // variação não re-dispara a rolagem (seria puxar a lista debaixo do dedo de
+  // quem está clicando em "+").
+  useEffect(() => { if (varModal) revelarBloco(refVariacoes.current) }, [varModal])
+  useEffect(() => { if (varModalTroca) revelarBloco(refVariacoesTroca.current) }, [varModalTroca])
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
@@ -1132,7 +1145,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{
           gridColumn: 2, gridRow: '1 / span 2', alignSelf: 'start',
           position: 'sticky', top: 24,
-          maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto',
+          maxHeight: 'calc(100vh - 48px)', overflowY: 'auto',
           background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
         }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>
@@ -1365,11 +1378,28 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         gridColumn: 1, gridRow: 2, minWidth: 0,
         background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
         display: 'flex', flexDirection: 'column',
-        // border-box é obrigatório aqui: sem ele o max-height vale só para a
-        // caixa de CONTEÚDO e os 24px de padding de cada lado ficam POR FORA —
-        // o cartão media 832px com o teto em 782 e o rodapé caía da tela.
         boxSizing: 'border-box',
-        maxHeight: 'max(420px, calc(100dvh - 140px))',
+        // ── SEM teto no CARTÃO. Foi daqui que veio o bug da HM Boutique ────
+        // Havia aqui um `maxHeight: max(420px, calc(100dvh - 140px))`. Com o
+        // cartão preso nessa altura, a lista de resultados era o único filho
+        // flexível — ou seja, ela absorvia sozinha TODA a variação de altura
+        // dos outros blocos. Assim que a faixa "SELECIONADOS" aparecia (só
+        // existe com 1+ produto escolhido) somavam-se 150px acima e abaixo da
+        // lista, e o que sobrava para ela era o resto da conta.
+        //
+        // Medido em navegador de verdade, com 1 produto selecionado:
+        //   1440x900 → lista 239px   1366x768 → 107px   1024x600 → 2px
+        // Com nenhum produto selecionado, em 1024x600 a lista tinha 91px e
+        // tudo funcionava — que é exatamente o "só quebra depois do primeiro
+        // produto" do relato, e o motivo de não reproduzir em tela grande.
+        //
+        // Numa lista de 2px o bloco de variações do produto aberto nasce fora
+        // da janela de rolagem: aparece cortado na borda e não recebe clique.
+        //
+        // O teto agora é da LISTA (logo abaixo), que é o único bloco que pode
+        // encolher sem sumir com nada. O cartão volta a ter a altura do
+        // conteúdo; quando passa da janela, quem rola é a página — que é o
+        // comportamento certo e o que já acontecia antes da tarefa 12.
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
@@ -1466,7 +1496,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       </div>
                     </div>
                     {hasVars && isOpen && (
-                      <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 10px 10px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                      <div ref={isOpen ? refVariacoesTroca : null} style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 10px 10px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
@@ -1589,16 +1619,33 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         ) : (
         <div style={{
           display: 'flex', flexDirection: 'column',
-          // Absorve toda a altura que sobrar dentro do cartão.
           flex: '1 1 auto',
-          // minHeight: 0 é obrigatório: item de flex nasce com min-height auto
-          // e se recusa a encolher abaixo do conteúdo — sem isto o overflow
-          // não vira rolagem e o cartão estoura para fora da tela.
-          minHeight: 0,
+          // PISO — o que faltava. O comentário acima já prometia "o piso de
+          // 220px evita que numa janela muito baixa a lista vire uma fresta",
+          // mas o número tinha ficado só no cartão; a lista em si não tinha
+          // nenhum. 220px cabem uma linha de produto (~44px) mais o bloco de
+          // variações inteiro (~123px) com folga, que é a garantia que
+          // interessa: o que você abre, você vê.
+          minHeight: 220,
+          // TETO — vh, não dvh, de propósito. dvh só existe a partir do
+          // Chromium 108 e não existe em motor antigo; onde não existe, a
+          // declaração inteira é descartada e o layout muda de comportamento
+          // justamente na máquina em que ninguém está olhando. Em desktop a
+          // diferença prática entre vh e dvh é nula (não há barra de URL que
+          // recolhe), então vh é a escolha compatível sem custo.
+          //
+          // Os 340px são os blocos fixos do cartão acima e abaixo da lista
+          // (cabeçalho, chips de categoria, SELECIONADOS, scanner, busca,
+          // rodapé) — medidos, não estimados. Se ainda assim não couber, o
+          // piso de 220px vence e a página rola.
+          maxHeight: 'calc(100vh - 340px)',
           overflowY: 'auto',
-          // Sem isto o item do fim encosta na borda do container e parece
-          // cortado justamente quando a rolagem chega ao fim.
-          paddingBottom: 2,
+          // Folga no fim: sem ela o último item encosta na borda e parece
+          // cortado bem quando a rolagem termina.
+          paddingBottom: 10,
+          // Reserva a mesma folga para o scrollIntoView de revelarBloco, para
+          // ele não parar com o bloco colado na borda de baixo.
+          scrollPaddingBottom: 10,
         }}>
           {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
@@ -1687,7 +1734,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
                 {/* Picker de variações */}
                 {hasVars && isOpen && (
-                  <div style={{
+                  <div ref={isOpen ? refVariacoes : null} style={{
                     padding: '10px 14px 12px',
                     borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
                     borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
@@ -2011,9 +2058,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} />
-      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100dvh', boxSizing: 'border-box', minWidth: 0 }}>
+      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100vh', boxSizing: 'border-box', minWidth: 0 }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tab]}
         </div>
