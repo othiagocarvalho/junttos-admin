@@ -456,13 +456,35 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
       setErroSalvar('Não foi possível salvar as configurações: ' + (erroConfig.message || erroConfig))
     }
 
+    // Ligar o QR sem credencial confirmada era uma falha SILENCIOSA: o
+    // checkbox voltava sozinho para desmarcado e a tela dizia "Configurações
+    // salvas!". A tabela de credenciais não tem policy de SELECT, então esta
+    // tela não consegue conferir no banco se já existe token — a única prova
+    // que ela tem é o valor digitado agora, ou a flag já estar ligada.
+    // `mpOk &&` para não pisar por cima do erro real da gravação, que é mais
+    // grave e já está na tela.
+    const qrPedidoSemCredencial = mpOk
+      && mpAtivo
+      && !podeAtivarMercadoPago({ token: mpToken, jaConfigurado: mpJaConfigurado })
+    if (qrPedidoSemCredencial) {
+      setMpErro(
+        'Para ligar o QR Code do Mercado Pago, cole o Access Token nesta mesma tela. '
+        + 'Por segurança a chave não volta do banco, então o sistema não consegue '
+        + 'confirmar sozinho que já existe uma salva — e o QR ficaria desligado sem aviso.',
+      )
+    }
+
     // Só limpa os campos e comemora quando as DUAS gravações deram certo.
     // Limpar o token depois de uma falha seria pior ainda: a pessoa perderia o
     // valor colado e não teria o que repetir.
     if (mpOk && !erroConfig) {
       setMpToken(''); setMpSecret('')
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2200)
+      // Sem "Configurações salvas!" em verde quando o QR pedido não pôde ser
+      // ligado: o resto gravou, mas comemorar esconderia o aviso vermelho.
+      if (!qrPedidoSemCredencial) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2200)
+      }
     }
   }
 
