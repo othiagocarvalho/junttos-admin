@@ -101,3 +101,61 @@ describe('erroDeUpload', () => {
       .toBe('Payload too large')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A mensagem precisa parar de apontar a causa errada
+//
+// Relato de 23/08/2026: o upload falhava e a tela dizia "Confira se o bucket
+// tem policy de INSERT". O console mostrava 401 E 400. Medido contra o projeto:
+// upload com a anon key devolve HTTP 400 com o corpo
+// "new row violates row-level security policy" — o 400 É a recusa de RLS, não
+// um erro à parte. O 401 é outra coisa: token recusado.
+//
+// A mensagem antiga afirmava "policy" nos dois casos, e isso custou duas
+// investigações neste projeto.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('erroDeUpload — separa sessão de policy pelo status', () => {
+  const erro = (message, extra = {}) => ({ message, ...extra })
+
+  it('401 fala de SESSÃO, e não menciona policy', () => {
+    const r = erroDeUpload(erro('Invalid JWT', { status: 401 }), 'produtos-fotos', 'tropicaleatacado')
+    expect(r).toMatch(/sess(ã|a)o/i)
+    expect(r).not.toMatch(/policy/i)
+  })
+
+  it('statusCode 401 em string também conta', () => {
+    // O storage-js entrega status numérico e statusCode string; os dois chegam.
+    expect(erroDeUpload(erro('x', { statusCode: '401' }), 'b', 'l')).toMatch(/sess(ã|a)o/i)
+  })
+
+  it('mensagem de JWT sem status também é tratada como sessão', () => {
+    expect(erroDeUpload(erro('jwt expired'), 'b', 'l')).toMatch(/sess(ã|a)o/i)
+  })
+
+  it('RLS cita as DUAS causas, sem afirmar uma', () => {
+    // É o caso do relato: 400 com "new row violates row-level security policy".
+    const r = erroDeUpload(
+      erro('new row violates row-level security policy', { status: 400, statusCode: '403' }),
+      'produtos-fotos', 'tropicaleatacado',
+    )
+    expect(r).toMatch(/sess(ã|a)o/i)
+    expect(r).toMatch(/policy de INSERT/i)
+    expect(r).toContain('produtos-fotos/tropicaleatacado/')
+    // E aponta onde está o SQL, para não recomeçar a investigação do zero.
+    expect(r).toContain('migration_storage_produtos_midia.sql')
+  })
+
+  it('erro desconhecido carrega o STATUS — foi o que faltou no relato', () => {
+    expect(erroDeUpload(erro('Bucket not found', { status: 404 }), 'b', 'l'))
+      .toBe('Bucket not found (HTTP 404)')
+  })
+
+  it('sem status, devolve a mensagem crua sem inventar sufixo', () => {
+    expect(erroDeUpload(erro('falha de rede'), 'b', 'l')).toBe('falha de rede')
+  })
+
+  it('erro nulo não quebra a tela', () => {
+    expect(() => erroDeUpload(null, 'b', 'l')).not.toThrow()
+    expect(() => erroDeUpload(undefined, 'b', 'l')).not.toThrow()
+  })
+})

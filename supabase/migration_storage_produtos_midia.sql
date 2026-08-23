@@ -8,8 +8,26 @@
 --
 -- ─── CONTEXTO ───────────────────────────────────────────────────────────────
 -- Sintoma: no painel da TropicaleAtacado, "Adicionar mais fotos" + "Salvar"
--- devolve 403 em POST /storage/v1/object/produtos-fotos/... com a mensagem
+-- falha em POST /storage/v1/object/produtos-fotos/... com a mensagem
 -- "new row violates row-level security policy".
+--
+-- ─── MEDIDO EM 23/08/2026, CONTRA O PROJETO ─────────────────────────────────
+-- Corrigindo o que este arquivo dizia antes: o status HTTP é 400, não 403. O
+-- 403 aparece DENTRO do corpo. Um upload com a anon key devolve:
+--
+--   HTTP 400
+--   {"statusCode":"403","error":"Unauthorized",
+--    "message":"new row violates row-level security policy","code":"AccessDenied"}
+--
+-- Isso importa para quem for conferir: o relato original trazia "401 e 400" do
+-- console, e o 400 É esta recusa de RLS — não é um erro separado de formato ou
+-- de tamanho de arquivo. O 401 é outra coisa (token recusado) e foi tratado no
+-- app, em ProdutosB2BPro.jsx.
+--
+-- Também confirmado: os buckets EXISTEM e são públicos para leitura. Um GET em
+-- /storage/v1/object/public/produtos-fotos/<inexistente> devolve
+-- "Object not found" / NoSuchKey — e não "Bucket not found". Ou seja, falta a
+-- policy de ESCRITA, não o bucket.
 --
 -- O lado do app foi auditado e está correto:
 --   • bucket no código = 'produtos-fotos' (idêntico ao de produção — as fotos

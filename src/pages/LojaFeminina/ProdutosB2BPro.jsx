@@ -91,18 +91,47 @@ export function caminhoMidia(lojaId, prefix, file, agora = Date.now()) {
 /**
  * Traduz o erro do Storage para algo acionável.
  *
- * O texto "new row violates row-level security policy" é idêntico nos dois
- * cenários que causam 403 aqui — request sem sessão (o supabase-js cai na anon
- * key) e policy faltando/incorreta no bucket — então a mensagem crua não
- * permite distinguir nem agir.
+ * ─── POR QUE A MENSAGEM ANTIGA ATRAPALHOU ───────────────────────────────────
+ * Ela afirmava "confira se o bucket tem policy de INSERT", como se a causa
+ * fosse certa. Mas "new row violates row-level security policy" é a MESMA
+ * resposta em dois cenários diferentes, e a versão anterior não tinha como
+ * distinguir:
+ *
+ *   • sem sessão válida — o supabase-js manda a anon key no lugar do token;
+ *   • policy faltando ou errada no bucket.
+ *
+ * Medido contra o projeto em 23/08/2026: um upload com a anon key devolve
+ * HTTP 400 com corpo
+ *   {"statusCode":"403","error":"Unauthorized",
+ *    "message":"new row violates row-level security policy"}
+ * — ou seja, o 400 do relato NÃO é um erro separado, é a própria recusa de
+ * RLS. O 401, esse sim, é outra coisa: é JWT inválido ou expirado.
+ *
+ * Agora a mensagem usa o STATUS para separar os casos, e quando não dá para
+ * ter certeza ela diz as duas possibilidades em vez de apontar uma. Mensagem
+ * que afirma a causa errada custou duas investigações neste projeto.
  */
 export function erroDeUpload(error, bucket, lojaId) {
   const msg = String(error?.message ?? error ?? '')
+  const status = Number(error?.status) || Number(error?.statusCode) || 0
+
+  // 401 = o servidor recusou o token. Não adianta falar de policy.
+  if (status === 401 || /jwt|invalid token|token expired/i.test(msg)) {
+    return 'sua sessão expirou ou não foi aceita pelo servidor. '
+      + 'Saia, entre de novo e repita o envio.'
+  }
+
   if (/row-level security/i.test(msg)) {
     return `permissão negada pelo Storage ao gravar em ${bucket}/${lojaId}/. `
-      + 'Confira se o bucket tem policy de INSERT para o papel "authenticated" nessa pasta.'
+      + 'São duas causas possíveis, e o Storage responde igual nas duas: '
+      + 'sessão não aceita (saia e entre de novo) ou o bucket sem policy de '
+      + 'INSERT para "authenticated" nessa pasta '
+      + '(ver supabase/migration_storage_produtos_midia.sql).'
   }
-  return msg
+
+  // Status no fim de tudo: sem ele, quem investiga não sabe se olhou 400, 401
+  // ou 404 — foi exatamente o que faltou no relato original.
+  return status ? `${msg} (HTTP ${status})` : msg
 }
 
 // ── Grade form (shared between Novo e Editar) ────────────────
@@ -456,9 +485,27 @@ export default function ProdutosB2BPro({
   async function uploadMidia(bucket, file, prefix) {
     await garantirSessao()
     const path = caminhoMidia(LOJA_ID, prefix, file)
-    const { error } = await supabase.storage
+
+    let { error } = await supabase.storage
       .from(bucket)
       .upload(path, file, { upsert: true, contentType: file.type })
+
+    // 401 = o servidor recusou o token. Pode ser corrida: o token venceu
+    // ENTRE o garantirSessao e a chegada da requisição — foto grande sobe
+    // devagar, e a janela é real. Renova à força e tenta UMA vez.
+    //
+    // Uma vez só, de propósito: se o segundo 401 vier, o problema não é
+    // corrida, e insistir só empurraria o erro para mais longe de quem
+    // precisa lê-lo.
+    if (error && (Number(error.status) === 401 || Number(error.statusCode) === 401)) {
+      const { error: erroRenov } = await renovarSessao(supabase)
+      if (!erroRenov) {
+        ({ error } = await supabase.storage
+          .from(bucket)
+          .upload(path, file, { upsert: true, contentType: file.type }))
+      }
+    }
+
     if (error) throw new Error(erroDeUpload(error, bucket, LOJA_ID))
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path)
     return publicUrl
