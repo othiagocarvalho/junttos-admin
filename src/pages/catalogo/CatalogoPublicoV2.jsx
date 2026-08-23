@@ -630,6 +630,7 @@ export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridad
  * a mesma regra que o Rodape já segue.
  */
 export function CatalogoForaDoAr({ loja, aoChamar }) {
+  const mostrarNome = !loja?.logoUrl
   return (
     <div style={{
       minHeight: '100dvh', background: C.fundo, display: 'flex',
@@ -637,16 +638,32 @@ export function CatalogoForaDoAr({ loja, aoChamar }) {
     }}>
       <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
         {/* Aqui a logo é o elemento principal da tela, então o teto de
-            largura é bem maior que no cabeçalho. */}
+            largura é bem maior que no cabeçalho.
+
+            A margem de baixo muda conforme o nome apareça ou não, para o
+            espaço até o título ficar igual nos dois casos (a linha do nome
+            somava 10px de margem própria). */}
         <LogoLoja
           loja={loja} altura={76} maxLargura={280} raio={20}
-          estilo={{ margin: '0 auto 20px', display: 'block' }}
+          estilo={{ margin: mostrarNome ? '0 auto 20px' : '0 auto 28px', display: 'block' }}
         />
 
-        <p style={{
-          margin: '0 0 10px', fontSize: 12, fontWeight: 600, letterSpacing: '.14em',
-          textTransform: 'uppercase', color: C.etiqueta,
-        }}>{loja?.nome}</p>
+        {/* O nome só entra quando NÃO há logo.
+            Com logo ele era eco: a logo da loja quase sempre já traz o nome
+            escrito, e a tela mostrava "Tropicale Atacado" duas vezes seguidas.
+            Sem logo, o LogoLoja desenha só a inicial — e aí este texto é a
+            única identificação da tela, então continua.
+
+            No CABEÇALHO do catálogo o nome fica, de propósito: lá ele está ao
+            LADO da logo e ancora o subtítulo ("Catálogo online"), formando um
+            bloco de marca compacto. Aqui ele ficava embaixo, empilhado, que é
+            o que fazia parecer repetição. */}
+        {mostrarNome && (
+          <p style={{
+            margin: '0 0 10px', fontSize: 12, fontWeight: 600, letterSpacing: '.14em',
+            textTransform: 'uppercase', color: C.etiqueta,
+          }}>{loja?.nome}</p>
+        )}
 
         <h1 style={{
           margin: '0 0 14px', fontFamily: DISPLAY, fontWeight: 400,
