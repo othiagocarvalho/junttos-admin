@@ -934,3 +934,45 @@ describe('checkout — Pix primeiro, WhatsApp depois', () => {
     }), { erro: true })).toContain('Pagar agora pelo site')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Catálogo fora do ar
+//
+// O requisito é duro: nenhuma peça e nenhum preço acessíveis por esta rota
+// enquanto a loja estiver despublicada.
+// ─────────────────────────────────────────────────────────────────────────────
+const { CatalogoForaDoAr } = await import('./CatalogoPublicoV2')
+
+describe('CatalogoForaDoAr', () => {
+  const lojaComWa = lojaDaConfig({
+    nome: 'TropicaleAtacado', whatsapp_loja: '(85) 99999-0000', catalogo_publicado: false,
+  })
+  const lojaSemWa = lojaDaConfig({ nome: 'TropicaleAtacado', catalogo_publicado: false })
+
+  it('diz que a loja volta, sem prometer data', () => {
+    const s = html(<CatalogoForaDoAr loja={lojaComWa} aoChamar={() => {}} />)
+    expect(s).toContain('Estamos preparando a próxima coleção')
+  })
+
+  it('mostra a identidade da loja — quem abriu o link precisa se situar', () => {
+    expect(html(<CatalogoForaDoAr loja={lojaComWa} aoChamar={() => {}} />)).toContain('TropicaleAtacado')
+  })
+
+  it('oferece o WhatsApp da loja quando existe', () => {
+    expect(html(<CatalogoForaDoAr loja={lojaComWa} aoChamar={() => {}} />)).toContain('Falar no WhatsApp')
+  })
+
+  it('sem WhatsApp cadastrado não desenha botão que não abre nada', () => {
+    const s = html(<CatalogoForaDoAr loja={lojaSemWa} aoChamar={() => {}} />)
+    expect(s).not.toContain('Falar no WhatsApp')
+    expect(s).toContain('Volte em breve')
+  })
+
+  it('não vaza peça, preço nem carrinho', () => {
+    const s = html(<CatalogoForaDoAr loja={lojaComWa} aoChamar={() => {}} />)
+    expect(s).not.toContain('R$')
+    expect(s).not.toContain('VESTIDO')
+    expect(s).not.toContain('Meu pedido')
+    expect(s).not.toContain('Buscar peça')
+  })
+})

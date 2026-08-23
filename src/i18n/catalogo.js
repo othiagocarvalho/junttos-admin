@@ -144,6 +144,14 @@ export const TEXTOS = {
   ariaRemoverItem: 'Remover {item} do produto',
   ariaAbrirProduto: 'Abrir {nome}',
 
+  // Catálogo fora do ar. Tom escolhido para moda/atacado: a loja não sumiu,
+  // está entre coleções — e o caminho para falar com ela continua aberto.
+  foraDoArTitulo: 'Estamos preparando a próxima coleção',
+  foraDoArTexto: 'O catálogo volta em breve, com as peças novas. Enquanto isso, '
+    + 'fale com a gente no WhatsApp para saber o que já está a caminho.',
+  foraDoArWhatsapp: 'Falar no WhatsApp',
+  foraDoArSemWhatsapp: 'Volte em breve para ver a coleção nova.',
+
   // subtítulo padrão do cabeçalho
   subtituloPadrao: 'Catálogo online',
   etiquetaVideoPadrao: 'Coleção nova',

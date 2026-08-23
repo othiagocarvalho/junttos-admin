@@ -766,6 +766,9 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
