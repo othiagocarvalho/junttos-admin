@@ -26,13 +26,14 @@ function clientFake({
       c.inserts.push({ tabela, linha })
       return Promise.resolve({ error: erroInsert })
     },
-    update: (linha, opcoes) => ({
-      eq: (col, val) => {
-        c.opcoesUpdate = opcoes
-        c.updates.push({ tabela, linha, filtro: { [col]: val } })
-        return Promise.resolve({ error: erroUpdate, count })
-      },
-    }),
+    // Sem `.eq` de propósito: o UPDATE não pode ter WHERE (ver o teste
+    // "o UPDATE não pode ter WHERE"). Se o código voltar a encadear um
+    // filtro, isto vira TypeError e o teste quebra na hora.
+    update: (linha, opcoes) => {
+      c.opcoesUpdate = opcoes
+      c.updates.push({ tabela, linha })
+      return Promise.resolve({ error: erroUpdate, count })
+    },
   })
   return c
 }
@@ -74,7 +75,6 @@ describe('salvarCredencialMercadoPago', () => {
     const { error } = await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'novo' })
     expect(error).toBeNull()
     expect(c.updates).toHaveLength(1)
-    expect(c.updates[0].filtro).toEqual({ loja_id: 'tropicaleatacado' })
     expect(c.updates[0].linha.mercadopago_access_token).toBe('novo')
     // O UPDATE não pode tentar reescrever a chave primária.
     expect(c.updates[0].linha.loja_id).toBeUndefined()
@@ -250,6 +250,35 @@ describe('falha silenciosa: UPDATE que não pega linha nenhuma', () => {
   it('count 1 é sucesso, como sempre foi', async () => {
     const c = clientFake({ erroInsert: UNIQUE, count: 1 })
     expect((await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-x' })).error).toBeNull()
+  })
+
+  it('o UPDATE não pode ter WHERE — foi o WHERE que causou a falha silenciosa', async () => {
+    // Causa raiz medida no banco em 23/08/2026, como `authenticated` com o
+    // claim da Tropicale (transação abortada, nada gravado):
+    //
+    //     select visível                           → 0
+    //     update ... WHERE loja_id = 'tropicale…'  → 0   ← o bug
+    //     update ... (sem WHERE)                   → 1
+    //
+    // Coluna no WHERE exige permissão de SELECT, e isso faz o Postgres
+    // aplicar as policies de SELECT. Esta tabela não tem nenhuma, de
+    // propósito — então a linha some para o WHERE e o UPDATE vira no-op com
+    // resposta 204. Quem recorta por loja é o RLS, não a query.
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'novo' })
+    expect(c.updates).toHaveLength(1)
+    expect(c.updates[0]).not.toHaveProperty('filtro')
+    // A chave primária também não vai no corpo: o UPDATE não reescreve loja_id.
+    expect(c.updates[0].linha.loja_id).toBeUndefined()
+  })
+
+  it('count acima de 1 vira erro — sem WHERE, quem protege é o RLS', async () => {
+    // Sem filtro na query, o RLS é a única coisa que impede a gravação de
+    // vazar para outras lojas. Se ele parar de recortar, precisa gritar.
+    const c = clientFake({ erroInsert: UNIQUE, count: 3 })
+    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: 'a' })
+    expect(error).toBeTruthy()
+    expect(error.message).toMatch(/3 lojas/)
   })
 
   it('count null NÃO vira erro — desconhecido não é falha', async () => {
