@@ -976,3 +976,66 @@ describe('CatalogoForaDoAr', () => {
     expect(s).not.toContain('Buscar peça')
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logo cortada
+//
+// Bug real: os dois lugares que mostram a logo usavam caixa QUADRADA com
+// object-fit: cover. Cover preenche e CORTA — numa logo larga sobrava só o
+// miolo, e a Tropicale aparecia como "ica...TACADO" em vez de
+// "Tropicale Atacado".
+// ─────────────────────────────────────────────────────────────────────────────
+const lojaLogo = lojaDaConfig({ nome: 'TropicaleAtacado', logo_url: 'https://x/logo-larga.png' })
+const lojaSemLogo = lojaDaConfig({ nome: 'TropicaleAtacado' })
+
+describe('logo da loja — nunca cortada, em qualquer proporção', () => {
+  const cabecalho = html(
+    <Cabecalho loja={lojaLogo} busca="" setBusca={() => {}} totalPecas={0} aoAbrirPedido={() => {}} />,
+  )
+  const foraDoAr = html(<CatalogoForaDoAr loja={lojaLogo} aoChamar={() => {}} />)
+
+  it('o cabeçalho usa contain, nunca cover', () => {
+    expect(cabecalho).toContain('object-fit:contain')
+    expect(cabecalho).not.toMatch(/logo-larga\.png[^>]*object-fit:cover/)
+  })
+
+  it('a tela de fora do ar usa contain, nunca cover', () => {
+    expect(foraDoAr).toContain('object-fit:contain')
+    expect(foraDoAr).not.toContain('object-fit:cover')
+  })
+
+  it('a largura é AUTOMÁTICA — caixa quadrada achataria logo larga', () => {
+    // Só contain, com width fixo, renderizaria uma logo 4:1 em 76x19: sem
+    // corte, mas minúscula e cercada de vazio.
+    expect(cabecalho).toContain('width:auto')
+    expect(foraDoAr).toContain('width:auto')
+  })
+
+  it('a altura continua fixa, e há teto de largura', () => {
+    // Sem teto, uma logo muito larga empurraria busca e botão para fora no
+    // celular.
+    expect(cabecalho).toMatch(/height:44px/)
+    expect(cabecalho).toMatch(/max-width:120px/)
+    expect(foraDoAr).toMatch(/height:76px/)
+    expect(foraDoAr).toMatch(/max-width:280px/)
+  })
+
+  it('o alt continua sendo o nome da loja', () => {
+    expect(cabecalho).toContain('alt="TropicaleAtacado"')
+    expect(foraDoAr).toContain('alt="TropicaleAtacado"')
+  })
+
+  it('sem logo, a caixa da inicial segue quadrada — a proporção aí é nossa', () => {
+    const c = html(<Cabecalho loja={lojaSemLogo} busca="" setBusca={() => {}} totalPecas={0} aoAbrirPedido={() => {}} />)
+    expect(c).toContain('width:44px;height:44px')
+    expect(c).not.toContain('<img')
+    expect(c).toContain('>T<')
+  })
+
+  it('a foto de produto CONTINUA com cover — lá preencher o quadro é o certo', () => {
+    // A correção é só da logo. Card de produto cortando a foto para preencher
+    // o 3/4 é comportamento desejado.
+    const card = html(<CardProduto produto={multicor} modoAtacado noPedido={0} aoAbrir={() => {}} />)
+    expect(card).toContain('object-fit:cover')
+  })
+})

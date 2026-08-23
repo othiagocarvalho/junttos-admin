@@ -238,13 +238,60 @@ export function FaixaVideo({ video, nomeLoja }) {
   )
 }
 
+/**
+ * Logo da loja — ou a inicial dela, quando não há logo.
+ *
+ * ─── O BUG QUE ISTO CORRIGE ─────────────────────────────────────────────────
+ * Os dois lugares que mostram a logo usavam caixa QUADRADA com
+ * `object-fit: cover`. Cover preenche a caixa e corta o que sobra: numa logo
+ * retangular larga, ele descarta as laterais e deixa só o miolo. A Tropicale
+ * tem logo larga, e o que aparecia na tela era "ica...TACADO" no lugar de
+ * "Tropicale Atacado".
+ *
+ * `contain` sozinho já resolveria o corte, mas com a caixa quadrada uma logo
+ * 4:1 renderizaria em 76×19 — legível na marra, com muito espaço vazio dos
+ * dois lados. Então a caixa também deixou de ser quadrada:
+ *
+ *   altura FIXA + largura AUTOMÁTICA + teto de largura
+ *
+ * Assim a logo manda na própria proporção. Quadrada continua quadrada (altura
+ * = largura, exatamente como antes); larga ocupa a largura que precisa até o
+ * teto. É o mesmo padrão que ClientHeader.jsx já usava — a única parte do
+ * sistema que nunca teve esse problema.
+ *
+ * O teto existe porque sem ele uma logo muito larga empurraria a busca e o
+ * botão de pedido para fora no celular.
+ */
+function LogoLoja({ loja, altura, maxLargura, raio, estilo }) {
+  const inicial = (loja?.nome || '?').trim().charAt(0).toUpperCase()
+  if (loja?.logoUrl) {
+    return (
+      <img
+        src={loja.logoUrl}
+        alt={loja.nome}
+        style={{
+          height: altura, width: 'auto', maxWidth: maxLargura,
+          objectFit: 'contain', borderRadius: raio, flex: 'none', ...estilo,
+        }}
+      />
+    )
+  }
+  // Sem logo: a caixa da inicial continua quadrada de propósito — ela é
+  // desenhada por nós, e aí a proporção é escolha nossa, não da lojista.
+  return (
+    <div style={{
+      width: altura, height: altura, borderRadius: raio, background: C.tinta,
+      flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: Math.round(altura * 0.43), fontWeight: 700, color: C.fundo, ...estilo,
+    }}>{inicial}</div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 4.2 Cabeçalho sticky. No celular os 3 itens quebram em 2 linhas sozinhos
 // pelo flex-wrap — sem media query, como manda a seção 10.
 // ─────────────────────────────────────────────────────────────────────────────
 export function Cabecalho({ loja, busca, setBusca, totalPecas, aoAbrirPedido }) {
-  const inicial = (loja.nome || '?').trim().charAt(0).toUpperCase()
-
   return (
     <header style={{
       position: 'sticky', top: 0, zIndex: 40,
@@ -257,16 +304,7 @@ export function Cabecalho({ loja, busca, setBusca, totalPecas, aoAbrirPedido }) 
       }}>
         {/* Marca */}
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-          {loja.logoUrl ? (
-            <img src={loja.logoUrl} alt={loja.nome}
-              style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', flex: 'none' }} />
-          ) : (
-            <div style={{
-              width: 44, height: 44, borderRadius: 12, background: C.tinta, flex: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 19, fontWeight: 700, color: C.fundo,
-            }}>{inicial}</div>
-          )}
+          <LogoLoja loja={loja} altura={44} maxLargura={120} raio={12} />
           <div style={{ minWidth: 0 }}>
             <p style={{
               margin: 0, fontSize: 17, fontWeight: 600, color: C.tinta,
@@ -592,23 +630,18 @@ export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridad
  * a mesma regra que o Rodape já segue.
  */
 export function CatalogoForaDoAr({ loja, aoChamar }) {
-  const inicial = (loja?.nome || '?').trim().charAt(0).toUpperCase()
   return (
     <div style={{
       minHeight: '100dvh', background: C.fundo, display: 'flex',
       alignItems: 'center', justifyContent: 'center', padding: '40px 20px',
     }}>
       <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
-        {loja?.logoUrl ? (
-          <img src={loja.logoUrl} alt={loja.nome}
-            style={{ width: 76, height: 76, borderRadius: 20, objectFit: 'cover', margin: '0 auto 20px', display: 'block' }} />
-        ) : (
-          <div style={{
-            width: 76, height: 76, borderRadius: 20, background: C.tinta, margin: '0 auto 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 30, fontWeight: 700, color: C.fundo,
-          }}>{inicial}</div>
-        )}
+        {/* Aqui a logo é o elemento principal da tela, então o teto de
+            largura é bem maior que no cabeçalho. */}
+        <LogoLoja
+          loja={loja} altura={76} maxLargura={280} raio={20}
+          estilo={{ margin: '0 auto 20px', display: 'block' }}
+        />
 
         <p style={{
           margin: '0 0 10px', fontSize: 12, fontWeight: 600, letterSpacing: '.14em',
