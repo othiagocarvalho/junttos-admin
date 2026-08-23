@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
@@ -12,6 +12,7 @@ import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
+import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 
@@ -80,6 +81,19 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? initialIsTroca)
   const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [expandedTroca,setExpandedTroca]= useState(null)
+
+  // Mesmo problema do desktop, causa diferente: aqui quem rola é a PÁGINA, e
+  // ela também não se move quando o bloco de variações abre. Some-se a isso a
+  // BarraResumoMobile, que é `position: fixed` e só aparece depois do primeiro
+  // produto — para o navegador aquela faixa conta como área visível, então ele
+  // acha que basta o bloco estar "na tela", mesmo estando por baixo da barra.
+  //
+  // 150px = a barra (65px) mais o afastamento dela do fim da tela (68px) mais
+  // uma folga. É o que scroll-margin-bottom reserva para o scrollIntoView.
+  const refVariacoes      = useRef(null)
+  const refVariacoesTroca = useRef(null)
+  useEffect(() => { if (expandedProd)  revelarBloco(refVariacoes.current,      { margemInferior: 150 }) }, [expandedProd])
+  useEffect(() => { if (expandedTroca) revelarBloco(refVariacoesTroca.current, { margemInferior: 150 }) }, [expandedTroca])
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
@@ -629,7 +643,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           </div>
                         </div>
                         {hasVars && isOpen && (
-                          <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 14px 14px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                          <div ref={isOpen ? refVariacoesTroca : null} style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 14px 14px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
                             <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {vars.map(({ label, qty }, idx) => {
@@ -867,7 +881,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     </div>
 
                     {hasVars && isOpen && (
-                      <div style={{
+                      <div ref={isOpen ? refVariacoes : null} style={{
                         padding: '10px 14px 12px',
                         borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
                         borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
@@ -971,8 +985,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <MetallicBtn onClick={() => setStep(2)} isDark={isDark} primary={theme.primary}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
 
-            {/* Espaço para a barra fixa não cobrir o último produto da lista. */}
-            <div aria-hidden style={{ height: 72 }} />
+            {/* Espaço para a barra fixa não cobrir o fim da lista.
+                Eram 72px e não bastava: a BarraResumoMobile tem 65px de altura
+                e fica 68px acima do fim da tela (em cima da BottomTabBar), ou
+                seja tapa os 133px de baixo — medido no navegador. Com 72px de
+                reserva, os últimos ~61px de conteúdo ficavam impossíveis de
+                trazer para a área visível, por mais que se rolasse. */}
+            <div aria-hidden style={{ height: 140 }} />
             <BarraResumoMobile
               isTroca={isTroca}
               qtdItens={qtdItensVenda}
