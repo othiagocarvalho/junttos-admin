@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { Package, ShoppingBag, Settings, Save, Users, UserPlus, CreditCard } from 'lucide-react'
+import { Palette, Wallet, ShoppingCart } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
@@ -98,11 +101,6 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
     borderRadius: 'var(--r-input)', padding: '0 14px',
     fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
   }
-  const lbl = {
-    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'var(--font-ui)',
-  }
   const msgStyle = (type) => ({
     padding: '10px 14px', borderRadius: 'var(--r-chip)', fontSize: 13,
     fontFamily: 'var(--font-ui)',
@@ -192,15 +190,15 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
           </p>
           <form onSubmit={handleConvidar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Nome</label>
+              <Label>Nome</Label>
               <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Maria" style={inp} />
             </div>
             <div>
-              <label style={lbl}>E-mail de acesso</label>
+              <Label>E-mail de acesso</Label>
               <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="colaboradora@email.com" style={inp} />
             </div>
             <div>
-              <label style={lbl}>Senha temporária</label>
+              <Label>Senha temporária</Label>
               <input type="text" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))} placeholder="Mínimo 6 caracteres" style={inp} />
             </div>
             {msg && <div style={msgStyle(msg.type)}>{msg.text}</div>}
@@ -459,11 +457,6 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
     }
   }
 
-  const lbl = {
-    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'var(--font-ui)',
-  }
   const inp = {
     width: '100%', height: 44, boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
@@ -479,18 +472,18 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
       {/* Left: Identidade */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Identidade</p>
+          <SecaoTitulo Icon={Palette} titulo="Identidade" theme={theme} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Nome da Loja</label>
+              <Label>Nome da Loja</Label>
               <input value={nome} onChange={e => setNome(e.target.value)} style={inp} placeholder="Ex: Loja Moda Feminina" />
             </div>
             <div>
-              <label style={lbl}>URL do Logo</label>
+              <Label>URL do Logo</Label>
               <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} style={inp} placeholder="https://..." />
             </div>
             <div>
-              <label style={lbl}>Cor Principal</label>
+              <Label>Cor Principal</Label>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 {PRESETS.map(p => (
                   <button
@@ -520,14 +513,14 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
       {/* Right: Pagamento & Pedido Mínimo */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pagamento &amp; Contato</p>
+          <SecaoTitulo Icon={Wallet} titulo="Pagamento & Contato" theme={theme} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Chave Pix</label>
+              <Label>Chave Pix</Label>
               <input value={chavePix} onChange={e => setChavePix(e.target.value)} style={inp} placeholder="CPF, CNPJ, e-mail ou chave aleatória" />
             </div>
             <div>
-              <label style={lbl}>WhatsApp da Loja</label>
+              <Label>WhatsApp da Loja</Label>
               <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} style={inp} placeholder="(85) 99999-0000" type="tel" />
             </div>
             {/* Sem este toggle a Chave Pix não aparece para ninguém: o catálogo
@@ -553,18 +546,16 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
         </div>
 
         <div style={section}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
-            Mercado Pago (Pix com QR Code)
-          </p>
+          <SecaoTitulo Icon={CreditCard} titulo="Mercado Pago" descricao="Pix com QR Code e confirmação automática" theme={theme} style={{ marginBottom: 10 }} />
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 18 }}>
             Com o Mercado Pago o catálogo mostra QR Code e confirma o pagamento sozinho.
             Sem isso, o Pix continua funcionando no modo copia-e-cola acima.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>
+              <Label>
                 Access token {mpJaConfigurado && <span style={{ color: 'var(--status-ok-tx)' }}>· configurado</span>}
-              </label>
+              </Label>
               <input
                 value={mpToken} onChange={e => setMpToken(e.target.value)} style={inp}
                 type="password" autoComplete="off"
@@ -572,7 +563,7 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
               />
             </div>
             <div>
-              <label style={lbl}>Chave secreta do webhook</label>
+              <Label>Chave secreta do webhook</Label>
               <input
                 value={mpSecret} onChange={e => setMpSecret(e.target.value)} style={inp}
                 type="password" autoComplete="off"
@@ -612,12 +603,12 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
 
         {nivel === 'pro' ? (
           <div style={section}>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
+            <SecaoTitulo Icon={ShoppingCart} titulo="Pedido Mínimo" theme={theme} />
             {/* Some assim que ela escolhe outro tipo — segue pmTipo, não o banco. */}
             {precisaAvisarPedidoMinimo(nivel, pmTipo) && <AvisoPedidoMinimo />}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={lbl}>Tipo de mínimo</label>
+                <Label>Tipo de mínimo</Label>
                 <select
                   value={pmTipo}
                   onChange={e => setPmTipo(e.target.value)}
@@ -630,7 +621,7 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
               </div>
               {pmTipo === 'valor' && (
                 <div>
-                  <label style={lbl}>Valor mínimo do pedido</label>
+                  <Label>Valor mínimo do pedido</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input
@@ -645,7 +636,7 @@ export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
               )}
               {pmTipo === 'quantidade' && (
                 <div>
-                  <label style={lbl}>Quantidade mínima de peças</label>
+                  <Label>Quantidade mínima de peças</Label>
                   <input
                     type="number" min="1" step="1"
                     value={pmQtd}

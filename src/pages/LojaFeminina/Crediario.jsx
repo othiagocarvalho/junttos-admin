@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, X, Receipt } from 'lucide-react'
+import { Plus, X, Receipt, Clock, CheckCircle2 } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
@@ -71,10 +72,6 @@ export default function Crediario({ crediario = [], addCrediario, pagarParcela, 
     padding: '0 14px', fontFamily: 'var(--font-ui)', fontSize: 14,
     color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
   }
-  const sectionLabelStyle = {
-    fontFamily: 'var(--font-ui)', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8,
-  }
   const canSubmit = !saving && form.cliente_nome.trim() && form.valor_total && form.parcelas
 
   return (
@@ -119,7 +116,7 @@ export default function Crediario({ crediario = [], addCrediario, pagarParcela, 
       {/* Em aberto */}
       {emAberto.length > 0 && (
         <div>
-          <p style={sectionLabelStyle}>Em aberto</p>
+          <SecaoTitulo Icon={Clock} titulo="Em aberto" theme={theme} compacto />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {emAberto.map(c => (
               <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', boxShadow: 'var(--shadow-card)', padding: 16 }}>
@@ -155,7 +152,7 @@ export default function Crediario({ crediario = [], addCrediario, pagarParcela, 
       {/* Quitados */}
       {quitados.length > 0 && (
         <div>
-          <p style={sectionLabelStyle}>Quitados</p>
+          <SecaoTitulo Icon={CheckCircle2} titulo="Quitados" theme={theme} compacto />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {quitados.map(c => (
               <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--r-card)', padding: 16, opacity: 0.75 }}>

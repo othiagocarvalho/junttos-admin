@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
 import { renovarSessao } from '../../lib/authRefresh'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
@@ -124,7 +125,7 @@ function GradeForm({ grade, setGrade, theme }) {
 
   return (
     <div>
-      <label style={lbl}>Grade de Tamanho</label>
+      <Label>Grade de Tamanho</Label>
       {grade.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           {grade.map((t, idx) => (
@@ -207,7 +208,7 @@ function SeletorTamanhos({ selected, onChange, theme }) {
   }
   return (
     <div>
-      <label style={lbl}>Tamanhos disponíveis</label>
+      <Label>Tamanhos disponíveis</Label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {TAMANHOS_SIMPLES.map(t => {
           const active = selected.includes(t)
@@ -828,7 +829,7 @@ export default function ProdutosB2BPro({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={lbl}>Nome do Produto *</label>
+                <Label>Nome do Produto *</Label>
                 <input
                   value={newProd.nome}
                   onChange={e => setNewProd(p => ({ ...p, nome: e.target.value }))}
@@ -839,14 +840,14 @@ export default function ProdutosB2BPro({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={lbl}>Preço de Custo</label>
+                  <Label>Preço de Custo</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoCusto} onChange={e => setNewProd(p => ({ ...p, precoCusto: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
                   </div>
                 </div>
                 <div>
-                  <label style={lbl}>Preço de Venda *</label>
+                  <Label>Preço de Venda *</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoVenda} onChange={e => setNewProd(p => ({ ...p, precoVenda: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
@@ -872,7 +873,7 @@ export default function ProdutosB2BPro({
 
               {/* Upload de fotos */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <label style={lbl}>Fotos do produto (opcional)</label>
+                <Label>Fotos do produto (opcional)</Label>
                 <FotosSection
                   fotos={[]}
                   fotoFiles={newFotoFiles}
@@ -887,7 +888,7 @@ export default function ProdutosB2BPro({
 
               {/* Upload de vídeo */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <label style={lbl}>Vídeo do produto (opcional)</label>
+                <Label>Vídeo do produto (opcional)</Label>
                 <VideoSection
                   previewUrl={newVideoPreview}
                   existingUrl={null}
@@ -955,7 +956,7 @@ export default function ProdutosB2BPro({
 
             {/* Upload de fotos */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
-              <label style={lbl}>Fotos do produto</label>
+              <Label>Fotos do produto</Label>
               <FotosSection
                 fotos={editFotos}
                 fotoFiles={editFotoFiles}
@@ -970,7 +971,7 @@ export default function ProdutosB2BPro({
 
             {/* Upload de vídeo */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
-              <label style={lbl}>Vídeo do produto</label>
+              <Label>Vídeo do produto</Label>
               <VideoSection
                 previewUrl={editVideoPreview}
                 existingUrl={editVideoFile ? null : editVideoUrl}
@@ -1040,7 +1041,7 @@ export default function ProdutosB2BPro({
                 {/* Campos globais aplicados a todas as peças do lote */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
                   <div>
-                    <label style={lbl}>Nome Base *</label>
+                    <Label>Nome Base *</Label>
                     <input
                       value={loteNomeBase}
                       onChange={e => setLoteNomeBase(e.target.value)}
@@ -1050,7 +1051,7 @@ export default function ProdutosB2BPro({
                     />
                   </div>
                   <div>
-                    <label style={lbl}>Preço de Venda</label>
+                    <Label>Preço de Venda</Label>
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                       <input

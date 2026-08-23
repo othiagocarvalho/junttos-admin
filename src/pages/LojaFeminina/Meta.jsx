@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
-import { Target } from 'lucide-react'
+import { Target, UserCheck, Package, Trophy, CalendarRange } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
+import SeloPlano from '../../components/studio/SeloPlano'
 import { calcularProgressoMetaProduto } from '../../utils/metas'
 import CorridaSection from './CorridaSection'
 import Card from '../../components/studio/Card'
@@ -35,26 +37,6 @@ function ProgressBar({ pct }) {
         transition: 'width 0.7s ease',
       }} />
     </div>
-  )
-}
-
-function ProBadge() {
-  return (
-    <span style={{
-      background: '#dbeafe', color: '#1d4ed8', fontSize: 9, fontWeight: 700,
-      borderRadius: 99, padding: '2px 7px', textTransform: 'uppercase',
-      letterSpacing: '0.1em', verticalAlign: 'middle', marginLeft: 6,
-    }}>Pro</span>
-  )
-}
-
-function BusinessBadge() {
-  return (
-    <span style={{
-      background: '#ede9fe', color: '#6d28d9', fontSize: 9, fontWeight: 700,
-      borderRadius: 99, padding: '2px 7px', textTransform: 'uppercase',
-      letterSpacing: '0.1em', verticalAlign: 'middle', marginLeft: 6,
-    }}>Business</span>
   )
 }
 
@@ -201,7 +183,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       {mostrar('mensal') && (
       <>
       <Card>
-        <p style={{ ...sectionLabelStyle, marginBottom: 16 }}>Definir Meta Mensal</p>
+        <SecaoTitulo Icon={Target} titulo="Meta mensal" theme={theme} compacto />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <Label>Mês / Ano</Label>
@@ -287,9 +269,15 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       {mostrar('vendedor') && (
       <div>
         {!semRotulos && (
-          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-            Meta por Vendedor(a)<ProBadge />
-          </p>
+          <SecaoTitulo
+            Icon={UserCheck}
+            titulo="Meta por Vendedor(a)"
+            theme={theme}
+            /* Selo só quando a loja NÃO tem o plano — ver
+               docs/DESIGN_SYSTEM.md, seção 3. Antes ele aparecia sempre. */
+            badge={<SeloPlano planoAtual={plano} planoNecessario="pro" />}
+            compacto
+          />
         )}
         {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_vendedor" theme={theme} /> : (
           <>
@@ -394,9 +382,15 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       {mostrar('produto') && (
       <div>
         {!semRotulos && (
-          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-            Meta por Produto<BusinessBadge />
-          </p>
+          <SecaoTitulo
+            Icon={Package}
+            titulo="Meta por Produto"
+            theme={theme}
+            /* Selo só quando a loja NÃO tem o plano — ver
+               docs/DESIGN_SYSTEM.md, seção 3. Antes ele aparecia sempre. */
+            badge={<SeloPlano planoAtual={plano} planoNecessario="business" />}
+            compacto
+          />
         )}
         {!temBusiness ? <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="meta_produto" theme={theme} /> : (
           <>
@@ -519,9 +513,13 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
           se alguém montar Meta direto — continua exatamente como era. */}
       {mostrar('corrida') && !semCorrida && (
         <div>
-          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-            Corrida<BusinessBadge />
-          </p>
+          <SecaoTitulo
+            Icon={Trophy}
+            titulo="Corrida"
+            theme={theme}
+            badge={<SeloPlano planoAtual={plano} planoNecessario="business" />}
+            compacto
+          />
           {!temBusiness ? (
             <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="corrida" theme={theme} />
           ) : (
@@ -541,9 +539,15 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       {mostrar('comparativo') && (
       <div>
         {!semRotulos && (
-          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-            Comparativo Mês a Mês<ProBadge />
-          </p>
+          <SecaoTitulo
+            Icon={CalendarRange}
+            titulo="Comparativo Mês a Mês"
+            theme={theme}
+            /* Selo só quando a loja NÃO tem o plano — ver
+               docs/DESIGN_SYSTEM.md, seção 3. Antes ele aparecia sempre. */
+            badge={<SeloPlano planoAtual={plano} planoNecessario="pro" />}
+            compacto
+          />
         )}
         {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_comparativo" theme={theme} /> : (
           <Card padding="0">

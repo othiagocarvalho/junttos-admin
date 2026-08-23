@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Label } from '../../components/studio/Input'
 import { Plus, Edit2, Trash2, Package, ChevronDown, ChevronUp, Minus, X } from 'lucide-react'
 import Modal from '../../components/Modal'
 import { fmtR } from '../../utils/formatters'
@@ -342,12 +343,12 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editItem ? 'Editar Produto' : 'Novo Produto'} size="md">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={lbl}>Nome do produto</label>
+            <Label>Nome do produto</Label>
             <input value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
               placeholder="Ex: Vestido Canelado" style={inp} autoFocus />
           </div>
           <div>
-            <label style={lbl}>Categoria</label>
+            <Label>Categoria</Label>
             <select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}
               style={{ ...inp, appearance: 'auto', cursor: 'pointer' }}>
               {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -355,12 +356,12 @@ export default function EstoquePage({ estoque = [], addEstoqueItem, updateEstoqu
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label style={lbl}>Preço custo (R$)</label>
+              <Label>Preço custo (R$)</Label>
               <input value={form.preco_custo} onChange={e => setForm({ ...form, preco_custo: e.target.value })}
                 placeholder="0,00" style={inp} />
             </div>
             <div>
-              <label style={lbl}>Preço venda (R$)</label>
+              <Label>Preço venda (R$)</Label>
               <input value={form.preco_venda} onChange={e => setForm({ ...form, preco_venda: e.target.value })}
                 placeholder="0,00" style={inp} />
             </div>

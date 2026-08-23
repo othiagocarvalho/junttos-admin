@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
@@ -22,7 +23,6 @@ const STATUS_META = {
   atrasado: { tone: 'bad',  label: 'Atrasado' },
 }
 
-const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'Plus Jakarta Sans, sans-serif' }
 const inp = { width: '100%', height: 44, boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none' }
 
 function KpiCard({ label, value, color, sub }) {
@@ -208,11 +208,11 @@ function ContasPagarPane({ lojaId, theme }) {
       {showModal && (
         <Modal title="Nova Conta a Pagar" onClose={() => setShowModal(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div><label style={lbl}>Descrição *</label><input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Aluguel março" style={inp} /></div>
-            <div><label style={lbl}>Categoria</label><select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>{CATEGORIAS_PAGAR.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}</select></div>
-            <div><label style={lbl}>Valor *</label><input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inp} /></div>
-            <div><label style={lbl}>{form.recorrente ? 'Data de início *' : 'Vencimento *'}</label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Observações</label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
+            <div><Label>Descrição *</Label><input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Aluguel março" style={inp} /></div>
+            <div><Label>Categoria</Label><select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>{CATEGORIAS_PAGAR.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}</select></div>
+            <div><Label>Valor *</Label><input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inp} /></div>
+            <div><Label>{form.recorrente ? 'Data de início *' : 'Vencimento *'}</Label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
+            <div><Label>Observações</Label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
             <div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
                 <input type="checkbox" checked={form.recorrente} onChange={e => setForm(f => ({ ...f, recorrente: e.target.checked }))} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: theme.primary }} />
@@ -220,7 +220,7 @@ function ContasPagarPane({ lojaId, theme }) {
               </label>
             </div>
             {form.recorrente && (
-              <div><label style={lbl}>Frequência</label><select value={form.frequencia} onChange={e => setForm(f => ({ ...f, frequencia: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
+              <div><Label>Frequência</Label><select value={form.frequencia} onChange={e => setForm(f => ({ ...f, frequencia: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>
                 <option value="mensal">Mensal</option>
                 <option value="semanal">Semanal</option>
                 <option value="anual">Anual</option>
@@ -376,12 +376,12 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
       {showModal && (
         <Modal title="Nova Conta a Receber" onClose={() => setShowModal(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div><label style={lbl}>Descrição *</label><input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Pagamento cliente João" style={inp} /></div>
-            <div><label style={lbl}>Cliente</label><input value={form.cliente_nome} onChange={e => setForm(f => ({ ...f, cliente_nome: e.target.value }))} placeholder="Nome do cliente" style={inp} /></div>
-            <div><label style={lbl}>Origem</label><select value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>{ORIGENS.map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace('_', ' ')}</option>)}</select></div>
-            <div><label style={lbl}>Valor *</label><input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inp} /></div>
-            <div><label style={lbl}>Vencimento *</label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Observações</label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
+            <div><Label>Descrição *</Label><input value={form.descricao} onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Pagamento cliente João" style={inp} /></div>
+            <div><Label>Cliente</Label><input value={form.cliente_nome} onChange={e => setForm(f => ({ ...f, cliente_nome: e.target.value }))} placeholder="Nome do cliente" style={inp} /></div>
+            <div><Label>Origem</Label><select value={form.origem} onChange={e => setForm(f => ({ ...f, origem: e.target.value }))} style={{ ...inp, cursor: 'pointer' }}>{ORIGENS.map(o => <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1).replace('_', ' ')}</option>)}</select></div>
+            <div><Label>Valor *</Label><input value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" style={inp} /></div>
+            <div><Label>Vencimento *</Label><input type="date" value={form.data_vencimento} onChange={e => setForm(f => ({ ...f, data_vencimento: e.target.value }))} style={inp} /></div>
+            <div><Label>Observações</Label><input value={form.observacoes} onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" style={inp} /></div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button onClick={() => setShowModal(false)} style={{ flex: 1, height: 46, borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 600, color: 'var(--muted)', fontSize: 14 }}>Cancelar</button>
