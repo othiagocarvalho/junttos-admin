@@ -123,6 +123,12 @@ export const TEXTOS = {
   legendaCores: '{n} cores',
   legendaTamanhoUnico: 'Tamanho único',
 
+  // Escolha obrigatória — o cliente tocava no botão preto sem ter escolhido
+  // cor, e a única resposta era um toast lá embaixo, longe do seletor.
+  faltaCor: 'Escolha uma cor para continuar',
+  faltaTamanho: 'Escolha um tamanho para continuar',
+  faltaCorETamanho: 'Escolha a cor e o tamanho para continuar',
+
   // toasts
   toastAdicionado: '{n} peças adicionadas ao pedido',
   toastEscolhaUma: 'Escolha ao menos uma peça',

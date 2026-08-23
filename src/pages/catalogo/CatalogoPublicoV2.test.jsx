@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { TEXTOS } from '../../i18n/catalogo'
 
 // O cliente real chama createClient() no import e depende das env vars do Vite.
 // Aqui só interessa que o módulo do catálogo carregue inteiro.
@@ -793,7 +794,12 @@ const CHIP_COR = /aria-label="Escolher a cor /g
 const CHIP_TAM = /aria-label="Escolher o tamanho /g
 // O botão certo, não a string solta: "disabled" também aparece no "−" da
 // quantidade, que nasce desabilitado em 1.
-const addDesabilitado = s => /<button[^>]*\sdisabled[^>]*>Adicionar<\/button>/.test(s)
+// `aria-disabled`, e não `disabled`: o botão desabilitado de verdade não
+// recebia toque nenhum, então tocar nele não explicava o que faltava — era
+// metade do bug de variação obrigatória relatado em 23/08/2026. A trava
+// continua existindo e sendo anunciada para leitor de tela; o que mudou é que
+// agora o toque chega e a tela consegue dizer o que falta.
+const addDesabilitado = s => /<button[^>]*aria-disabled="true"[^>]*>Adicionar<\/button>/.test(s)
 
 describe('seleção por chips — cor', () => {
   it('produto multicor vira uma bolinha por cor', () => {
@@ -1090,5 +1096,106 @@ describe('CatalogoForaDoAr — nome não repete a logo', () => {
     // bloco de marca com "Catálogo online". Removê-lo orfanaria o subtítulo.
     const s = html(<Cabecalho loja={comLogo} busca="" setBusca={() => {}} totalPecas={0} aoAbrirPedido={() => {}} />)
     expect(vezesNoTexto(s)).toBe(1)
+  })
+})
+
+// Fixture do drawer JÁ na etapa de pagamento: é o estado do relato.
+const propsDrawerPix = () => ({
+  linhas: [], produtosPorId: {}, minimo: null,
+  aoFechar: () => {}, aoMudarQtd: () => {}, aoEnviar: () => {}, aoPagar: () => {},
+  aoCopiarPix: () => {}, aoCopiarTexto: () => {}, aoGerarPixMp: () => {},
+  cliente: { nome: '', whatsapp: '' }, aoMudarCliente: () => {},
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dois bugs do checkout público, relatados a partir da Tropicale (23/08/2026),
+// vistos no iPhone dentro do navegador do WhatsApp.
+//
+// BUG 1 — na tela "Pague com Pix" não dava para rolar até o copia-e-cola:
+//   quem se mexia era a página atrás. Medido em 375x812 com o QR aberto: a
+//   lista de itens espremida em 32px de altura, e o bloco de checkout (dados,
+//   total, QR, copia-e-cola) num IRMÃO dela de 892px SEM rolagem nenhuma,
+//   transbordando 195px para fora do aside de 812px. O botão "Copiar código
+//   Pix" caía em y=820 numa tela de 812.
+//
+// BUG 2 — dava para tocar em "Adicionar ao pedido" sem escolher cor: o botão
+//   preto nunca era desabilitado e chamava aoConfirmar({}).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('checkout público — rolagem do painel de pagamento', () => {
+  const loja = lojaDaConfig({
+    whatsapp_loja: '85999990000', catalogo_checkout_online: true,
+    chave_pix: 'tropicale@exemplo.com',
+  })
+  const s = html(<DrawerPedido {...propsDrawerPix()} loja={loja} />)
+
+  it('quem rola é o painel inteiro, não só a lista de itens', () => {
+    // O aside precisa ser o container de rolagem. Antes o overflow morava num
+    // filho, e o bloco de pagamento ficava fora dele.
+    const aside = s.slice(s.indexOf('<aside'), s.indexOf('>', s.indexOf('<aside')))
+    expect(aside).toContain('overflow-y:auto')
+  })
+
+  it('o gesto não vaza para a página atrás', () => {
+    // overscroll-behavior: contain é o que impede o encadeamento — a metade
+    // da correção que o relato descreve como "quem rola é o fundo".
+    const aside = s.slice(s.indexOf('<aside'), s.indexOf('>', s.indexOf('<aside')))
+    expect(aside).toContain('overscroll-behavior:contain')
+  })
+
+  it('o cabeçalho fica sticky, senão o ✕ sai da tela junto', () => {
+    expect(s).toContain('position:sticky')
+  })
+
+  it('não usa dvh em lugar nenhum do painel', () => {
+    // Lição da correção anterior: dvh não existe em motor antigo e a
+    // declaração inteira é descartada onde não há suporte.
+    expect(s).not.toContain('dvh')
+  })
+})
+
+describe('checkout público — copia-e-cola do Pix', () => {
+  it('o código aparece inteiro, sem caixa de rolagem própria', () => {
+    // Eram maxHeight:96 + overflow:auto — uma armadilha de toque bem no ponto
+    // da tela onde a cliente arrasta o dedo para procurar o código.
+    const estado = { qrCode: '00020126580014BR.GOV.BCB.PIX' + 'A'.repeat(300) }
+    const s = html(<PixDinamico estado={estado} aoGerar={() => {}} aoCopiar={() => {}} />)
+    expect(s).toContain('00020126580014BR.GOV.BCB.PIX')
+    expect(s).not.toContain('max-height:96px')
+  })
+
+  it('o botão de copiar continua lá', () => {
+    const estado = { qrCode: '000201' }
+    expect(html(<PixDinamico estado={estado} aoGerar={() => {}} aoCopiar={() => {}} />)).toContain('Copiar código Pix')
+  })
+})
+
+describe('checkout público — variação é obrigatória', () => {
+  it('produto multicor abre com o botão preto anunciado como indisponível', () => {
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    // aria-disabled, e NÃO disabled: botão desabilitado de verdade não recebe
+    // toque, e era por isso que tocar nele não dizia nada.
+    expect(s).toContain('aria-disabled="true"')
+  })
+
+  it('produto de variação ÚNICA não exige escolha nenhuma', () => {
+    // umaCor tem uma cor só: temCor é false, a etapa some, e o botão precisa
+    // estar liberado de saída. Exigir um toque extra onde não há o que
+    // escolher era o outro lado do mesmo problema.
+    const s = html(<ModalProduto produto={umaCor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).toContain('aria-disabled="false"')
+  })
+
+  it('o aviso não aparece antes de a pessoa tentar', () => {
+    // Vermelho na cara de quem ainda nem começou seria pior que o bug.
+    const s = html(<ModalProduto produto={multicor} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />)
+    expect(s).not.toContain('role="alert"')
+    expect(s).not.toContain('Escolha uma cor para continuar')
+  })
+
+  it('o texto do aviso existe no dicionário, para as duas dimensões', () => {
+    expect(TEXTOS.faltaCor).toMatch(/cor/i)
+    expect(TEXTOS.faltaTamanho).toMatch(/tamanho/i)
+    expect(TEXTOS.faltaCorETamanho).toMatch(/cor/i)
+    expect(TEXTOS.faltaCorETamanho).toMatch(/tamanho/i)
   })
 })

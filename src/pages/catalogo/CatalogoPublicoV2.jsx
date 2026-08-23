@@ -29,6 +29,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabasePublico as supabase } from '../../lib/supabasePublico'
 import { produtoVisivelNoCatalogo } from '../../utils/catalogo'
 import { fmtR } from '../../utils/formatters'
+import { revelarBloco } from '../../utils/revelarVariacoes'
 import { t, TEXTOS } from '../../i18n/catalogo'
 import {
   normalizarProduto, temCor, temTamanho, legendaCard, perguntaModal,
@@ -129,13 +130,41 @@ function usaMenosMovimento() {
 // Hooks de acessibilidade — seção 11
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Trava o scroll do body enquanto modal ou drawer estiver aberto. */
+/**
+ * Trava o scroll do body enquanto modal ou drawer estiver aberto.
+ *
+ * `overflow: hidden` no body NÃO segura o iOS — nem no Safari, nem no WebView
+ * do WhatsApp, que é por onde a cliente chega pelo link. O body para, o
+ * documento continua rolando, e o dedo que deveria rolar o painel rola a
+ * página atrás dele. Foi exatamente o relato: "quem rola é o fundo".
+ *
+ * `position: fixed` no body é o que segura nos dois mundos. Como fixar zera a
+ * rolagem, a posição é guardada e devolvida ao fechar — sem isso o catálogo
+ * voltaria para o topo toda vez que a cliente fechasse o carrinho.
+ */
 function useTravaScroll(ativo) {
   useEffect(() => {
     if (!ativo) return
-    const anterior = document.body.style.overflow
+    const y = window.scrollY || window.pageYOffset || 0
+    const anterior = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    }
     document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = anterior }
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${y}px`
+    // Sem largura fixa o body encolhe para o conteúdo ao virar fixed, e a
+    // página inteira "pula" de largura no instante em que o modal abre.
+    document.body.style.width = '100%'
+    return () => {
+      document.body.style.overflow = anterior.overflow
+      document.body.style.position = anterior.position
+      document.body.style.top = anterior.top
+      document.body.style.width = anterior.width
+      window.scrollTo(0, y)
+    }
   }, [ativo])
 }
 
@@ -829,6 +858,54 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
 
   const podeAdicionar = (!comCor || corSel) && (!comTam || tamSel) && qtd > 0
 
+  // ── Escolha obrigatória ──────────────────────────────────────────────────
+  // O relato: o cliente toca no botão preto "Adicionar ao pedido" sem ter
+  // escolhido cor, e nada explica que faltava escolher. Duas causas somadas:
+  //
+  //   • o botão preto NUNCA era desabilitado. Ele chamava aoConfirmar({}) com
+  //     rascunho vazio; lá no pai isso vira um toast no rodapé da tela, longe
+  //     do seletor de cor — que a essa altura já saiu de vista no celular;
+  //   • o botão "Adicionar" de contorno era `disabled`, e botão desabilitado
+  //     não recebe toque: tocar nele não fazia nem dizia nada.
+  //
+  // Agora o aviso aparece COLADO no seletor que falta, e a tela rola até ele.
+  const faltaEscolha = (comCor && !corSel) || (comTam && !tamSel)
+  const [erroEscolha, setErroEscolha] = useState('')
+  const refCor = useRef(null)
+  const refTam = useRef(null)
+
+  /** Aponta o que falta e leva a pessoa até lá. */
+  function sinalizarFaltaDeEscolha() {
+    const semCor = comCor && !corSel
+    const semTam = comTam && !tamSel
+    if (!semCor && !semTam) return false
+    setErroEscolha(
+      semCor && semTam ? TEXTOS.faltaCorETamanho
+        : semCor ? TEXTOS.faltaCor
+          : TEXTOS.faltaTamanho,
+    )
+    // Mesmo utilitário da Nova Venda: rolagem mínima que traz o bloco inteiro
+    // para dentro, respeitando o container que rola.
+    revelarBloco(semCor ? refCor.current : refTam.current)
+    return true
+  }
+
+  /**
+   * O botão preto do rodapé.
+   *
+   * Lista vazia NÃO significa mais "não faz nada":
+   *   • falta escolha  → avisa no seletor, não fecha o modal;
+   *   • nada a escolher (cor única, sem tamanho) → confirma a escolha corrente
+   *     com a quantidade da tela. Exigir que a cliente tocasse antes no
+   *     "Adicionar" de contorno era um passo extra sem informação nenhuma,
+   *     porque não havia o que escolher.
+   */
+  function confirmarTudo() {
+    if (totalRascunho > 0) { aoConfirmar(rascunho); return }
+    if (sinalizarFaltaDeEscolha()) return
+    aoConfirmar({ [parDe(corSel, tamSel)]: qtd })
+  }
+
   /**
    * Joga a escolha atual na lista compacta.
    *
@@ -989,7 +1066,14 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
             >✕</button>
           </div>
 
-          <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+          {/* minHeight: 0 é obrigatório num filho de flex column: sem ele o
+              min-height:auto impede encolher abaixo do conteúdo e o
+              overflow-y nunca vira rolagem. overscroll-behavior impede o
+              gesto de vazar para a página atrás no toque. */}
+          <div style={{
+            padding: '20px 24px', overflowY: 'auto', flex: 1, minHeight: 0,
+            overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+          }}>
             <p style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 600, color: C.tinta }}>
               {perguntaModal(produto)}
             </p>
@@ -999,15 +1083,32 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 ESCOLHA: com uma cor só, temCor é false e a etapa some — o
                 produto vai direto para a quantidade. */}
             {comCor && (
-              <div style={{ marginBottom: 16 }}>
+              <div
+                ref={refCor}
+                style={{
+                  marginBottom: 16,
+                  // A moldura só aparece depois que a pessoa tentou avançar sem
+                  // escolher — antes disso seria vermelho na cara de quem ainda
+                  // nem começou.
+                  ...(erroEscolha && !corSel ? {
+                    border: `1.5px solid ${ERRO}`, borderRadius: 14,
+                    padding: 12, margin: '0 -12px 16px',
+                  } : null),
+                }}
+              >
                 <RotuloEscolha titulo={TEXTOS.rotuloCor} valor={corSel?.nome} vazio={TEXTOS.escolhaUmaCor} />
+                {erroEscolha && !corSel && (
+                  <p role="alert" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: ERRO }}>
+                    {TEXTOS.faltaCor}
+                  </p>
+                )}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {cores.map(cor => {
                     const ativo = corSel?.nome === cor?.nome
                     return (
                       <button
                         key={cor?.nome}
-                        onClick={() => setCorSel(cor)}
+                        onClick={() => { setCorSel(cor); setErroEscolha('') }}
                         aria-pressed={ativo}
                         aria-label={t('ariaEscolherCor', { nome: cor?.nome })}
                         title={cor?.nome}
@@ -1033,15 +1134,29 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 Pill retangular. Mesma regra: sem escolha de tamanho
                 (o caso de hoje, em que tudo é "Único"), a etapa não existe. */}
             {comTam && (
-              <div style={{ marginBottom: 16 }}>
+              <div
+                ref={refTam}
+                style={{
+                  marginBottom: 16,
+                  ...(erroEscolha && !tamSel ? {
+                    border: `1.5px solid ${ERRO}`, borderRadius: 14,
+                    padding: 12, margin: '0 -12px 16px',
+                  } : null),
+                }}
+              >
                 <RotuloEscolha titulo={TEXTOS.rotuloTamanho} valor={tamSel} vazio={TEXTOS.escolhaUmTamanho} />
+                {erroEscolha && !tamSel && (
+                  <p role="alert" style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: ERRO }}>
+                    {TEXTOS.faltaTamanho}
+                  </p>
+                )}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {tamanhos.map(tam => {
                     const ativo = tamSel === tam
                     return (
                       <button
                         key={tam}
-                        onClick={() => setTamSel(tam)}
+                        onClick={() => { setTamSel(tam); setErroEscolha('') }}
                         aria-pressed={ativo}
                         aria-label={t('ariaEscolherTamanho', { nome: tam })}
                         style={{
@@ -1097,9 +1212,14 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
               {/* Contorno, não preenchido: o botão cheio é o "Adicionar ao
                   pedido" do rodapé, que é a ação que fecha o modal. Dois
                   botões pretos iguais fariam a pessoa clicar no errado. */}
+              {/* `aria-disabled` e NÃO `disabled`: botão desabilitado de
+                  verdade não recebe toque nenhum, então tocar nele não fazia
+                  nem dizia nada — que é metade da reclamação. Assim ele
+                  continua anunciado como indisponível para o leitor de tela,
+                  mas o toque chega e consegue EXPLICAR o que falta. */}
               <button
-                onClick={adicionarItem}
-                disabled={!podeAdicionar}
+                onClick={() => { if (!sinalizarFaltaDeEscolha()) adicionarItem() }}
+                aria-disabled={!podeAdicionar}
                 style={{
                   flex: '1 1 130px', minWidth: 120, height: 44, borderRadius: 12,
                   border: `1.5px solid ${podeAdicionar ? C.tinta : C.linhaInput}`,
@@ -1204,12 +1324,17 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
               </p>
               <p style={{ margin: 0, fontFamily: DISPLAY, fontSize: 26, color: C.tinta }}>{fmtR(subtotal)}</p>
             </div>
+            {/* Também `aria-disabled`, pelo mesmo motivo: é ESTE o botão que
+                a cliente toca (preto, grande, com cara de ação principal), e
+                era ele que confirmava um rascunho vazio sem explicar nada. */}
             <button
               className="cat-btn-tinta"
-              onClick={() => aoConfirmar(rascunho)}
+              onClick={confirmarTudo}
+              aria-disabled={totalRascunho === 0 && faltaEscolha}
               style={{
                 flex: '1 1 200px', height: 54, borderRadius: 14, border: 'none',
                 background: C.tinta, color: C.fundo, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+                opacity: totalRascunho === 0 && faltaEscolha ? 0.55 : 1,
               }}
             >{TEXTOS.adicionar}</button>
           </div>
@@ -1291,12 +1416,21 @@ export function PixDinamico({ estado, aoGerar, aoCopiar, primeiroPlano = false }
       {/* O copia-e-cola do próprio Mercado Pago: em banco que não lê QR na
           tela (ou quando a cliente está no celular olhando o próprio app), é
           por aqui que ela paga. */}
+      {/* Sem maxHeight e sem overflow próprio, de propósito.
+          Eram `maxHeight: 96, overflow: 'auto'` — uma caixa de rolagem de 96px
+          dentro do painel, bem no ponto da tela onde a cliente arrasta o dedo
+          para procurar este código. No toque isso é uma armadilha: o gesto era
+          capturado por este parágrafo, e ao terminar os 96px ele passava para
+          a página atrás em vez de rolar o painel.
+          O código do Mercado Pago tem ~340 caracteres e ocupa umas 9 linhas
+          aqui — agora aparece inteiro, que é o que a cliente precisa ver antes
+          de copiar. Quem rola é o painel. */}
       <p style={{
         margin: '0 0 11px', padding: '11px 12px', borderRadius: 10,
         background: C.superficie3, border: `1px solid ${C.linha}`,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
         fontSize: 11.5, lineHeight: 1.5, color: C.tinta,
-        wordBreak: 'break-all', maxHeight: 96, overflow: 'auto',
+        wordBreak: 'break-all',
       }}>{estado.qrCode}</p>
 
       <button
@@ -1365,11 +1499,33 @@ export function DrawerPedido({
           position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(430px, 100vw)',
           background: C.fundo, zIndex: 61, display: 'flex', flexDirection: 'column',
           boxShadow: '-24px 0 60px rgba(25,23,19,.18)', animation: 'cat-slideUp .22s ease',
+          // ── QUEM ROLA É O PAINEL INTEIRO ──────────────────────────────
+          // Antes só a LISTA de itens rolava, e o bloco de checkout (dados,
+          // total, QR do Pix, copia-e-cola) era um IRMÃO dela, sem rolagem
+          // nenhuma. Medido em 375x812 com o QR aberto: a lista espremida em
+          // 32px e o bloco de checkout com 892px transbordando 195px para
+          // fora do aside — o botão "Copiar código Pix" caía em y=820 numa
+          // tela de 812 e não havia como alcançá-lo.
+          //
+          // É a mesma decisão que o ModalProduto já tinha tomado ("no celular
+          // o modal vira uma coluna só e QUEM rola é o painel inteiro"), com o
+          // cabeçalho sticky no lugar do rodapé sticky de lá.
+          overflowY: 'auto',
+          // Impede o encadeamento: chegando ao fim do painel, o gesto PARA em
+          // vez de passar para a página atrás. É a metade da correção que o
+          // relato descreve como "quem rola é o fundo".
+          overscrollBehavior: 'contain',
+          // iOS antigo: rolagem com inércia dentro do elemento. Inofensivo
+          // onde já é o padrão.
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <div style={{
           padding: 20, borderBottom: `1px solid ${C.linha}`,
           display: 'flex', alignItems: 'flex-start', gap: 12,
+          // Com o painel inteiro rolando, o cabeçalho sairia da tela e levaria
+          // o ✕ junto — fechar o carrinho viraria uma rolagem de volta ao topo.
+          position: 'sticky', top: 0, zIndex: 2, background: C.fundo, flex: 'none',
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ margin: '0 0 2px', fontSize: 18, fontWeight: 600, color: C.tinta }}>{TEXTOS.meuPedido}</p>
@@ -1386,7 +1542,11 @@ export function DrawerPedido({
         </div>
 
         <div style={{
-          flex: 1, overflowY: 'auto', padding: '16px 20px',
+          // `1 0 auto`: cresce para ocupar a sobra (é o que mantém o estado
+          // "carrinho vazio" centralizado pelo `margin: auto 0` abaixo) e NÃO
+          // encolhe. A rolagem agora é do aside, não daqui — dois containers
+          // de rolagem aninhados eram parte do problema no toque.
+          flex: '1 0 auto', minHeight: 0, padding: '16px 20px',
           display: 'flex', flexDirection: 'column', gap: 14,
         }}>
           {linhas.length === 0 ? (
@@ -1450,6 +1610,10 @@ export function DrawerPedido({
 
         <div style={{
           borderTop: `1px solid ${C.linha}`, padding: '18px 20px 22px', background: C.superficie2,
+          // `none`: com o QR aberto este bloco passa de 890px. Deixá-lo
+          // encolhível fazia o conteúdo ser cortado; agora ele tem a altura
+          // que precisa e quem rola é o aside.
+          flex: 'none',
         }}>
           {/* Nome e WhatsApp são obrigatórios: sem eles o pedido chega no
               painel sem ninguém para contatar. Ficam escondidos com o carrinho
