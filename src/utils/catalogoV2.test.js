@@ -770,3 +770,31 @@ describe('dadosClienteParaPedido', () => {
     }).ok).toBe(true)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Publicar / despublicar o catálogo
+// ─────────────────────────────────────────────────────────────────────────────
+describe('lojaDaConfig — catalogo_publicado', () => {
+  it('coluna ausente conta como PUBLICADO', () => {
+    // Enquanto a migration não roda, o valor chega undefined. As 13 lojas já
+    // estão no ar: um default "false" derrubaria todas de uma vez.
+    expect(lojaDaConfig({}).publicado).toBe(true)
+    expect(lojaDaConfig(null).publicado).toBe(true)
+  })
+
+  it('só false explícito tira do ar', () => {
+    expect(lojaDaConfig({ catalogo_publicado: false }).publicado).toBe(false)
+    expect(lojaDaConfig({ catalogo_publicado: true }).publicado).toBe(true)
+  })
+
+  it('não confunde com catalogo_publico, que é o SEGMENTO', () => {
+    // Os nomes são quase iguais e significam coisas completamente diferentes.
+    // Trocar um pelo outro despublicaria loja achando que mudava de segmento.
+    const cfg = { catalogo_publico: 'feminino', catalogo_publicado: false }
+    expect(lojaDaConfig(cfg).publico).toBe('feminino')
+    expect(lojaDaConfig(cfg).publicado).toBe(false)
+
+    const so_segmento = { catalogo_publico: 'masculino' }
+    expect(lojaDaConfig(so_segmento).publicado).toBe(true)
+  })
+})

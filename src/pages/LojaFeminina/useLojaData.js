@@ -778,6 +778,50 @@ export function useLojaData(lojaId = 'estrada') {
 
   const features = { ...DEFAULT_FEATURES, ...(config?.features || {}) }
 
+  /**
+   * Apaga um pedido do catálogo, de vez.
+   *
+   * ─── NÃO É O MESMO QUE CANCELAR ─────────────────────────────────────────
+   * cancelarPedido muda o status e DEVOLVE ao estoque o que o checkout tinha
+   * baixado. Excluir apaga a linha e não devolve nada — se o pedido chegou a
+   * baixar estoque, cancele ANTES de excluir, ou a peça fica reservada num
+   * pedido que não existe mais. A tela avisa isso na confirmação.
+   *
+   * Serve para pedido de teste e pedido duplicado, que hoje ficam para sempre
+   * poluindo a lista e as somas.
+   *
+   * ─── POR QUE CONFERIR A CONTAGEM ────────────────────────────────────────
+   * No PostgREST, um DELETE que não casa NENHUMA linha é 204 SEM ERRO. Como
+   * lf_pedidos filtra por RLS, isso acontece em dois casos reais: a migration
+   * de permissão ainda não rodou, ou a sessão expirou. Sem a contagem, a tela
+   * diria "pedido excluído" com a linha intacta no banco — exatamente o tipo
+   * de falha silenciosa que já mordeu o salvamento de credenciais aqui.
+   *
+   * `count` null é tratado como DESCONHECIDO, nunca como falha: se um dia o
+   * header não vier, o comportamento degrada para o de sempre em vez de
+   * acusar erro numa exclusão que funcionou.
+   */
+  async function excluirPedido(id) {
+    const { error, count } = await supabase
+      .from('lf_pedidos')
+      .delete({ count: 'exact' })
+      .eq('id', id)
+      .eq('loja_id', lojaId)
+
+    if (error) throw error
+    if (count === 0) {
+      throw new Error(
+        'O banco não apagou nenhum pedido. Normalmente é permissão que ainda '
+        + 'não foi liberada, ou sessão expirada — saia, entre de novo e tente. '
+        + 'Nada foi alterado.',
+      )
+    }
+
+    setPedidos(prev => prev.filter(p => p.id !== id))
+    await fetchAll()
+    return true
+  }
+
   return {
     loading,
     dbError,
@@ -828,6 +872,7 @@ export function useLojaData(lojaId = 'estrada') {
     pedidos,
     updatePedido,
     cancelarPedido,
+    excluirPedido,
     compras,
     addCompra,
     marcarCompraPaga,

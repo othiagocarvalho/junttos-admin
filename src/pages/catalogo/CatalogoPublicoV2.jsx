@@ -579,6 +579,67 @@ export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridad
   )
 }
 
+/**
+ * Catálogo despublicado.
+ *
+ * Substitui a página inteira — cabeçalho, grade e rodapé. Não é uma faixa em
+ * cima do catálogo: o requisito é que nenhuma peça e nenhum preço fiquem
+ * acessíveis por esta rota enquanto a loja estiver fora do ar.
+ *
+ * O que fica: a identidade da loja (para quem abriu o link saber que chegou no
+ * lugar certo) e o caminho para falar com ela. Sem WhatsApp cadastrado o botão
+ * não existe — botão verde que não abre conversa nenhuma é pior que nada, e é
+ * a mesma regra que o Rodape já segue.
+ */
+export function CatalogoForaDoAr({ loja, aoChamar }) {
+  const inicial = (loja?.nome || '?').trim().charAt(0).toUpperCase()
+  return (
+    <div style={{
+      minHeight: '100dvh', background: C.fundo, display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: '40px 20px',
+    }}>
+      <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
+        {loja?.logoUrl ? (
+          <img src={loja.logoUrl} alt={loja.nome}
+            style={{ width: 76, height: 76, borderRadius: 20, objectFit: 'cover', margin: '0 auto 20px', display: 'block' }} />
+        ) : (
+          <div style={{
+            width: 76, height: 76, borderRadius: 20, background: C.tinta, margin: '0 auto 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 30, fontWeight: 700, color: C.fundo,
+          }}>{inicial}</div>
+        )}
+
+        <p style={{
+          margin: '0 0 10px', fontSize: 12, fontWeight: 600, letterSpacing: '.14em',
+          textTransform: 'uppercase', color: C.etiqueta,
+        }}>{loja?.nome}</p>
+
+        <h1 style={{
+          margin: '0 0 14px', fontFamily: DISPLAY, fontWeight: 400,
+          fontSize: 'clamp(28px, 6vw, 40px)', lineHeight: 1.1, color: C.tinta,
+        }}>{TEXTOS.foraDoArTitulo}</h1>
+
+        <p style={{ margin: '0 0 26px', fontSize: 16, lineHeight: 1.6, color: C.texto3 }}>
+          {loja?.whatsapp ? TEXTOS.foraDoArTexto : TEXTOS.foraDoArSemWhatsapp}
+        </p>
+
+        {loja?.whatsapp && (
+          <button
+            className="cat-btn-wa"
+            onClick={aoChamar}
+            style={{
+              height: 54, padding: '0 26px', borderRadius: 14, border: 'none',
+              background: C.whatsapp, color: '#fff', fontSize: 16, fontWeight: 600, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 9,
+            }}
+          >{TEXTOS.foraDoArWhatsapp}</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function EstadoVazio() {
   return (
     <div style={{ padding: '80px 20px', textAlign: 'center' }}>
@@ -1579,6 +1640,14 @@ export default function CatalogoPublicoV2({ lojaId }) {
       ])
       if (!vivo) return
       setConfig(cfg)
+      // Fora do ar: nem entra na lista. A tela de aviso não usa produto
+      // nenhum, e deixar a lista preenchida seria confiar só no render para
+      // não vazar peça e preço.
+      if (cfg?.catalogo_publicado === false) {
+        setProdutos([])
+        setCarregando(false)
+        return
+      }
       // produtoVisivelNoCatalogo hoje só exige foto: produto sem variação
       // entra normalmente e abre o modal com uma célula única "Quantidade".
       // O filtro segue aqui (e não no .eq() acima) porque fotos é JSONB e o
@@ -1861,6 +1930,17 @@ export default function CatalogoPublicoV2({ lojaId }) {
           animation: 'cat-spin 1s linear infinite',
         }} />
         <style>{'@keyframes cat-spin { to { transform: rotate(360deg) } }'}</style>
+      </div>
+    )
+  }
+
+  // Loja fora do ar: troca a página inteira. Fica ANTES de qualquer coisa que
+  // desenhe produto — cabeçalho, grade, drawer e rodapé nem chegam a montar.
+  if (!loja.publicado) {
+    return (
+      <div className="cat-raiz" style={{ fontFamily: UI, color: C.tinta, WebkitFontSmoothing: 'antialiased' }}>
+        <EstiloGlobal />
+        <CatalogoForaDoAr loja={loja} aoChamar={chamarNoWhatsApp} />
       </div>
     )
   }

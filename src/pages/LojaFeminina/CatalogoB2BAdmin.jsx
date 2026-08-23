@@ -698,6 +698,9 @@ export default function CatalogoB2BAdmin({ data, theme, lojaId, nivel, onSwitchT
                 pedidos={data.pedidos || []}
                 updatePedido={data.updatePedido}
                 cancelarPedido={data.cancelarPedido}
+                excluirPedido={data.excluirPedido}
+                config={data.config}
+                saveConfig={data.saveConfig}
                 theme={theme}
                 lojaId={lojaId}
               />

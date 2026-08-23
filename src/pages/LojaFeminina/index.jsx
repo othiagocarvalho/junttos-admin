@@ -458,6 +458,9 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
@@ -659,7 +662,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
-      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={lojaId} />
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModulo data={data} theme={theme} lojaId={lojaId} nivel={catalogoB2BNivel} />

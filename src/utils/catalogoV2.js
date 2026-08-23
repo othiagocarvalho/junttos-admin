@@ -481,6 +481,14 @@ export function lojaDaConfig(config) {
     // digitou "(85) 99999-0000".
     whatsapp: telefoneE164(config?.whatsapp_loja),
     checkoutOnline: config?.catalogo_checkout_online === true,
+    // `!== false`, e NÃO `=== true`: enquanto a coluna não existir no banco o
+    // valor chega undefined, e o catálogo das lojas que já estão no ar não
+    // pode cair por causa disso. Só um false explícito tira do ar.
+    //
+    // Atenção ao nome: `catalogo_publicado` é a chave de "loja aberta".
+    // `catalogo_publico`, logo acima, é o SEGMENTO ('feminino') — coisa
+    // completamente diferente, com nome quase igual.
+    publicado: config?.catalogo_publicado !== false,
     // Chave Pix copia-e-cola. String vazia quando não cadastrada — o drawer
     // usa isso para decidir entre mostrar o bloco de Pix e manter o caminho
     // antigo, então nunca pode virar null.
