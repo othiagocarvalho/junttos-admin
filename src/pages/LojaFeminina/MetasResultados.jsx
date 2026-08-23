@@ -1,24 +1,29 @@
-// Tela "Metas & Resultados" — sete gavetas expansíveis.
+// Tela "Metas & Resultados" — cinco gavetas expansíveis.
 //
 // Reorganização visual: nenhum cálculo novo. Cada gaveta puxa o componente que
 // já existia, na ordem fixa combinada:
 //
-//   1. Meta mensal             Meta.jsx, seção 'mensal'
+//   1. Meta mensal             Meta.jsx, seções 'mensal' + 'vendedor' + 'produto'
 //   2. Vendedores e comissão   VendedoresConfig (veio de Configurações)
 //                              + ComissaoVendedores (estava só no Relatórios)
 //   3. Curva ABC               estava inline no Relatorios mobile
-//   4. Corrida de vendedores   CorridaSection, que Meta.jsx já montava
-//   5. Meta por vendedor(a)    Meta.jsx, seção 'vendedor'
-//   6. Meta por produto        Meta.jsx, seção 'produto'
-//   7. Comparativo mês a mês   Meta.jsx, seção 'comparativo'
+//   4. Corrida de Vendas       CorridaSection, que Meta.jsx já montava
+//   5. Comparativo Mensal      Meta.jsx, seção 'comparativo'
 //
-// As três últimas eram blocos SOLTOS dentro da gaveta 1: abriam expandidos
-// junto com a meta mensal e faziam a primeira gaveta ocupar a tela inteira.
-// Agora cada uma tem gaveta própria, fechada, e o Meta.jsx recebe `secoes`
-// dizendo qual parte renderizar (ver TODAS_SECOES lá).
+// Meta por vendedor(a) e Meta por produto tinham gaveta própria e voltaram
+// para DENTRO da gaveta 1, como sub-seções: são as três faces da mesma
+// pergunta ("qual é o alvo do mês"), e quebrar isso em três gavetas espalhava
+// pela lista o que se lê junto. Não é duplicação de código — o Meta.jsx recebe
+// as três chaves em `secoes` no mesmo mount, e cada sub-seção volta a exibir o
+// próprio título e selo de plano (é para isso que `semRotulos` existe: aqui
+// ele NÃO é passado).
 //
-// Só a primeira abre por padrão. As outras abrem e fecham independentemente —
-// não é accordion exclusivo.
+// NENHUMA gaveta abre por padrão. A Meta mensal era a única com
+// `inicialAberta` e passou a se comportar como as outras — com as duas
+// sub-seções dentro, deixá-la aberta faria a tela nascer com quase tudo
+// expandido, que é justamente o que a gaveta veio resolver.
+//
+// Abrem e fecham independentemente — não é accordion exclusivo.
 //
 // ─── GATE POR GAVETA ────────────────────────────────────────────────────────
 // A gaveta SEMPRE aparece; quem não tem o plano vê o UpgradeWall dentro dela.
@@ -28,7 +33,7 @@
 // upgrade serve. Nenhum critério novo: reaproveita temAcesso(plano, ...) com os
 // mesmos níveis já usados por cada feature hoje.
 
-import { Target, Users, BarChart3, Trophy, UserCheck, Package, CalendarRange } from 'lucide-react'
+import { Target, Users, BarChart3, Trophy, CalendarRange } from 'lucide-react'
 import Meta from './Meta'
 import CorridaSection from './CorridaSection'
 import Gaveta from '../../components/studio/Gaveta'
@@ -39,9 +44,10 @@ import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import CurvaABC from '../../components/relatorios/CurvaABC'
 import { temAcesso } from '../../utils/planos'
 
-// Os selos que ficavam ao lado do título dentro do Meta.jsx. Com a seção
-// virando gaveta, o título passou para o cabeçalho dela — e o selo vai junto,
-// pela prop `badge`, em vez de sumir.
+// Selo de plano no cabeçalho da gaveta. Só o Comparativo usa: as sub-seções
+// de vendedor e produto voltaram para dentro do Meta.jsx e lá o selo é
+// desenhado pelo ProBadge/BusinessBadge do próprio arquivo, ao lado do título
+// da sub-seção.
 function Selo({ texto, fundo, cor }) {
   return (
     <span style={{
@@ -51,14 +57,15 @@ function Selo({ texto, fundo, cor }) {
     }}>{texto}</span>
   )
 }
-const SELO_PRO      = <Selo texto="Pro" fundo="#dbeafe" cor="#1d4ed8" />
-const SELO_BUSINESS = <Selo texto="Business" fundo="#ede9fe" cor="#6d28d9" />
+const SELO_PRO = <Selo texto="Pro" fundo="#dbeafe" cor="#1d4ed8" />
 
 // Fora do componente de propósito: array novo a cada render faria o Meta
 // remontar sem necessidade.
-const SO_MENSAL      = ['mensal']
-const SO_VENDEDOR    = ['vendedor']
-const SO_PRODUTO     = ['produto']
+//
+// A gaveta 1 pede as TRÊS seções de meta de uma vez. A ordem aqui não decide
+// nada — quem manda no desenho é a ordem dos blocos dentro do Meta.jsx
+// (mensal, depois vendedor, depois produto).
+const METAS_DO_MES   = ['mensal', 'vendedor', 'produto']
 const SO_COMPARATIVO = ['comparativo']
 
 /** Vendas do mês corrente — recorte que as gavetas 2 e 3 usam.
@@ -89,21 +96,35 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24 }}>
 
-      {/* 1 ── Metas do mês (única aberta por padrão) ─────────────────────── */}
+      {/* 1 ── Meta mensal, com as metas por vendedor e por produto dentro ── */}
       <Gaveta
         titulo="Meta mensal"
-        subtitulo="Meta da loja e progresso do mês"
+        subtitulo="Meta da loja, por vendedor(a) e por produto"
         Icon={Target}
         theme={theme}
-        inicialAberta
         compacta={mobile}
       >
-        {/* Só a seção 'mensal'. Vendedor, produto e comparativo saíram daqui
-            para gavetas próprias (5, 6 e 7) — antes vinham juntos e abertos,
-            e esta gaveta ocupava a tela inteira ao carregar. A corrida
-            continua fora: tem a gaveta 4. */}
+        {/* As três seções no MESMO mount. Sem `semRotulos` de propósito: cada
+            sub-seção volta a desenhar o próprio título com o selo de plano
+            (Meta por Vendedor(a) · Pro, Meta por Produto · Business), que é o
+            que as separa visualmente dentro da gaveta.
+
+            O gate de cada sub-seção continua sendo o do próprio Meta.jsx —
+            mesmo nível e mesma `funcionalidade` de sempre (meta_vendedor/Pro,
+            meta_produto/Business). Quem não tem o plano vê o UpgradeWall no
+            lugar daquela sub-seção, e só dela.
+
+            A corrida e o comparativo seguem fora: têm as gavetas 4 e 5. */}
         {temStarter ? (
-          <Meta {...data} theme={theme} plano={plano} mobile={mobile} secoes={SO_MENSAL} />
+          <Meta
+            {...data} theme={theme} plano={plano} mobile={mobile}
+            secoes={METAS_DO_MES}
+            /* vem de lf_vendedores: sem ele a lista só reconhecia quem JÁ
+               vendeu, e a lojista não conseguia definir a meta de alguém antes
+               da primeira venda. Correção anterior, preservada — mudou de
+               gaveta junto com a sub-seção. */
+            vendedoresCadastrados={vendedores}
+          />
         ) : (
           <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} />
         )}
@@ -142,9 +163,9 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
         )}
       </Gaveta>
 
-      {/* 4 ── Corrida de vendedores ──────────────────────────────────────── */}
+      {/* 4 ── Corrida de Vendas ──────────────────────────────────────────── */}
       <Gaveta
-        titulo="Corrida de vendedores"
+        titulo="Corrida de Vendas"
         subtitulo="Ranking e disputa por período"
         Icon={Trophy}
         theme={theme}
@@ -164,53 +185,12 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
         )}
       </Gaveta>
 
-      {/* ── 5, 6 e 7 ────────────────────────────────────────────────────────
-          Eram blocos SOLTOS dentro da gaveta 1: abriam expandidos junto com a
-          meta mensal e faziam a primeira gaveta ocupar a tela inteira.
-
-          O gate de cada um continua SENDO O DO PRÓPRIO Meta.jsx — mesmo nível
-          e mesma `funcionalidade` de antes (meta_vendedor/Pro,
-          meta_produto/Business, meta_comparativo/Pro). Nada de gate novo: a
-          gaveta aparece sempre e o UpgradeWall vem de dentro, que é o padrão
-          das outras.
-
-          `semRotulos` desliga o título e o selo que ficavam dentro da seção —
-          agora eles são o cabeçalho e o badge da própria gaveta. */}
-
-      {/* 5 ── Meta por vendedor(a) ───────────────────────────────────────── */}
+      {/* 5 ── Comparativo Mensal ─────────────────────────────────────────
+          Última gaveta da lista. O gate continua sendo o do próprio Meta.jsx
+          (meta_comparativo/Pro); `semRotulos` desliga o título interno, que
+          aqui é o cabeçalho da gaveta, e o selo vem pelo badge. */}
       <Gaveta
-        titulo="Meta por vendedor(a)"
-        subtitulo="Alvo individual do mês e quanto cada um já fez"
-        Icon={UserCheck}
-        badge={SELO_PRO}
-        theme={theme}
-        compacta={mobile}
-      >
-        {/* vendedoresCadastrados vem de lf_vendedores: sem ele a lista só
-            reconhecia quem JÁ vendeu, e a lojista não conseguia definir a meta
-            de alguém antes da primeira venda. Correção anterior, preservada. */}
-        <Meta
-          {...data} theme={theme} plano={plano} mobile={mobile}
-          secoes={SO_VENDEDOR} semRotulos
-          vendedoresCadastrados={vendedores}
-        />
-      </Gaveta>
-
-      {/* 6 ── Meta por produto ───────────────────────────────────────────── */}
-      <Gaveta
-        titulo="Meta por produto"
-        subtitulo="Alvo por produto ou categoria, em peças ou faturamento"
-        Icon={Package}
-        badge={SELO_BUSINESS}
-        theme={theme}
-        compacta={mobile}
-      >
-        <Meta {...data} theme={theme} plano={plano} mobile={mobile} secoes={SO_PRODUTO} semRotulos />
-      </Gaveta>
-
-      {/* 7 ── Comparativo mês a mês ──────────────────────────────────────── */}
-      <Gaveta
-        titulo="Comparativo mês a mês"
+        titulo="Comparativo Mensal"
         subtitulo="Meta e realizado dos últimos 6 meses"
         Icon={CalendarRange}
         badge={SELO_PRO}
