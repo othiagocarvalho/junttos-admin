@@ -7,6 +7,8 @@ import ProdutosB2BPro from './ProdutosB2BPro'
 import PedidosConsolidados from './PedidosConsolidados'
 import Financeiro from './Financeiro'
 import { supabase } from '../../lib/supabase'
+import VideoTopoConfig from '../../components/catalogo/VideoTopoConfig'
+import { videoTopoDaConfig, videoTopoParaConfig } from '../../utils/videoTopo'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
@@ -255,6 +257,9 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
   const [mpToken,   setMpToken]   = useState('')
   const [mpSecret,  setMpSecret]  = useState('')
   const [mpAtivo,   setMpAtivo]   = useState(config?.mercadopago_ativo === true)
+  // Faixa de vídeo do topo do catálogo. Vinha SEM tela desde o início: só dava
+  // para ligar escrevendo o jsonb catalogo_video_topo direto no banco.
+  const [videoTopo, setVideoTopo] = useState(() => videoTopoDaConfig(config))
   const [mpErro,    setMpErro]    = useState('')
   // Erro do salvamento em lf_config. Separado de mpErro porque são duas
   // gravações independentes: a credencial pode falhar e o resto passar, e a
@@ -275,6 +280,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
     setPmQtd(config.pedido_minimo_qtd     || '')
     setCheckout(config.catalogo_checkout_online === true)
     setMpAtivo(config.mercadopago_ativo === true)
+    setVideoTopo(videoTopoDaConfig(config))
   }, [config])
 
   const mpJaConfigurado = config?.mercadopago_ativo === true
@@ -320,6 +326,9 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
       pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
       pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
       catalogo_checkout_online: checkout,
+      // videoTopoParaConfig desliga `ativo` quando não há mídia: ligado e
+      // vazio, a faixa vira uma tarja preta de até 340px no topo.
+      catalogo_video_topo: videoTopoParaConfig(videoTopo),
       // Só liga a flag se houver credencial de verdade: ligada sem token, o
       // catálogo tenta o QR, falha e cai no copia-e-cola — funciona, mas
       // gasta um round-trip e um toast de erro a cada pedido.
@@ -498,6 +507,19 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Faixa de vídeo do topo do catálogo. Entra depois de Pagamento porque
+          é aparência, não regra de venda — e antes do Pedido Mínimo, que é a
+          seção que muda de nível de plano. */}
+      <div style={{card}}>
+        <VideoTopoConfig
+          valor={videoTopo}
+          aoMudar={setVideoTopo}
+          lojaId={lojaId}
+          client={supabase}
+          theme={theme}
+        />
       </div>
 
       {nivel === 'pro' ? (
