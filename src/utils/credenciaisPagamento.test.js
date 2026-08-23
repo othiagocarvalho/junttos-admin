@@ -101,10 +101,61 @@ describe('salvarCredencialMercadoPago', () => {
     expect(c.inserts[0].linha.mercadopago_webhook_secret).toBe('s')
   })
 
-  it('campo vazio grava null, o que desconfigura a loja', async () => {
+  // ── Campo vazio MANTÉM o que está gravado ───────────────────────────────
+  // Este bloco substitui um teste que cristalizava o bug: ele afirmava que
+  // "campo vazio grava null, o que desconfigura a loja" — e era exatamente
+  // isso que impedia a Tropicale de ter token e segredo salvos ao mesmo
+  // tempo. O placeholder dos dois campos promete "Deixe vazio para manter o
+  // atual"; agora o código cumpre a promessa.
+
+  it('só o access token digitado: o segredo do webhook NÃO é tocado', async () => {
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: 'APP_USR-1', webhookSecret: '' })
+    const linha = c.updates[0].linha
+    expect(linha.mercadopago_access_token).toBe('APP_USR-1')
+    // Ausente, não null: coluna que não vai no PATCH é coluna que o Postgres
+    // não mexe. `null` aqui APAGARIA o segredo já gravado.
+    expect('mercadopago_webhook_secret' in linha).toBe(false)
+  })
+
+  it('só o segredo do webhook digitado: o access token NÃO é tocado', async () => {
+    // A sequência exata do relato: token salvo antes, tela limpa os campos,
+    // lojista volta e digita só a chave do webhook. Antes, isto apagava o
+    // token e derrubava o Pix com QR Code.
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'tropicaleatacado', { token: '', webhookSecret: 's3g' })
+    const linha = c.updates[0].linha
+    expect(linha.mercadopago_webhook_secret).toBe('s3g')
+    expect('mercadopago_access_token' in linha).toBe(false)
+  })
+
+  it('espaço em branco conta como vazio, não como valor', async () => {
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'x', { token: '   ', webhookSecret: 's3g' })
+    expect('mercadopago_access_token' in c.updates[0].linha).toBe(false)
+  })
+
+  it('nada digitado não gera escrita nenhuma', async () => {
+    // Salvar a tela de Configurações sem tocar nas chaves não pode mandar um
+    // write — no desenho antigo esse write apagava as duas de uma vez.
     const c = clientFake()
-    await salvarCredencialMercadoPago(c, 'x', { token: '', webhookSecret: '' })
-    expect(c.inserts[0].linha.mercadopago_access_token).toBeNull()
+    const { error } = await salvarCredencialMercadoPago(c, 'x', { token: '', webhookSecret: '' })
+    expect(error).toBeNull()
+    expect(c.inserts).toHaveLength(0)
+    expect(c.updates).toHaveLength(0)
+  })
+
+  it('atualizado_em vai junto mesmo quando só um campo mudou', async () => {
+    const c = clientFake({ erroInsert: UNIQUE })
+    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1' })
+    expect(c.updates[0].linha.atualizado_em).toBeTruthy()
+  })
+
+  it('loja nova com só um campo: o outro nasce ausente, e o default cuida', async () => {
+    const c = clientFake()
+    await salvarCredencialMercadoPago(c, 'x', { token: 'APP_USR-1', webhookSecret: '' })
+    expect(c.inserts[0].linha.mercadopago_access_token).toBe('APP_USR-1')
+    expect('mercadopago_webhook_secret' in c.inserts[0].linha).toBe(false)
   })
 
   it('sem lojaId nem chega a tocar no banco', async () => {

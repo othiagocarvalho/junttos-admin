@@ -66,10 +66,46 @@
  * PostgREST não mandar o header, o comportamento volta a ser o de antes em vez
  * de recusar uma gravação que funcionou.
  *
+ * ─── CAMPO VAZIO MANTÉM O QUE ESTÁ GRAVADO ─────────────────────────────────
+ * Relato da Tropicale de 23/08/2026: "não consigo salvar o Access Token e a
+ * chave do webhook". A tela promete, no placeholder de cada campo,
+ * "Deixe vazio para manter o atual" — e o código fazia o contrário:
+ *
+ *     mercadopago_access_token:   token?.trim()         || null
+ *     mercadopago_webhook_secret: webhookSecret?.trim() || null
+ *
+ * Campo vazio virava NULL, ou seja, APAGAVA o valor gravado. Como a tela
+ * limpa os dois campos depois de cada salvamento bem-sucedido (o token não
+ * volta do banco, então não há o que reexibir), a sequência natural
+ *
+ *     1. cola o Access Token, salva          -> token gravado, segredo NULO
+ *     2. cola a chave do webhook, salva      -> segredo gravado, TOKEN APAGADO
+ *
+ * nunca deixava os dois valores no banco ao mesmo tempo. Para a lojista isso
+ * aparece como "não salva", e é recorrente por construção: cada salvamento
+ * desfaz o anterior.
+ *
+ * Agora só vai para o banco o campo que foi realmente digitado. Vazio não é
+ * enviado, então o UPDATE não toca naquela coluna e o INSERT a deixa no
+ * default (NULL, que é o correto quando não havia nada mesmo).
+ *
+ * Consequência assumida: não existe mais "apagar limpando o campo". Nunca foi
+ * um caminho oferecido pela tela — o placeholder diz o oposto — e apagar uma
+ * credencial sem querer é bem pior do que precisar de um botão explícito, que
+ * hoje não existe em lugar nenhum da UI.
+ *
  * @returns {Promise<{error: Error|null}>}
  */
 export async function salvarCredencialMercadoPago(client, lojaId, { token, webhookSecret }) {
   if (!lojaId) return { error: new Error('Loja não identificada.') }
+
+  const tokenNovo   = token?.trim()         || ''
+  const segredoNovo = webhookSecret?.trim() || ''
+
+  // Nada digitado é nada a gravar. Sem isto, salvar a tela de Configurações
+  // sem tocar nas chaves mandaria um write que só mexeria em `atualizado_em`
+  // — e, no desenho antigo, apagaria as duas credenciais de uma vez.
+  if (!tokenNovo && !segredoNovo) return { error: null }
 
   // ── Defesa 1: sessão ────────────────────────────────────────────────────
   // As policies desta tabela são `to authenticated`. Sem sessão, o
@@ -86,11 +122,10 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
     }
   }
 
-  const linha = {
-    mercadopago_access_token: token?.trim() || null,
-    mercadopago_webhook_secret: webhookSecret?.trim() || null,
-    atualizado_em: new Date().toISOString(),
-  }
+  // Só o que foi digitado. Coluna ausente = coluna intocada no UPDATE.
+  const linha = { atualizado_em: new Date().toISOString() }
+  if (tokenNovo)   linha.mercadopago_access_token   = tokenNovo
+  if (segredoNovo) linha.mercadopago_webhook_secret = segredoNovo
 
   const { error: erroInsert } = await client
     .from('lf_credenciais_pagamento')
