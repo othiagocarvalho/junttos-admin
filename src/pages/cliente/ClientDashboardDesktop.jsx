@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Label } from '../../components/studio/Input'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronLeft, ChevronDown, X, Pencil,
@@ -1023,7 +1024,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ position: 'relative' }}>
-              <label style={lbl}><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</label>
+              <Label><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</Label>
               <input
                 value={form.nome}
                 onChange={e => setForm({ ...form, nome: e.target.value })}
@@ -1058,7 +1059,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div style={{ position: 'relative' }}>
-              <label style={lbl}><Phone size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Telefone</label>
+              <Label><Phone size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Telefone</Label>
               <input
                 value={form.tel}
                 onChange={e => setForm({ ...form, tel: e.target.value })}
@@ -1093,7 +1094,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div>
-              <label style={lbl}>Vendedor(a)</label>
+              <Label>Vendedor(a)</Label>
               {/* Pro+ escolhe da lista; abaixo disso o texto livre continua
                   como era. O campo nunca teve gate e alimenta recibo, busca do
                   histórico e corrida de vendedoras — remover seria tirar
@@ -1110,7 +1111,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div>
-              <label style={lbl}>Observações</label>
+              <Label>Observações</Label>
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Anotações sobre esta venda..." style={inputS} onFocus={fo} onBlur={onB} />
             </div>
           </div>
@@ -1179,7 +1180,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             {/* Ajuste: Desconto ou Acréscimo (opcional) */}
             {form.produtos.length > 0 && !isTroca && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                <label style={lbl}>Ajuste (opcional)</label>
+                <Label>Ajuste (opcional)</Label>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[['desconto', 'Desconto'], ['acrescimo', 'Acréscimo']].map(([val, label]) => (
                     <button key={val} type="button" onClick={() => setAjusteTipo(val)} style={{
@@ -1215,13 +1216,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
             {step === 2 && (!isTroca || totalValor > 0.005) && (
               <>
-                <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
+                <Label><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</Label>
                 <div style={{ position: 'relative', marginBottom: 14 }}>
                   <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
                   <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
                     style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
                 </div>
-                <label style={lbl}>Formas de Pagamento</label>
+                <Label>Formas de Pagamento</Label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {form.pagamentos.map((p, i) => (
                     <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

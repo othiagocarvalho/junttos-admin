@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { Package, ShoppingBag, Settings, Monitor, Save, Users, UserPlus, CreditCard } from 'lucide-react'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
@@ -31,11 +32,6 @@ const TAB_USUARIOS   = { id: 'usuarios',   label: 'Usuários',   Icon: Users }
 const TAB_FINANCEIRO = { id: 'financeiro', label: 'Financeiro', Icon: CreditCard }
 const TAB_CONFIG     = { id: 'config',     label: 'Config',     Icon: Settings }
 
-const lbl = {
-  display: 'block', fontSize: 10, fontWeight: 700,
-  color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.12em',
-  marginBottom: 6, fontFamily: 'var(--font-ui)',
-}
 const inp = {
   width: '100%', height: 44, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)',
   padding: '0 14px', fontFamily: 'var(--font-ui)', fontSize: 14,
@@ -355,15 +351,15 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={lbl}>Nome da Loja</label>
+            <Label>Nome da Loja</Label>
             <input value={nome} onChange={e => setNome(e.target.value)} style={inp} placeholder="Ex: Loja Moda Feminina" />
           </div>
           <div>
-            <label style={lbl}>URL do Logo</label>
+            <Label>URL do Logo</Label>
             <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} style={inp} placeholder="https://..." />
           </div>
           <div>
-            <label style={lbl}>Cor Principal</label>
+            <Label>Cor Principal</Label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
               {PRESETS.map(p => (
                 <button
@@ -395,7 +391,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={lbl}>Chave Pix</label>
+            <Label>Chave Pix</Label>
             <input
               value={chavePix}
               onChange={e => setChavePix(e.target.value)}
@@ -404,7 +400,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
             />
           </div>
           <div>
-            <label style={lbl}>WhatsApp da Loja</label>
+            <Label>WhatsApp da Loja</Label>
             <input
               value={whatsapp}
               onChange={e => setWhatsapp(e.target.value)}
@@ -445,9 +441,9 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={lbl}>
+            <Label>
               Access token {mpJaConfigurado && <span style={{ color: 'var(--status-ok-tx)' }}>· configurado</span>}
-            </label>
+            </Label>
             <input
               value={mpToken}
               onChange={e => setMpToken(e.target.value)}
@@ -458,7 +454,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
             />
           </div>
           <div>
-            <label style={lbl}>Chave secreta do webhook</label>
+            <Label>Chave secreta do webhook</Label>
             <input
               value={mpSecret}
               onChange={e => setMpSecret(e.target.value)}
@@ -513,7 +509,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
           {precisaAvisarPedidoMinimo(nivel, pmTipo) && <AvisoPedidoMinimo compacto />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <label style={lbl}>Tipo de mínimo</label>
+              <Label>Tipo de mínimo</Label>
               <select
                 value={pmTipo}
                 onChange={e => setPmTipo(e.target.value)}
@@ -526,7 +522,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
             </div>
             {pmTipo === 'valor' && (
               <div>
-                <label style={lbl}>Valor mínimo do pedido</label>
+                <Label>Valor mínimo do pedido</Label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                   <input
@@ -541,7 +537,7 @@ export function ConfigB2B({ config, saveConfig, theme, nivel, lojaId }) {
             )}
             {pmTipo === 'quantidade' && (
               <div>
-                <label style={lbl}>Quantidade mínima de peças</label>
+                <Label>Quantidade mínima de peças</Label>
                 <input
                   type="number" min="1" step="1"
                   value={pmQtd}

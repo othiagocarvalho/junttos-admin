@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
@@ -418,10 +419,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {/* ── Step 0: Cliente ── */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Dados da Cliente</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Identificação opcional</p>
-            </div>
+            <SecaoTitulo Icon={User} titulo="Cliente" descricao="Identificação opcional" theme={theme} style={{ marginBottom: 0 }} />
             <Field label="Nome da Cliente" Icon={User}>
               <div style={{ position: 'relative' }}>
                 <input
@@ -529,14 +527,15 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
-                  {isTroca ? 'Produto Novo' : 'Produtos Vendidos'}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
-                </p>
-              </div>
+              {/* O nome muda com o fluxo (troca x venda) — é informação, não
+                  redundância, então continua como estava. */}
+              <SecaoTitulo
+                Icon={ShoppingBag}
+                titulo={isTroca ? 'Produto Novo' : 'Produtos'}
+                descricao={form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
+                theme={theme}
+                style={{ marginBottom: 0 }}
+              />
               <button
                 onClick={() => setAddingProd(v => !v)}
                 style={{
@@ -990,10 +989,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {/* ── Step 2: Pagamento ── */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Valor e formas de pagamento</p>
-            </div>
+            <SecaoTitulo Icon={CreditCard} titulo="Pagamento" descricao="Valor e formas de pagamento" theme={theme} style={{ marginBottom: 0 }} />
 
             {/* Breakdown: Subtotal / Ajuste / Total */}
             {form.produtos.length > 0 && (

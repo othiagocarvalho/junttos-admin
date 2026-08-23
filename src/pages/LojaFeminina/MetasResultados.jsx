@@ -43,21 +43,7 @@ import { useVendedores } from '../../components/vendedores/useVendedores'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import CurvaABC from '../../components/relatorios/CurvaABC'
 import { temAcesso } from '../../utils/planos'
-
-// Selo de plano no cabeçalho da gaveta. Só o Comparativo usa: as sub-seções
-// de vendedor e produto voltaram para dentro do Meta.jsx e lá o selo é
-// desenhado pelo ProBadge/BusinessBadge do próprio arquivo, ao lado do título
-// da sub-seção.
-function Selo({ texto, fundo, cor }) {
-  return (
-    <span style={{
-      background: fundo, color: cor, fontSize: 9, fontWeight: 700,
-      borderRadius: 99, padding: '2px 7px', textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-    }}>{texto}</span>
-  )
-}
-const SELO_PRO = <Selo texto="Pro" fundo="#dbeafe" cor="#1d4ed8" />
+import SeloPlano from '../../components/studio/SeloPlano'
 
 // Fora do componente de propósito: array novo a cada render faria o Meta
 // remontar sem necessidade.
@@ -193,7 +179,9 @@ export default function MetasResultados({ data, theme, plano, legado = false, mo
         titulo="Comparativo Mensal"
         subtitulo="Meta e realizado dos últimos 6 meses"
         Icon={CalendarRange}
-        badge={SELO_PRO}
+        /* Condicional: loja Pro ou Business não vê selo nenhum aqui.
+           Antes era fixo e aparecia até para quem já tinha o plano. */
+        badge={<SeloPlano planoAtual={plano} planoNecessario="pro" />}
         theme={theme}
         compacta={mobile}
       >
