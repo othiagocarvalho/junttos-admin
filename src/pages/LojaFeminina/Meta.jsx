@@ -10,6 +10,16 @@ import UpgradeWall from '../../components/UpgradeWall'
 import { temAcesso } from '../../utils/planos'
 import { fmtR } from '../../utils/formatters'
 
+// As seções desta tela viraram gavetas separadas em MetasResultados.jsx, e
+// cada gaveta monta este mesmo componente pedindo só a sua parte. A lógica
+// continua toda aqui: dividir o arquivo em cinco componentes exigiria
+// duplicar helpers e estado derivado, e o risco de regressão não compensa uma
+// reorganização de tela.
+//
+// Sem a prop `secoes`, renderiza TUDO — é o contrato antigo, intacto para
+// qualquer lugar que monte <Meta /> direto.
+const TODAS_SECOES = ['mensal', 'vendedor', 'produto', 'corrida', 'comparativo']
+
 const sectionLabelStyle = {
   fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
   color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.14em',
@@ -48,7 +58,10 @@ function BusinessBadge() {
   )
 }
 
-export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false, semCorrida = false, vendedoresCadastrados = [] }) {
+export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], salvarMetaVendedora, metaProduto = null, salvarMetaProduto, corridas = [], salvarCorrida, excluirCorrida, produtosData = [], plano, theme, mobile = false, semCorrida = false, vendedoresCadastrados = [], secoes = TODAS_SECOES, semRotulos = false }) {
+  // Dentro de uma gaveta o título já está no cabeçalho dela, e o selo de plano
+  // vai na prop `badge` da Gaveta. Repetir os dois aqui dentro seria eco.
+  const mostrar = chave => secoes.includes(chave)
   const temPro      = temAcesso(plano, 'pro')
   const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
@@ -97,7 +110,10 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   //
   // A união com o histórico continua: nome digitado à mão antes do cadastro
   // (ou vendedor já desativado) não pode sumir e levar junto a meta dele.
-  const vendedoras = [...new Set([
+  // Guardado por seção: cada gaveta monta este componente inteiro, e sem isto
+  // a varredura das vendas rodaria quatro vezes por render em vez de uma.
+  // São consts, não hooks — condicionar é seguro.
+  const vendedoras = !mostrar('vendedor') ? [] : [...new Set([
     ...(vendedoresCadastrados || []).filter(v => v?.ativo !== false && v?.nome).map(v => String(v.nome).trim()),
     ...vendas.filter(v => v.vendedora).map(v => v.vendedora),
   ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'))
@@ -107,7 +123,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   const [savingVend, setSavingVend] = useState(false)
 
   const [yV, mV] = mesVend.split('-').map(Number)
-  const vendasMesVend = vendas.filter(v => {
+  const vendasMesVend = !mostrar('vendedor') ? [] : vendas.filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === yV && d.getMonth() + 1 === mV
   })
@@ -156,11 +172,13 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
     }
   }
 
-  const progProd = metaProduto ? calcularProgressoMetaProduto(vendas, produtosData, metaProduto) : null
+  const progProd = (mostrar('produto') && metaProduto)
+    ? calcularProgressoMetaProduto(vendas, produtosData, metaProduto)
+    : null
 
   // ── Comparativo últimos 6 meses ──
   const mesesComp = []
-  for (let i = 5; i >= 0; i--) {
+  for (let i = mostrar('comparativo') ? 5 : -1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const metaValor = metas[ym] || 0
@@ -180,6 +198,8 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
 
       {/* ══ Meta Geral (Starter) ══ */}
+      {mostrar('mensal') && (
+      <>
       <Card>
         <p style={{ ...sectionLabelStyle, marginBottom: 16 }}>Definir Meta Mensal</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -260,12 +280,17 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
           />
         </Card>
       )}
+      </>
+      )}
 
       {/* ══ Meta por Vendedora (Pro) ══ */}
+      {mostrar('vendedor') && (
       <div>
-        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-          Meta por Vendedor(a)<ProBadge />
-        </p>
+        {!semRotulos && (
+          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+            Meta por Vendedor(a)<ProBadge />
+          </p>
+        )}
         {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_vendedor" theme={theme} /> : (
           <>
             <Card style={{ marginBottom: 10 }}>
@@ -363,12 +388,16 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
           </>
         )}
       </div>
+      )}
 
       {/* ══ Meta por Produto (Business) ══ */}
+      {mostrar('produto') && (
       <div>
-        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-          Meta por Produto<BusinessBadge />
-        </p>
+        {!semRotulos && (
+          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+            Meta por Produto<BusinessBadge />
+          </p>
+        )}
         {!temBusiness ? <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="meta_produto" theme={theme} /> : (
           <>
             <Card style={{ marginBottom: 10 }}>
@@ -481,13 +510,14 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
           </>
         )}
       </div>
+      )}
 
       {/* ══ Corrida (Business) ══
           Escondida quando este Meta é montado dentro da gaveta "Metas do mês"
           de MetasResultados: lá a corrida tem gaveta própria (a 4ª), e sem o
           semCorrida ela apareceria duas vezes na mesma tela. Fora da gaveta —
           se alguém montar Meta direto — continua exatamente como era. */}
-      {!semCorrida && (
+      {mostrar('corrida') && !semCorrida && (
         <div>
           <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
             Corrida<BusinessBadge />
@@ -508,10 +538,13 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
       )}
 
       {/* ══ Comparativo Mês a Mês (Pro) ══ */}
+      {mostrar('comparativo') && (
       <div>
-        <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
-          Comparativo Mês a Mês<ProBadge />
-        </p>
+        {!semRotulos && (
+          <p style={{ ...sectionLabelStyle, marginBottom: 12 }}>
+            Comparativo Mês a Mês<ProBadge />
+          </p>
+        )}
         {!temPro ? <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="meta_comparativo" theme={theme} /> : (
           <Card padding="0">
             <div style={{ overflowX: 'auto' }}>
@@ -562,6 +595,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
           </Card>
         )}
       </div>
+      )}
     </div>
   )
 }
