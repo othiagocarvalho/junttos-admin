@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   rotuloTipo, toneTipo, fmtDelta, labelVariacao, labelsDeVariacoes,
   normalizarItensEstoque, agruparPorNome, filtrarPorVariacao,
+  precisaDevolverEstoque,
 } from './estoqueMov.js'
 import { getVarLabel } from './balanco.js'
 import { decrementarVariacoes, restaurarVariacoes } from './venda.js'
@@ -170,5 +171,43 @@ describe('saldo resultante — o que o trigger vai ver', () => {
     const variacoes = [{ cor: 'P', quantidade: 1 }]
     const itens = normalizarItensEstoque([{ nome: 'Vestido', variacao: 'P', qtd: 4 }])
     expect(decrementarVariacoes(variacoes, itens)).toEqual([{ cor: 'P', quantidade: 0 }])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Excluir pedido devolve estoque — menos quando ele já foi devolvido
+//
+// A baixa acontece na CRIAÇÃO do pedido, não no pagamento. Apagar um pedido
+// vivo sem devolver abre furo de estoque; devolver de novo num pedido já
+// cancelado duplica peça. Os dois erros custam caro e são opostos.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('precisaDevolverEstoque', () => {
+  it('pedido vivo precisa devolver', () => {
+    expect(precisaDevolverEstoque('aguardando_pagamento')).toBe(true)
+    expect(precisaDevolverEstoque('aguardando_contato')).toBe(true)
+    expect(precisaDevolverEstoque('pago')).toBe(true)
+  })
+
+  it('pedido JÁ cancelado NÃO devolve de novo', () => {
+    // cancelarPedido já devolveu no momento do cancelamento.
+    expect(precisaDevolverEstoque('cancelado')).toBe(false)
+  })
+
+  it('espaço em volta não engana a comparação', () => {
+    expect(precisaDevolverEstoque('  cancelado  ')).toBe(false)
+  })
+
+  it('status ausente ou estranho devolve — o erro barato é o de sobrar pedido', () => {
+    // Sem saber o status, devolver e falhar no DELETE deixa o pedido na lista.
+    // Não devolver e apagar deixaria a peça sumida para sempre.
+    expect(precisaDevolverEstoque(null)).toBe(true)
+    expect(precisaDevolverEstoque(undefined)).toBe(true)
+    expect(precisaDevolverEstoque('')).toBe(true)
+    expect(precisaDevolverEstoque('rascunho')).toBe(true)
+  })
+
+  it('só o valor exato "cancelado" dispensa a devolução', () => {
+    expect(precisaDevolverEstoque('Cancelado')).toBe(true)
+    expect(precisaDevolverEstoque('cancelado_pelo_cliente')).toBe(true)
   })
 })

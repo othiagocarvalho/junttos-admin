@@ -624,12 +624,21 @@ export default function PedidosCatalogo({
                 {fmtR(confirmandoExclusao.valor_total)} · {fmtDT(confirmandoExclusao.created_at)}
               </p>
             </div>
-            {/* Excluir NÃO devolve estoque — cancelar devolve. Quem apaga um
-                pedido que já baixou peça deixa a peça reservada para sempre. */}
-            <p style={{ margin: 0, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, lineHeight: 1.55, color: 'var(--status-warn-tx, #92400e)' }}>
-              Excluir <strong>não devolve peças ao estoque</strong>. Se este pedido chegou a
-              reservar estoque, cancele antes de excluir.
-            </p>
+            {/* O aviso INVERTEU: antes excluir não devolvia nada e a tela
+                mandava cancelar primeiro. Agora a devolução é automática — e o
+                texto muda com o status, porque pedido já cancelado teve o
+                estoque devolvido no cancelamento e não devolve de novo. */}
+            {confirmandoExclusao.status === 'cancelado' ? (
+              <p style={{ margin: 0, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, lineHeight: 1.55, color: 'var(--muted)' }}>
+                Este pedido já está cancelado, então as peças <strong>já voltaram ao
+                estoque</strong> no cancelamento. Excluir não mexe no estoque de novo.
+              </p>
+            ) : (
+              <p style={{ margin: 0, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, lineHeight: 1.55, color: 'var(--status-warn-tx, #92400e)' }}>
+                As peças deste pedido <strong>voltam ao estoque automaticamente</strong> ao
+                excluir. Se a devolução falhar, o pedido não é apagado.
+              </p>
+            )}
 
             {erroExclusao && (
               <p role="alert" style={{
