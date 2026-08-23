@@ -140,10 +140,37 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
   if (erroInsert.code !== '23505') return { error: erroInsert }
 
   // ── Defesa 2: UPDATE que não pegou linha nenhuma ────────────────────────
+  //
+  // SEM `.eq('loja_id', lojaId)`, e isso é o conserto — não um descuido.
+  //
+  // Medido no banco de produção em 23/08/2026, como `authenticated` e com o
+  // claim da Tropicale, tudo dentro de transação abortada:
+  //
+  //     select visível                            → 0 linhas
+  //     update ... WHERE loja_id = 'tropicale…'   → 0 linhas
+  //     update ... (sem WHERE)                    → 1 linha
+  //
+  // Era o WHERE que matava a gravação. Coluna citada no WHERE exige permissão
+  // de SELECT, e isso faz o Postgres aplicar as policies de SELECT — que esta
+  // tabela NÃO TEM, de propósito, para o token nunca voltar ao navegador. Sem
+  // policy de SELECT a linha fica invisível para o WHERE, o UPDATE casa zero
+  // linhas e o PostgREST responde 204. Silêncio total.
+  //
+  // É a MESMA raiz do bug do upsert descrito lá em cima: `ON CONFLICT DO
+  // UPDATE` também precisava enxergar a linha. Trocar upsert por UPDATE não
+  // resolveu, só trocou um erro barulhento por um no-op mudo.
+  //
+  // Tirar o filtro é seguro porque a policy de UPDATE já faz esse recorte:
+  //
+  //     using (loja_id = (auth.jwt() -> 'app_metadata' ->> 'loja_id'))
+  //
+  // conferida no banco em 23/08/2026, e `loja_id` é a chave primária — no
+  // máximo uma linha casa, a da própria loja. Foi o que o teste sem WHERE
+  // mostrou: exatamente 1. A restrição continua existindo; só mudou de lugar,
+  // da query para o RLS, que é onde o Postgres consegue aplicá-la.
   const { error: erroUpdate, count } = await client
     .from('lf_credenciais_pagamento')
     .update(linha, { count: 'exact' })
-    .eq('loja_id', lojaId)
 
   if (erroUpdate) return { error: erroUpdate }
 
@@ -153,6 +180,19 @@ export async function salvarCredencialMercadoPago(client, lojaId, { token, webho
         'O banco não encontrou a credencial desta loja para atualizar. '
         + 'Normalmente é sessão expirada: saia, entre de novo e repita. '
         + 'Se continuar, avise o suporte — nada foi gravado.',
+      ),
+    }
+  }
+
+  // Mais de uma linha significa que o RLS parou de recortar por loja — é a
+  // única coisa que separa esta loja das outras agora que a query não tem
+  // WHERE. Não deve acontecer nunca; se acontecer é incidente de segurança e
+  // precisa aparecer, não passar batido.
+  if (count > 1) {
+    return {
+      error: new Error(
+        `A gravação atingiu ${count} lojas em vez de uma. Isso indica falha na `
+        + 'proteção por loja no banco (RLS). Avise o suporte imediatamente.',
       ),
     }
   }
