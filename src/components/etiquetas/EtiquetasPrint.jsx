@@ -23,7 +23,7 @@ import {
   URL_DOWNLOAD, conectar, desconectar, listarImpressoras,
   impressoraSalva, salvarImpressora, imprimir as imprimirNoQz, mensagemDeErro,
 } from '../../lib/qzTray'
-import { documentosParaQz } from '../../utils/etiquetasHtml'
+import { documentosParaQz, alturaMaxBarrasMm } from '../../utils/etiquetasHtml'
 import { fmtR } from '../../utils/formatters'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,46 +36,70 @@ import { fmtR } from '../../utils/formatters'
 //   • etiqueta saindo cortada na largura    → LABEL_WIDTH_MM
 //   • etiqueta cortada em cima/embaixo      → LABEL_HEIGHT_MM
 //   • colunas desalinhadas do picote        → LABEL_GAP_MM
-//   • sobra ou falta papel na lateral       → PAPER_WIDTH_MM
 //   • rolo com 2 ou 4 etiquetas por fileira → LABEL_COLUMNS
+//
+// PAPER_WIDTH_MM não está nessa lista de propósito: ele é DERIVADO das outras
+// duas. Papel e colunas que não fecham a conta é o que corta a última coluna.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ⚠️ AJUSTE EMPÍRICO DE 23/08/2026, AINDA NÃO CONFIRMADO.
+// ⚠️ 25/08/2026 — O AJUSTE EMPÍRICO DE 23/08 FOI REVERTIDO. Ele era o bug.
 //
-// O teste físico na Elgin/Bematech mostrou a etiqueta saindo VISIVELMENTE
-// MENOR que a célula pré-cortada do rolo, com sobra de branco em volta — e a
-// sobra era em todos os lados, não só num. Encolhimento uniforme assim é
-// assinatura de escala: a impressora (ou o driver) reduz a página para caber
-// na área imprimível dela, em vez de a nossa medida estar errada por acaso.
+// O ajuste anterior subiu as três medidas ~21% (33→40, 25→30, 100→121)
+// apostando que o driver reduzia a página para caber na área imprimível. A
+// aposta estava documentada aqui mesmo como NÃO CONFIRMADA, e o teste seguinte
+// a derrubou: com o driver da Elgin L42PRO Full configurado em 33×25mm,
+// imprimir UMA etiqueta pedia DUAS folhas ao Chrome — inclusive com um nome
+// curtíssimo ("p. teste"), o que já descartava conteúdo como causa.
 //
-// Primeira tentativa: subir as três medidas ~21% de forma proporcional. Se o
-// driver reduz por um fator fixo, declarar uma página maior faz o resultado
-// impresso chegar no tamanho da célula.
+// MEDIDO, e não deduzido: o componente foi renderizado no Chrome com o CSS de
+// impressão ativo e o PDF teve as páginas contadas, com o papel em 33×25mm.
 //
-//   LABEL_WIDTH_MM   33 → 40   (+21,2%)
-//   LABEL_HEIGHT_MM  25 → 30   (+20,0%)
-//   PAPER_WIDTH_MM  100 → 121  (+21,0%)
+//   40 / 30 / 121  →  2 páginas para 1 etiqueta
+//                     a fileira mede 30mm de altura numa página de 25mm; os
+//                     5mm que sobram transbordam e viram a segunda página.
+//   33 / 25 /  33  →  1 página para 1 etiqueta
 //
-// A medição anterior (33mm com régua, em 22/08) NÃO foi descartada: ela mede a
-// CÉLULA FÍSICA, que continua com 33mm. O 40 daqui é o valor que mandamos
-// imprimir para que 33mm cheguem ao papel. São coisas diferentes, e por isso o
-// modo "Régua de calibração" abaixo existe: ele imprime uma escala real para
-// medir quanto o papel de fato recebeu, e aí estes números param de ser chute.
+// O CONTEÚDO nunca foi o problema. Medido dentro da etiqueta, com a fonte de
+// impressão: nome 2,75mm + variação 2,65mm + código de barras 14,69mm =
+// 21,15mm, mais 3mm de padding = 24,15mm. Cabia com folga até na caixa antiga.
+// Quem estourava era a PÁGINA declarada, não o texto.
 //
-// Se a calibração mostrar que a escala é 1:1 e o problema era outro, o
-// caminho é voltar os três para 33/25/100 e investigar o driver.
-const LABEL_WIDTH_MM  = 40
-const LABEL_HEIGHT_MM = 30
-const PAPER_WIDTH_MM  = 121
+// A regra que fica: estas constantes descrevem O PAPEL QUE O DRIVER TEM.
+// Declarar aqui uma página maior que a da impressora não faz sair maior — só
+// faz o Chrome paginar a sobra.
+const LABEL_WIDTH_MM  = 33
+const LABEL_HEIGHT_MM = 25
 
-// ✅ MEDIDO: o rolo tem 3 células por fileira.
-const LABEL_COLUMNS   = 3
-
-// Derivado, não medido. A conta tem de fechar com PAPER_WIDTH_MM, senão a
-// terceira coluna cai fora do papel:
-//   LABEL_COLUMNS × LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) × LABEL_GAP_MM
-//   = 3 × 40 + 2 × 0,5 = 121mm ✓
+// Espaço entre as células do rolo, quando há mais de uma coluna.
 const LABEL_GAP_MM    = 0.5
+
+// UMA etiqueta por página, porque é assim que o driver está configurado hoje:
+// 33×25mm é UMA célula, não a fileira inteira.
+//
+// O rolo é fisicamente de 3 células por fileira (medido em 22/08), e o código
+// continua sabendo imprimir 3 por página — é só subir esta constante. O que
+// NÃO se pode fazer é subir aqui sem subir no driver: uma fileira de 100mm
+// numa página de 33mm não vira 3 páginas, vira 1 página com as colunas 2 e 3
+// CORTADAS FORA. A etiqueta some em silêncio, que é pior que sair torta.
+//
+// Para voltar às 3 colunas: trocar 1 por 3 AQUI e configurar o papel do driver
+// como 100×25mm. Com 1 coluna num rolo de 3, as etiquetas saem todas na coluna
+// da esquerda — gasta rolo, mas nunca perde etiqueta.
+const LABEL_COLUMNS   = 1
+
+// DERIVADO da conta, nunca digitado à mão: é a largura da PÁGINA, e ela tem de
+// fechar com as colunas, senão a última cai fora do papel. Foi justamente um
+// PAPER_WIDTH_MM solto (121) que sobreviveu ao ajuste de 23/08 sem ninguém
+// refazer a conta.
+const PAPER_WIDTH_MM  = LABEL_COLUMNS * LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) * LABEL_GAP_MM
+
+// Teto de altura do código de barras dentro da etiqueta, derivado da altura da
+// célula — ver alturaMaxBarrasMm() em utils/etiquetasHtml.js para a conta e o
+// motivo. Resumo: o SVG do JsBarcode tem viewBox, então "width: 100%;
+// height: auto" o escala pela PROPORÇÃO dele, e a proporção depende do
+// tamanho do código. Sem teto, é o conteúdo mandando na altura da página de
+// novo — exatamente a família de bug que esta correção fecha.
+const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)
 
 // Espessura da borda da régua de calibração. Entra numa constante porque as
 // marcas precisam compensá-la: elemento posicionado tem como referência a
@@ -441,6 +465,29 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
           width: ${LABEL_WIDTH_MM}mm; height: ${LABEL_HEIGHT_MM}mm;
           box-sizing: border-box; display: flex; flex-direction: column;
           justify-content: center; padding: 1.5mm 1mm;
+          /* A célula tem altura fixa. Sem isto, conteúdo que passar dela não
+             fica contido: vaza para a etiqueta de baixo e ESTICA A FILEIRA
+             além da página — que é como uma etiqueta vira duas. Recortar é o
+             mal menor: perde-se o fim de um texto, não a etiqueta seguinte.
+             Só dentro de .etq-fileira, ou seja, só na térmica: no A4 o card
+             cresce à vontade e continua crescendo. */
+          overflow: hidden;
+        }
+        /* Teto do código de barras — a conta e o motivo estão em
+           alturaMaxBarrasMm(), em utils/etiquetasHtml.js. Sem ele, um código
+           mais curto (SVG mais estreito, logo mais alto quando esticado na
+           largura) volta a mandar na altura da etiqueta.
+
+           O "margin: 0 auto" acompanha: quando o teto entra em ação, o
+           navegador encolhe a largura junto para manter a proporção, e sem a
+           margem o código ficaria encostado à esquerda. */
+        .etq-fileira .etq-svg { max-height: ${BARRAS_MAX_MM}mm; margin: 0 auto; }
+        /* Mesma regra do nome, e pelo mesmo motivo: variação longa
+           ("Rosa Bebê Estampado · R$ 1.234,56") quebrava em duas linhas e
+           comia a altura reservada ao código. No A4 ela continua podendo
+           quebrar — lá sobra espaço. */
+        .etq-fileira .etq-var {
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         /* ── Régua de calibração ──────────────────────────────────────────
@@ -688,7 +735,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 : calibracao
                   ? `Régua de teste · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm · 1 página`
                   : `${expandidas.length} etiqueta${expandidas.length === 1 ? '' : 's'} · ${ROTULO_MODO[modo]}`
-                    + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
+                    + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por página` : '')}
             </p>
           </div>
           <button
@@ -855,7 +902,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
               }}
             >
               <option value="a4">Folha A4 (padrão)</option>
-              <option value="termica">Impressora térmica (rolo {LABEL_COLUMNS} colunas)</option>
+              <option value="termica">Impressora térmica ({LABEL_WIDTH_MM}×{LABEL_HEIGHT_MM}mm)</option>
               {/* Destino ADICIONAL, não substituto: quem não instalou o QZ
                   Tray continua com as opções acima, iguais ao que sempre
                   foram. Ver o cabeçalho de lib/qzTray.js. */}
@@ -879,6 +926,9 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 desmarque <strong>Cabeçalhos e rodapés</strong> — é o que faz sair uma
                 fileira em branco com o link do site a cada tantas etiquetas. Deixe
                 também <strong>Margens: Nenhuma</strong> e <strong>Escala: 100%</strong>.
+                {' '}O papel da impressora precisa estar em{' '}
+                <strong>{LABEL_WIDTH_MM}×{LABEL_HEIGHT_MM}mm</strong>: se o driver
+                tiver um tamanho menor que este, cada etiqueta sai em duas folhas.
               </p>
             )}
             {/* ── Painel do destino direto ─────────────────────────────────

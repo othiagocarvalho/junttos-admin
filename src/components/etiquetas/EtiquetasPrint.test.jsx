@@ -241,3 +241,80 @@ describe('EtiquetasPrint — modo térmica em tela empilha fileiras', () => {
     expect(print).toMatch(/\.etq-folha \{[^}]*display: block !important/)
   })
 })
+
+// ─── A página declarada TEM de ser a etiqueta física ────────────────────────
+// Bug real de 25/08/2026, na Tropicale: imprimir UMA etiqueta pedia DUAS
+// folhas ao Chrome, mesmo com um nome de duas letras. A causa não era o
+// conteúdo — era um ajuste empírico de 23/08 que subiu as medidas ~21%
+// (33→40mm, 25→30mm, 100→121mm) apostando que o driver reduzia a página. Com o
+// driver em 33×25mm, a fileira de 30mm sobrava 5mm e os 5mm viravam a segunda
+// folha. Medido: 2 páginas antes, 1 depois.
+//
+// Estas travas são sobre a RELAÇÃO entre as constantes, não sobre os números
+// em si: trocar o rolo continua sendo trocar um número. O que não pode voltar
+// é papel e etiqueta discordando entre si.
+
+describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', () => {
+  const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+  const numero = nome => {
+    const m = fonte.match(new RegExp(`const ${nome}\\s*=\\s*([\\d.]+)\\b`))
+    return m ? Number(m[1]) : null
+  }
+  // Recorta UMA regra do <style>: do seletor até a chave que fecha na mesma
+  // indentação. Regex com [\s\S]*? atravessaria a regra seguinte e passaria
+  // de graça — as declarações têm "${...}" dentro, então [^}]* também não
+  // serve para delimitar.
+  const bloco = (fonte, seletor) => {
+    const i = fonte.indexOf(seletor + ' {')
+    if (i === -1) return ''
+    const recuo = seletor.length - seletor.trimStart().length
+    const fim = fonte.indexOf('\n' + ' '.repeat(recuo) + '}', i)
+    return fonte.slice(i, fim === -1 ? undefined : fim)
+  }
+  const LARGURA = numero('LABEL_WIDTH_MM')
+  const ALTURA = numero('LABEL_HEIGHT_MM')
+  const COLUNAS = numero('LABEL_COLUMNS')
+  const GAP = numero('LABEL_GAP_MM')
+
+  it('a etiqueta declarada é a célula medida do rolo (33×25mm)', () => {
+    // Se um dia o rolo mudar, muda aqui junto — de propósito: é a medida que
+    // precisa casar com o papel configurado no driver.
+    expect([LARGURA, ALTURA]).toEqual([33, 25])
+  })
+
+  it('o papel é DERIVADO das colunas, nunca digitado à mão', () => {
+    // Foi exatamente um PAPER_WIDTH_MM solto (121mm para 3 × 40mm) que
+    // sobreviveu ao ajuste sem ninguém refazer a conta.
+    expect(fonte).toMatch(
+      /const PAPER_WIDTH_MM\s*=\s*LABEL_COLUMNS \* LABEL_WIDTH_MM \+ \(LABEL_COLUMNS - 1\) \* LABEL_GAP_MM/
+    )
+    // A conta tem de fechar com o papel de uma coluna só, que é o do driver.
+    expect(COLUNAS * LARGURA + (COLUNAS - 1) * GAP).toBe(33)
+  })
+
+  it('a fileira nunca é mais alta que a página — é isso que gera a 2ª folha', () => {
+    const ini = fonte.indexOf('${termica ? `')
+    const ramo = fonte.slice(ini, fonte.indexOf('` : `', ini))
+    const print = ramo.slice(ramo.indexOf('@media print'))
+    // Página e fileira saem da MESMA constante de altura. Enquanto isso for
+    // verdade, sobra zero para transbordar.
+    expect(print).toContain('@page { size: ${PAPER_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }')
+    const fileira = bloco(print, '          .etq-fileira')
+    expect(fileira).toContain('height: ${LABEL_HEIGHT_MM}mm !important')
+    expect(fileira).toContain('width: ${PAPER_WIDTH_MM}mm !important')
+  })
+
+  it('a etiqueta recorta o próprio conteúdo, e só na térmica', () => {
+    // A outra porta para a segunda folha: conteúdo maior que a caixa empurra a
+    // fileira para além da página. No A4 o card continua podendo crescer.
+    expect(bloco(fonte, '        .etq-fileira .etq-item')).toContain('overflow: hidden;')
+    expect(bloco(fonte, '        .etq-fileira .etq-var')).toContain('white-space: nowrap;')
+    expect(fonte).toMatch(/\.etq-fileira \.etq-svg \{ max-height: \$\{BARRAS_MAX_MM\}mm/)
+    // E o A4 continua sem recorte: lá o card cresce com o conteúdo.
+    expect(bloco(fonte, '        .etq-item')).not.toContain('overflow: hidden')
+  })
+
+  it('o teto do código de barras vem do util, não de um número colado aqui', () => {
+    expect(fonte).toContain('const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)')
+  })
+})

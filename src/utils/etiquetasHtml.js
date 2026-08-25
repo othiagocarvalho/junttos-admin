@@ -25,6 +25,40 @@
 /** Pilha de fontes que existe em Windows, macOS e no renderizador do QZ. */
 const FONTE = "system-ui, -apple-system, 'Segoe UI', Arial, Helvetica, sans-serif"
 
+/** Padding vertical de cada etiqueta, em mm. Entra na conta do teto abaixo. */
+const PAD_Y_MM = 1.5
+
+/**
+ * Altura máxima do código de barras dentro de uma etiqueta de `alturaMm`.
+ *
+ * ─── POR QUE UM TETO, SE O SVG JÁ TEM "height: auto" ───────────────────────
+ * Justamente por isso. O SVG que o JsBarcode desenha tem viewBox, então
+ * "width: 100%; height: auto" o escala pela PROPORÇÃO — e a proporção muda com
+ * o código: menos dígitos = barra mais estreita = SVG mais alto quando
+ * esticado na largura da etiqueta. Medido com 12 dígitos numa etiqueta de
+ * 33mm, o código sai com ~12mm; um código mais curto passaria disso.
+ *
+ * Com a etiqueta em altura fixa e overflow visível, esse excesso não fica
+ * dentro dela: empurra a fileira para além da página e produz uma segunda
+ * etiqueta em branco — a mesma família de bug que a página de 30mm num papel
+ * de 25mm produzia. O teto fecha essa porta pelo lado do conteúdo.
+ *
+ * A conta é o que sobra da célula depois do que é fixo:
+ *   altura − padding (2 × 1,5mm) − texto (6,1mm) − folga (1,5mm)
+ *
+ * O 6,1mm é MEDIDO no Chrome com o CSS de impressão ativo: nome em 6,5pt
+ * ocupa 2,75mm e a linha da variação em 6pt ocupa 2,65mm.
+ *
+ * O piso de 4mm existe para uma etiqueta absurdamente baixa não gerar altura
+ * negativa e sumir com o código de barras — nesse caso o certo é a barra
+ * espremer, não desaparecer.
+ */
+export function alturaMaxBarrasMm(alturaMm) {
+  const TEXTO_MM = 6.1
+  const FOLGA_MM = 1.5
+  return Math.max(4, +(alturaMm - 2 * PAD_Y_MM - TEXTO_MM - FOLGA_MM).toFixed(2))
+}
+
 /**
  * CSS da fileira térmica.
  *
@@ -48,7 +82,12 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     '.etq-item {',
     '  width: ' + larguraMm + 'mm; height: ' + alturaMm + 'mm;',
     '  display: flex; flex-direction: column; justify-content: center;',
-    '  padding: 1.5mm 1mm; text-align: center;',
+    '  padding: ' + PAD_Y_MM + 'mm 1mm; text-align: center;',
+    // A etiqueta tem altura fixa; sem isto, conteúdo que passar dela não fica
+    // contido — vaza para a etiqueta de baixo e estica a fileira além da
+    // página. Recortar é o mal menor: perde-se o fim de um texto, não a
+    // etiqueta seguinte.
+    '  overflow: hidden;',
     // Sem borda e sem raio: no papel a borda de preview viraria tinta gasta em
     // volta de cada etiqueta. É a mesma regra do @media print da térmica.
     '  background: #fff; color: #000; border: none; border-radius: 0;',
@@ -58,8 +97,19 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     '  text-transform: uppercase;',
     '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
     '}',
-    '.etq-var { margin: 1px 0 3px; font-size: 6pt; color: #444; }',
-    '.etq-svg { display: block; width: 100%; height: auto; }',
+    // Mesma regra do nome: uma linha só. Variação longa ("Rosa Bebê
+    // Estampado · R$ 1.234,56") quebrava em duas e comia a altura do código.
+    '.etq-var {',
+    '  margin: 1px 0 3px; font-size: 6pt; color: #444;',
+    '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
+    '}',
+    // O "margin: 0 auto" acompanha o teto: quando o max-height entra em ação,
+    // o navegador encolhe a largura junto para manter a proporção, e sem a
+    // margem automática o código ficaria encostado na esquerda.
+    '.etq-svg {',
+    '  display: block; width: 100%; height: auto; margin: 0 auto;',
+    '  max-height: ' + alturaMaxBarrasMm(alturaMm) + 'mm;',
+    '}',
     // A régua de calibração usa as mesmas medidas em mm; se um dia a
     // calibração passar pelo QZ, o estilo dela já está aqui.
     '.etq-calib { position: relative; width: ' + larguraMm + 'mm; height: ' + alturaMm + 'mm;',
