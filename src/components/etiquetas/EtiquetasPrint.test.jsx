@@ -282,14 +282,21 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
     expect([LARGURA, ALTURA]).toEqual([33, 25])
   })
 
+  it('a fileira é a do rolo da Tropicale: 3 células por página', () => {
+    // Colunas e papel do driver são um par. Com colunas a mais que o papel, as
+    // da direita são cortadas fora e a etiqueta some sem erro na tela.
+    expect(COLUNAS).toBe(3)
+  })
+
   it('o papel é DERIVADO das colunas, nunca digitado à mão', () => {
     // Foi exatamente um PAPER_WIDTH_MM solto (121mm para 3 × 40mm) que
     // sobreviveu ao ajuste sem ninguém refazer a conta.
     expect(fonte).toMatch(
       /const PAPER_WIDTH_MM\s*=\s*LABEL_COLUMNS \* LABEL_WIDTH_MM \+ \(LABEL_COLUMNS - 1\) \* LABEL_GAP_MM/
     )
-    // A conta tem de fechar com o papel de uma coluna só, que é o do driver.
-    expect(COLUNAS * LARGURA + (COLUNAS - 1) * GAP).toBe(33)
+    // A conta tem de fechar com o papel configurado no driver: 3 células de
+    // 33mm com 0,5mm de picote entre elas = a fileira de 100mm.
+    expect(COLUNAS * LARGURA + (COLUNAS - 1) * GAP).toBe(100)
   })
 
   it('a fileira nunca é mais alta que a página — é isso que gera a 2ª folha', () => {

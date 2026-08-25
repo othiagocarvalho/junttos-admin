@@ -73,24 +73,27 @@ const LABEL_HEIGHT_MM = 25
 // Espaço entre as células do rolo, quando há mais de uma coluna.
 const LABEL_GAP_MM    = 0.5
 
-// UMA etiqueta por página, porque é assim que o driver está configurado hoje:
-// 33×25mm é UMA célula, não a fileira inteira.
+// ✅ MEDIDO: o rolo da Tropicale tem 3 células por fileira, e a fileira INTEIRA
+// é a página. Confirmado em 25/08/2026, com o driver configurado em 100×25mm.
 //
-// O rolo é fisicamente de 3 células por fileira (medido em 22/08), e o código
-// continua sabendo imprimir 3 por página — é só subir esta constante. O que
-// NÃO se pode fazer é subir aqui sem subir no driver: uma fileira de 100mm
-// numa página de 33mm não vira 3 páginas, vira 1 página com as colunas 2 e 3
-// CORTADAS FORA. A etiqueta some em silêncio, que é pior que sair torta.
+// Esta constante e o papel do driver são UM PAR — mudar uma sem a outra é o
+// modo de falha caro deste arquivo, nos dois sentidos:
 //
-// Para voltar às 3 colunas: trocar 1 por 3 AQUI e configurar o papel do driver
-// como 100×25mm. Com 1 coluna num rolo de 3, as etiquetas saem todas na coluna
-// da esquerda — gasta rolo, mas nunca perde etiqueta.
-const LABEL_COLUMNS   = 1
+//   colunas > papel   fileira de 100mm numa página de 33mm não vira 3 páginas.
+//                     Vira 1 página com as colunas 2 e 3 CORTADAS FORA: a
+//                     etiqueta some em silêncio, sem erro nenhum na tela.
+//   colunas < papel   sai 1 etiqueta por fileira e as outras 2 células do rolo
+//                     avançam em branco. Não perde etiqueta, só gasta rolo.
+//
+// Por isso o aviso do rodapé do modal diz, em números, qual papel o driver
+// precisa ter: é a única metade do par que não mora neste arquivo.
+const LABEL_COLUMNS   = 3
 
 // DERIVADO da conta, nunca digitado à mão: é a largura da PÁGINA, e ela tem de
 // fechar com as colunas, senão a última cai fora do papel. Foi justamente um
 // PAPER_WIDTH_MM solto (121) que sobreviveu ao ajuste de 23/08 sem ninguém
 // refazer a conta.
+//   3 × 33 + 2 × 0,5 = 100mm ✓ (o papel configurado no driver)
 const PAPER_WIDTH_MM  = LABEL_COLUMNS * LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) * LABEL_GAP_MM
 
 // Teto de altura do código de barras dentro da etiqueta, derivado da altura da
@@ -735,7 +738,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 : calibracao
                   ? `Régua de teste · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm · 1 página`
                   : `${expandidas.length} etiqueta${expandidas.length === 1 ? '' : 's'} · ${ROTULO_MODO[modo]}`
-                    + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por página` : '')}
+                    + (termica ? ` · ${LABEL_WIDTH_MM}×${LABEL_HEIGHT_MM}mm, ${LABEL_COLUMNS} por fileira` : '')}
             </p>
           </div>
           <button
@@ -902,7 +905,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
               }}
             >
               <option value="a4">Folha A4 (padrão)</option>
-              <option value="termica">Impressora térmica ({LABEL_WIDTH_MM}×{LABEL_HEIGHT_MM}mm)</option>
+              <option value="termica">Impressora térmica (rolo {LABEL_COLUMNS} colunas, {LABEL_WIDTH_MM}×{LABEL_HEIGHT_MM}mm)</option>
               {/* Destino ADICIONAL, não substituto: quem não instalou o QZ
                   Tray continua com as opções acima, iguais ao que sempre
                   foram. Ver o cabeçalho de lib/qzTray.js. */}
@@ -927,8 +930,10 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
                 fileira em branco com o link do site a cada tantas etiquetas. Deixe
                 também <strong>Margens: Nenhuma</strong> e <strong>Escala: 100%</strong>.
                 {' '}O papel da impressora precisa estar em{' '}
-                <strong>{LABEL_WIDTH_MM}×{LABEL_HEIGHT_MM}mm</strong>: se o driver
-                tiver um tamanho menor que este, cada etiqueta sai em duas folhas.
+                <strong>{PAPER_WIDTH_MM}×{LABEL_HEIGHT_MM}mm</strong> — a fileira
+                inteira, não uma etiqueta: papel mais baixo que isso faz cada
+                fileira sair em duas folhas, e mais estreito corta as colunas da
+                direita sem avisar.
               </p>
             )}
             {/* ── Painel do destino direto ─────────────────────────────────
