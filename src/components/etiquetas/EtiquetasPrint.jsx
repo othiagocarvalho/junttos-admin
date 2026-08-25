@@ -23,7 +23,10 @@ import {
   URL_DOWNLOAD, conectar, desconectar, listarImpressoras,
   impressoraSalva, salvarImpressora, imprimir as imprimirNoQz, mensagemDeErro,
 } from '../../lib/qzTray'
-import { documentosParaQz, alturaMaxBarrasMm } from '../../utils/etiquetasHtml'
+import {
+  documentosParaQz, alturaMaxBarrasMm,
+  ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM,
+} from '../../utils/etiquetasHtml'
 import { fmtR } from '../../utils/formatters'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -467,7 +470,17 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         .etq-fileira .etq-item {
           width: ${LABEL_WIDTH_MM}mm; height: ${LABEL_HEIGHT_MM}mm;
           box-sizing: border-box; display: flex; flex-direction: column;
-          justify-content: center; padding: 1.5mm 1mm;
+          justify-content: center;
+          /* "align-items: center" é o que centraliza de verdade. Só o
+             "text-align: center" da regra base não bastava: ele centraliza o
+             texto DENTRO da caixa, e as caixas nasciam esticadas na largura
+             inteira (o padrão "align-items: stretch"). Com "center" cada caixa
+             encolhe até o conteúdo e é a CAIXA que fica no meio da célula. */
+          align-items: center;
+          /* Respiro assimétrico: mais embaixo que em cima, para absorver o
+             deslocamento de impressão da térmica. A conta e o porquê estão nas
+             constantes ETQ_PAD_* de utils/etiquetasHtml.js. */
+          padding: ${ETQ_PAD_TOP_MM}mm ${ETQ_PAD_X_MM}mm ${ETQ_PAD_BOTTOM_MM}mm;
           /* A célula tem altura fixa. Sem isto, conteúdo que passar dela não
              fica contido: vaza para a etiqueta de baixo e ESTICA A FILEIRA
              além da página — que é como uma etiqueta vira duas. Recortar é o
@@ -481,17 +494,30 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
            mais curto (SVG mais estreito, logo mais alto quando esticado na
            largura) volta a mandar na altura da etiqueta.
 
-           O "margin: 0 auto" acompanha: quando o teto entra em ação, o
-           navegador encolhe a largura junto para manter a proporção, e sem a
-           margem o código ficaria encostado à esquerda. */
-        .etq-fileira .etq-svg { max-height: ${BARRAS_MAX_MM}mm; margin: 0 auto; }
+           "align-self: stretch" desfaz, só para o SVG, o "align-items: center"
+           do pai: as caixas de texto encolhem até o conteúdo para ficarem
+           centradas, mas o código de barras precisa da largura útil INTEIRA —
+           é ela que mantém a barra estreita acima do piso de leitura (ver o
+           cálculo em utils/codigoBarras.js).
+
+           O "margin: 0 auto" cobre o caso em que o teto de altura entra em
+           ação: o navegador encolhe a largura junto para manter a proporção, e
+           sem a margem o código ficaria encostado à esquerda. */
+        .etq-fileira .etq-svg {
+          max-height: ${BARRAS_MAX_MM}mm; margin: 0 auto; align-self: stretch;
+        }
         /* Mesma regra do nome, e pelo mesmo motivo: variação longa
            ("Rosa Bebê Estampado · R$ 1.234,56") quebrava em duas linhas e
            comia a altura reservada ao código. No A4 ela continua podendo
            quebrar — lá sobra espaço. */
         .etq-fileira .etq-var {
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          max-width: 100%;
         }
+        /* Par obrigatório do "align-items: center": sem o max-width a caixa
+           encolhida cresce até o nome inteiro (que é nowrap), passa da célula e
+           o ellipsis nunca chega a agir. */
+        .etq-fileira .etq-nome { max-width: 100%; }
 
         /* ── Régua de calibração ──────────────────────────────────────────
            Tudo em mm, igual ao layout térmico: a régua precisa medir na mesma
