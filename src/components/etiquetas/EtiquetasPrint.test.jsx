@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 vi.mock('jsbarcode', () => ({ default: () => {} }))
 
 const { default: EtiquetasPrint } = await import('./EtiquetasPrint')
+const { deslocamentoCss } = await import('../../utils/etiquetasHtml')
 const { etiquetasDoProduto, etiquetasDeProdutos } = await import('../../utils/codigoBarras')
 
 const html = el => renderToStaticMarkup(el)
@@ -299,10 +300,14 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
   const COLUNAS = numero('LABEL_COLUMNS')
   const GAP = numero('LABEL_GAP_MM')
 
-  it('a etiqueta declarada é a célula medida do rolo (33×25mm)', () => {
+  it('a etiqueta declarada é a célula medida do rolo (34×25mm)', () => {
+    // Medido com fita encostada na etiqueta impressa em 26/08/2026: a coluna 1
+    // termina em 34mm. Antes era 33, herdado de uma medição a olho — e o 1mm
+    // de diferença era parte do branco que sobrava à direita.
+    //
     // Se um dia o rolo mudar, muda aqui junto — de propósito: é a medida que
     // precisa casar com o papel configurado no driver.
-    expect([LARGURA, ALTURA]).toEqual([33, 25])
+    expect([LARGURA, ALTURA]).toEqual([34, 25])
   })
 
   it('a fileira é a do rolo da Tropicale: 3 células por página', () => {
@@ -318,8 +323,9 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
       /const PAPER_WIDTH_MM\s*=\s*LABEL_COLUMNS \* LABEL_WIDTH_MM \+ \(LABEL_COLUMNS - 1\) \* LABEL_GAP_MM/
     )
     // A conta tem de fechar com o papel configurado no driver: 3 células de
-    // 33mm com 0,5mm de picote entre elas = a fileira de 100mm.
-    expect(COLUNAS * LARGURA + (COLUNAS - 1) * GAP).toBe(100)
+    // 34mm com 1mm de picote entre elas = a fileira de 104mm. Medido com fita
+    // em 26/08/2026: as 3 colunas juntas terminam em 104mm.
+    expect(COLUNAS * LARGURA + (COLUNAS - 1) * GAP).toBe(104)
   })
 
   it('a fileira nunca é mais alta que a página — é isso que gera a 2ª folha', () => {
@@ -401,3 +407,65 @@ describe('EtiquetasPrint — a etiqueta térmica é centrada e respeita o picote
   })
 })
 
+
+// ─── Compensação de registro da impressora ──────────────────────────────────
+// O parafuso físico: onde a cabeça começa a pintar em relação ao picote real.
+// A geometria do documento já foi provada correta medindo o PDF de impressão,
+// então o que sobra é regulagem, não bug de layout.
+
+describe('EtiquetasPrint — o deslocamento de registro', () => {
+  const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+  const numero = nome => {
+    const m = fonte.match(new RegExp(`const ${nome}\\s*=\\s*(-?[\\d.]+)\\b`))
+    return m ? Number(m[1]) : null
+  }
+
+  it('está em 0: com a geometria medida certo, não há o que compensar', () => {
+    // Chegou a ficar em 2mm enquanto a etiqueta era desenhada com 33mm numa
+    // célula de 34. Corrigida a largura, a tinta ficou simétrica sozinha
+    // (medido: 4,5mm de cada lado nas três colunas) e o deslocamento virou
+    // desequilíbrio. Compensação sobre erro é como nasceu o ajuste de 23/08.
+    expect(numero('LABEL_OFFSET_X_MM')).toBe(0)
+    expect(numero('LABEL_OFFSET_Y_MM')).toBe(0)
+  })
+
+  it('em 0, o CSS não ganha declaração nenhuma', () => {
+    // A garantia de que a compensação desligada é indistinguível de ela não
+    // existir — nada de "position: relative" sobrando no papel.
+    expect(deslocamentoCss(0, 0)).toBe('')
+  })
+
+  it('o deslocamento fica dentro do que a tinta tolera', () => {
+    // A tinta tem 4,4mm de branco medidos de cada lado dentro da célula.
+    // Passar disso começa a recortar barra de código, e barra cortada não
+    // bipa — é o teto prático da constante, não um número de estilo.
+    expect(Math.abs(numero('LABEL_OFFSET_X_MM'))).toBeLessThanOrEqual(4)
+    expect(Math.abs(numero('LABEL_OFFSET_Y_MM'))).toBeLessThanOrEqual(4)
+  })
+
+  it('as duas constantes saem do mesmo helper dos dois caminhos', () => {
+    // Número solto em um dos lados faria a etiqueta sair diferente conforme
+    // por onde foi impressa — foi por isso que o respiro virou constante.
+    expect(fonte).toContain('const DESLOCAMENTO_CSS = deslocamentoCss(LABEL_OFFSET_X_MM, LABEL_OFFSET_Y_MM)')
+  })
+
+  it('o QZ Tray recebe o mesmo deslocamento pelas MEDIDAS', () => {
+    expect(fonte).toMatch(/offsetXMm: LABEL_OFFSET_X_MM, offsetYMm: LABEL_OFFSET_Y_MM/)
+  })
+
+  it('aplica só no @media print — o preview em tela não desloca', () => {
+    // Preview deslocado pareceria descentralizado e mandaria alguém "corrigir"
+    // a centralização que já está provada certa.
+    const ini = fonte.indexOf('${termica ? `')
+    const ramo = fonte.slice(ini, fonte.indexOf('` : `', ini))
+    const print = ramo.slice(ramo.indexOf('@media print'))
+    const tela = ramo.slice(0, ramo.indexOf('@media print'))
+    expect(print).toContain('${DESLOCAMENTO_CSS}')
+    expect(tela).not.toContain('${DESLOCAMENTO_CSS}')
+  })
+
+  it('o A4 não conhece deslocamento nenhum', () => {
+    const ini = fonte.indexOf('` : `')
+    expect(fonte.slice(ini)).not.toContain('DESLOCAMENTO_CSS')
+  })
+})

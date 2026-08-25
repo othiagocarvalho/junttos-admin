@@ -24,7 +24,7 @@ import {
   impressoraSalva, salvarImpressora, imprimir as imprimirNoQz, mensagemDeErro,
 } from '../../lib/qzTray'
 import {
-  documentosParaQz, alturaMaxBarrasMm,
+  documentosParaQz, alturaMaxBarrasMm, deslocamentoCss,
   ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM,
 } from '../../utils/etiquetasHtml'
 import { fmtR } from '../../utils/formatters'
@@ -77,23 +77,49 @@ import {
 // A regra que fica: estas constantes descrevem O PAPEL QUE O DRIVER TEM.
 // Declarar aqui uma página maior que a da impressora não faz sair maior — só
 // faz o Chrome paginar a sobra.
-const LABEL_WIDTH_MM  = 33
+//
+// ⚠️ 26/08/2026 — LARGURA E VÃO CORRIGIDOS PELA FITA MÉTRICA.
+//
+// Até aqui a célula era 33mm e o vão 0,5mm, números herdados de uma medição a
+// olho. Com a régua de calibração impressa e a fita encostada na etiqueta:
+//
+//   fim da coluna 1 .................. 34mm   (era 33)
+//   fim das 3 colunas juntas ......... 104mm  (era 100)
+//
+// Daí o vão: (104 − 3 × 34) ÷ 2 = 1mm. Bate com o sintoma que sobrou depois de
+// tudo o mais ter sido descartado — o conteúdo nascia colado no picote da
+// esquerda e sobrava branco à direita, porque a etiqueta desenhada era 1mm
+// mais estreita que a célula e a fileira 4mm mais curta que o rolo.
+//
+// 🔧 ESTA MUDANÇA EXIGE RECONFIGURAR O DRIVER ANTES DO DEPLOY.
+//
+//   Preferências de impressão → editar o tamanho "USER" → largura 104mm
+//   (a altura continua 25mm).
+//
+// A ORDEM IMPORTA, e é sempre a mesma: DRIVER PRIMEIRO, CÓDIGO DEPOIS. Se o
+// código subir com 104mm enquanto o driver ainda está em 100mm, a fileira não
+// vira duas páginas nem dá erro: ela é RECORTADA à direita e a terceira coluna
+// some em silêncio. Ver a nota de LABEL_COLUMNS logo abaixo — é o mesmo par.
+const LABEL_WIDTH_MM  = 34
 const LABEL_HEIGHT_MM = 25
 
 // Espaço entre as células do rolo, quando há mais de uma coluna.
-const LABEL_GAP_MM    = 0.5
+// MEDIDO em 26/08/2026 junto com a largura: (104 − 3 × 34) ÷ 2.
+const LABEL_GAP_MM    = 1
 
 // ✅ MEDIDO: o rolo da Tropicale tem 3 células por fileira, e a fileira INTEIRA
-// é a página. Confirmado em 25/08/2026, com o driver configurado em 100×25mm.
+// é a página. Confirmado em 25/08/2026; a largura da fileira foi remedida com
+// fita em 26/08/2026 e o driver precisa estar em 104×25mm.
 //
 // Esta constante e o papel do driver são UM PAR — mudar uma sem a outra é o
 // modo de falha caro deste arquivo, nos dois sentidos:
 //
-//   colunas > papel   fileira de 100mm numa página de 33mm não vira 3 páginas.
-//                     Vira 1 página com as colunas 2 e 3 CORTADAS FORA: a
-//                     etiqueta some em silêncio, sem erro nenhum na tela.
-//   colunas < papel   sai 1 etiqueta por fileira e as outras 2 células do rolo
-//                     avançam em branco. Não perde etiqueta, só gasta rolo.
+//   fileira > papel   fileira de 104mm numa página de 100mm não vira duas
+//                     páginas nem dá erro. É RECORTADA à direita, e o que
+//                     estiver depois dos 100mm some em silêncio — no limite,
+//                     a terceira coluna inteira.
+//   fileira < papel   sobra papel à direita de cada fileira. Não perde
+//                     etiqueta, só desperdiça rolo e desalinha do picote.
 //
 // Por isso o aviso do rodapé do modal diz, em números, qual papel o driver
 // precisa ter: é a única metade do par que não mora neste arquivo.
@@ -103,7 +129,7 @@ const LABEL_COLUMNS   = 3
 // fechar com as colunas, senão a última cai fora do papel. Foi justamente um
 // PAPER_WIDTH_MM solto (121) que sobreviveu ao ajuste de 23/08 sem ninguém
 // refazer a conta.
-//   3 × 33 + 2 × 0,5 = 100mm ✓ (o papel configurado no driver)
+//   3 × 34 + 2 × 1 = 104mm ✓ (o papel que o driver precisa ter)
 const PAPER_WIDTH_MM  = LABEL_COLUMNS * LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) * LABEL_GAP_MM
 
 // Teto de altura do código de barras dentro da etiqueta, derivado da altura da
@@ -113,6 +139,91 @@ const PAPER_WIDTH_MM  = LABEL_COLUMNS * LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) * L
 // tamanho do código. Sem teto, é o conteúdo mandando na altura da página de
 // novo — exatamente a família de bug que esta correção fecha.
 const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGISTRO DE IMPRESSÃO — compensação física, não geometria
+//
+// ─── O QUE ESTAS DUAS CONSTANTES NÃO SÃO ───────────────────────────────────
+// Não são ajuste de layout. A geometria do documento já foi PROVADA correta:
+// medindo os retângulos vetoriais do PDF que o Chrome manda para a impressora,
+// a fileira sai a 100,2% do nominal, as três células caem em 0 / 33,5 / 67mm
+// sem deriva, e a régua ocupa 33,07mm dos 33mm declarados. Não há erro de
+// escala, de DPI nem transform no caminho — isso está encerrado.
+//
+// O que sobra é o encontro do papel com a cabeça: onde a impressora começa a
+// pintar em relação ao picote FÍSICO. Isso nenhum CSS descobre, só o papel
+// impresso responde. Estas constantes são o parafuso de regulagem para isso.
+//
+// ─── ANTES DE TUDO: A GEOMETRIA JÁ ESTÁ MEDIDA? ────────────────────────────
+// Deslocamento é o ÚLTIMO parafuso, não o primeiro. Enquanto LABEL_WIDTH_MM e
+// LABEL_GAP_MM não baterem com a fita na etiqueta impressa, qualquer valor
+// aqui está compensando um erro de medida — e compensação sobre erro é como
+// nasceu o ajuste empírico de 23/08 que custou esta série de investigações.
+//
+// Confira primeiro, com a régua impressa: o "0" cai no picote da esquerda e a
+// última marca cai no da direita? Se não, o número a mexer está lá em cima.
+//
+// ─── COMO AJUSTAR (é por tentativa, e tudo bem) ────────────────────────────
+// Imprima a "Régua de calibração" (seletor de formato) e encoste numa etiqueta
+// do rolo:
+//
+//   • conteúdo parando X mm ANTES do picote da direita
+//         → aumente LABEL_OFFSET_X_MM em X
+//   • conteúdo passando X mm ALÉM do picote da direita
+//         → diminua LABEL_OFFSET_X_MM em X (pode ficar negativo)
+//   • mesma conta no eixo vertical → LABEL_OFFSET_Y_MM (positivo empurra para
+//     baixo)
+//
+// Não precisa investigar causa de novo a cada tentativa: mude o número,
+// reimprima, compare. É para isso que a constante existe.
+//
+// ─── ANTES DE MEXER AQUI: É DESLOCAMENTO OU É PITCH? ───────────────────────
+// As duas hipóteses físicas produzem a MESMA aparência numa etiqueta isolada e
+// se separam numa fileira cheia. Imprima 3 etiquetas e olhe a sobra de cada
+// coluna:
+//
+//   sobra IGUAL nas três        → registro. É esta constante.
+//   sobra CRESCENDO da 1ª à 3ª  → o vão entre as células do rolo não é o
+//                                 LABEL_GAP_MM assumido. Aí o parafuso certo é
+//                                 o LABEL_GAP_MM lá em cima, não este — e
+//                                 deslocamento só disfarçaria na coluna do meio
+//                                 enquanto piora nas pontas.
+//
+// ─── LIMITE PRÁTICO ────────────────────────────────────────────────────────
+// O deslocamento recorta no fim do papel em vez de esticá-lo (ver
+// deslocamentoCss em utils/etiquetasHtml.js). A tinta tem 4,4mm de branco de
+// cada lado dentro da célula, medidos: até uns 4mm nada de tinta se perde.
+// Acima disso começa a comer barra de código, e barra cortada não bipa.
+//
+// ─── VALOR DE HOJE: ZERO, E O MOTIVO DE TER VOLTADO A ZERO ─────────────────
+// Chegou a ficar em 2mm por algumas horas em 26/08/2026, quando a régua
+// mostrou o "0" colado no picote da esquerda e todo o branco sobrando à
+// direita. A leitura estava certa, o remédio é que era o errado: aquele branco
+// não vinha de a impressora começar a pintar fora de lugar, vinha de a
+// etiqueta DESENHADA ser menor que a célula real — 33mm contra 34, e uma
+// fileira de 100mm contra 104.
+//
+// Corrigidas a largura e o vão, o desequilíbrio sumiu na origem. Medido no PDF
+// de impressão, a tinta do código dentro de cada célula física:
+//
+//                     offset 0            offset 2
+//   coluna 1     4,60 / 4,42mm       6,45 / 2,57mm
+//   coluna 2     4,52 / 4,49mm       6,37 / 2,64mm
+//   coluna 3     4,45 / 4,57mm       6,56 / 2,45mm
+//
+// Com 0 a tinta fica simétrica nas três; com 2 ela encosta na direita. Manter
+// o deslocamento agora seria empilhar uma compensação sobre um erro que já não
+// existe — que é exatamente como nasceu o ajuste empírico de 23/08 que abriu
+// esta série inteira de investigações.
+//
+// A trava fica: deslocamento só entra depois que a GEOMETRIA estiver medida e
+// batendo. Se a régua impressa mostrar desvio com a largura já certa, aí sim é
+// registro de impressão, e aí o parafuso é este.
+const LABEL_OFFSET_X_MM = 0
+const LABEL_OFFSET_Y_MM = 0
+
+/** Declarações de deslocamento, ou '' quando as duas constantes são 0. */
+const DESLOCAMENTO_CSS = deslocamentoCss(LABEL_OFFSET_X_MM, LABEL_OFFSET_Y_MM)
 
 /** Quebra a lista em fileiras físicas do rolo — cada fileira vira uma página. */
 function emFileiras(lista, porFileira) {
@@ -262,6 +373,9 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
   const MEDIDAS = {
     larguraMm: LABEL_WIDTH_MM, alturaMm: LABEL_HEIGHT_MM,
     papelMm: PAPER_WIDTH_MM, colunas: LABEL_COLUMNS, gapMm: LABEL_GAP_MM,
+    // O QZ Tray precisa do MESMO deslocamento do navegador: o documento dele
+    // é rasterizado no motor próprio, sem acesso ao CSS desta página.
+    offsetXMm: LABEL_OFFSET_X_MM, offsetYMm: LABEL_OFFSET_Y_MM,
   }
 
   /**
@@ -721,6 +835,15 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
             width: ${PAPER_WIDTH_MM}mm !important;
             height: ${LABEL_HEIGHT_MM}mm !important;
             margin: 0 !important;
+            /* Compensação de registro da impressora — ver o bloco
+               LABEL_OFFSET_X_MM no topo do arquivo. Sai vazio quando as duas
+               constantes são 0, então o padrão é o CSS de sempre.
+
+               Só no @media print, de propósito: o preview em tela mostra a
+               etiqueta como ela é, não como a impressora a desloca. Preview
+               deslocado pareceria descentralizado e mandaria alguém "corrigir"
+               a centralização que já está certa. */
+            ${DESLOCAMENTO_CSS}
             /* SEM break-after aqui, de propósito — ver a nota abaixo.
                break-inside continua: fileira cortada ao meio é etiqueta
                partida em duas, o pior desfecho possível. */
