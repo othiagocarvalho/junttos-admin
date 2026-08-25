@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cssTermica, documentoFileira, documentosParaQz, configQz } from './etiquetasHtml'
+import { cssTermica, documentoFileira, documentosParaQz, configQz, alturaMaxBarrasMm } from './etiquetasHtml'
 
 // As MESMAS constantes de EtiquetasPrint.jsx. Se elas mudarem lá e não aqui,
 // o teste "as medidas do documento vêm dos parâmetros" continua valendo — o
@@ -115,5 +115,53 @@ describe('configQz — as três configurações que hoje são conferidas na mão
 
   it('preto e branco: meio-tom em barra estreita atrapalha a leitura', () => {
     expect(configQz({ papelMm: 121, alturaMm: 30 }).colorType).toBe('blackwhite')
+  })
+})
+
+// ─── Contenção vertical ─────────────────────────────────────────────────────
+// Bug real (25/08/2026): UMA etiqueta pedia DUAS folhas ao Chrome. A causa era
+// a página declarada (30mm) ser mais alta que a etiqueta física (25mm), mas a
+// mesma segunda folha aparece se o CONTEÚDO passar da caixa — e o conteúdo tem
+// como passar sozinho: o SVG do JsBarcode tem viewBox, então "height: auto"
+// escala pela proporção do código, e código mais curto é SVG mais alto.
+
+describe('alturaMaxBarrasMm — o teto que impede o conteúdo de mandar na página', () => {
+  it('é o que sobra da etiqueta depois do padding, do texto e da folga', () => {
+    // 25 − 3 (padding) − 6,1 (nome + variação, medidos no Chrome) − 1,5 (folga)
+    expect(alturaMaxBarrasMm(25)).toBe(14.4)
+    expect(alturaMaxBarrasMm(30)).toBe(19.4)
+  })
+
+  it('sempre sobra menos do que a etiqueta inteira — senão não é teto', () => {
+    for (const h of [15, 20, 25, 30, 40]) expect(alturaMaxBarrasMm(h)).toBeLessThan(h)
+  })
+
+  it('etiqueta baixa demais espreme a barra, não faz ela sumir', () => {
+    // Altura negativa apagaria o código de barras em silêncio, que é o pior
+    // desfecho: a etiqueta sai bonita e simplesmente não bipa.
+    expect(alturaMaxBarrasMm(8)).toBe(4)
+    expect(alturaMaxBarrasMm(1)).toBeGreaterThan(0)
+  })
+})
+
+describe('cssTermica — a etiqueta contém o próprio conteúdo', () => {
+  const css = cssTermica({ larguraMm: 33, alturaMm: 25, papelMm: 33, colunas: 1, gapMm: 0.5 })
+
+  it('a etiqueta recorta o que passar dela', () => {
+    // Sem isto o excesso vaza para a etiqueta de baixo e estica a fileira além
+    // da página — é assim que uma etiqueta vira duas.
+    expect(css).toMatch(/\.etq-item \{[\s\S]*?overflow: hidden;[\s\S]*?\}/)
+  })
+
+  it('o código de barras tem teto, derivado da altura da etiqueta', () => {
+    expect(css).toContain('max-height: ' + alturaMaxBarrasMm(25) + 'mm')
+  })
+
+  it('a linha da variação é de uma linha só, como o nome', () => {
+    // "Rosa Bebê Estampado · R$ 1.234,56" quebrava em duas e comia a altura
+    // reservada ao código.
+    const bloco = css.slice(css.indexOf('.etq-var'), css.indexOf('.etq-svg'))
+    expect(bloco).toContain('white-space: nowrap')
+    expect(bloco).toContain('text-overflow: ellipsis')
   })
 })
