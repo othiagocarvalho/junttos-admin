@@ -420,17 +420,17 @@ describe('EtiquetasPrint — o deslocamento de registro', () => {
     return m ? Number(m[1]) : null
   }
 
-  it('está em 0: com a geometria medida certo, não há o que compensar', () => {
-    // Chegou a ficar em 2mm enquanto a etiqueta era desenhada com 33mm numa
-    // célula de 34. Corrigida a largura, a tinta ficou simétrica sozinha
-    // (medido: 4,5mm de cada lado nas três colunas) e o deslocamento virou
-    // desequilíbrio. Compensação sobre erro é como nasceu o ajuste de 23/08.
-    expect(numero('LABEL_OFFSET_X_MM')).toBe(0)
+  it('compensa o registro medido na etiqueta impressa', () => {
+    // 26/08/2026, com 34mm/1mm já no ar e o driver em 104mm: a foto das três
+    // colunas mostrou o MESMO desvio nas três, sem piorar da 1ª para a 3ª.
+    // Desvio uniforme com a geometria batendo é registro de impressão — o
+    // caso que este parafuso existe para corrigir.
+    expect(numero('LABEL_OFFSET_X_MM')).toBe(2)
     expect(numero('LABEL_OFFSET_Y_MM')).toBe(0)
   })
 
-  it('em 0, o CSS não ganha declaração nenhuma', () => {
-    // A garantia de que a compensação desligada é indistinguível de ela não
+  it('em 0, o CSS não ganharia declaração nenhuma', () => {
+    // A garantia de que desligar a compensação é indistinguível de ela não
     // existir — nada de "position: relative" sobrando no papel.
     expect(deslocamentoCss(0, 0)).toBe('')
   })
