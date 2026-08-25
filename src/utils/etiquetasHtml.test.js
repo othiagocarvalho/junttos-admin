@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   cssTermica, documentoFileira, documentosParaQz, configQz, alturaMaxBarrasMm,
   ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM, ETQ_TEXTO_MM,
+  DENSIDADE_DPI, DENSIDADE_DPMM,
 } from './etiquetasHtml'
 
 // As MESMAS constantes de EtiquetasPrint.jsx. Se elas mudarem lá e não aqui,
@@ -118,6 +119,28 @@ describe('configQz — as três configurações que hoje são conferidas na mão
 
   it('preto e branco: meio-tom em barra estreita atrapalha a leitura', () => {
     expect(configQz({ papelMm: 121, alturaMm: 30 }).colorType).toBe('blackwhite')
+  })
+
+  // ─── Densidade ────────────────────────────────────────────────────────────
+  // O caminho direto manda HTML RASTERIZADO (type 'pixel'): a densidade decide
+  // quantos pontos o QZ desenha para os mesmos milímetros. Com o padrão
+  // (density: 0 = "pergunte ao driver"), driver que não responde deixa o QZ
+  // escolher sozinho — a última brecha de escala deste caminho.
+
+  it('a densidade vai em pontos por MILÍMETRO, não em DPI', () => {
+    // Armadilha conferida na fonte do qz-tray 2.2.6 (qz-tray.js:1580): a
+    // densidade segue o `units` do config, e o nosso é 'mm'. `density: 203`
+    // não diria "203 DPI" — diria 203 pontos por milímetro, 25× a cabeça real.
+    const c = configQz({ papelMm: 100, alturaMm: 25 })
+    expect(c.units).toBe('mm')
+    expect(c.density).toBe(DENSIDADE_DPMM)
+    expect(c.density).not.toBe(DENSIDADE_DPI)
+    expect(c.density).toBeLessThan(10)
+  })
+
+  it('a conversão bate com os 203dpi da cabeça da L42PRO', () => {
+    expect(DENSIDADE_DPI).toBe(203)
+    expect(Math.round(DENSIDADE_DPMM * 25.4)).toBe(DENSIDADE_DPI)
   })
 })
 

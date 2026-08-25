@@ -400,3 +400,4 @@ describe('EtiquetasPrint — a etiqueta térmica é centrada e respeita o picote
     expect(declara(a4, 'align-items', 'center')).toBe(false)
   })
 })
+
