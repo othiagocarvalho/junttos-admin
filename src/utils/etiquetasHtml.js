@@ -157,7 +157,20 @@ export function cssTermica({
   const desloca = deslocamentoCss(offsetXMm, offsetYMm)
   return [
     '@page { size: ' + papelMm + 'mm ' + alturaMm + 'mm; margin: 0; }',
-    'html, body { margin: 0; padding: 0; background: #fff; }',
+    // O "overflow: hidden" fecha a porta que o deslocamento abre. Com
+    // LABEL_OFFSET_X_MM ligado, a fileira passa a PINTAR além da página (com
+    // 2mm de deslocamento numa página de 104mm, ela chega a 105,99mm) — e
+    // renderizador que "ajusta para caber" encolhe o documento inteiro para
+    // conter isso. Medido: o PDF saiu com as barras a 24,57mm em vez de
+    // 24,99mm, 1,9% menor, que é 104/106 exatamente.
+    //
+    // O QZ manda `scaleContent: false` justamente para não encolher, mas
+    // depender disso enquanto se pinta fora da página é apostar no
+    // comportamento de um renderizador que não é o nosso — e escala silenciosa
+    // é a família de bug que custou esta série inteira. Recortar é seguro: o
+    // que cai fora da página é o branco da última célula, nunca tinta (a barra
+    // tem 2,5mm de folga até a borda).
+    'html, body { margin: 0; padding: 0; background: #fff; overflow: hidden; }',
     '* { box-sizing: border-box; }',
     'body { font-family: ' + FONTE + '; }',
     '.etq-fileira {',

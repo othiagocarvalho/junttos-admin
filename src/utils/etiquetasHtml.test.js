@@ -318,6 +318,16 @@ describe('cssTermica — o deslocamento chega nos dois caminhos', () => {
     expect(cssTermica(MED)).not.toMatch(/\n\s*\n/)
   })
 
+  it('o documento recorta o que o deslocamento pinta fora da página', () => {
+    // Com o offset ligado a fileira passa a pintar além da página (2mm numa
+    // página de 104mm chega a 105,99). Renderizador que "ajusta para caber"
+    // encolhe o documento inteiro: medido, as barras saíram a 24,57mm em vez
+    // de 24,99 — 1,9% menor, que é 104/106. O recorte fecha essa porta antes
+    // de ela depender do comportamento de um renderizador que não é o nosso.
+    const corpo = cssTermica(MED).split('\n').find(l => l.startsWith('html, body'))
+    expect(corpo).toContain('overflow: hidden')
+  })
+
   it('nada mais muda com o offset ligado', () => {
     const semOff = cssTermica(MED)
     const comOff = cssTermica({ ...MED, offsetXMm: 2 })

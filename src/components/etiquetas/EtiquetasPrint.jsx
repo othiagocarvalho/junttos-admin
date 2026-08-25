@@ -195,31 +195,31 @@ const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)
 // cada lado dentro da célula, medidos: até uns 4mm nada de tinta se perde.
 // Acima disso começa a comer barra de código, e barra cortada não bipa.
 //
-// ─── VALOR DE HOJE: ZERO, E O MOTIVO DE TER VOLTADO A ZERO ─────────────────
-// Chegou a ficar em 2mm por algumas horas em 26/08/2026, quando a régua
-// mostrou o "0" colado no picote da esquerda e todo o branco sobrando à
-// direita. A leitura estava certa, o remédio é que era o errado: aquele branco
-// não vinha de a impressora começar a pintar fora de lugar, vinha de a
-// etiqueta DESENHADA ser menor que a célula real — 33mm contra 34, e uma
-// fileira de 100mm contra 104.
+// ─── VALOR DE HOJE: 2mm EM X, E A HISTÓRIA DE COMO ELE CHEGOU AQUI ─────────
+// O número é o mesmo de duas tentativas atrás, mas o fundamento é outro — e a
+// diferença é o que vale registrar, porque é ela que separa correção de
+// disfarce.
 //
-// Corrigidas a largura e o vão, o desequilíbrio sumiu na origem. Medido no PDF
-// de impressão, a tinta do código dentro de cada célula física:
+//   1ª vez (26/08, manhã)  a régua mostrou o "0" colado no picote esquerdo e o
+//                          branco todo à direita. Pôs-se 2mm. Era disfarce: o
+//                          branco vinha de a etiqueta DESENHADA ser menor que
+//                          a célula real (33mm contra 34, fileira de 100
+//                          contra 104), não de registro.
+//   depois (26/08, tarde)  largura e vão corrigidos com fita. Com a geometria
+//                          certa, a tinta ficou simétrica sozinha e o
+//                          deslocamento virou desequilíbrio — voltou a 0.
+//   agora                  com 34mm/1mm no ar e o driver em 104mm, a foto das
+//                          três colunas mostra o MESMO desvio nas três, sem
+//                          piorar da 1ª para a 3ª. Desvio uniforme com a
+//                          geometria já batendo é registro de impressão: a
+//                          cabeça começa a pintar deslocada. Aí sim é este o
+//                          parafuso.
 //
-//                     offset 0            offset 2
-//   coluna 1     4,60 / 4,42mm       6,45 / 2,57mm
-//   coluna 2     4,52 / 4,49mm       6,37 / 2,64mm
-//   coluna 3     4,45 / 4,57mm       6,56 / 2,45mm
+// O teste que separa os dois casos está logo acima, em "É DESLOCAMENTO OU É
+// PITCH?", e foi ele que respondeu desta vez: sobra IGUAL nas três colunas.
 //
-// Com 0 a tinta fica simétrica nas três; com 2 ela encosta na direita. Manter
-// o deslocamento agora seria empilhar uma compensação sobre um erro que já não
-// existe — que é exatamente como nasceu o ajuste empírico de 23/08 que abriu
-// esta série inteira de investigações.
-//
-// A trava fica: deslocamento só entra depois que a GEOMETRIA estiver medida e
-// batendo. Se a régua impressa mostrar desvio com a largura já certa, aí sim é
-// registro de impressão, e aí o parafuso é este.
-const LABEL_OFFSET_X_MM = 0
+// Y continua em 0 — no eixo vertical não houve desvio relatado.
+const LABEL_OFFSET_X_MM = 2
 const LABEL_OFFSET_Y_MM = 0
 
 /** Declarações de deslocamento, ou '' quando as duas constantes são 0. */
