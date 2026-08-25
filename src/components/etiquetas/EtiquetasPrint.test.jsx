@@ -12,6 +12,36 @@ const { etiquetasDoProduto, etiquetasDeProdutos } = await import('../../utils/co
 const html = el => renderToStaticMarkup(el)
 const contar = (s, classe) => (s.match(new RegExp(`class="${classe}"`, 'g')) || []).length
 
+/**
+ * Recorta UMA regra do <style> do componente, do seletor até a chave que a
+ * fecha.
+ *
+ * Duas armadilhas que já fizeram teste passar de graça neste arquivo, e que
+ * esta função existe para evitar:
+ *
+ *   1. as declarações têm "${...}" dentro, então a primeira "}" do texto não é
+ *      o fim da regra. Os placeholders são apagados antes da busca;
+ *   2. regra de uma linha só ("a { b: c }") não tem "\n<recuo>}" nenhum —
+ *      procurar por isso atravessava a regra seguinte e trazia junto
+ *      declarações que não são daquele seletor.
+ */
+export function regraCss(fonte, seletor) {
+  const i = fonte.indexOf(seletor.trim() + ' {')
+  if (i === -1) return ''
+  const corpo = fonte.slice(i)
+  // Filler do MESMO tamanho: o índice achado no texto mascarado precisa valer
+  // no texto original, senão o recorte devolvido sai deslocado.
+  const mascarado = corpo.replace(/\$\{[^}]*\}/g, m => '@'.repeat(m.length))
+  const fim = mascarado.indexOf('}')
+  return fim === -1 ? corpo : corpo.slice(0, fim + 1)
+}
+
+/** A DECLARAÇÃO da propriedade, não a menção dela num comentário. */
+export function declara(regra, prop, valor) {
+  return new RegExp(`(^|[{;])\\s*${prop}:\\s*${valor};`, 'm').test(regra)
+}
+
+
 // Bug real: selecionar 1 produto gerava 159 páginas de impressão, quase todas
 // em branco, com o conteúdo só a partir da 157. A causa era o CSS
 // (`visibility: hidden` não tira do fluxo, então a tela do Estoque atrás do
@@ -264,13 +294,6 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
   // indentação. Regex com [\s\S]*? atravessaria a regra seguinte e passaria
   // de graça — as declarações têm "${...}" dentro, então [^}]* também não
   // serve para delimitar.
-  const bloco = (fonte, seletor) => {
-    const i = fonte.indexOf(seletor + ' {')
-    if (i === -1) return ''
-    const recuo = seletor.length - seletor.trimStart().length
-    const fim = fonte.indexOf('\n' + ' '.repeat(recuo) + '}', i)
-    return fonte.slice(i, fim === -1 ? undefined : fim)
-  }
   const LARGURA = numero('LABEL_WIDTH_MM')
   const ALTURA = numero('LABEL_HEIGHT_MM')
   const COLUNAS = numero('LABEL_COLUMNS')
@@ -306,7 +329,7 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
     // Página e fileira saem da MESMA constante de altura. Enquanto isso for
     // verdade, sobra zero para transbordar.
     expect(print).toContain('@page { size: ${PAPER_WIDTH_MM}mm ${LABEL_HEIGHT_MM}mm; margin: 0; }')
-    const fileira = bloco(print, '          .etq-fileira')
+    const fileira = regraCss(print, '.etq-fileira')
     expect(fileira).toContain('height: ${LABEL_HEIGHT_MM}mm !important')
     expect(fileira).toContain('width: ${PAPER_WIDTH_MM}mm !important')
   })
@@ -314,14 +337,66 @@ describe('EtiquetasPrint — as medidas da térmica não podem se contradizer', 
   it('a etiqueta recorta o próprio conteúdo, e só na térmica', () => {
     // A outra porta para a segunda folha: conteúdo maior que a caixa empurra a
     // fileira para além da página. No A4 o card continua podendo crescer.
-    expect(bloco(fonte, '        .etq-fileira .etq-item')).toContain('overflow: hidden;')
-    expect(bloco(fonte, '        .etq-fileira .etq-var')).toContain('white-space: nowrap;')
-    expect(fonte).toMatch(/\.etq-fileira \.etq-svg \{ max-height: \$\{BARRAS_MAX_MM\}mm/)
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-item'), 'overflow', 'hidden')).toBe(true)
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-var'), 'white-space', 'nowrap')).toBe(true)
+    expect(regraCss(fonte, '.etq-fileira .etq-svg')).toContain('max-height: ${BARRAS_MAX_MM}mm')
     // E o A4 continua sem recorte: lá o card cresce com o conteúdo.
-    expect(bloco(fonte, '        .etq-item')).not.toContain('overflow: hidden')
+    expect(declara(regraCss(fonte, '.etq-item'), 'overflow', 'hidden')).toBe(false)
   })
 
   it('o teto do código de barras vem do util, não de um número colado aqui', () => {
     expect(fonte).toContain('const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)')
+  })
+})
+
+// ─── Centralização e respiro até o picote ───────────────────────────────────
+// Relato do papel impresso na Tropicale (25/08/2026): conteúdo puxado para a
+// esquerda dentro da célula de 33mm, e código de barras encostando na linha de
+// corte de baixo. Medido no Chrome com o CSS de impressão ativo, ANTES:
+//
+//   caixas de texto     esticadas na largura inteira (align-items: stretch)
+//   respiro lateral     1mm de cada lado
+//   base do código      3,28mm do picote de baixo
+//
+// DEPOIS: caixas encolhem e ficam centradas, 2mm de lado, 4,67mm embaixo.
+
+describe('EtiquetasPrint — a etiqueta térmica é centrada e respeita o picote', () => {
+  const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+  const item = regraCss(fonte, '.etq-fileira .etq-item')
+
+  it('a célula centraliza as CAIXAS, não só o texto dentro delas', () => {
+    // "text-align: center" sozinho não movia nada: a caixa já ocupava a
+    // largura inteira, então centralizar o texto dentro dela era um no-op.
+    //
+    // Checa a DECLARAÇÃO: o comentário que explica a regra cita
+    // "align-items: center" no meio da frase, e um toContain() passava mesmo
+    // com a declaração apagada (verificado por mutação).
+    expect(declara(item, 'align-items', 'center')).toBe(true)
+  })
+
+  it('o respiro sai das constantes compartilhadas com o caminho do QZ', () => {
+    // Número solto aqui faria o navegador e o QZ Tray imprimirem diferente —
+    // e a etiqueta mudaria de acordo com por onde foi impressa.
+    expect(item).toMatch(/^\s*padding: \$\{ETQ_PAD_TOP_MM\}mm \$\{ETQ_PAD_X_MM\}mm \$\{ETQ_PAD_BOTTOM_MM\}mm;$/m)
+    expect(fonte).toMatch(/import \{[\s\S]*?ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM,[\s\S]*?\} from '\.\.\/\.\.\/utils\/etiquetasHtml'/)
+  })
+
+  it('nome e variação encolhem sem passar da célula', () => {
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-nome'), 'max-width', '100%')).toBe(true)
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-var'), 'max-width', '100%')).toBe(true)
+  })
+
+  it('o código de barras não encolhe junto — a largura é o que o torna legível', () => {
+    // Encolher o SVG estreitaria a barra abaixo do piso de ~0,19mm que
+    // utils/codigoBarras.js documenta, e aí o leitor recusa a leitura.
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-svg'), 'align-self', 'stretch')).toBe(true)
+  })
+
+  it('o A4 continua com o respiro dele — nada disso vale lá', () => {
+    // Todas as regras acima são filhas de .etq-fileira, que só existe na
+    // térmica. O card do A4 mantém o padding em px de sempre.
+    const a4 = regraCss(fonte, '.etq-item')
+    expect(declara(a4, 'padding', '7px 8px 5px')).toBe(true)
+    expect(declara(a4, 'align-items', 'center')).toBe(false)
   })
 })

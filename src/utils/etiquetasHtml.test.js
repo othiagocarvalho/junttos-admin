@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { cssTermica, documentoFileira, documentosParaQz, configQz, alturaMaxBarrasMm } from './etiquetasHtml'
+import {
+  cssTermica, documentoFileira, documentosParaQz, configQz, alturaMaxBarrasMm,
+  ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM, ETQ_TEXTO_MM,
+} from './etiquetasHtml'
 
 // As MESMAS constantes de EtiquetasPrint.jsx. Se elas mudarem lá e não aqui,
 // o teste "as medidas do documento vêm dos parâmetros" continua valendo — o
@@ -126,10 +129,21 @@ describe('configQz — as três configurações que hoje são conferidas na mão
 // escala pela proporção do código, e código mais curto é SVG mais alto.
 
 describe('alturaMaxBarrasMm — o teto que impede o conteúdo de mandar na página', () => {
-  it('é o que sobra da etiqueta depois do padding, do texto e da folga', () => {
-    // 25 − 3 (padding) − 6,1 (nome + variação, medidos no Chrome) − 1,5 (folga)
-    expect(alturaMaxBarrasMm(25)).toBe(14.4)
-    expect(alturaMaxBarrasMm(30)).toBe(19.4)
+  it('é o que sobra da etiqueta depois dos respiros e do texto', () => {
+    // 25 − 1 (topo) − 6,1 (nome + variação, medidos no Chrome) − 3 (baixo)
+    expect(alturaMaxBarrasMm(25)).toBe(14.9)
+    expect(alturaMaxBarrasMm(30)).toBe(19.9)
+  })
+
+  it('as quatro parcelas fecham a altura da célula — a margem é estrutural', () => {
+    // É o invariante que dá a garantia: se cap + texto + respiros somam a
+    // altura inteira, então MESMO com o código no tamanho máximo a base dele
+    // fica a ETQ_PAD_BOTTOM_MM do picote. A margem deixa de depender da sobra
+    // que o "justify-content: center" porventura deixar.
+    for (const h of [20, 25, 30, 40]) {
+      const soma = alturaMaxBarrasMm(h) + ETQ_TEXTO_MM + ETQ_PAD_TOP_MM + ETQ_PAD_BOTTOM_MM
+      expect(+soma.toFixed(2)).toBe(h)
+    }
   })
 
   it('sempre sobra menos do que a etiqueta inteira — senão não é teto', () => {
@@ -144,8 +158,63 @@ describe('alturaMaxBarrasMm — o teto que impede o conteúdo de mandar na pági
   })
 })
 
+// ─── Respiro até o picote ───────────────────────────────────────────────────
+// Relato do papel impresso: código de barras encostando na linha de corte de
+// baixo, e conteúdo puxado para a esquerda dentro da célula. Barra cortada não
+// é defeito estético — o leitor recusa a leitura e a peça cai na busca manual.
+
+describe('respiro dentro da célula', () => {
+  it('reserva embaixo pelo menos os 2mm de segurança pedidos', () => {
+    expect(ETQ_PAD_BOTTOM_MM).toBeGreaterThanOrEqual(2)
+  })
+
+  it('reserva MAIS embaixo do que em cima — é o que absorve o deslocamento', () => {
+    // A térmica começa a imprimir alguns décimos depois do sensor de picote e
+    // o conteúdo inteiro desce. Simetria aqui devolveria o problema.
+    expect(ETQ_PAD_BOTTOM_MM).toBeGreaterThan(ETQ_PAD_TOP_MM)
+  })
+
+  it('o respiro lateral afasta a barra do picote vertical', () => {
+    // Era 1mm, que é menos que a tolerância de posicionamento do rolo.
+    expect(ETQ_PAD_X_MM).toBeGreaterThanOrEqual(2)
+  })
+})
+
 describe('cssTermica — a etiqueta contém o próprio conteúdo', () => {
   const css = cssTermica({ larguraMm: 33, alturaMm: 25, papelMm: 33, colunas: 1, gapMm: 0.5 })
+
+  it('centraliza as caixas, não só o texto dentro delas', () => {
+    // Só "text-align: center" não centraliza nada visível: as caixas nascem
+    // esticadas na largura inteira (align-items: stretch é o padrão), então o
+    // texto já ocupava a largura toda e "centrar" não movia nada.
+    const item = css.slice(css.indexOf('.etq-item {'), css.indexOf('.etq-nome'))
+    expect(item).toContain('align-items: center')
+    expect(item).toContain('text-align: center')
+  })
+
+  it('o respiro vem das constantes, e é assimétrico', () => {
+    expect(css).toContain(
+      'padding: ' + ETQ_PAD_TOP_MM + 'mm ' + ETQ_PAD_X_MM + 'mm ' + ETQ_PAD_BOTTOM_MM + 'mm'
+    )
+  })
+
+  it('nome e variação podem encolher, mas nunca passar da célula', () => {
+    // "max-width: 100%" é o par obrigatório do align-items: center — sem ele a
+    // caixa encolhida cresce até o texto inteiro (nowrap) e o ellipsis nunca
+    // chega a agir.
+    const nome = css.slice(css.indexOf('.etq-nome {'), css.indexOf('.etq-var'))
+    const varia = css.slice(css.indexOf('.etq-var {'), css.indexOf('.etq-svg'))
+    expect(nome).toContain('max-width: 100%')
+    expect(varia).toContain('max-width: 100%')
+  })
+
+  it('o código de barras é a única caixa que NÃO encolhe', () => {
+    // A largura útil inteira é o que mantém a barra estreita acima do piso de
+    // leitura de ~0,19mm (ver o cálculo em utils/codigoBarras.js).
+    const svg = css.slice(css.indexOf('.etq-svg {'))
+    expect(svg).toContain('align-self: stretch')
+    expect(svg).toContain('width: 100%')
+  })
 
   it('a etiqueta recorta o que passar dela', () => {
     // Sem isto o excesso vaza para a etiqueta de baixo e estica a fileira além

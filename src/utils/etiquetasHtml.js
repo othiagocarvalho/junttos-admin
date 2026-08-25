@@ -25,8 +25,56 @@
 /** Pilha de fontes que existe em Windows, macOS e no renderizador do QZ. */
 const FONTE = "system-ui, -apple-system, 'Segoe UI', Arial, Helvetica, sans-serif"
 
-/** Padding vertical de cada etiqueta, em mm. Entra na conta do teto abaixo. */
-const PAD_Y_MM = 1.5
+// ─── RESPIRO DENTRO DA CÉLULA ───────────────────────────────────────────────
+// As quatro medidas abaixo são a distância entre a TINTA e o PICOTE, e por isso
+// vivem aqui, num lugar só: os dois caminhos de impressão (navegador e QZ Tray)
+// têm de reservar exatamente o mesmo espaço, senão a etiqueta sai diferente
+// dependendo de por onde foi impressa.
+//
+// Não são simétricas de propósito. Ver ETQ_PAD_BOTTOM_MM.
+
+/**
+ * Respiro lateral. Era 1mm, que é menos que a tolerância de posicionamento do
+ * rolo — a barra chegava perto demais do picote vertical.
+ *
+ * O custo está medido e é aceitável: a largura útil do código cai de 31mm para
+ * 29mm, e com isso a barra mais estreita passa de 0,256mm para 0,239mm. O piso
+ * seguro para leitor de mão é ~0,19mm (a conta inteira está em
+ * utils/codigoBarras.js), então ainda sobram 26%. Subir este respiro além de
+ * 2mm começa a comer essa folga.
+ */
+export const ETQ_PAD_X_MM = 2
+
+/** Respiro no topo. */
+export const ETQ_PAD_TOP_MM = 1
+
+/**
+ * Respiro embaixo — a margem de segurança até a linha de corte.
+ *
+ * É 3× o do topo, e isso é deliberado. O relato do papel impresso é de código
+ * de barras encostando no picote de baixo, com o layout do CSS já simétrico
+ * (medido: 3,28mm de folga em cima e embaixo). Assimetria assim, entre o que o
+ * CSS desenha e o que o papel mostra, é deslocamento de impressão: a térmica
+ * começa a imprimir alguns décimos depois do sensor de picote, e o conteúdo
+ * inteiro desce.
+ *
+ * Não dá para corrigir o sensor pelo CSS, mas dá para ABSORVER o deslocamento:
+ * reservando mais espaço embaixo do que em cima, o conteúdo desce dentro de uma
+ * área que já tinha sobra, em vez de descer para cima do corte.
+ *
+ * Barra de código de barras cortada não é um defeito estético: o leitor recusa
+ * a leitura, e a peça cai na busca manual — que é o trabalho que a etiqueta
+ * existe para eliminar.
+ */
+export const ETQ_PAD_BOTTOM_MM = 3
+
+/**
+ * Altura do bloco de texto acima do código (nome + linha da variação).
+ *
+ * MEDIDO no Chrome com o CSS de impressão ativo: nome em 6,5pt ocupa 2,75mm e
+ * a linha da variação em 6pt ocupa 2,65mm. Não é estimativa.
+ */
+export const ETQ_TEXTO_MM = 6.1
 
 /**
  * Altura máxima do código de barras dentro de uma etiqueta de `alturaMm`.
@@ -43,20 +91,24 @@ const PAD_Y_MM = 1.5
  * etiqueta em branco — a mesma família de bug que a página de 30mm num papel
  * de 25mm produzia. O teto fecha essa porta pelo lado do conteúdo.
  *
- * A conta é o que sobra da célula depois do que é fixo:
- *   altura − padding (2 × 1,5mm) − texto (6,1mm) − folga (1,5mm)
+ * ─── A CONTA, E O QUE ELA GARANTE ──────────────────────────────────────────
+ *   altura − respiro do topo − texto − respiro de baixo
  *
- * O 6,1mm é MEDIDO no Chrome com o CSS de impressão ativo: nome em 6,5pt
- * ocupa 2,75mm e a linha da variação em 6pt ocupa 2,65mm.
+ * O que sobra é o teto. Como as quatro parcelas somam a altura inteira da
+ * célula, vale um invariante: mesmo com o código no tamanho MÁXIMO, a base
+ * dele nunca chega a menos de ETQ_PAD_BOTTOM_MM do picote. A margem de
+ * segurança deixa de depender da sobra que o "justify-content: center"
+ * porventura deixar, e passa a ser estrutural.
+ *
+ * A folga extra de 1,5mm que existia aqui saiu: ela era um número solto que
+ * fazia o mesmo trabalho do respiro de baixo, só que sem dizer o nome.
  *
  * O piso de 4mm existe para uma etiqueta absurdamente baixa não gerar altura
  * negativa e sumir com o código de barras — nesse caso o certo é a barra
  * espremer, não desaparecer.
  */
 export function alturaMaxBarrasMm(alturaMm) {
-  const TEXTO_MM = 6.1
-  const FOLGA_MM = 1.5
-  return Math.max(4, +(alturaMm - 2 * PAD_Y_MM - TEXTO_MM - FOLGA_MM).toFixed(2))
+  return Math.max(4, +(alturaMm - ETQ_PAD_TOP_MM - ETQ_TEXTO_MM - ETQ_PAD_BOTTOM_MM).toFixed(2))
 }
 
 /**
@@ -82,7 +134,15 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     '.etq-item {',
     '  width: ' + larguraMm + 'mm; height: ' + alturaMm + 'mm;',
     '  display: flex; flex-direction: column; justify-content: center;',
-    '  padding: ' + PAD_Y_MM + 'mm 1mm; text-align: center;',
+    // "align-items: center" é o que centraliza de verdade. Só o
+    // "text-align: center" não bastava: ele centraliza o texto DENTRO da
+    // caixa, e as caixas nasciam esticadas na largura inteira (o padrão
+    // "align-items: stretch"), então nada ficava visivelmente centrado quando
+    // o conteúdo era menor que a célula. Com "center", cada caixa encolhe até
+    // o conteúdo e é a CAIXA que fica no meio da etiqueta.
+    '  align-items: center;',
+    '  padding: ' + ETQ_PAD_TOP_MM + 'mm ' + ETQ_PAD_X_MM + 'mm ' + ETQ_PAD_BOTTOM_MM + 'mm;',
+    '  text-align: center;',
     // A etiqueta tem altura fixa; sem isto, conteúdo que passar dela não fica
     // contido — vaza para a etiqueta de baixo e estica a fileira além da
     // página. Recortar é o mal menor: perde-se o fim de um texto, não a
@@ -92,22 +152,29 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     // volta de cada etiqueta. É a mesma regra do @media print da térmica.
     '  background: #fff; color: #000; border: none; border-radius: 0;',
     '}',
+    // O "max-width: 100%" é o par obrigatório do "align-items: center": sem
+    // ele a caixa encolhida cresce até o texto inteiro (o nome é nowrap), passa
+    // da célula e o "text-overflow: ellipsis" nunca chega a agir.
     '.etq-nome {',
     '  margin: 0; font-size: 6.5pt; font-weight: 700; line-height: 1.2;',
-    '  text-transform: uppercase;',
+    '  text-transform: uppercase; max-width: 100%;',
     '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
     '}',
     // Mesma regra do nome: uma linha só. Variação longa ("Rosa Bebê
     // Estampado · R$ 1.234,56") quebrava em duas e comia a altura do código.
     '.etq-var {',
-    '  margin: 1px 0 3px; font-size: 6pt; color: #444;',
+    '  margin: 1px 0 3px; font-size: 6pt; color: #444; max-width: 100%;',
     '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
     '}',
-    // O "margin: 0 auto" acompanha o teto: quando o max-height entra em ação,
-    // o navegador encolhe a largura junto para manter a proporção, e sem a
-    // margem automática o código ficaria encostado na esquerda.
+    // "width: 100%" com "align-self: stretch" desfeito pelo align-items do
+    // pai: o SVG precisa continuar ocupando a largura útil inteira (é o que
+    // mantém a barra estreita acima do piso de leitura), então ele é a única
+    // caixa que NÃO encolhe. O "margin: 0 auto" cobre o caso em que o teto de
+    // altura entra em ação: o navegador encolhe a largura junto para manter a
+    // proporção, e sem a margem o código ficaria encostado à esquerda.
     '.etq-svg {',
-    '  display: block; width: 100%; height: auto; margin: 0 auto;',
+    '  display: block; width: 100%; align-self: stretch;',
+    '  height: auto; margin: 0 auto;',
     '  max-height: ' + alturaMaxBarrasMm(alturaMm) + 'mm;',
     '}',
     // A régua de calibração usa as mesmas medidas em mm; se um dia a
