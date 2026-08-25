@@ -112,6 +112,34 @@ export function alturaMaxBarrasMm(alturaMm) {
 }
 
 /**
+ * Declarações que deslocam a FILEIRA INTEIRA no papel — ou string vazia quando
+ * não há deslocamento configurado.
+ *
+ * ─── POR QUE "position: relative", E NÃO MARGEM NEM TRANSFORM ──────────────
+ * Porque posicionamento relativo move o que é PINTADO sem mexer na caixa de
+ * layout. A fileira continua ocupando exatamente os mesmos 100×25mm no fluxo,
+ * então a paginação não sente nada — e paginação é justamente a cicatriz desta
+ * família de bug: já custou uma etiqueta virando duas folhas e 159 páginas em
+ * branco. Margem empurraria a caixa e poderia paginar; transform cria contexto
+ * de empilhamento e é tratado como monolítico pelo fragmentador, o que é mexer
+ * no que não está quebrado.
+ *
+ * O preço é que o deslocamento RECORTA no fim do papel em vez de esticá-lo:
+ * com +2mm, os 2mm finais da fileira caem fora da página. Isso é aceitável
+ * porque a tinta tem folga — medido, o código de barras tem 4,4mm de branco de
+ * cada lado dentro da célula. Deslocamento maior que essa folga começa a comer
+ * barra, e é o limite prático da constante.
+ *
+ * Devolver '' quando não há deslocamento não é elegância: é a garantia de que
+ * a configuração padrão (0) produz um CSS BYTE A BYTE igual ao de antes desta
+ * função existir. Sem regressão possível por acidente.
+ */
+export function deslocamentoCss(xMm = 0, yMm = 0) {
+  if (!xMm && !yMm) return ''
+  return 'position: relative; left: ' + xMm + 'mm; top: ' + yMm + 'mm;'
+}
+
+/**
  * CSS da fileira térmica.
  *
  * Espelha o bloco `@media print` da térmica em EtiquetasPrint.jsx, com uma
@@ -119,7 +147,14 @@ export function alturaMaxBarrasMm(alturaMm) {
  * documento só existe para ser impresso, e o QZ Tray rasteriza a página como
  * ela está — regra escondida atrás de @media print poderia não ser aplicada.
  */
-export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
+export function cssTermica({
+  larguraMm, alturaMm, papelMm, colunas, gapMm,
+  // Compensação de registro da impressora. Chegam por parâmetro como todo o
+  // resto: o valor mora nas constantes de EtiquetasPrint.jsx, para o
+  // navegador e o QZ Tray deslocarem exatamente igual.
+  offsetXMm = 0, offsetYMm = 0,
+}) {
+  const desloca = deslocamentoCss(offsetXMm, offsetYMm)
   return [
     '@page { size: ' + papelMm + 'mm ' + alturaMm + 'mm; margin: 0; }',
     'html, body { margin: 0; padding: 0; background: #fff; }',
@@ -130,6 +165,7 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     '  grid-template-columns: repeat(' + colunas + ', ' + larguraMm + 'mm);',
     '  gap: 0 ' + gapMm + 'mm;',
     '  width: ' + papelMm + 'mm; height: ' + alturaMm + 'mm; margin: 0;',
+    desloca && '  ' + desloca,
     '}',
     '.etq-item {',
     '  width: ' + larguraMm + 'mm; height: ' + alturaMm + 'mm;',
@@ -181,7 +217,9 @@ export function cssTermica({ larguraMm, alturaMm, papelMm, colunas, gapMm }) {
     // calibração passar pelo QZ, o estilo dela já está aqui.
     '.etq-calib { position: relative; width: ' + larguraMm + 'mm; height: ' + alturaMm + 'mm;',
     '  background: #fff; color: #000; }',
-  ].join('\n')
+  // filter: a linha do deslocamento é falsy quando não há deslocamento, e sem
+  // isto ela viraria uma linha em branco no meio da regra.
+  ].filter(Boolean).join('\n')
 }
 
 /**

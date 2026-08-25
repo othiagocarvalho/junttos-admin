@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   cssTermica, documentoFileira, documentosParaQz, configQz, alturaMaxBarrasMm,
   ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM, ETQ_TEXTO_MM,
-  DENSIDADE_DPI, DENSIDADE_DPMM,
+  DENSIDADE_DPI, DENSIDADE_DPMM, deslocamentoCss,
 } from './etiquetasHtml'
 
 // As MESMAS constantes de EtiquetasPrint.jsx. Se elas mudarem lá e não aqui,
@@ -255,5 +255,74 @@ describe('cssTermica — a etiqueta contém o próprio conteúdo', () => {
     const bloco = css.slice(css.indexOf('.etq-var'), css.indexOf('.etq-svg'))
     expect(bloco).toContain('white-space: nowrap')
     expect(bloco).toContain('text-overflow: ellipsis')
+  })
+})
+
+// ─── Compensação de registro da impressora ──────────────────────────────────
+// A geometria do documento já foi provada correta medindo o PDF de impressão
+// (fileira a 100,2% do nominal, colunas em 0/33,5/67mm sem deriva). O que
+// sobra é onde a cabeça começa a pintar em relação ao picote físico — e isso
+// nenhum CSS descobre. Estas constantes são o parafuso de regulagem.
+
+describe('deslocamentoCss — o parafuso de registro', () => {
+  it('sem deslocamento não emite NADA', () => {
+    // É a garantia de que o padrão (0) produz o CSS byte a byte igual ao de
+    // antes desta função existir. Sem regressão possível por acidente.
+    expect(deslocamentoCss(0, 0)).toBe('')
+    expect(deslocamentoCss()).toBe('')
+  })
+
+  it('usa posicionamento relativo — a caixa de layout não se move', () => {
+    // Margem empurraria a caixa e poderia paginar; transform é monolítico para
+    // o fragmentador. Paginação é a cicatriz desta família de bug (uma
+    // etiqueta virando duas folhas), então o que se move é só a pintura.
+    expect(deslocamentoCss(2, 0)).toContain('position: relative')
+    expect(deslocamentoCss(2, 0)).not.toContain('margin')
+    expect(deslocamentoCss(2, 0)).not.toContain('transform')
+  })
+
+  it('x vai para "left" e y para "top", em mm', () => {
+    expect(deslocamentoCss(2, 0)).toContain('left: 2mm')
+    expect(deslocamentoCss(2, 0)).toContain('top: 0mm')
+    expect(deslocamentoCss(0, 1.5)).toContain('top: 1.5mm')
+  })
+
+  it('aceita negativo — o desvio pode ser para qualquer lado', () => {
+    expect(deslocamentoCss(-1.5, 0)).toContain('left: -1.5mm')
+  })
+
+  it('um eixo só já basta para emitir a regra', () => {
+    expect(deslocamentoCss(0, 1)).not.toBe('')
+    expect(deslocamentoCss(1, 0)).not.toBe('')
+  })
+})
+
+describe('cssTermica — o deslocamento chega nos dois caminhos', () => {
+  const MED = { larguraMm: 33, alturaMm: 25, papelMm: 100, colunas: 3, gapMm: 0.5 }
+
+  it('sem offset, o CSS é IDÊNTICO ao de antes da compensação existir', () => {
+    expect(cssTermica({ ...MED, offsetXMm: 0, offsetYMm: 0 })).toBe(cssTermica(MED))
+  })
+
+  it('com offset, a fileira inteira é deslocada — e só ela', () => {
+    const css = cssTermica({ ...MED, offsetXMm: 2, offsetYMm: -1 })
+    const fileira = css.slice(css.indexOf('.etq-fileira {'), css.indexOf('.etq-item {'))
+    expect(fileira).toContain('left: 2mm')
+    expect(fileira).toContain('top: -1mm')
+    // A célula não se mexe: o deslocamento é do conjunto, não de cada etiqueta.
+    const item = css.slice(css.indexOf('.etq-item {'), css.indexOf('.etq-nome'))
+    expect(item).not.toContain('position: relative')
+  })
+
+  it('o deslocamento não vira linha em branco no meio da regra', () => {
+    expect(cssTermica(MED)).not.toMatch(/\n\s*\n/)
+  })
+
+  it('nada mais muda com o offset ligado', () => {
+    const semOff = cssTermica(MED)
+    const comOff = cssTermica({ ...MED, offsetXMm: 2 })
+    // A única diferença é a linha nova.
+    const diff = comOff.split('\n').filter(l => !semOff.split('\n').includes(l))
+    expect(diff).toEqual(['  position: relative; left: 2mm; top: 0mm;'])
   })
 })
