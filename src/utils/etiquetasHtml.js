@@ -221,6 +221,39 @@ export function documentosParaQz(fileiras, medidas) {
     }))
 }
 
+/** Resolução da cabeça térmica da Elgin/Bematech L42PRO Full, em DPI. */
+export const DENSIDADE_DPI = 203
+
+/**
+ * A MESMA densidade em pontos por MILÍMETRO — que é o que o QZ Tray espera.
+ *
+ * ⚠️ ARMADILHA DE UNIDADE, conferida na fonte do pacote (qz-tray 2.2.6,
+ * qz-tray.js linha 1580):
+ *
+ *   "density ... Pixel density (DPI, DPMM, or DPCM depending on [options.units])"
+ *
+ * O `units` do nosso config é 'mm' — porque o tamanho da página é em mm — e
+ * isso arrasta a densidade junto. Escrever `density: 203` aqui NÃO diria
+ * "203 DPI": diria 203 pontos por milímetro, 25× a resolução real da cabeça.
+ *
+ * Por isso a conversão é explícita e fica no código, não na cabeça de quem ler
+ * depois: 203 ÷ 25,4 = 7,99 pontos/mm.
+ *
+ * ─── POR QUE FIXAR, SE O PADRÃO É AUTOMÁTICO ──────────────────────────────
+ * O padrão do QZ é `density: 0`, que significa "pergunte ao driver". Quando o
+ * driver não responde, ou responde "Normal", o QZ rasteriza numa densidade
+ * arbitrária — e como o caminho direto manda HTML RASTERIZADO (type 'pixel'),
+ * densidade errada é bitmap com outra contagem de pontos para os mesmos
+ * milímetros. É a única brecha de escala que sobrou depois de a medição no PDF
+ * ter mostrado que o caminho do navegador sai correto a 100%.
+ *
+ * Fixar não muda a geometria: a página continua declarada em mm com
+ * `scaleContent: false`, então o desenho ocupa os mesmos 100×25mm. O que muda
+ * é a nitidez — e casar com os 203dpi da cabeça é o que evita reamostragem do
+ * código de barras, que é onde meio ponto de borrão custa uma leitura.
+ */
+export const DENSIDADE_DPMM = +(DENSIDADE_DPI / 25.4).toFixed(2)
+
 /**
  * Opções do qz.configs.create.
  *
@@ -236,12 +269,15 @@ export function documentosParaQz(fileiras, medidas) {
  *
  * `colorType: 'blackwhite'` porque o conteúdo é código de barras: meio-tom em
  * barra estreita é o caminho mais curto para o leitor recusar a leitura.
+ *
+ * `density` fecha a última porta de escala deste caminho — ver DENSIDADE_DPMM.
  */
 export function configQz({ papelMm, alturaMm }) {
   return {
     size: { width: papelMm, height: alturaMm },
     units: 'mm',
     margins: 0,
+    density: DENSIDADE_DPMM,
     scaleContent: false,
     rasterize: true,
     colorType: 'blackwhite',

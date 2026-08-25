@@ -28,6 +28,13 @@ import {
   ETQ_PAD_X_MM, ETQ_PAD_TOP_MM, ETQ_PAD_BOTTOM_MM,
 } from '../../utils/etiquetasHtml'
 import { fmtR } from '../../utils/formatters'
+// A geometria da régua mora fora daqui pelo mesmo motivo que etiquetasQtd.js:
+// é regra que precisa de teste, e a régua não tem como ser renderizada no
+// ambiente 'node' do vitest.
+import {
+  CALIB_BORDA_MM, CALIB_TRACO_MM,
+  marcasRegua, recuoDaMarca, rotuloParaDentro,
+} from '../../utils/reguaCalibracao'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Impressora térmica de rolo (Elgin / Bematech L42 Pro Full).
@@ -106,19 +113,6 @@ const PAPER_WIDTH_MM  = LABEL_COLUMNS * LABEL_WIDTH_MM + (LABEL_COLUMNS - 1) * L
 // tamanho do código. Sem teto, é o conteúdo mandando na altura da página de
 // novo — exatamente a família de bug que esta correção fecha.
 const BARRAS_MAX_MM   = alturaMaxBarrasMm(LABEL_HEIGHT_MM)
-
-// Espessura da borda da régua de calibração. Entra numa constante porque as
-// marcas precisam compensá-la: elemento posicionado tem como referência a
-// caixa de padding, que começa DEPOIS da borda — sem o desconto, a marca do
-// "0" cairia a 0,25mm da borda real e a régua mediria tudo deslocado.
-const CALIB_BORDA_MM  = 0.25
-
-/** Marcações da régua de calibração: 0, 5, 10... até cobrir a medida. */
-function marcasRegua(totalMm, passo = 5) {
-  const out = []
-  for (let mm = 0; mm <= totalMm; mm += passo) out.push(mm)
-  return out
-}
 
 /** Quebra a lista em fileiras físicas do rolo — cada fileira vira uma página. */
 function emFileiras(lista, porFileira) {
@@ -200,21 +194,22 @@ function ReguaCalibracao() {
       <span className="etq-calib-canto etq-calib-canto--bl" />
       <span className="etq-calib-canto etq-calib-canto--br" />
 
-      {/* A última marca de cada eixo escreve o número para DENTRO. Solto, ele
-          cairia fora da caixa — numa etiqueta física isso é tinta passando do
-          picote, na vizinha. */}
-      {marcasH.map((mm, i) => (
+      {/* As marcas do FIM de cada eixo escrevem o número para dentro, à
+          esquerda do próprio traço. Solto, o número da última cairia fora da
+          caixa — numa etiqueta física isso é tinta passando do picote, na
+          vizinha — e o da penúltima colidiria com ele. */}
+      {marcasH.map(mm => (
         <span
           key={`h${mm}`}
-          className={`etq-calib-th${i === marcasH.length - 1 ? ' etq-calib-th--fim' : ''}`}
-          style={{ left: `calc(${mm}mm - ${CALIB_BORDA_MM}mm)` }}
+          className={`etq-calib-th${rotuloParaDentro(mm, LABEL_WIDTH_MM) ? ' etq-calib-th--fim' : ''}`}
+          style={{ left: `calc(${mm}mm - ${recuoDaMarca(mm, LABEL_WIDTH_MM)}mm)` }}
         ><i>{mm}</i></span>
       ))}
-      {marcasV.map((mm, i) => (
+      {marcasV.map(mm => (
         <span
           key={`v${mm}`}
-          className={`etq-calib-tv${i === marcasV.length - 1 ? ' etq-calib-tv--fim' : ''}`}
-          style={{ top: `calc(${mm}mm - ${CALIB_BORDA_MM}mm)` }}
+          className={`etq-calib-tv${rotuloParaDentro(mm, LABEL_HEIGHT_MM) ? ' etq-calib-tv--fim' : ''}`}
+          style={{ top: `calc(${mm}mm - ${recuoDaMarca(mm, LABEL_HEIGHT_MM)}mm)` }}
         ><i>{mm}</i></span>
       ))}
 
@@ -537,7 +532,7 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         /* Traço da régua no topo, a cada 5mm, contado da borda esquerda. */
         .etq-calib-th {
           position: absolute; top: calc(0mm - ${CALIB_BORDA_MM}mm);
-          width: 0; height: 2mm; border-left: 0.2mm solid #000;
+          width: 0; height: 2mm; border-left: ${CALIB_TRACO_MM}mm solid #000;
         }
         .etq-calib-th i {
           position: absolute; left: 0.3mm; top: 1.8mm;
@@ -547,13 +542,16 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         /* Idem na borda esquerda, contado do topo. */
         .etq-calib-tv {
           position: absolute; left: calc(0mm - ${CALIB_BORDA_MM}mm);
-          height: 0; width: 2mm; border-top: 0.2mm solid #000;
+          height: 0; width: 2mm; border-top: ${CALIB_TRACO_MM}mm solid #000;
         }
         .etq-calib-tv i {
           position: absolute; top: 0.3mm; left: 2.3mm;
           font-family: ui-monospace, Menlo, monospace; font-size: 4pt;
           font-style: normal; line-height: 1;
         }
+        /* "--fim" = número escrito para o lado de dentro. Vale para a última
+           marca (senão o número sai da etiqueta) e para as vizinhas dela
+           (senão os números se sobrepõem). */
         .etq-calib-th--fim i { left: auto; right: 0.3mm; }
         .etq-calib-tv--fim i { top: auto; bottom: 0.3mm; }
         .etq-calib-centro {
