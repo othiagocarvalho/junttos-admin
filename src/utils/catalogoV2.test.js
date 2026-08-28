@@ -536,11 +536,24 @@ describe('lojaDaConfig — seção 2.1', () => {
     expect(temAlgo(cheio.apresentacao)).toBe(true)
   })
 
-  it('vídeo do topo usa o nome da loja quando não há título', () => {
+  // Este teste afirmava o contrário: que a etiqueta vazia virava "Coleção nova"
+  // e que o componente cairia no nome da loja. Era exatamente o bug relatado
+  // pela Fanboy — campo vazio continuava escrevendo sobre o vídeo, e a saída
+  // era digitar "." ou "//" para simular vazio.
+  it('vídeo do topo NÃO inventa texto quando os campos estão vazios', () => {
     const loja = lojaDaConfig({ nome: 'Tropicale', catalogo_video_topo: { ativo: true, videoUrl: 'v.mp4' } })
     expect(loja.videoTopo.ativo).toBe(true)
-    expect(loja.videoTopo.etiqueta).toBe('Coleção nova')
-    expect(loja.videoTopo.titulo).toBe('')  // o componente cai no nome da loja
+    expect(loja.videoTopo.etiqueta).toBe('')
+    expect(loja.videoTopo.titulo).toBe('')
+  })
+
+  it('vídeo do topo preserva o texto que a lojista escreveu', () => {
+    const loja = lojaDaConfig({
+      nome: 'Tropicale',
+      catalogo_video_topo: { ativo: true, videoUrl: 'v.mp4', etiqueta: 'Lançamento', titulo: 'Verão 26' },
+    })
+    expect(loja.videoTopo.etiqueta).toBe('Lançamento')
+    expect(loja.videoTopo.titulo).toBe('Verão 26')
   })
 
   it('modo varejo desliga o sufixo "/ peça" e a faixa de mínimo', () => {

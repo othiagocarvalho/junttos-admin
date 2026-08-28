@@ -1,8 +1,13 @@
 // Catálogo público novo — implementação de docs/CATALOGO_SPEC.md.
 //
-// Substitui CatalogoPublico.jsx, mas NÃO está plugado em nenhuma rota ainda:
-// a troca em produção afeta o catálogo de todas as lojas Business ao mesmo
-// tempo e é decisão do Thiago (ver relatório da Parte 3).
+// Substituiu CatalogoPublico.jsx: é ESTE o componente servido em /catalogo
+// desde 20/08/2026 (App.jsx). O antigo continua no repositório, sem rota, como
+// caminho de volta.
+//
+// Este bloco dizia "NÃO está plugado em nenhuma rota ainda" muito depois de a
+// rota existir. Um comentário desatualizado sobre o que está no ar é pior que
+// nenhum: leva a tratar como rascunho o arquivo que atende todas as lojas
+// Business.
 //
 // Toda a matemática, a copy dinâmica e a mensagem do WhatsApp moram em
 // utils/catalogoV2.js, com teste. Aqui só tem desenho e estado de tela.
@@ -216,12 +221,56 @@ function useFocoPreso(ref, ativo, aoFechar) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 4.1 Faixa de vídeo (opcional, acima do cabeçalho, não sticky)
 // ─────────────────────────────────────────────────────────────────────────────
-export function FaixaVideo({ video, nomeLoja }) {
+/**
+ * ─── OS DOIS BUGS QUE ISTO CORRIGE ──────────────────────────────────────────
+ *
+ * 1. CAMPO VAZIO AINDA ESCREVIA NA FAIXA. Era
+ *
+ *      const titulo = video.titulo || nomeLoja
+ *      const etiqueta = video.etiqueta || TEXTOS.etiquetaVideoPadrao
+ *
+ *    com os dois elementos renderizados sempre. Apagar os campos na tela de
+ *    configuração não apagava nada: a faixa passava a escrever o nome da loja
+ *    e "Coleção nova". A Fanboy contornou digitando "." e "//" nos campos, e o
+ *    catálogo dela ficou com esses fragmentos soltos sobre o vídeo.
+ *
+ *    Agora vazio é vazio: cada elemento só existe se tiver texto, e o bloco
+ *    inteiro some quando os dois estão vazios. O fallback também saiu de
+ *    lojaDaConfig — eram DOIS fallbacks empilhados, e tirar só um deixaria o
+ *    outro escrevendo.
+ *
+ * 2. O VÍDEO APARECIA CORTADO. O elemento nunca transbordou o container
+ *    (medido: 0px de transbordo nas quatro bordas) — quem cortava era o
+ *    `object-fit: cover`, que preenche a caixa e joga fora o que sobra. Medido
+ *    com o vídeo real da Fanboy (1920x824) contra a faixa:
+ *
+ *      320x568   -> 169px cortados na largura, 65% do quadro visível
+ *      360x740   -> 129px cortados na largura, 74% visível
+ *      375x812   -> 114px cortados na largura, 77% visível
+ *      1280x900  -> 209px cortados na ALTURA,  62% visível
+ *
+ *    Quanto mais estreito o celular, pior. O vídeo de capa é peça fechada
+ *    (logo, texto, composição), não textura de fundo: cortar um terço dele
+ *    destrói o que a lojista mandou fazer. `contain` mostra o quadro inteiro
+ *    em qualquer largura.
+ *
+ *    O preço é tarja da cor da faixa quando a proporção do vídeo não bate com
+ *    a da caixa — é troca consciente: tarja não esconde conteúdo, corte
+ *    esconde. A altura continua em `clamp(210px, 32vw, 340px)`: px e vw, sem
+ *    dvh, então a lição de suporte de unidade de viewport não morde aqui.
+ *
+ *    A IMAGEM de capa segue em `cover` de propósito. Ela é o caminho sem
+ *    vídeo, e o ken burns da spec (4.1) é um zoom lento que corta por
+ *    definição — trocar para contain mataria o efeito, que ninguém pediu para
+ *    remover.
+ */
+export function FaixaVideo({ video }) {
   const menosMovimento = usaMenosMovimento()
   if (!video?.ativo) return null
 
-  const titulo = video.titulo || nomeLoja
-  const etiqueta = video.etiqueta || TEXTOS.etiquetaVideoPadrao
+  const etiqueta = video.etiqueta || ''
+  const titulo = video.titulo || ''
+  const temTexto = !!(etiqueta || titulo)
   const temVideo = !!video.videoUrl && !menosMovimento
 
   return (
@@ -233,7 +282,7 @@ export function FaixaVideo({ video, nomeLoja }) {
         <video
           src={video.videoUrl} poster={video.imagemUrl || undefined}
           autoPlay muted loop playsInline preload="metadata"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
         />
       ) : video.imagemUrl ? (
         <img
@@ -250,19 +299,27 @@ export function FaixaVideo({ video, nomeLoja }) {
         background: 'linear-gradient(180deg, rgba(25,23,19,.34) 0%, rgba(25,23,19,.1) 40%, rgba(25,23,19,.8) 100%)',
       }} />
 
-      <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
-        padding: '22px 20px', maxWidth: LARGURA, margin: '0 auto',
-      }}>
-        <p style={{
-          margin: 0, fontSize: 11.5, fontWeight: 600, letterSpacing: '.16em',
-          textTransform: 'uppercase', color: 'rgba(251,249,245,.8)',
-        }}>{etiqueta}</p>
-        <h1 style={{
-          margin: '4px 0 0', fontFamily: DISPLAY, fontWeight: 400,
-          fontSize: 'clamp(28px, 4.4vw, 46px)', lineHeight: 1.05, color: C.fundo,
-        }}>{titulo}</h1>
-      </div>
+      {temTexto && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          padding: '22px 20px', maxWidth: LARGURA, margin: '0 auto',
+        }}>
+          {etiqueta && (
+            <p style={{
+              margin: 0, fontSize: 11.5, fontWeight: 600, letterSpacing: '.16em',
+              textTransform: 'uppercase', color: 'rgba(251,249,245,.8)',
+            }}>{etiqueta}</p>
+          )}
+          {titulo && (
+            <h1 style={{
+              // Sem etiqueta em cima, o título não precisa do respiro de 4px
+              // que separava os dois — senão ele desce sozinho dentro da faixa.
+              margin: etiqueta ? '4px 0 0' : 0, fontFamily: DISPLAY, fontWeight: 400,
+              fontSize: 'clamp(28px, 4.4vw, 46px)', lineHeight: 1.05, color: C.fundo,
+            }}>{titulo}</h1>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -2166,7 +2223,7 @@ export default function CatalogoPublicoV2({ lojaId }) {
     }}>
       <EstiloGlobal />
 
-      <FaixaVideo video={loja.videoTopo} nomeLoja={loja.nome} />
+      <FaixaVideo video={loja.videoTopo} />
 
       <Cabecalho
         loja={loja}
