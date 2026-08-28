@@ -150,11 +150,87 @@ describe('cadastro de loja — modelo de venda', () => {
     expect(p.pedido_minimo_qtd).toBeNull()
   })
 
-  it('quem não passa pedido_minimo (ConsultorNovaLoja) tem o payload de antes, intacto', () => {
+  it('quem não passa pedido_minimo (ConsultorNovaLoja) não ganha nenhuma coluna de pedido mínimo', () => {
     const semModelo = buildLojaPayload(base)
     const chaves = Object.keys(semModelo).filter(k => k.startsWith('pedido_minimo'))
     expect(chaves).toEqual([])
-    expect(semModelo.features.catalogo_b2b).toBe(false)
+  })
+})
+
+// ── Catálogo B2B ligado por padrão no Business ───────────────────────────────
+// Regra de produto: loja Business nasce no Catálogo B2B, não no catálogo de
+// varejo. Starter e Pro seguem em Varejo — a aba de Catálogo B2B não tem gate
+// de plano próprio, então ligá-la fora do Business entregaria o módulo a quem
+// não contratou.
+
+describe('cadastro de loja — catalogo_b2b padrão por plano', () => {
+  const base = {
+    nome: 'Loja Teste', slug: 'loja-teste', status: 'Trial',
+    cor_primaria: '#5E2BD0', cor_secundaria: '#FF6F5E',
+  }
+
+  it("Business sem features explícitas nasce com catalogo_b2b 'pro'", () => {
+    expect(buildLojaPayload({ ...base, plano: 'business' }).features.catalogo_b2b).toBe('pro')
+  })
+
+  it("nasce 'pro' e nunca `true` — `true` acende a aba mas quebra todos os === 'pro'", () => {
+    const nivel = buildLojaPayload({ ...base, plano: 'business' }).features.catalogo_b2b
+    expect(nivel).not.toBe(true)
+    expect(nivel).toBe('pro')
+  })
+
+  it('Starter continua em Varejo: catalogo_b2b false', () => {
+    expect(buildLojaPayload({ ...base, plano: 'starter' }).features.catalogo_b2b).toBe(false)
+  })
+
+  it('Pro continua em Varejo: catalogo_b2b false', () => {
+    expect(buildLojaPayload({ ...base, plano: 'pro' }).features.catalogo_b2b).toBe(false)
+  })
+
+  it('plano ausente cai em starter e não liga o B2B', () => {
+    expect(buildLojaPayload(base).features.catalogo_b2b).toBe(false)
+  })
+
+  it('ConsultorNovaLoja (não passa features nenhuma) também segue a regra', () => {
+    expect(buildLojaPayload({ ...base, plano: 'business', cadastrado_por_consultor_id: 'uuid-1' })
+      .features.catalogo_b2b).toBe('pro')
+  })
+
+  it('o padrão não mexe em nenhuma outra feature', () => {
+    const p = buildLojaPayload({ ...base, plano: 'business' })
+    expect(p.features.vendas).toBe(true)
+    expect(p.features.historico).toBe(true)
+    expect(p.features.metas).toBe(true)
+    expect(p.features.fechamento_caixa).toBe(true)
+    expect(p.features.relatorios).toBe(true)
+    expect(p.features.clientes).toBe(false)
+    expect(p.features.estoque).toBe(false)
+    expect(p.features.legado).toBe(false)
+    expect(p.features.cadastro_completo_cliente).toBe(true)
+  })
+
+  it('é padrão, não trava: Business + Varejo escolhido à mão continua gravando false', () => {
+    const p = buildLojaPayload({
+      ...base, plano: 'business',
+      features: featuresComModelo({ crm: false }, MODELO_VAREJO),
+    })
+    expect(p.features.catalogo_b2b).toBe(false)
+  })
+
+  it('Business + Atacado escolhido à mão grava pro, igual ao padrão', () => {
+    const p = buildLojaPayload({
+      ...base, plano: 'business',
+      features: featuresComModelo({ crm: false }, MODELO_ATACADO),
+    })
+    expect(p.features.catalogo_b2b).toBe('pro')
+  })
+
+  it('Starter + Atacado escolhido à mão ainda é respeitado — o padrão não vira trava', () => {
+    const p = buildLojaPayload({
+      ...base, plano: 'starter',
+      features: featuresComModelo({ crm: false }, MODELO_ATACADO),
+    })
+    expect(p.features.catalogo_b2b).toBe('pro')
   })
 })
 
