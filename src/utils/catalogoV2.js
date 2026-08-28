@@ -500,11 +500,23 @@ export function lojaDaConfig(config) {
     // supabase/migration_mercadopago_pix.sql).
     mercadopagoAtivo: config?.mercadopago_ativo === true,
     textoEnvio: config?.catalogo_texto_envio || TEXTOS.envioPadrao,
+    // Campo vazio = SEM TEXTO sobre o vídeo.
+    //
+    // `etiqueta` caía em TEXTOS.etiquetaVideoPadrao ("Coleção nova") e o
+    // componente ainda caía no nome da loja para o título. Quem apagava os dois
+    // campos continuava vendo texto sobre a faixa, e a única saída era digitar
+    // "." ou "//" para fingir vazio — foi o que a Fanboy fez, e é por isso que
+    // o catálogo dela mostrava fragmentos soltos em cima do vídeo.
+    //
+    // Sem fallback aqui e sem fallback no componente: vazio no formulário é
+    // vazio na tela. Quem quiser a etiqueta "Coleção nova" digita "Coleção
+    // nova" — o texto continua existindo como PLACEHOLDER na tela de
+    // configuração, que é onde uma sugestão pertence.
     videoTopo: {
       ativo: video.ativo === true,
       videoUrl: video.videoUrl || '',
       imagemUrl: video.imagemUrl || '',
-      etiqueta: video.etiqueta || TEXTOS.etiquetaVideoPadrao,
+      etiqueta: video.etiqueta || '',
       titulo: video.titulo || '',
     },
     apresentacao: {

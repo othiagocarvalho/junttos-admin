@@ -558,12 +558,12 @@ describe('13.10 — rodapé: Envio → Ajuda → botão, e nada além disso', ()
 
 describe('13.11 — vídeo do topo e apresentação ligam/desligam sem quebrar', () => {
   it('vídeo desligado não renderiza faixa nenhuma', () => {
-    expect(html(<FaixaVideo video={lojaAtacado.videoTopo} nomeLoja="X" />)).toBe('')
+    expect(html(<FaixaVideo video={lojaAtacado.videoTopo} />)).toBe('')
   })
 
   it('vídeo ligado usa autoplay/muted/loop/playsinline', () => {
     const loja = lojaDaConfig({ nome: 'Tropicale', catalogo_video_topo: { ativo: true, videoUrl: 'v.mp4' } })
-    const s = html(<FaixaVideo video={loja.videoTopo} nomeLoja={loja.nome} />)
+    const s = html(<FaixaVideo video={loja.videoTopo} />)
     expect(s).toContain('<video')
     // React 19 preserva o camelCase no markup; o HTML parser do browser lê
     // nome de atributo sem diferenciar caixa, então isso é o autoplay de fato.
@@ -575,14 +575,76 @@ describe('13.11 — vídeo do topo e apresentação ligam/desligam sem quebrar',
 
   it('sem vídeo mas com imagem usa kenburns', () => {
     const loja = lojaDaConfig({ catalogo_video_topo: { ativo: true, imagemUrl: 'capa.jpg' } })
-    const s = html(<FaixaVideo video={loja.videoTopo} nomeLoja="Tropicale" />)
+    const s = html(<FaixaVideo video={loja.videoTopo} />)
     expect(s).toContain('cat-kenburns 18s')
   })
 
-  it('sem título usa o nome da loja', () => {
+  // ── Campo vazio = sem texto (bug relatado pela Fanboy) ──────────────────
+  // Antes: título vazio caía no nome da loja e etiqueta vazia caía em
+  // "Coleção nova", com os dois elementos sempre renderizados. A lojista
+  // apagava os campos e continuava vendo texto sobre o vídeo.
+  const faixaCom = (etiqueta, titulo) => html(
+    <FaixaVideo video={lojaDaConfig({
+      nome: 'Fanboy',
+      catalogo_video_topo: { ativo: true, videoUrl: 'v.mp4', etiqueta, titulo },
+    }).videoTopo} />,
+  )
+
+  it('os dois campos vazios: nada de texto sobre o vídeo', () => {
+    const s = faixaCom('', '')
+    expect(s).toContain('<video')          // a faixa continua existindo
+    expect(s).not.toContain('Coleção nova')
+    expect(s).not.toContain('Fanboy')      // sem fallback para o nome da loja
+    expect(s).not.toContain('<h1')
+    expect(s).not.toContain('<p')
+  })
+
+  it('só a etiqueta preenchida: só a etiqueta aparece', () => {
+    const s = faixaCom('Lançamento', '')
+    expect(s).toContain('Lançamento')
+    expect(s).toContain('<p')
+    expect(s).not.toContain('<h1')
+    expect(s).not.toContain('Fanboy')
+  })
+
+  it('só o título preenchido: só o título aparece', () => {
+    const s = faixaCom('', 'Verão 26')
+    expect(s).toContain('Verão 26')
+    expect(s).toContain('<h1')
+    expect(s).not.toContain('<p')
+    expect(s).not.toContain('Coleção nova')
+  })
+
+  it('os dois preenchidos: os dois aparecem', () => {
+    const s = faixaCom('Lançamento', 'Verão 26')
+    expect(s).toContain('Lançamento')
+    expect(s).toContain('Verão 26')
+    expect(s).toContain('<p')
+    expect(s).toContain('<h1')
+  })
+
+  // ── O vídeo cabe inteiro na faixa (bug do corte no mobile) ──────────────
+  // Era `object-fit: cover`, que preenche a caixa e descarta o resto: medido
+  // no vídeo real da Fanboy (1920x824), 169px de largura cortados em 320px de
+  // tela — 35% do quadro fora. `contain` mostra o quadro inteiro.
+  it('o vídeo usa object-fit contain, não cover', () => {
+    const s = faixaCom('', '')
+    expect(s).toContain('object-fit:contain')
+    expect(s).not.toContain('object-fit:cover')
+  })
+
+  it('a faixa continua com overflow hidden e altura em clamp de px/vw (sem dvh)', () => {
+    const s = faixaCom('', '')
+    expect(s).toContain('overflow:hidden')
+    expect(s).toContain('clamp(210px, 32vw, 340px)')
+    expect(s).not.toContain('dvh')
+  })
+
+  it('a imagem de capa segue em cover: o ken burns da spec é um zoom que corta', () => {
     const loja = lojaDaConfig({ catalogo_video_topo: { ativo: true, imagemUrl: 'c.jpg' } })
-    expect(html(<FaixaVideo video={loja.videoTopo} nomeLoja="TropicaleAtacado" />))
-      .toContain('TropicaleAtacado')
+    const s = html(<FaixaVideo video={loja.videoTopo} />)
+    expect(s).toContain('cat-kenburns 18s')
+    expect(s).toContain('object-fit:cover')
   })
 
   it('apresentação vazia (o estado padrão) mostra a linha fina dos 3 passos', () => {

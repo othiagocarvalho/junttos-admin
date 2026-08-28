@@ -17,6 +17,12 @@ import {
   uploadVideoTopo, temMidia,
 } from '../../utils/videoTopo'
 
+/** Linha de ajuda abaixo de um campo. */
+const AJUDA = {
+  margin: '6px 0 0', fontFamily: 'var(--font-ui)', fontSize: 12,
+  color: 'var(--muted)', lineHeight: 1.45,
+}
+
 /** Botão de arquivo — o <input type=file> nativo não aceita estilo. */
 function BotaoArquivo({ Icon, texto, accept, onArquivo, ocupado, theme }) {
   const ref = useRef(null)
@@ -175,7 +181,12 @@ export default function VideoTopoConfig({ valor, aoMudar, lojaId, client, theme 
           </div>
         </div>
 
-        {/* ── Textos sobre a faixa ── */}
+        {/* ── Textos sobre a faixa ──
+            Campo vazio = SEM TEXTO. O título caía no nome da loja e a etiqueta
+            em "Coleção nova", então apagar os campos não apagava nada no
+            catálogo — a lojista era empurrada a digitar "." ou "//" para
+            simular vazio. Agora vazio funciona, e a ajuda abaixo diz isso com
+            todas as letras para ninguém precisar descobrir tentando. */}
         <div>
           <Label>Etiqueta</Label>
           <Input
@@ -183,15 +194,20 @@ export default function VideoTopoConfig({ valor, aoMudar, lojaId, client, theme 
             onChange={e => set('etiqueta', e.target.value)}
             placeholder="Coleção nova"
           />
+          <p style={AJUDA}>Deixe vazio para não mostrar etiqueta nenhuma.</p>
         </div>
         <div>
           <Label>Título</Label>
           <Input
             value={valor.titulo}
             onChange={e => set('titulo', e.target.value)}
-            placeholder="Deixe vazio para usar o nome da loja"
+            placeholder="Coleção Verão"
           />
+          <p style={AJUDA}>Deixe vazio para não mostrar título nenhum.</p>
         </div>
+        <p style={AJUDA}>
+          Com os dois campos vazios, o vídeo aparece limpo, sem nenhum texto por cima.
+        </p>
 
         {erro && (
           <p role="alert" style={{
@@ -218,7 +234,10 @@ export default function VideoTopoConfig({ valor, aoMudar, lojaId, client, theme 
                   key={valor.videoUrl}
                   src={valor.videoUrl} poster={valor.imagemUrl || undefined}
                   autoPlay muted loop playsInline preload="metadata"
-                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  // Mesmo object-fit do catálogo (contain): a prévia existe
+                  // para mostrar a verdade. Com `cover` aqui e `contain` lá, a
+                  // lojista aprovaria um enquadramento e publicaria outro.
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               ) : (
                 <img
@@ -230,18 +249,28 @@ export default function VideoTopoConfig({ valor, aoMudar, lojaId, client, theme 
                 position: 'absolute', inset: 0,
                 background: 'linear-gradient(180deg, rgba(25,23,19,.34) 0%, rgba(25,23,19,.1) 40%, rgba(25,23,19,.8) 100%)',
               }} />
-              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 16px' }}>
-                <p style={{
-                  margin: 0, fontSize: 10.5, fontWeight: 600, letterSpacing: '.16em',
-                  textTransform: 'uppercase', color: 'rgba(251,249,245,.8)',
-                  fontFamily: 'var(--font-ui)',
-                }}>{valor.etiqueta || 'Coleção nova'}</p>
-                <p style={{
-                  margin: '3px 0 0', fontFamily: 'Instrument Serif, Georgia, serif',
-                  fontWeight: 400, fontSize: 'clamp(20px, 3.6vw, 30px)',
-                  lineHeight: 1.05, color: '#FBF9F5',
-                }}>{valor.titulo || '(nome da loja)'}</p>
-              </div>
+              {/* Sem fallback, igual ao catálogo: a prévia mostrava
+                  "Coleção nova" e "(nome da loja)" para campos vazios, que era
+                  justamente a impressão errada de que vazio produz texto. */}
+              {(valor.etiqueta || valor.titulo) && (
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 16px' }}>
+                  {valor.etiqueta && (
+                    <p style={{
+                      margin: 0, fontSize: 10.5, fontWeight: 600, letterSpacing: '.16em',
+                      textTransform: 'uppercase', color: 'rgba(251,249,245,.8)',
+                      fontFamily: 'var(--font-ui)',
+                    }}>{valor.etiqueta}</p>
+                  )}
+                  {valor.titulo && (
+                    <p style={{
+                      margin: valor.etiqueta ? '3px 0 0' : 0,
+                      fontFamily: 'Instrument Serif, Georgia, serif',
+                      fontWeight: 400, fontSize: 'clamp(20px, 3.6vw, 30px)',
+                      lineHeight: 1.05, color: '#FBF9F5',
+                    }}>{valor.titulo}</p>
+                  )}
+                </div>
+              )}
             </div>
             {!valor.ativo && (
               <p style={{ margin: '7px 0 0', fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)' }}>
