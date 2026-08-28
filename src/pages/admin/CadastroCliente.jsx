@@ -49,8 +49,8 @@ const EMPTY_FORM = {
   desconto_valor: '',
   desconto_motivo: '',
   features: { crm: false },
-  // Varejo é o padrão — mesma coisa que o cadastro fazia antes de existir
-  // este campo (features.catalogo_b2b: false vindo de DEFAULT_FEATURES).
+  // Varejo é o padrão porque o formulário abre em Starter. Escolher Business
+  // no seletor de plano troca isto para Atacado — ver handlePlanoChange.
   modelo_venda: MODELO_VAREJO,
   // Pedido mínimo do atacado. Opcional: em branco a lojista completa depois
   // na própria tela de catálogo B2B.
@@ -124,8 +124,24 @@ function NovoClienteModal({ open, onClose, onCreated }) {
   }
   function handleClose() { reset(); onClose() }
   function handleNome(nome) { setForm(prev => ({ ...prev, nome, slug: toSlug(nome) })) }
+  // Trocar o plano recalcula o valor e redefine o modelo de venda padrão.
+  //
+  // Business nasce em Atacado (features.catalogo_b2b: 'pro'), que é a regra
+  // aplicada em buildLojaPayload. O seletor é atualizado junto porque ele manda
+  // um catalogo_b2b explícito no save e venceria o padrão em silêncio — o admin
+  // veria "Varejo" na tela e a loja nasceria em Varejo, contrariando a regra.
+  //
+  // Voltar para Starter/Pro devolve o seletor a Varejo: nesses planos a aba de
+  // Catálogo B2B não deve acender (ela não tem gate de plano próprio). Nos dois
+  // sentidos o admin continua livre para trocar o modelo depois — o botão fica
+  // logo abaixo, e a escolha manual é a última palavra.
   function handlePlanoChange(novoPlano) {
-    setForm(p => ({ ...p, plano: novoPlano, valor_mensal: String(valorPlano(p.segmento, novoPlano)) }))
+    setForm(p => ({
+      ...p,
+      plano: novoPlano,
+      valor_mensal: String(valorPlano(p.segmento, novoPlano)),
+      modelo_venda: novoPlano === 'business' ? MODELO_ATACADO : MODELO_VAREJO,
+    }))
   }
   // Trocar o segmento precisa recalcular o valor: Mercado tem tabela própria.
   function handleSegmentoChange(novoSegmento) {
@@ -328,7 +344,7 @@ function NovoClienteModal({ open, onClose, onCreated }) {
           <div style={{ background: T.mist, borderRadius: T.rInput, padding: '10px 14px', marginBottom: 16, fontSize: 11, color: T.muted }}>
             {form.plano === 'starter' && 'Inclui: vendas, estoque, clientes, relatórios básicos, cartão fidelidade.'}
             {form.plano === 'pro' && 'Inclui tudo do Starter + metas, comissão automática, curva ABC, crediário.'}
-            {form.plano === 'business' && 'Inclui tudo do Pro + catálogo online, financeiro completo, notificações.'}
+            {form.plano === 'business' && 'Inclui tudo do Pro + Catálogo B2B (ligado por padrão), financeiro completo, notificações.'}
           </div>
 
           <div style={{ display: 'flex', gap: 12, marginBottom: 0 }}>
