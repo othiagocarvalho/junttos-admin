@@ -249,6 +249,33 @@ describe('cssTermica — a etiqueta contém o próprio conteúdo', () => {
     expect(css).toContain('max-height: ' + alturaMaxBarrasMm(25) + 'mm')
   })
 
+  it('a linha da variação sai em NEGRITO, no mesmo peso do nome', () => {
+    // Pedido do cliente: a linha "Variados · R$ 22,00" é o que a lojista
+    // confere no balcão, e em peso normal ela sumia ao lado do nome.
+    //
+    // Os dois pesos são afirmados juntos de propósito. O pedido é "igual ao
+    // nome", então o que precisa de trava não é o número 700 em si: é a
+    // IGUALDADE. Se um dia o nome mudar de peso e esta linha não, a etiqueta
+    // volta a ter duas hierarquias de texto sem ninguém perceber.
+    const nome = css.slice(css.indexOf('.etq-nome {'), css.indexOf('.etq-var'))
+    const varia = css.slice(css.indexOf('.etq-var {'), css.indexOf('.etq-svg'))
+    expect(varia).toContain('font-weight: 700')
+    expect(nome).toContain('font-weight: 700')
+  })
+
+  it('o negrito não desliga o truncamento — variação longa continua cortando', () => {
+    // Negrito é mais largo: a variação que antes cabia raspando passa a
+    // truncar. Isso é aceitável (medido: "Rosa Bebê Estampado Floral · R$
+    // 22,00" já truncava nos dois pesos), mas só enquanto o par
+    // nowrap + ellipsis continuar nesta mesma regra. Sem ele, o negrito
+    // empurraria a caixa para fora da célula em vez de cortar.
+    const varia = css.slice(css.indexOf('.etq-var {'), css.indexOf('.etq-svg'))
+    expect(varia).toContain('font-weight: 700')
+    expect(varia).toContain('white-space: nowrap')
+    expect(varia).toContain('text-overflow: ellipsis')
+    expect(varia).toContain('max-width: 100%')
+  })
+
   it('a linha da variação é de uma linha só, como o nome', () => {
     // "Rosa Bebê Estampado · R$ 1.234,56" quebrava em duas e comia a altura
     // reservada ao código.

@@ -618,10 +618,29 @@ export default function EtiquetasPrint({ etiquetas = [], aoFechar, theme }) {
         /* Mesma regra do nome, e pelo mesmo motivo: variação longa
            ("Rosa Bebê Estampado · R$ 1.234,56") quebrava em duas linhas e
            comia a altura reservada ao código. No A4 ela continua podendo
-           quebrar — lá sobra espaço. */
+           quebrar — lá sobra espaço.
+
+           O "font-weight: 700" é o mesmo do .etq-nome, e é pedido do cliente:
+           a linha da variação com o preço é o que a lojista confere no balcão,
+           e em peso normal ela sumia ao lado do nome. O par no caminho do QZ
+           Tray está em .etq-var de utils/etiquetasHtml.js — os dois têm de
+           mudar juntos, senão a etiqueta sai diferente conforme por onde foi
+           impressa.
+
+           Fica no seletor da FILEIRA, e não na regra base .etq-var: o negrito
+           é da etiqueta térmica, que é a que o cliente olhou. O card do A4 tem
+           outra escala (9,5px contra 6pt) e outro respiro, e mudar peso lá
+           seria mexer no que ninguém pediu.
+
+           Não desloca nada do que já foi calibrado. A ALTURA da caixa não muda
+           com o peso (mesmo font-size, mesma família), e ainda que mudasse um
+           décimo, ETQ_TEXTO_MM já reserva o espaço e o overflow: hidden da
+           célula recorta antes de a fileira esticar. A LARGURA cresce, sim —
+           e é justamente o nowrap + ellipsis DESTA regra que continua cortando
+           a variação longa como sempre cortou. */
         .etq-fileira .etq-var {
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-          max-width: 100%;
+          max-width: 100%; font-weight: 700;
         }
         /* Par obrigatório do "align-items: center": sem o max-width a caixa
            encolhida cresce até o nome inteiro (que é nowrap), passa da célula e
