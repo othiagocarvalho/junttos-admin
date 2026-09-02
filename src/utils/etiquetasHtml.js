@@ -211,8 +211,23 @@ export function cssTermica({
     '}',
     // Mesma regra do nome: uma linha só. Variação longa ("Rosa Bebê
     // Estampado · R$ 1.234,56") quebrava em duas e comia a altura do código.
+    //
+    // O "font-weight: 700" é o mesmo do nome, e é pedido do cliente: a linha
+    // da variação com o preço é o que a lojista confere no balcão, e em peso
+    // normal ela sumia ao lado do nome. Precisa estar AQUI e no bloco
+    // equivalente de EtiquetasPrint.jsx: o QZ Tray rasteriza no motor dele,
+    // sem acesso ao CSS da página, então peso declarado só lá sairia normal
+    // no caminho direto.
+    //
+    // Não mexe na geometria já calibrada. Na ALTURA, porque a caixa não muda
+    // de altura com o peso (mesmo font-size, mesma família, e as métricas de
+    // ascent/descent do negrito são as da fonte) — e ainda que mudassem um
+    // décimo, ETQ_TEXTO_MM já é o espaço reservado e o .etq-item recorta. Na
+    // LARGURA, porque negrito é mais largo mas o par nowrap + ellipsis desta
+    // mesma regra continua truncando, exatamente como já truncava.
     '.etq-var {',
-    '  margin: 1px 0 3px; font-size: 6pt; color: #444; max-width: 100%;',
+    '  margin: 1px 0 3px; font-size: 6pt; font-weight: 700; color: #444;',
+    '  max-width: 100%;',
     '  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;',
     '}',
     // "width: 100%" com "align-self: stretch" desfeito pelo align-items do

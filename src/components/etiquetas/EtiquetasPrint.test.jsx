@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 vi.mock('jsbarcode', () => ({ default: () => {} }))
 
 const { default: EtiquetasPrint } = await import('./EtiquetasPrint')
-const { deslocamentoCss } = await import('../../utils/etiquetasHtml')
+const { deslocamentoCss, cssTermica } = await import('../../utils/etiquetasHtml')
 const { etiquetasDoProduto, etiquetasDeProdutos } = await import('../../utils/codigoBarras')
 
 const html = el => renderToStaticMarkup(el)
@@ -392,6 +392,24 @@ describe('EtiquetasPrint — a etiqueta térmica é centrada e respeita o picote
     expect(declara(regraCss(fonte, '.etq-fileira .etq-var'), 'max-width', '100%')).toBe(true)
   })
 
+  it('a variação sai em NEGRITO, no mesmo peso do nome', () => {
+    // Pedido do cliente: a linha "Variados · R$ 22,00" é o que a lojista
+    // confere no balcão, e em peso normal ela sumia ao lado do nome.
+    //
+    // Afirma a IGUALDADE, não o número: o pedido é "igual ao nome do produto".
+    // Se um dia o nome mudar de peso e esta linha não, a etiqueta volta a ter
+    // duas hierarquias de texto.
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-var'), 'font-weight', '700')).toBe(true)
+    expect(declara(regraCss(fonte, '.etq-nome'), 'font-weight', '700')).toBe(true)
+  })
+
+  it('o negrito é da TÉRMICA — o card do A4 fica como estava', () => {
+    // A regra base .etq-var serve os dois formatos, e o A4 tem outra escala
+    // (9,5px contra 6pt) e outro respiro. O negrito entrou pelo seletor da
+    // fileira justamente para não mexer no formato que ninguém reclamou.
+    expect(declara(regraCss(fonte, '.etq-var'), 'font-weight', '700')).toBe(false)
+  })
+
   it('o código de barras não encolhe junto — a largura é o que o torna legível', () => {
     // Encolher o SVG estreitaria a barra abaixo do piso de ~0,19mm que
     // utils/codigoBarras.js documenta, e aí o leitor recusa a leitura.
@@ -407,6 +425,36 @@ describe('EtiquetasPrint — a etiqueta térmica é centrada e respeita o picote
   })
 })
 
+
+// ─── O par navegador / QZ Tray ──────────────────────────────────────────────
+// A etiqueta tem DOIS caminhos de impressão e eles não compartilham CSS: o
+// navegador usa o <style> deste componente, o QZ Tray recebe o cssTermica() do
+// util porque rasteriza no motor dele, sem acesso ao CSS da página. Regra
+// visual que entra num e não no outro faz a etiqueta mudar conforme por onde
+// foi impressa — e ninguém descobre isso até o papel sair diferente na loja.
+
+describe('EtiquetasPrint — o que é visual vale nos dois caminhos de impressão', () => {
+  const fonte = readFileSync(new URL('./EtiquetasPrint.jsx', import.meta.url), 'utf8')
+  const css = cssTermica({ larguraMm: 34, alturaMm: 25, papelMm: 104, colunas: 3, gapMm: 1 })
+
+  it('a variação é negrito no navegador E no QZ Tray', () => {
+    expect(declara(regraCss(fonte, '.etq-fileira .etq-var'), 'font-weight', '700')).toBe(true)
+    expect(css.slice(css.indexOf('.etq-var {'), css.indexOf('.etq-svg')))
+      .toContain('font-weight: 700')
+  })
+
+  it('e o truncamento também, senão o negrito estoura a célula num dos dois', () => {
+    // Negrito é mais largo. Sem nowrap + ellipsis a variação longa deixaria de
+    // cortar e passaria da célula de 34mm.
+    const navegador = regraCss(fonte, '.etq-fileira .etq-var')
+    const qz = css.slice(css.indexOf('.etq-var {'), css.indexOf('.etq-svg'))
+    for (const regra of [navegador, qz]) {
+      expect(regra).toContain('white-space: nowrap')
+      expect(regra).toContain('text-overflow: ellipsis')
+      expect(regra).toContain('max-width: 100%')
+    }
+  })
+})
 
 // ─── Compensação de registro da impressora ──────────────────────────────────
 // O parafuso físico: onde a cabeça começa a pintar em relação ao picote real.
