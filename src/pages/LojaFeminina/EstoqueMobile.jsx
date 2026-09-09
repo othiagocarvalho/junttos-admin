@@ -48,6 +48,21 @@ function productStatus(variacoes) {
 
 const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
+// Totais dos cards do topo (peças, custo, venda).
+//
+// Soma SEMPRE todos os produtos recebidos, sem olhar disponivel_catalogo_b2b:
+// o produto marcado para o Catálogo B2B é a mesma peça física do estoque, então
+// marcar/desmarcar a flag não pode mudar o valor de custo/venda mostrado à loja.
+export function calcularTotais(produtosData = []) {
+  return produtosData.reduce((acc, p) => {
+    const qtd = (p.variacoes || []).reduce((s, v) => s + Number(v.quantidade || 0), 0)
+    acc.totalPecas += qtd
+    acc.totalCusto += qtd * Number(p.preco_custo || 0)
+    acc.totalVenda += qtd * Number(p.preco_venda || 0)
+    return acc
+  }, { totalPecas: 0, totalCusto: 0, totalVenda: 0 })
+}
+
 // Inicializa o form "Editar Produto" a partir do objeto produto do banco.
 export function initProdForm(produto) {
   return {
@@ -128,29 +143,16 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   // sequência rápida devolveria a lista errada).
   const movReq = useRef(0)
 
-  // Exclui produtos do catálogo B2B — gerenciados em ProdutosB2BPro.
-  //
-  // Loja 100% atacado (ex: Tropicale) tem todo o catálogo marcado como B2B —
-  // o filtro esvaziava a tela inteira e a lojista não tinha como desfazer,
-  // porque o botão que desliga a flag vive dentro do card que sumiu.
-  const semB2b = produtosData.filter(p => !p.disponivel_catalogo_b2b)
-  const estoqueData = semB2b.length > 0 ? semB2b : produtosData
-
-  const filtered = estoqueData.filter(p =>
+  // O Estoque mostra TODOS os produtos da loja, inclusive os marcados como
+  // disponíveis no Catálogo B2B. O Catálogo B2B é um reflexo do mesmo estoque
+  // (mesma peça física, mesma quantidade, mesmo custo) — não um estoque
+  // paralelo. Marcar/desmarcar a flag não deve fazer o produto sumir daqui
+  // nem alterar os totais de custo/venda abaixo.
+  const filtered = produtosData.filter(p =>
     p.nome.toLowerCase().includes(search.toLowerCase())
   )
 
-  const totalPecas = estoqueData.reduce((s, p) =>
-    s + (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0), 0
-  )
-  const totalCusto = estoqueData.reduce((s, p) => {
-    const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
-    return s + qtd * Number(p.preco_custo || 0)
-  }, 0)
-  const totalVenda = estoqueData.reduce((s, p) => {
-    const qtd = (p.variacoes || []).reduce((acc, v) => acc + Number(v.quantidade || 0), 0)
-    return s + qtd * Number(p.preco_venda || 0)
-  }, 0)
+  const { totalPecas, totalCusto, totalVenda } = calcularTotais(produtosData)
 
   function toggleExpand(id) {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }))
@@ -483,7 +485,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       </div>
 
       {/* Lista */}
-      {estoqueData.length === 0 ? (
+      {produtosData.length === 0 ? (
         <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-card)', border: '1px solid var(--line)' }}>
           <EmptyState
             icon={Package}
@@ -560,6 +562,20 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                     <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{produto.nome}</span>
                     {ps && <StatusPill tone={ps === 'critico' ? 'bad' : 'warn'} label={BADGE[ps].label} />}
+                    {/* Contexto: o mesmo produto também aparece no Catálogo B2B.
+                        É reflexo do estoque, não uma cópia — por isso continua
+                        listado aqui normalmente. */}
+                    {features?.catalogo_b2b && produto.disponivel_catalogo_b2b && (
+                      <span style={{
+                        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 9.5, fontWeight: 700,
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        color: theme.primary, background: `${theme.primary}14`,
+                        border: `1px solid ${theme.primary}33`, borderRadius: 999,
+                        padding: '2px 7px', whiteSpace: 'nowrap',
+                      }}>
+                        Catálogo B2B
+                      </span>
+                    )}
                   </div>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
                     {variacoes.length} variação{variacoes.length !== 1 ? 'ões' : ''} · {total} peça{total !== 1 ? 's' : ''}
