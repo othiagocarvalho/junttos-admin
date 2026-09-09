@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   somaValorMensal, segmentoComum, validarSelecaoLojas, filtroCancelamentoRede,
   DESCONTO_IMPLANTACAO_REDE, valorImplantacaoPorLojaRede, totalImplantacaoRede,
+  resumoImplantacao,
   type LojaIncluida,
 } from './contratoRede.ts'
 
@@ -108,5 +109,43 @@ describe('implantação de contrato de rede — desconto padrão de 20%', () => 
   it('funciona para uma taxa base diferente de 300, não fica com o número fixo por acidente', () => {
     expect(valorImplantacaoPorLojaRede(100)).toBeCloseTo(80, 2)
     expect(totalImplantacaoRede(100, 3)).toBeCloseTo(240, 2)
+  })
+})
+
+describe('resumoImplantacao — usado pela tela pública de resumo (publico-obter)', () => {
+  it('contrato de rede (lojas_incluidas com 3 itens): desconto aplicado, total = 3 × R$240', () => {
+    const lojasIncluidas = [loja({ loja_id: 'a' }), loja({ loja_id: 'b' }), loja({ loja_id: 'c' })]
+    const r = resumoImplantacao(300, lojasIncluidas)
+    expect(r.qtd_lojas).toBe(3)
+    expect(r.por_loja).toBeCloseTo(240, 2)
+    expect(r.total).toBeCloseTo(720, 2)
+  })
+
+  it('contrato de rede com 1 loja só: ainda aplica o desconto de rede (240), não vira o fluxo individual', () => {
+    const r = resumoImplantacao(300, [loja({ loja_id: 'a' })])
+    expect(r.qtd_lojas).toBe(1)
+    expect(r.por_loja).toBeCloseTo(240, 2)
+    expect(r.total).toBeCloseTo(240, 2)
+  })
+
+  it('contrato individual (lojas_incluidas null) — taxa cheia, sem desconto, 1 loja', () => {
+    const r = resumoImplantacao(300, null)
+    expect(r).toEqual({ por_loja: 300, qtd_lojas: 1, total: 300 })
+  })
+
+  it('contrato individual (lojas_incluidas undefined) — mesmo resultado que null', () => {
+    const r = resumoImplantacao(300, undefined)
+    expect(r).toEqual({ por_loja: 300, qtd_lojas: 1, total: 300 })
+  })
+
+  it('contrato individual (lojas_incluidas array vazio) — tratado como individual, não como rede de 0 lojas', () => {
+    const r = resumoImplantacao(300, [])
+    expect(r).toEqual({ por_loja: 300, qtd_lojas: 1, total: 300 })
+  })
+
+  it('por_loja × qtd_lojas sempre bate com total — sem drift de arredondamento pro cenário real', () => {
+    const lojasIncluidas = [loja({ loja_id: 'a' }), loja({ loja_id: 'b' }), loja({ loja_id: 'c' })]
+    const r = resumoImplantacao(300, lojasIncluidas)
+    expect(r.por_loja * r.qtd_lojas).toBeCloseTo(r.total, 2)
   })
 })
