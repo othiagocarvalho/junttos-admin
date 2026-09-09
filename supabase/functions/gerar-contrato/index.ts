@@ -2,6 +2,10 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { montaPdf, sha256Hex } from './contrato-pdf.ts'
 import { avaliarLojaParaContrato } from './lojaStatus.ts'
+import {
+  somaValorMensal, segmentoComum, validarSelecaoLojas, filtroCancelamentoRede,
+  type LojaIncluida,
+} from './contratoRede.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,7 +80,16 @@ serve(async (req) => {
     })
 
   try {
-    const { action = 'gerar', loja_id, contrato_id, contratante, token, assinatura_svg } = await req.json()
+    const {
+      action = 'gerar', loja_id, contrato_id, contratante, token, assinatura_svg,
+      // ── Contrato de rede: cobre múltiplas lojas de uma rede num contrato só.
+      // rede_id identifica a rede (jt_redes.id / lf_config.rede_id); lojas_ids é
+      // a lista de loja_id que o admin marcou na tela para entrar NESTE contrato
+      // específico — nunca "todas as lojas da rede" automaticamente, porque uma
+      // loja da rede pode já ter contrato individual válido (ex.: Tropicale) e
+      // não deve ser incluída de novo sem decisão explícita de quem gera.
+      rede_id, lojas_ids,
+    } = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -85,8 +98,17 @@ serve(async (req) => {
     )
 
     // ── Cadastro do contratante: jt_contratantes é invisível para o navegador ──
+    // Aceita loja_id (fluxo individual, intocado) OU rede_id (fluxo de rede,
+    // novo — lê/grava em jt_contratantes_redes, tabela irmã com o mesmo
+    // formato e a mesma política de RLS sem policy).
     if (action === 'contratante-obter') {
-      if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
+      if (rede_id) {
+        const { data, error } = await admin
+          .from('jt_contratantes_redes').select('*').eq('rede_id', rede_id).maybeSingle()
+        if (error) return json({ error: `Erro ao buscar contratante da rede: ${error.message}` }, 500)
+        return json({ contratante: data ?? null })
+      }
+      if (!loja_id) return json({ error: 'loja_id ou rede_id é obrigatório.' }, 400)
       const { data, error } = await admin
         .from('jt_contratantes').select('*').eq('loja_id', loja_id).maybeSingle()
       if (error) return json({ error: `Erro ao buscar contratante: ${error.message}` }, 500)
@@ -94,11 +116,14 @@ serve(async (req) => {
     }
 
     if (action === 'contratante-salvar') {
-      if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
+      if (!loja_id && !rede_id) return json({ error: 'loja_id ou rede_id é obrigatório.' }, 400)
       const dados = (contratante ?? {}) as Record<string, unknown>
+      const tabela = rede_id ? 'jt_contratantes_redes' : 'jt_contratantes'
+      const chave  = rede_id ? 'rede_id' : 'loja_id'
+      const valorChave = rede_id ?? loja_id
 
       // Só grava o que veio preenchido — campo em branco não vira string vazia.
-      const linha: Record<string, unknown> = { loja_id, updated_at: new Date().toISOString() }
+      const linha: Record<string, unknown> = { [chave]: valorChave, updated_at: new Date().toISOString() }
       SNAPSHOT_FIELDS.forEach(k => {
         const v = dados[k]
         if (v === undefined || v === null || v === '') return
@@ -109,7 +134,7 @@ serve(async (req) => {
       if (Object.keys(linha).length <= 2) return json({ ok: true, contratante: null })
 
       const { data, error } = await admin
-        .from('jt_contratantes').upsert(linha, { onConflict: 'loja_id' }).select().single()
+        .from(tabela).upsert(linha, { onConflict: chave }).select().single()
       if (error) return json({ error: `Erro ao salvar contratante: ${error.message}` }, 500)
       return json({ ok: true, contratante: data })
     }
@@ -120,12 +145,16 @@ serve(async (req) => {
     // é a credencial do link público — quem precisa deles pede por ação
     // específica (`link` e `link-assinatura`), por contrato.
     if (action === 'listar') {
-      if (!loja_id) return json({ error: 'loja_id é obrigatório.' }, 400)
-      const { data, error } = await admin
+      if (!loja_id && !rede_id) return json({ error: 'loja_id ou rede_id é obrigatório.' }, 400)
+      // lojas_incluidas entra na listagem só quando é contrato de rede — a
+      // tela de loja individual não precisa dela e o campo vem null nos
+      // contratos antigos por loja.
+      let query = admin
         .from('jt_contratos')
-        .select('id, status, created_at, gerado_em, pdf_hash, pdf_path, token_expira_em, assinado_em, razao_social, cpf_cnpj, responsavel_nome')
-        .eq('loja_id', loja_id)
+        .select('id, status, created_at, gerado_em, pdf_hash, pdf_path, token_expira_em, assinado_em, razao_social, cpf_cnpj, responsavel_nome, valor_mensal, lojas_incluidas')
         .order('created_at', { ascending: false })
+      query = rede_id ? query.eq('rede_id', rede_id) : query.eq('loja_id', loja_id)
+      const { data, error } = await query
       if (error) return json({ error: `Erro ao listar contratos: ${error.message}` }, 500)
 
       const contratos = (data ?? []).map(({ pdf_path, ...c }) => ({
@@ -203,6 +232,10 @@ serve(async (req) => {
           contrato_inicio:  c.contrato_inicio,
           vencimento_dia:   c.vencimento_dia,
           pdf_url:          signed?.signedUrl ?? null,
+          // Só contrato de rede tem isto preenchido — é o mesmo detalhe por
+          // loja que já vai no PDF público, então não expõe nada a mais do
+          // que o pdf_url já expõe.
+          lojas_incluidas:  c.lojas_incluidas ?? null,
         },
       })
     }
@@ -258,6 +291,136 @@ serve(async (req) => {
         .from(BUCKET).createSignedUrl(contrato.pdf_path, LINK_TTL)
       if (error) return json({ error: `Erro ao gerar link: ${error.message}` }, 500)
       return json({ url: data.signedUrl, expira_em: LINK_TTL })
+    }
+
+    // ── Geração de contrato de REDE: cobre múltiplas lojas de uma rede,
+    // contratante único, um token de assinatura só. Cai aqui quando rede_id
+    // vem no corpo — retorna antes de chegar no fluxo por loja_id abaixo, que
+    // fica 100% intocado (nenhuma linha dele foi alterada).
+    if (rede_id) {
+      if (!Array.isArray(lojas_ids) || lojas_ids.length === 0) {
+        return json({ error: 'Selecione ao menos uma loja para incluir no contrato.' }, 400)
+      }
+
+      const { data: rede, error: redeErr } = await admin
+        .from('jt_redes').select('id, nome').eq('id', rede_id).maybeSingle()
+      if (redeErr) return json({ error: `Erro ao buscar a rede: ${redeErr.message}` }, 500)
+      if (!rede) return json({ error: 'Rede não encontrada.' }, 404)
+
+      // Lista real de lojas da rede, direto do banco — nunca confia na lista
+      // que o cliente mandou. validarSelecaoLojas recusa loja_id que não
+      // pertença a esta rede (rede errada, dado velho no frontend, etc).
+      const { data: lojasDaRede, error: lojasErr } = await admin
+        .from('lf_config').select('*').eq('rede_id', rede_id)
+      if (lojasErr) return json({ error: `Erro ao buscar lojas da rede: ${lojasErr.message}` }, 500)
+
+      const selecao = validarSelecaoLojas(lojas_ids, lojasDaRede ?? [])
+      if (!selecao.ok) return json({ error: selecao.erro }, 400)
+
+      const idsPedidos = [...new Set((lojas_ids as unknown[]).map(String))]
+      const lojasSelecionadas = (lojasDaRede ?? []).filter(l => idsPedidos.includes(l.loja_id))
+
+      // Mesma regra de loja excluída do fluxo individual (avaliarLojaParaContrato),
+      // aplicada a cada loja selecionada — uma loja excluída não entra num
+      // contrato novo, seja individual ou de rede.
+      for (const l of lojasSelecionadas) {
+        const veredito = avaliarLojaParaContrato(l)
+        if (!veredito.ok) {
+          return json({ error: `${l.nome || l.loja_id}: ${veredito.erro}` }, veredito.status)
+        }
+      }
+
+      const { data: contratanteAtual } = await admin
+        .from('jt_contratantes_redes').select('*').eq('rede_id', rede_id).maybeSingle()
+
+      const faltando = faltamCampos(contratanteAtual ?? {})
+      if (faltando.length > 0) {
+        return json({ error: `Faltam dados obrigatórios no cadastro do contratante da rede: ${faltando.join(', ')}.` }, 400)
+      }
+
+      // Valor mensal de cada loja: mesma regra do fluxo individual (última
+      // cobrança tipo='mensalidade' da loja; sem cobrança, cai na tabela de
+      // preço do plano).
+      const lojasIncluidas: LojaIncluida[] = []
+      for (const l of lojasSelecionadas) {
+        const { data: cobrancas } = await admin
+          .from('jt_cobrancas').select('valor')
+          .eq('loja_id', l.loja_id).eq('tipo', 'mensalidade')
+          .order('created_at', { ascending: false }).limit(1)
+        const doBanco = cobrancas?.[0]?.valor
+        const valorMensal = doBanco !== undefined && doBanco !== null
+          ? Number(doBanco)
+          : valorPlano(l.segmento, l.plano)
+        lojasIncluidas.push({
+          loja_id: l.loja_id, nome: l.nome, segmento: l.segmento ?? null,
+          plano: l.plano ?? null, valor_mensal: valorMensal,
+        })
+      }
+
+      const valorTotal = somaValorMensal(lojasIncluidas)
+
+      const snapshot: Record<string, unknown> = {
+        loja_id: null,
+        rede_id,
+        lojas_incluidas: lojasIncluidas,
+        status: 'rascunho',
+        valor_mensal: valorTotal,
+        plano: null,
+        segmento: segmentoComum(lojasIncluidas),
+      }
+      SNAPSHOT_FIELDS.forEach(k => {
+        const v = contratanteAtual?.[k]
+        if (v !== undefined && v !== null && v !== '') snapshot[k] = v
+      })
+
+      // Cancela só contratos de REDE anteriores em aberto DESTA MESMA rede —
+      // filtro exclusivamente por rede_id, nunca por loja_id. É o que garante
+      // que gerar (ou regerar) um contrato de rede jamais cancela o contrato
+      // individual de uma loja que também pertença à rede (ex.: a Tropicale,
+      // com contrato individual já assinado, vinculada à rede do Daniel só
+      // como rótulo organizacional). Contratos individuais só são cancelados
+      // pelo fluxo de loja_id abaixo, que continua intocado.
+      const { error: cancErr } = await admin
+        .from('jt_contratos')
+        .update({ status: 'cancelado' })
+        .match(filtroCancelamentoRede(rede_id))
+        .in('status', ['rascunho', ...ABERTOS])
+      if (cancErr) return json({ error: `Erro ao cancelar contratos de rede anteriores: ${cancErr.message}` }, 500)
+
+      const { data: novo, error: insErr } = await admin
+        .from('jt_contratos').insert(snapshot).select().single()
+      if (insErr) return json({ error: `Erro ao criar o contrato: ${insErr.message}` }, 500)
+
+      const bytes = await montaPdf(novo)
+      const hash  = await sha256Hex(bytes)
+      // Prefixo "redes/" separado de "<loja_id>/" — path de storage nunca
+      // colide entre um rede_id e um loja_id/slug existente.
+      const path  = `redes/${rede_id}/${novo.id}.pdf`
+
+      const { error: upErr } = await admin.storage
+        .from(BUCKET)
+        .upload(path, bytes, { contentType: 'application/pdf', upsert: true })
+      if (upErr) return json({ error: `Contrato criado, mas falhou ao salvar o PDF: ${upErr.message}` }, 500)
+
+      const agora = new Date()
+      const expira = new Date(agora.getTime() + TOKEN_DIAS * 24 * 60 * 60 * 1000)
+
+      const { data: atualizado, error: updErr } = await admin
+        .from('jt_contratos')
+        .update({
+          pdf_path:        path,
+          pdf_hash:        hash,
+          gerado_em:       agora.toISOString(),
+          token_expira_em: expira.toISOString(),
+          status:          'aguardando_assinatura',
+        })
+        .eq('id', novo.id)
+        .select().single()
+      if (updErr) {
+        return json({ error: `PDF salvo, mas falhou ao atualizar o registro: ${updErr.message}` }, 500)
+      }
+
+      return json({ ok: true, contrato: atualizado })
     }
 
     // ── Geração: cria o snapshot e o PDF, tudo do lado do servidor ──
