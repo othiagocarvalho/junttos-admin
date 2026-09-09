@@ -1,5 +1,43 @@
 import { describe, it, expect } from 'vitest'
-import { initProdForm, buildProdPayload } from './EstoqueMobile.jsx'
+import { initProdForm, buildProdPayload, calcularTotais } from './EstoqueMobile.jsx'
+
+// ── calcularTotais ──────────────────────────────────────────────
+// Regra desde a correção do "estoque paralelo": os cards de Custo/Venda somam
+// TODOS os produtos. Marcar disponivel_catalogo_b2b não tira o item da conta —
+// antes o filtro semB2b escondia esses produtos e subestimava os totais.
+describe('calcularTotais', () => {
+  const base = [
+    { preco_custo: 10, preco_venda: 25, variacoes: [{ quantidade: 2 }, { quantidade: 3 }] }, // 5 pç
+    { preco_custo: 4,  preco_venda: 9,  variacoes: [{ quantidade: 10 }], disponivel_catalogo_b2b: true }, // 10 pç
+  ]
+
+  it('soma peças, custo e venda de todos os produtos', () => {
+    expect(calcularTotais(base)).toEqual({
+      totalPecas: 15,
+      totalCusto: 5 * 10 + 10 * 4,   // 90
+      totalVenda: 5 * 25 + 10 * 9,   // 265
+    })
+  })
+
+  it('inclui produtos marcados como disponíveis no Catálogo B2B', () => {
+    const comFlag = calcularTotais(base)
+    const semFlag = calcularTotais(base.map(p => ({ ...p, disponivel_catalogo_b2b: false })))
+    expect(comFlag).toEqual(semFlag)
+  })
+
+  it('não muda o total só porque a flag de B2B foi ligada', () => {
+    const antes  = calcularTotais(base)
+    const depois = calcularTotais(base.map(p => ({ ...p, disponivel_catalogo_b2b: true })))
+    expect(depois).toEqual(antes)
+  })
+
+  it('tolera lista vazia, variações ausentes e preços nulos', () => {
+    expect(calcularTotais([])).toEqual({ totalPecas: 0, totalCusto: 0, totalVenda: 0 })
+    expect(calcularTotais([{ variacoes: null }])).toEqual({ totalPecas: 0, totalCusto: 0, totalVenda: 0 })
+    expect(calcularTotais([{ preco_custo: null, preco_venda: null, variacoes: [{ quantidade: 3 }] }]))
+      .toEqual({ totalPecas: 3, totalCusto: 0, totalVenda: 0 })
+  })
+})
 
 // ── initProdForm ────────────────────────────────────────────────
 describe('initProdForm', () => {
