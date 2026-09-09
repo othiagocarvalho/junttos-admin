@@ -3,7 +3,14 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.test.js', 'src/**/*.test.jsx'],
+    include: [
+      'src/**/*.test.js',
+      'src/**/*.test.jsx',
+      // Edge Functions rodam em Deno e não são importáveis daqui em geral —
+      // mas os módulos de regra pura delas são. Testar o arquivo real evita
+      // manter uma cópia da regra só para o teste ver.
+      'supabase/functions/**/*.test.ts',
+    ],
     // src/lib/supabase.js chama createClient no topo do módulo, e o
     // createClient recusa URL vazia com "supabaseUrl is required". Sem estas
     // duas variáveis, QUALQUER teste que importe (mesmo indiretamente) o

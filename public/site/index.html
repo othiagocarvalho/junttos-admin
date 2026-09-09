@@ -469,6 +469,15 @@
     letter-spacing:-.045em; font-variant-numeric:tabular-nums; color:var(--ink);
   }
   .tag-card-price small{font-size:.83rem; color:var(--muted); display:block; margin-top:3px;}
+  /* Preço com desconto: valor antigo riscado ao lado do valor atual em
+     destaque — mesma hierarquia "antes vs depois" da proposta comercial. */
+  .tag-card-price .price-compare{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .tag-card-price .old-amount{
+    font-family:'Space Mono', monospace; font-weight:600; font-size:1.2rem;
+    letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+    color:var(--muted-2); text-decoration:line-through;
+  }
+  .tag-card-price .amount-new{color:var(--purple); font-weight:800;}
   .tag-card ul{list-style:none; flex:1; margin-bottom:26px;}
   .tag-card li{
     font-size:.9rem; padding:10px 0; border-top:1px solid var(--line);
@@ -1011,7 +1020,10 @@
           <div class="tier-note">pra quem já tem equipe de venda</div>
         </div>
         <div class="tag-card-price">
-          <span class="amount mono">R$ 149,90</span>
+          <div class="price-compare">
+            <span class="old-amount mono">R$ 179,90</span>
+            <span class="amount amount-new mono">R$ 159,90</span>
+          </div>
           <small>por mês</small>
         </div>
         <ul>
@@ -1029,7 +1041,10 @@
           <div class="tier-note">pra quem já vende por mais de um canal</div>
         </div>
         <div class="tag-card-price">
-          <span class="amount mono">R$ 259,90</span>
+          <div class="price-compare">
+            <span class="old-amount mono">R$ 299,90</span>
+            <span class="amount amount-new mono">R$ 259,90</span>
+          </div>
           <small>por mês</small>
         </div>
         <ul>

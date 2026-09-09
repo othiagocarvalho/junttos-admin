@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { montaPdf, sha256Hex } from './contrato-pdf.ts'
+import { avaliarLojaParaContrato } from './lojaStatus.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -268,7 +269,13 @@ serve(async (req) => {
     if (!loja) {
       loja = (await admin.from('lf_config').select('*').eq('slug', loja_id).maybeSingle()).data
     }
-    if (!loja) return json({ error: 'Loja não encontrada.' }, 404)
+
+    // Loja excluída (soft delete) responde igual a loja inexistente: mesma
+    // mensagem, mesmo 404. Antes daqui, a linha continuava em lf_config e o
+    // contrato saía normalmente para uma loja que o sistema já considera
+    // encerrada. Ver avaliarLojaParaContrato.
+    const veredito = avaliarLojaParaContrato(loja)
+    if (!veredito.ok) return json({ error: veredito.erro }, veredito.status)
 
     // O contratante vem de jt_contratantes; lf_config só entrega plano e
     // segmento, que não são dados pessoais.
