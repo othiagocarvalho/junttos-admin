@@ -1,12 +1,32 @@
 import { useState } from 'react'
 
+/**
+ * Rótulo de campo — padrão oficial da Junttos (ver docs/DESIGN_SYSTEM.md).
+ *
+ * Bolinha na cor do tema à esquerda + texto em peso médio, na cor do tema,
+ * pequeno e SEM caixa alta.
+ *
+ * SUBSTITUI o padrão antigo: 11px, peso 700, cinza (--muted), uppercase com
+ * letter-spacing. Aquele rótulo pesava mais que o valor digitado logo abaixo e,
+ * em formulário com muitos campos, virava uma parede de caixa alta cinza.
+ *
+ * A cor vem de var(--primary), que useLojaTheme.js preenche com a cor_primaria
+ * da loja — o rótulo acompanha o tema sem receber prop nenhuma, e é por isso
+ * que trocar SÓ este componente já muda todos os formulários do sistema.
+ */
 export function Label({ children }) {
   return (
     <label style={{
-      display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-      marginBottom: 7, letterSpacing: '0.08em', textTransform: 'uppercase',
-      fontFamily: 'var(--font-ui)',
-    }}>{children}</label>
+      display: 'flex', alignItems: 'center', gap: 7,
+      fontSize: 12.5, fontWeight: 600, color: 'var(--primary)',
+      marginBottom: 7, fontFamily: 'var(--font-ui)',
+    }}>
+      <span aria-hidden="true" style={{
+        width: 6, height: 6, borderRadius: 99, flexShrink: 0,
+        background: 'var(--primary)',
+      }} />
+      {children}
+    </label>
   )
 }
 

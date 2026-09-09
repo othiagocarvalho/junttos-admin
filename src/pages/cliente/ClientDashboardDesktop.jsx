@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Label } from '../../components/studio/Input'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronLeft, ChevronDown, X, Pencil,
@@ -14,10 +15,15 @@ import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { contemBusca } from '../../utils/texto'
+import { revelarBloco } from '../../utils/revelarVariacoes'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import UpgradeWall from '../../components/UpgradeWall'
-import CatalogoB2BAdminDesktop from '../LojaFeminina/CatalogoB2BAdminDesktop'
-import Meta from '../LojaFeminina/Meta'
+import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/CatalogoB2BAdminDesktop'
+import CampoScanner from '../../components/etiquetas/CampoScanner'
+import SelectVendedor from '../../components/vendedores/SelectVendedor'
+import { vendedorParaVenda } from '../../utils/vendedores'
+import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
+import MetasResultados from '../LojaFeminina/MetasResultados'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
 import LojaConfig from '../LojaFeminina/LojaConfig'
@@ -119,6 +125,13 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
   const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
   const [imgErr, setImgErr] = useState(false)
 
+  // Com o catálogo de atacado ligado, "Catálogo online" vira ruído: os dois
+  // itens abrem a mesma gestão de pedidos (PedidosCatalogo), e o modo atacado
+  // já responde pela presença online da loja. Nada se perde ao esconder — o
+  // Catálogo B2B tem a aba "Pedidos" com exatamente as mesmas props.
+  const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
+  const itensPlano = b2bAtivo ? PLANO_NAV_ITEMS.filter(i => i.id !== 'catalogo') : PLANO_NAV_ITEMS
+
   function navItemStyle(active) {
     return {
       display: 'flex', alignItems: 'center', gap: 10,
@@ -136,7 +149,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
     <aside
       style={{
         position: 'fixed', left: 0, top: 0,
-        width: 250, height: '100dvh',
+        width: 250, height: '100vh',
         background: 'var(--surface)',
         display: 'flex', flexDirection: 'column',
         zIndex: 50, fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -195,7 +208,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           )
         })}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
-        {PLANO_NAV_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+        {itensPlano.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
           const hasAccess = apenasPlano ? temAcesso(plano, planoMinimo) : (legado || temAcesso(plano, planoMinimo))
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
@@ -680,7 +693,9 @@ const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{
 // tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
 const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '' }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
+  // Mesmo critério da comissão automática nos Relatórios (temAcesso(plano, 'pro')).
+  const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   const isDark = theme.primary === '#D4A017'
   // Ver NovaVenda mobile: initializer preguiçoso, lido uma vez na montagem.
   const [rascunho] = useState(() => lerRascunho(LOJA_ID))
@@ -704,6 +719,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? false)
   const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [varModalTroca,setVarModalTroca]= useState(null)
+
+  // Abrir um produto insere o bloco de variações ABAIXO da linha clicada, e a
+  // lista não se move sozinha — o bloco nascia fora da janela de rolagem e a
+  // variação aparecia cortada na borda, sem clique possível. Um ref só por
+  // lista basta: `varModal` guarda UM nome, então há no máximo um bloco aberto.
+  const refVariacoes      = useRef(null)
+  const refVariacoesTroca = useRef(null)
+  // Depende só de qual produto está aberto: mexer na quantidade de uma
+  // variação não re-dispara a rolagem (seria puxar a lista debaixo do dedo de
+  // quem está clicando em "+").
+  useEffect(() => { if (varModal) revelarBloco(refVariacoes.current) }, [varModal])
+  useEffect(() => { if (varModalTroca) revelarBloco(refVariacoesTroca.current) }, [varModalTroca])
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
@@ -771,6 +798,22 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
   }
+  /**
+   * Adiciona ao carrinho a variação bipada. Mesma lógica do mobile
+   * (NovaVenda.jsx) — a busca manual abaixo continua intacta.
+   */
+  function lerCodigoBarras(codigo) {
+    const achado = buscarPorCodigo(produtosData, LOJA_ID, codigo)
+    if (!achado) return { ok: false, texto: 'Código não encontrado nesta loja' }
+    setForm(f => ({
+      ...f,
+      produtos: adicionarAoCarrinho(f.produtos, {
+        nome: achado.produto.nome, variacao: achado.rotulo,
+      }),
+    }))
+    return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
+  }
+
   function toggleProd(nome) {
     const exists = form.produtos.find(p => p.nome === nome && !p.variacao)
     setForm({ ...form, produtos: exists ? form.produtos.filter(p => !(p.nome === nome && !p.variacao)) : [...form.produtos, { nome, obs: '', quantidade: 1 }] })
@@ -834,7 +877,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
-      vendedora: form.vendedora || null,
+      // Normaliza na gravação — o nome tem de bater exatamente com o que
+      // Relatorios.jsx agrupa.
+      vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -992,7 +1037,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>Dados da Cliente</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ position: 'relative' }}>
-              <label style={lbl}><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</label>
+              <Label><User size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Nome</Label>
               <input
                 value={form.nome}
                 onChange={e => setForm({ ...form, nome: e.target.value })}
@@ -1027,7 +1072,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div style={{ position: 'relative' }}>
-              <label style={lbl}><Phone size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Telefone</label>
+              <Label><Phone size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Telefone</Label>
               <input
                 value={form.tel}
                 onChange={e => setForm({ ...form, tel: e.target.value })}
@@ -1062,11 +1107,24 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
               )}
             </div>
             <div>
-              <label style={lbl}>Vendedor(a)</label>
-              <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
+              <Label>Vendedor(a)</Label>
+              {/* Pro+ escolhe da lista; abaixo disso o texto livre continua
+                  como era. O campo nunca teve gate e alimenta recibo, busca do
+                  histórico e corrida de vendedoras — remover seria tirar
+                  função existente de quem não é Pro. */}
+              {temAcessoVendedores ? (
+                <SelectVendedor
+                  lojaId={LOJA_ID}
+                  valor={form.vendedora}
+                  aoMudar={v => setForm({ ...form, vendedora: v })}
+                  style={inputS}
+                />
+              ) : (
+                <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })} placeholder="Quem realizou a venda" style={inputS} onFocus={fo} onBlur={onB} />
+              )}
             </div>
             <div>
-              <label style={lbl}>Observações</label>
+              <Label>Observações</Label>
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Anotações sobre esta venda..." style={inputS} onFocus={fo} onBlur={onB} />
             </div>
           </div>
@@ -1087,7 +1145,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         <div style={{
           gridColumn: 2, gridRow: '1 / span 2', alignSelf: 'start',
           position: 'sticky', top: 24,
-          maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto',
+          maxHeight: 'calc(100vh - 48px)', overflowY: 'auto',
           background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
         }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 18 }}>
@@ -1135,7 +1193,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             {/* Ajuste: Desconto ou Acréscimo (opcional) */}
             {form.produtos.length > 0 && !isTroca && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-                <label style={lbl}>Ajuste (opcional)</label>
+                <Label>Ajuste (opcional)</Label>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[['desconto', 'Desconto'], ['acrescimo', 'Acréscimo']].map(([val, label]) => (
                     <button key={val} type="button" onClick={() => setAjusteTipo(val)} style={{
@@ -1171,13 +1229,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
             {step === 2 && (!isTroca || totalValor > 0.005) && (
               <>
-                <label style={lbl}><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</label>
+                <Label><CreditCard size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Valor (R$)</Label>
                 <div style={{ position: 'relative', marginBottom: 14 }}>
                   <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>R$</span>
                   <input value={form.valor} onChange={e => handleValorChange(e.target.value)} placeholder="0,00"
                     style={{ ...inputS, paddingLeft: 36, fontSize: 20, fontWeight: 700 }} onFocus={fo} onBlur={onB} />
                 </div>
-                <label style={lbl}>Formas de Pagamento</label>
+                <Label>Formas de Pagamento</Label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {form.pagamentos.map((p, i) => (
                     <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1302,7 +1360,47 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
       {/* Passo 2 — Coluna 1, linha 2: grade de produtos */}
       {step === 1 && (
-      <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px' }}>
+      /* Cartão de altura LIMITADA, em coluna flex. Quem rola por dentro é só
+         a lista de produtos (flex: 1 mais abaixo); cabeçalho, busca, botões e
+         o bloco "Selecionados" ficam sempre à vista.
+
+         A altura sai da janela, não de um número fixo: um número fixo foi a
+         primeira tentativa e quebrou assim que a faixa "N SELECIONADO"
+         aparecia acima da lista e empurrava o rodapé para fora da tela. Com
+         flex, qualquer bloco que apareça ou suma é absorvido pela lista
+         sozinho — inclusive os que ainda não existem.
+
+         O 140 é o topo do cartão (106px, já com a linha da grade acima) mais
+         a folga de baixo — medido, não estimado. O piso de 420px
+         evita que numa janela muito baixa o cartão vire uma fresta; abaixo
+         disso a página volta a rolar, que é o certo nesse extremo. */
+      <div style={{
+        gridColumn: 1, gridRow: 2, minWidth: 0,
+        background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--line)', padding: '24px',
+        display: 'flex', flexDirection: 'column',
+        boxSizing: 'border-box',
+        // ── SEM teto no CARTÃO. Foi daqui que veio o bug da HM Boutique ────
+        // Havia aqui um `maxHeight: max(420px, calc(100dvh - 140px))`. Com o
+        // cartão preso nessa altura, a lista de resultados era o único filho
+        // flexível — ou seja, ela absorvia sozinha TODA a variação de altura
+        // dos outros blocos. Assim que a faixa "SELECIONADOS" aparecia (só
+        // existe com 1+ produto escolhido) somavam-se 150px acima e abaixo da
+        // lista, e o que sobrava para ela era o resto da conta.
+        //
+        // Medido em navegador de verdade, com 1 produto selecionado:
+        //   1440x900 → lista 239px   1366x768 → 107px   1024x600 → 2px
+        // Com nenhum produto selecionado, em 1024x600 a lista tinha 91px e
+        // tudo funcionava — que é exatamente o "só quebra depois do primeiro
+        // produto" do relato, e o motivo de não reproduzir em tela grande.
+        //
+        // Numa lista de 2px o bloco de variações do produto aberto nasce fora
+        // da janela de rolagem: aparece cortado na borda e não recebe clique.
+        //
+        // O teto agora é da LISTA (logo abaixo), que é o único bloco que pode
+        // encolher sem sumir com nada. O cartão volta a ter a altura do
+        // conteúdo; quando passa da janela, quem rola é a página — que é o
+        // comportamento certo e o que já acontecia antes da tarefa 12.
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 2 }}>
@@ -1398,7 +1496,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       </div>
                     </div>
                     {hasVars && isOpen && (
-                      <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 10px 10px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                      <div ref={isOpen ? refVariacoesTroca : null} style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 10px 10px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
@@ -1465,6 +1563,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           />
         </div>
 
+        {/* Leitor de código de barras — caminho rápido para peça etiquetada.
+            No desktop abre com foco: o leitor USB costuma ficar plugado na
+            máquina do caixa, e quem abre a venda já vai bipar. */}
+        <div style={{ marginBottom: 10 }}>
+          <CampoScanner aoLer={lerCodigoBarras} theme={theme} dica="Ou busque pelo nome abaixo" />
+        </div>
+
         {/* Busca por nome — estoque grande fica impraticável de rolar. */}
         <div style={{ position: 'relative', marginBottom: 10 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -1487,14 +1592,61 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           )}
         </div>
 
-        {/* A lista não tem maxHeight própria: com o resumo fixo à direita ela
-            rola junto com a página, em vez de criar um segundo scroll. */}
+        {/* ── Rolagem própria da lista ────────────────────────────────────
+            REVERTE uma decisão anterior, que dizia: "a lista não tem maxHeight
+            própria: com o resumo fixo à direita ela rola junto com a página,
+            em vez de criar um segundo scroll".
+
+            O resumo sticky resolve o botão sair da tela, mas não resolve a
+            página ficar quilométrica: com 37 produtos (Tropicale) a barra de
+            rolagem do navegador vira um fio, e voltar ao topo para usar a
+            busca custa uma rolagem inteira. Contendo a lista, a página quase
+            não rola e o cartão inteiro — busca, "Novo produto" e resumo —
+            fica sempre à vista.
+
+            O que rola é SÓ a lista: o cabeçalho do cartão e a busca ficam
+            fora do container e não saem da tela.
+
+            A altura acompanha a janela em vez de ser um número fixo, que é o
+            que faz isso funcionar tanto em notebook baixo quanto em monitor
+            grande. O piso de 220px evita que numa janela muito baixa a lista
+            vire uma fresta; abaixo disso, a página volta a rolar, que é o
+            comportamento correto nesse extremo. */}
         {produtosFiltrados.length === 0 ? (
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '24px 12px' }}>
             Nenhum produto encontrado
           </p>
         ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column',
+          flex: '1 1 auto',
+          // PISO — o que faltava. O comentário acima já prometia "o piso de
+          // 220px evita que numa janela muito baixa a lista vire uma fresta",
+          // mas o número tinha ficado só no cartão; a lista em si não tinha
+          // nenhum. 220px cabem uma linha de produto (~44px) mais o bloco de
+          // variações inteiro (~123px) com folga, que é a garantia que
+          // interessa: o que você abre, você vê.
+          minHeight: 220,
+          // TETO — vh, não dvh, de propósito. dvh só existe a partir do
+          // Chromium 108 e não existe em motor antigo; onde não existe, a
+          // declaração inteira é descartada e o layout muda de comportamento
+          // justamente na máquina em que ninguém está olhando. Em desktop a
+          // diferença prática entre vh e dvh é nula (não há barra de URL que
+          // recolhe), então vh é a escolha compatível sem custo.
+          //
+          // Os 340px são os blocos fixos do cartão acima e abaixo da lista
+          // (cabeçalho, chips de categoria, SELECIONADOS, scanner, busca,
+          // rodapé) — medidos, não estimados. Se ainda assim não couber, o
+          // piso de 220px vence e a página rola.
+          maxHeight: 'calc(100vh - 340px)',
+          overflowY: 'auto',
+          // Folga no fim: sem ela o último item encosta na borda e parece
+          // cortado bem quando a rolagem termina.
+          paddingBottom: 10,
+          // Reserva a mesma folga para o scrollIntoView de revelarBloco, para
+          // ele não parar com o bloco colado na borda de baixo.
+          scrollPaddingBottom: 10,
+        }}>
           {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
             const vars = (pd?.variacoes || []).map(v => {
@@ -1582,7 +1734,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
                 {/* Picker de variações */}
                 {hasVars && isOpen && (
-                  <div style={{
+                  <div ref={isOpen ? refVariacoes : null} style={{
                     padding: '10px 14px 12px',
                     borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
                     borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #EDE2DA',
@@ -1717,6 +1869,7 @@ function DesktopRelatorios({ data, theme, temAcessoPro }) {
       updateVenda={data.updateVenda}
       theme={theme}
       temAcessoPro={temAcessoPro}
+      lojaId={data.LOJA_ID}
     />
   )
 }
@@ -1731,6 +1884,10 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
         {[
           { id: 'produtos', label: 'Produtos' },
           { id: 'pedidos',  label: 'Pedidos'  },
+          // A aba de config existia só no admin reduzido
+          // (CatalogoB2BAdminDesktop), que nenhuma loja alcança hoje — é por
+          // isso que a Chave Pix não tinha onde ser editada a não ser por SQL.
+          { id: 'config',   label: 'Configurações' },
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id)} style={{
             padding: '10px 24px', borderRadius: 12, cursor: 'pointer',
@@ -1742,7 +1899,15 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
           }}>{st.label}</button>
         ))}
       </div>
-      {subTab === 'produtos'
+      {subTab === 'config' ? (
+        <ConfigB2BDesktop
+          config={data.config}
+          saveConfig={data.saveConfig}
+          theme={theme}
+          nivel={nivel}
+          lojaId={lojaId}
+        />
+      ) : subTab === 'produtos'
         ? nivel === 'pro'
           ? <ProdutosB2BPro
               produtosData={data.produtosData}
@@ -1768,6 +1933,9 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
@@ -1861,14 +2029,14 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
-    meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} plano={plano} />
-      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+    // Ver a nota equivalente em LojaFeminina/index.jsx: o gate agora é por
+    // gaveta, não pela tela inteira.
+    meta: <MetasResultados data={data} theme={theme} plano={plano} legado={legado} />,
     crm: (legado || temAcesso(plano, 'starter'))
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={data.LOJA_ID} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
-      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={data.LOJA_ID} />
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     financeiro: temAcesso(plano, 'business')
       ? <FinanceiroDesktop data={data} theme={theme} />
@@ -1890,9 +2058,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100dvh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
       <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} />
-      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100dvh', boxSizing: 'border-box', minWidth: 0 }}>
+      <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100vh', boxSizing: 'border-box', minWidth: 0 }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tab]}
         </div>

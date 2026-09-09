@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { ClipboardList, Plus, X, ChevronDown } from 'lucide-react'
 import { useBalanco } from './useBalanco'
 
@@ -23,11 +24,6 @@ const inp = {
   color: '#1a1a1a', background: '#fff', outline: 'none', boxSizing: 'border-box',
 }
 
-const lbl = {
-  display: 'block', fontSize: 11, fontWeight: 700, color: '#7a7a7a',
-  textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6,
-  fontFamily: 'Plus Jakarta Sans, sans-serif',
-}
 
 export default function BalancoSessao({ onIniciada }) {
   const balanco = useBalanco()
@@ -343,7 +339,7 @@ export default function BalancoSessao({ onIniciada }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <label style={lbl}>{title}</label>
+      <Label>{title}</Label>
       {children}
     </div>
   )

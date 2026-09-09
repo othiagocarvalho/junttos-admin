@@ -28,22 +28,29 @@ export function detectarItensEsgotados(carrinho, freshProds) {
 }
 
 /**
- * Um produto só entra no catálogo público quando já tem pelo menos uma
- * variação cadastrada.
+ * Um produto só entra no catálogo público quando tem pelo menos uma foto.
  *
- * Regra comercial: produto sem variação é mercadoria que a lojista ainda não
- * terminou de cadastrar (a cor/tamanho entra quando a peça física chega). Se
- * ele aparecesse no catálogo, o cliente final poderia pedir uma peça sem cor
- * definida — pedido que a loja não consegue separar nem faturar.
+ * Regra comercial: o catálogo é vitrine, e card sem foto é um retângulo cinza
+ * de 3:4 que não vende nada. Foto é o único mínimo que sobrou — é também o que
+ * a seção 2.2 da spec marca como obrigatório (`fotos[]`, ≥1).
  *
- * Não confundir com "esgotado": produto COM variação e estoque zerado continua
- * visível e marcado como esgotado, que é o comportamento que já existia.
- * Este filtro vale só para o catálogo público — no painel da lojista
- * (Estoque, Nova Venda, Pedidos) o produto segue visível e editável.
+ * ─── Por que não exige mais variação ────────────────────────────────────────
+ * Até 20/08/2026 esta função também exigia `variacoes.length > 0`: pedido de
+ * peça "sem cor definida" era pedido que a loja não conseguia separar. O
+ * catálogo novo (CatalogoPublicoV2) resolveu isso na interface — produto sem
+ * cor abre o modal com uma célula única "Quantidade", e o pedido sai sem cor
+ * porque a peça não tem cor, não porque falta cadastro. Com a regra antiga, 13
+ * das 37 peças publicadas da tropicaleatacado ficavam invisíveis mesmo tendo
+ * foto e preço.
  *
- * @param {object} p — produto: { variacoes }
+ * Não confundir com "esgotado": produto com estoque zerado continua visível,
+ * como já era. O filtro vale só para o catálogo público — no painel da lojista
+ * (Estoque, Nova Venda, Pedidos) o produto segue visível e editável mesmo sem
+ * foto nenhuma.
+ *
+ * @param {object} p — produto: { fotos }
  * @returns {boolean}
  */
 export function produtoVisivelNoCatalogo(p) {
-  return Array.isArray(p?.variacoes) && p.variacoes.length > 0
+  return Array.isArray(p?.fotos) && p.fotos.some(Boolean)
 }

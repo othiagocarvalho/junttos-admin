@@ -86,6 +86,24 @@ export function filtrarPorVariacao(movs, label) {
  * quebram. PGRST202 = função ausente no schema cache do PostgREST;
  * 42883 = undefined_function do Postgres.
  */
+/**
+ * Excluir este pedido precisa devolver peças ao estoque?
+ *
+ * A baixa acontece na CRIAÇÃO do pedido (lf_pedido_baixa_estoque), não no
+ * pagamento. Então qualquer pedido vivo está segurando estoque, e apagá-lo sem
+ * devolver abre furo — foi o defeito que esta regra corrige.
+ *
+ * A exceção é o pedido JÁ CANCELADO: cancelarPedido devolveu as peças no
+ * momento do cancelamento. Devolver de novo na exclusão duplicaria estoque,
+ * que é o erro oposto e igualmente caro.
+ *
+ * Fica aqui, e não dentro do hook, porque é a regra do negócio inteira em uma
+ * linha — e o hook não é testável sem Supabase.
+ */
+export function precisaDevolverEstoque(status) {
+  return String(status ?? '').trim() !== 'cancelado'
+}
+
 export function rpcAusente(error) {
   return !!error && (error.code === 'PGRST202' || error.code === '42883')
 }

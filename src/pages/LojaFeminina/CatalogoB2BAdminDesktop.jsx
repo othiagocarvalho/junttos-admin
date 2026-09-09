@@ -1,14 +1,23 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { Package, ShoppingBag, Settings, Save, Users, UserPlus, CreditCard } from 'lucide-react'
+import { Palette, Wallet, ShoppingCart } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import EstoqueMobile from './EstoqueMobile'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import PedidosConsolidados from './PedidosConsolidados'
 import FinanceiroDesktop from '../cliente/FinanceiroDesktop'
 import { supabase } from '../../lib/supabase'
+import VideoTopoConfig from '../../components/catalogo/VideoTopoConfig'
+import { videoTopoDaConfig, videoTopoParaConfig } from '../../utils/videoTopo'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { temAcesso } from '../../utils/planos'
 import { precisaAvisarPedidoMinimo } from '../../utils/modeloVenda'
+import {
+  salvarCredencialMercadoPago, podeAtivarMercadoPago,
+  validarAccessTokenMP, pareceTokenDeTeste,
+} from '../../utils/credenciaisPagamento'
 import AvisoPedidoMinimo from '../../components/catalogo/AvisoPedidoMinimo'
 
 const PRESETS = [
@@ -93,11 +102,6 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
     background: 'var(--bg)', border: '1.5px solid var(--line)',
     borderRadius: 'var(--r-input)', padding: '0 14px',
     fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)', outline: 'none',
-  }
-  const lbl = {
-    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'var(--font-ui)',
   }
   const msgStyle = (type) => ({
     padding: '10px 14px', borderRadius: 'var(--r-chip)', fontSize: 13,
@@ -188,15 +192,15 @@ function UsuariosB2BDesktop({ lojaId, theme }) {
           </p>
           <form onSubmit={handleConvidar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Nome</label>
+              <Label>Nome</Label>
               <input value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Maria" style={inp} />
             </div>
             <div>
-              <label style={lbl}>E-mail de acesso</label>
+              <Label>E-mail de acesso</Label>
               <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="colaboradora@email.com" style={inp} />
             </div>
             <div>
-              <label style={lbl}>Senha temporária</label>
+              <Label>Senha temporária</Label>
               <input type="text" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))} placeholder="Mínimo 6 caracteres" style={inp} />
             </div>
             {msg && <div style={msgStyle(msg.type)}>{msg.text}</div>}
@@ -353,7 +357,9 @@ function B2BSidebar({ tab, setTab, theme, config, nivel, isBusiness, onSwitchToM
 }
 
 // ── Config Desktop (2 colunas) ─────────────────────────────────
-function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
+// Exportado para o CatalogoB2BModuloDesktop (dashboard completo) reaproveitar
+// o mesmo formulário — ver a nota equivalente em CatalogoB2BAdmin.jsx.
+export function ConfigB2BDesktop({ config, saveConfig, theme, nivel, lojaId }) {
   const [nome,     setNome]     = useState(config?.nome           || '')
   const [chavePix, setChavePix] = useState(config?.chave_pix      || '')
   const [whatsapp, setWhatsapp] = useState(config?.whatsapp_loja  || '')
@@ -362,6 +368,20 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
   const [pmTipo,   setPmTipo]   = useState(config?.pedido_minimo_tipo  || 'nenhum')
   const [pmValor,  setPmValor]  = useState(config?.pedido_minimo_valor || '')
   const [pmQtd,    setPmQtd]    = useState(config?.pedido_minimo_qtd   || '')
+  const [checkout, setCheckout] = useState(config?.catalogo_checkout_online === true)
+  // Nascem vazios: a tabela de credenciais não tem policy de SELECT, então nem
+  // esta tela lê o token de volta. Vazio + já configurado = manter o gravado.
+  const [mpToken,  setMpToken]  = useState('')
+  const [mpSecret, setMpSecret] = useState('')
+  const [mpAtivo,  setMpAtivo]  = useState(config?.mercadopago_ativo === true)
+  // Faixa de vídeo do topo do catálogo. Vinha SEM tela desde o início: só dava
+  // para ligar escrevendo o jsonb catalogo_video_topo direto no banco.
+  const [videoTopo, setVideoTopo] = useState(() => videoTopoDaConfig(config))
+  const [mpErro,   setMpErro]   = useState('')
+  // Erro do salvamento em lf_config. Separado de mpErro porque são duas
+  // gravações independentes: a credencial pode falhar e o resto passar, e a
+  // pessoa precisa saber exatamente o que não foi.
+  const [erroSalvar, setErroSalvar] = useState('')
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
 
@@ -375,11 +395,45 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
     setPmTipo(config.pedido_minimo_tipo   || 'nenhum')
     setPmValor(config.pedido_minimo_valor || '')
     setPmQtd(config.pedido_minimo_qtd     || '')
+    setCheckout(config.catalogo_checkout_online === true)
+    setMpAtivo(config.mercadopago_ativo === true)
+    setVideoTopo(videoTopoDaConfig(config))
   }, [config])
+
+  const mpJaConfigurado = config?.mercadopago_ativo === true
 
   async function handleSave() {
     setSaving(true)
-    await saveConfig({
+    setMpErro('')
+    setErroSalvar('')
+
+    // Credencial vai em tabela própria com RLS — nunca em lf_config, que o
+    // catálogo público lê inteira sem autenticação.
+    // Barra na origem o valor que não é access token — foi assim que a
+    // Tropicale ficou com 14 caracteres gravados e o MP devolvendo 403.
+    const problemaToken = validarAccessTokenMP(mpToken)
+    if (problemaToken) {
+      setMpErro(problemaToken)
+      setSaving(false)
+      return
+    }
+
+    let mpOk = true
+    if (mpToken.trim() || mpSecret.trim()) {
+      const { error } = await salvarCredencialMercadoPago(supabase, lojaId, {
+        token: mpToken, webhookSecret: mpSecret,
+      })
+      if (error) {
+        mpOk = false
+        setMpErro('Não foi possível salvar a credencial do Mercado Pago: ' + error.message)
+      }
+    }
+
+    // saveConfig DEVOLVE o erro (useLojaData.js) — e este retorno era jogado
+    // fora. Era metade do "a tela finge que salvou": mesmo com o upsert de
+    // lf_config falhando, o botão ficava verde escrito "Configurações
+    // salvas!".
+    const erroConfig = await saveConfig({
       nome:                nome     || 'Catálogo',
       chave_pix:           chavePix || null,
       whatsapp_loja:       whatsapp || null,
@@ -388,17 +442,52 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       pedido_minimo_tipo:  pmTipo   || 'nenhum',
       pedido_minimo_valor: pmTipo === 'valor'      ? (parseFloat(String(pmValor).replace(',', '.')) || null) : null,
       pedido_minimo_qtd:   pmTipo === 'quantidade' ? (parseInt(pmQtd) || null) : null,
+      catalogo_checkout_online: checkout,
+      // videoTopoParaConfig desliga `ativo` quando não há mídia: ligado e
+      // vazio, a faixa vira uma tarja preta de até 340px no topo.
+      catalogo_video_topo: videoTopoParaConfig(videoTopo),
+      mercadopago_ativo: mpOk && mpAtivo && podeAtivarMercadoPago({
+        token: mpToken, jaConfigurado: mpJaConfigurado,
+      }),
     })
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2200)
+
+    if (erroConfig) {
+      setErroSalvar('Não foi possível salvar as configurações: ' + (erroConfig.message || erroConfig))
+    }
+
+    // Ligar o QR sem credencial confirmada era uma falha SILENCIOSA: o
+    // checkbox voltava sozinho para desmarcado e a tela dizia "Configurações
+    // salvas!". A tabela de credenciais não tem policy de SELECT, então esta
+    // tela não consegue conferir no banco se já existe token — a única prova
+    // que ela tem é o valor digitado agora, ou a flag já estar ligada.
+    // `mpOk &&` para não pisar por cima do erro real da gravação, que é mais
+    // grave e já está na tela.
+    const qrPedidoSemCredencial = mpOk
+      && mpAtivo
+      && !podeAtivarMercadoPago({ token: mpToken, jaConfigurado: mpJaConfigurado })
+    if (qrPedidoSemCredencial) {
+      setMpErro(
+        'Para ligar o QR Code do Mercado Pago, cole o Access Token nesta mesma tela. '
+        + 'Por segurança a chave não volta do banco, então o sistema não consegue '
+        + 'confirmar sozinho que já existe uma salva — e o QR ficaria desligado sem aviso.',
+      )
+    }
+
+    // Só limpa os campos e comemora quando as DUAS gravações deram certo.
+    // Limpar o token depois de uma falha seria pior ainda: a pessoa perderia o
+    // valor colado e não teria o que repetir.
+    if (mpOk && !erroConfig) {
+      setMpToken(''); setMpSecret('')
+      // Sem "Configurações salvas!" em verde quando o QR pedido não pôde ser
+      // ligado: o resto gravou, mas comemorar esconderia o aviso vermelho.
+      if (!qrPedidoSemCredencial) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2200)
+      }
+    }
   }
 
-  const lbl = {
-    display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--muted)',
-    marginBottom: 7, letterSpacing: '0.12em', textTransform: 'uppercase',
-    fontFamily: 'var(--font-ui)',
-  }
   const inp = {
     width: '100%', height: 44, boxSizing: 'border-box',
     background: 'var(--bg)', border: '1.5px solid var(--line)',
@@ -414,18 +503,18 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       {/* Left: Identidade */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Identidade</p>
+          <SecaoTitulo Icon={Palette} titulo="Identidade" theme={theme} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Nome da Loja</label>
+              <Label>Nome da Loja</Label>
               <input value={nome} onChange={e => setNome(e.target.value)} style={inp} placeholder="Ex: Loja Moda Feminina" />
             </div>
             <div>
-              <label style={lbl}>URL do Logo</label>
+              <Label>URL do Logo</Label>
               <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} style={inp} placeholder="https://..." />
             </div>
             <div>
-              <label style={lbl}>Cor Principal</label>
+              <Label>Cor Principal</Label>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 {PRESETS.map(p => (
                   <button
@@ -455,27 +544,115 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
       {/* Right: Pagamento & Pedido Mínimo */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={section}>
-          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pagamento &amp; Contato</p>
+          <SecaoTitulo Icon={Wallet} titulo="Pagamento & Contato" theme={theme} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={lbl}>Chave Pix</label>
+              <Label>Chave Pix</Label>
               <input value={chavePix} onChange={e => setChavePix(e.target.value)} style={inp} placeholder="CPF, CNPJ, e-mail ou chave aleatória" />
             </div>
             <div>
-              <label style={lbl}>WhatsApp da Loja</label>
+              <Label>WhatsApp da Loja</Label>
               <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} style={inp} placeholder="(85) 99999-0000" type="tel" />
             </div>
+            {/* Sem este toggle a Chave Pix não aparece para ninguém: o catálogo
+                só mostra o bloco de Pix quando catalogo_checkout_online é true,
+                e até agora nenhuma tela escrevia esse campo. */}
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={checkout}
+                onChange={e => setCheckout(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+              />
+              <span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+                  Mostrar Pix no catálogo
+                </span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  A cliente copia a chave e paga no banco dela. Precisa da Chave Pix preenchida acima.
+                </span>
+              </span>
+            </label>
           </div>
+        </div>
+
+        <div style={section}>
+          <SecaoTitulo Icon={CreditCard} titulo="Mercado Pago" descricao="Pix com QR Code e confirmação automática" theme={theme} style={{ marginBottom: 10 }} />
+          <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 18 }}>
+            Com o Mercado Pago o catálogo mostra QR Code e confirma o pagamento sozinho.
+            Sem isso, o Pix continua funcionando no modo copia-e-cola acima.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <Label>
+                Access token {mpJaConfigurado && <span style={{ color: 'var(--status-ok-tx)' }}>· configurado</span>}
+              </Label>
+              <input
+                value={mpToken} onChange={e => setMpToken(e.target.value)} style={inp}
+                type="password" autoComplete="off"
+                placeholder={mpJaConfigurado ? 'Deixe vazio para manter o atual' : 'APP_USR-...'}
+              />
+            </div>
+            <div>
+              <Label>Chave secreta do webhook</Label>
+              <input
+                value={mpSecret} onChange={e => setMpSecret(e.target.value)} style={inp}
+                type="password" autoComplete="off"
+                placeholder={mpJaConfigurado ? 'Deixe vazio para manter a atual' : 'Mercado Pago -> Webhooks'}
+              />
+            </div>
+            {pareceTokenDeTeste(mpToken) && (
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: '#b45309', lineHeight: 1.45 }}>
+                Esse é um token de TESTE. Em produção o Mercado Pago recusa, e o catálogo
+                volta sozinho para o Pix copia-e-cola.
+              </p>
+            )}
+            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 }}>
+              Por segurança estas chaves não são exibidas depois de salvas.
+            </p>
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
+              <input
+                type="checkbox" checked={mpAtivo} onChange={e => setMpAtivo(e.target.checked)}
+                style={{ width: 18, height: 18, marginTop: 2, flexShrink: 0, cursor: 'pointer', accentColor: theme.primary }}
+              />
+              <span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>
+                  Usar QR Code do Mercado Pago
+                </span>
+                <span style={{ display: 'block', fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.45 }}>
+                  Se o Mercado Pago falhar, o catálogo volta sozinho para o copia-e-cola.
+                </span>
+              </span>
+            </label>
+            {mpErro && (
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--status-bad-tx)', lineHeight: 1.45 }}>
+                {mpErro}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Faixa de vídeo do topo do catálogo. Entra depois de Pagamento porque
+            é aparência, não regra de venda — e antes do Pedido Mínimo, que é a
+            seção que muda de nível de plano. */}
+        <div style={section}>
+          <VideoTopoConfig
+            valor={videoTopo}
+            aoMudar={setVideoTopo}
+            lojaId={lojaId}
+            client={supabase}
+            theme={theme}
+          />
         </div>
 
         {nivel === 'pro' ? (
           <div style={section}>
-            <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>Pedido Mínimo</p>
+            <SecaoTitulo Icon={ShoppingCart} titulo="Pedido Mínimo" theme={theme} />
             {/* Some assim que ela escolhe outro tipo — segue pmTipo, não o banco. */}
             {precisaAvisarPedidoMinimo(nivel, pmTipo) && <AvisoPedidoMinimo />}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={lbl}>Tipo de mínimo</label>
+                <Label>Tipo de mínimo</Label>
                 <select
                   value={pmTipo}
                   onChange={e => setPmTipo(e.target.value)}
@@ -488,7 +665,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
               </div>
               {pmTipo === 'valor' && (
                 <div>
-                  <label style={lbl}>Valor mínimo do pedido</label>
+                  <Label>Valor mínimo do pedido</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input
@@ -503,7 +680,7 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
               )}
               {pmTipo === 'quantidade' && (
                 <div>
-                  <label style={lbl}>Quantidade mínima de peças</label>
+                  <Label>Quantidade mínima de peças</Label>
                   <input
                     type="number" min="1" step="1"
                     value={pmQtd}
@@ -522,6 +699,14 @@ function ConfigB2BDesktop({ config, saveConfig, theme, nivel }) {
           </div>
         )}
 
+        {erroSalvar && (
+          <p role="alert" style={{
+            fontFamily: 'var(--font-ui)', fontSize: 12.5, lineHeight: 1.5,
+            color: 'var(--status-bad-tx)', background: 'rgba(180,56,31,.08)',
+            border: '1px solid var(--status-bad-tx)', borderRadius: 'var(--r-input)',
+            padding: '10px 12px', margin: '0 0 10px',
+          }}>{erroSalvar}</p>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -616,6 +801,9 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
@@ -640,6 +828,7 @@ export default function CatalogoB2BAdminDesktop({ data, theme, lojaId, nivel, on
         saveConfig={data.saveConfig}
         theme={theme}
         nivel={nivel}
+        lojaId={lojaId}
       />
     ),
   }

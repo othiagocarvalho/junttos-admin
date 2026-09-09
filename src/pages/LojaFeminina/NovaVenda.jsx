@@ -1,11 +1,18 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
+import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
+import SelectVendedor from '../../components/vendedores/SelectVendedor'
+import { vendedorParaVenda } from '../../utils/vendedores'
+import { temAcesso } from '../../utils/planos'
+import CampoScanner from '../../components/etiquetas/CampoScanner'
+import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
+import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 
@@ -43,7 +50,10 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '' }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null }) {
+  // Mesmo critério que libera a comissão automática nos Relatórios
+  // (index.jsx: temAcesso(plano, 'pro')). Sem gate novo.
+  const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   // Lido uma única vez, na montagem: o initializer preguiçoso do useState não
   // roda de novo a cada render (useRef(lerRascunho(...)) reabriria o
   // localStorage a cada tecla digitada) e o valor pode ser lido durante o render.
@@ -71,6 +81,19 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? initialIsTroca)
   const [produtoTroca, setProdutoTroca] = useState(rascunho?.produtoTroca ?? [])
   const [expandedTroca,setExpandedTroca]= useState(null)
+
+  // Mesmo problema do desktop, causa diferente: aqui quem rola é a PÁGINA, e
+  // ela também não se move quando o bloco de variações abre. Some-se a isso a
+  // BarraResumoMobile, que é `position: fixed` e só aparece depois do primeiro
+  // produto — para o navegador aquela faixa conta como área visível, então ele
+  // acha que basta o bloco estar "na tela", mesmo estando por baixo da barra.
+  //
+  // 150px = a barra (65px) mais o afastamento dela do fim da tela (68px) mais
+  // uma folga. É o que scroll-margin-bottom reserva para o scrollIntoView.
+  const refVariacoes      = useRef(null)
+  const refVariacoesTroca = useRef(null)
+  useEffect(() => { if (expandedProd)  revelarBloco(refVariacoes.current,      { margemInferior: 150 }) }, [expandedProd])
+  useEffect(() => { if (expandedTroca) revelarBloco(refVariacoesTroca.current, { margemInferior: 150 }) }, [expandedTroca])
   const [ajusteTipo,  setAjusteTipo]  = useState(rascunho?.ajusteTipo ?? 'desconto')   // 'desconto' | 'acrescimo'
   const [ajusteModo,  setAjusteModo]  = useState(rascunho?.ajusteModo ?? 'valor')      // 'valor' | 'percentual'
   const [ajusteInput, setAjusteInput] = useState(rascunho?.ajusteInput ?? '')
@@ -142,6 +165,24 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   function getVarLabel(v) {
     const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
     return k ? String(v[k]) : null
+  }
+
+  /**
+   * Adiciona ao carrinho a variação bipada no leitor.
+   *
+   * Convive com a busca manual — não substitui: peça sem etiqueta continua
+   * entrando pela lista de produtos, como sempre.
+   */
+  function lerCodigoBarras(codigo) {
+    const achado = buscarPorCodigo(produtosData, LOJA_ID, codigo)
+    if (!achado) return { ok: false, texto: 'Código não encontrado nesta loja' }
+    setForm(f => ({
+      ...f,
+      produtos: adicionarAoCarrinho(f.produtos, {
+        nome: achado.produto.nome, variacao: achado.rotulo,
+      }),
+    }))
+    return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
   }
 
   function toggleProd(nome) {
@@ -225,7 +266,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       forma_pgto: pgtoPayload,
       obs: form.obs || null,
       produtos: form.produtos,
-      vendedora: form.vendedora || null,
+      // Normaliza na gravação: o nome guardado tem de ser idêntico ao que
+      // Relatorios.jsx soma, que agrupa por igualdade exata de string.
+      vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
@@ -390,10 +433,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {/* ── Step 0: Cliente ── */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Dados da Cliente</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Identificação opcional</p>
-            </div>
+            <SecaoTitulo Icon={User} titulo="Cliente" descricao="Identificação opcional" theme={theme} style={{ marginBottom: 0 }} />
             <Field label="Nome da Cliente" Icon={User}>
               <div style={{ position: 'relative' }}>
                 <input
@@ -467,8 +507,22 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             </Field>
             <Field label="Vendedor(a)">
-              <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
-                placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              {/* Pro+ escolhe de uma lista cadastrada; abaixo disso o campo de
+                  texto continua EXATAMENTE como era. O campo nunca teve gate,
+                  e é lido pelo recibo (recibo.js, ReciboVenda.jsx), pela busca
+                  do histórico e pela corrida de vendedoras (corrida.js) —
+                  tirá-lo de quem não é Pro removeria função que já existe. */}
+              {temAcessoVendedores ? (
+                <SelectVendedor
+                  lojaId={LOJA_ID}
+                  valor={form.vendedora}
+                  aoMudar={v => setForm({ ...form, vendedora: v })}
+                  style={inputBase}
+                />
+              ) : (
+                <input value={form.vendedora} onChange={e => setForm({ ...form, vendedora: e.target.value })}
+                  placeholder="Quem está realizando a venda" style={inputBase} onFocus={focusIn} onBlur={focusOut} />
+              )}
             </Field>
             <Field label="Observações">
               <input value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
@@ -487,14 +541,15 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
-                  {isTroca ? 'Produto Novo' : 'Produtos Vendidos'}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                  {form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
-                </p>
-              </div>
+              {/* O nome muda com o fluxo (troca x venda) — é informação, não
+                  redundância, então continua como estava. */}
+              <SecaoTitulo
+                Icon={ShoppingBag}
+                titulo={isTroca ? 'Produto Novo' : 'Produtos'}
+                descricao={form.produtos.length > 0 ? `${form.produtos.length} selecionado(s)` : (isTroca ? 'Selecione o produto novo' : 'Selecione os produtos')}
+                theme={theme}
+                style={{ marginBottom: 0 }}
+              />
               <button
                 onClick={() => setAddingProd(v => !v)}
                 style={{
@@ -588,7 +643,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           </div>
                         </div>
                         {hasVars && isOpen && (
-                          <div style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 14px 14px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
+                          <div ref={isOpen ? refVariacoesTroca : null} style={{ padding: '10px 14px 12px', borderLeft: '1px solid #D97706', borderRight: '1px solid #D97706', borderBottom: '1px solid #D97706', borderRadius: '0 0 14px 14px', background: isDark ? '#1a1000' : '#FFFBEB' }}>
                             <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {vars.map(({ label, qty }, idx) => {
@@ -650,6 +705,18 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               onRemover={removerSelecionado}
               primary={theme.primary}
             />
+
+            {/* Leitor de código de barras. Fica ACIMA da busca porque é o
+                caminho rápido de quem tem a peça etiquetada na mão; a busca
+                manual continua logo abaixo, intacta, para o resto. */}
+            <div style={{ marginBottom: 10 }}>
+              <CampoScanner
+                aoLer={lerCodigoBarras}
+                theme={theme}
+                autoFoco={false}
+                dica="Ou busque pelo nome abaixo"
+              />
+            </div>
 
             {/* Busca por nome — estoque grande fica impraticável de rolar. */}
             <div style={{ position: 'relative' }}>
@@ -814,7 +881,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     </div>
 
                     {hasVars && isOpen && (
-                      <div style={{
+                      <div ref={isOpen ? refVariacoes : null} style={{
                         padding: '10px 14px 12px',
                         borderLeft: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
                         borderRight: isDark ? '1px solid #3a3a3a' : '1px solid #ddd',
@@ -918,8 +985,13 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               <MetallicBtn onClick={() => setStep(2)} isDark={isDark} primary={theme.primary}>Próximo — Pagamento <ChevronRight size={16} /></MetallicBtn>
             </div>
 
-            {/* Espaço para a barra fixa não cobrir o último produto da lista. */}
-            <div aria-hidden style={{ height: 72 }} />
+            {/* Espaço para a barra fixa não cobrir o fim da lista.
+                Eram 72px e não bastava: a BarraResumoMobile tem 65px de altura
+                e fica 68px acima do fim da tela (em cima da BottomTabBar), ou
+                seja tapa os 133px de baixo — medido no navegador. Com 72px de
+                reserva, os últimos ~61px de conteúdo ficavam impossíveis de
+                trazer para a área visível, por mais que se rolasse. */}
+            <div aria-hidden style={{ height: 140 }} />
             <BarraResumoMobile
               isTroca={isTroca}
               qtdItens={qtdItensVenda}
@@ -936,10 +1008,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         {/* ── Step 2: Pagamento ── */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>Pagamento</p>
-              <p style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Valor e formas de pagamento</p>
-            </div>
+            <SecaoTitulo Icon={CreditCard} titulo="Pagamento" descricao="Valor e formas de pagamento" theme={theme} style={{ marginBottom: 0 }} />
 
             {/* Breakdown: Subtotal / Ajuste / Total */}
             {form.produtos.length > 0 && (

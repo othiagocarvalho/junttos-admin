@@ -14,7 +14,7 @@ import {
   aplicarDesconto, diaISO, marcoCobrancaAutomatica,
   TIPO_IMPLANTACAO, TIPO_MENSALIDADE,
 } from '../utils/cobrancas'
-import { pedidoMinimoPayload } from '../utils/modeloVenda'
+import { pedidoMinimoPayload, NIVEL_ATACADO_PADRAO } from '../utils/modeloVenda'
 import { ACAO } from '../lib/historicoCobrancaAcoes'
 
 export function toSlug(s) {
@@ -37,7 +37,11 @@ const DEFAULT_FEATURES = {
   vendas: true, historico: true, metas: true,
   fechamento_caixa: true, relatorios: true,
   clientes: false, estoque: false,
-  legado: false, catalogo_b2b: false,
+  legado: false,
+  // Varejo. Business sobrescreve para 'pro' em buildLojaPayload — este false
+  // é o valor de Starter e Pro, e a rede de segurança de quem chamar
+  // buildLojaPayload sem plano.
+  catalogo_b2b: false,
   // CPF/CNPJ + endereço na tela de cliente. Ligado por padrão em Pro e
   // Business (ver buildLojaPayload); no Starter fica off.
   cadastro_completo_cliente: false,
@@ -93,6 +97,23 @@ export function buildLojaPayload({
     features:       {
       ...DEFAULT_FEATURES,
       cadastro_completo_cliente: temAcesso(plano, 'pro'),
+      // Loja Business nasce no Catálogo B2B, não no catálogo de varejo.
+      //
+      // 'pro' (via NIVEL_ATACADO_PADRAO) e nunca `true`: `true` é truthy, então
+      // acenderia a aba no painel da lojista, mas falharia em todos os
+      // `=== 'pro'` espalhados pelo código — a loja ficaria com a aba visível e
+      // o pedido mínimo silenciosamente ignorado. Ver utils/modeloVenda.js.
+      //
+      // O gate é por plano porque a aba de Catálogo B2B NÃO tem gate de plano
+      // próprio: ela renderiza só com `features.catalogo_b2b` truthy
+      // (ClientDashboardDesktop.jsx e LojaFeminina/index.jsx). Ligar isso fora
+      // do Business entregaria o módulo a quem não contratou.
+      //
+      // Fica ANTES do spread de `features` de propósito: é um padrão, não uma
+      // trava. O seletor "Modelo de venda" do CadastroCliente manda um
+      // catalogo_b2b explícito e continua vencendo — Business + Varejo escolhido
+      // à mão segue gravando false.
+      catalogo_b2b: temAcesso(plano, 'business') ? NIVEL_ATACADO_PADRAO : false,
       ...features,
     },
     logo_url:       logoUrl,

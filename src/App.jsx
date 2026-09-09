@@ -27,9 +27,11 @@ import Redes from './pages/admin/Redes'
 import SimuladorPlano from './pages/SimuladorPlano'
 import BalancoApp from './pages/balanco/BalancoApp'
 import { supabase } from './lib/supabase'
+import { renovarSessao } from './lib/authRefresh'
 import { isErroAuth } from './utils/authErro'
 import { isSlugReservado } from './utils/rotasReservadas'
-import CatalogoPublico from './pages/catalogo/CatalogoPublico'
+import { isLojaExcluida } from './utils/lojaStatus'
+import CatalogoPublicoV2 from './pages/catalogo/CatalogoPublicoV2'
 import ConsultorApp from './pages/consultor/ConsultorApp'
 
 function ProtectedLayout({ children }) {
@@ -56,7 +58,17 @@ function LojaClientApp({ segment, lojaId, segmento }) {
               <ClientDashboard lojaId={lojaId} segmento={segmento} />
             </ClientPrivateRoute>
           } />
-          <Route path="/catalogo" element={<CatalogoPublico lojaId={lojaId} />} />
+          {/* Catálogo público — CatalogoPublicoV2 desde 20/08/2026 (spec em
+              docs/CATALOGO_SPEC.md). O CatalogoPublico.jsx antigo continua no
+              repositório, sem rota, como caminho de volta: reverter é trocar
+              este import de novo.
+
+              A rota segue aberta a qualquer slug de loja, de propósito. Quem
+              resolve "loja não existe" é o App (TelaLojaIndisponivel, acima);
+              loja que existe mas ainda não publicou peça cai no
+              EstadoSemCatalogo dentro do componente — 12 das 13 lojas estão
+              nesse caso hoje. */}
+          <Route path="/catalogo" element={<CatalogoPublicoV2 lojaId={lojaId} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -192,9 +204,12 @@ export default function App() {
     let vivo = true
     if (!precisaResolver) return
 
+    // `status` entra no select para a checagem de loja excluída logo abaixo.
+    // O filtro NÃO é feito aqui no PostgREST de propósito — ver o comentário
+    // em isLojaExcluida, no ponto de uso.
     const consultar = () => supabase
       .from('lf_config')
-      .select('loja_id, segmento')
+      .select('loja_id, segmento, status')
       .or(`loja_id.eq.${segment},slug.eq.${segment}`)
       .maybeSingle()
 
@@ -210,7 +225,9 @@ export default function App() {
       if (isErroAuth(error)) {
         // Tenta salvar a sessão antes de descartá-la: se o refresh token ainda
         // presta, a lojista segue logada e só perdeu um round-trip.
-        const { error: refreshErr } = await supabase.auth.refreshSession()
+        // Pelo single-flight: se a renovação da volta-para-a-aba estiver em
+        // voo, esta espera aquela em vez de gastar um segundo refresh token.
+        const { error: refreshErr } = await renovarSessao(supabase)
         if (refreshErr) {
           // scope 'local': o token já está morto, o signOut remoto falharia —
           // e derrubaria as outras sessões da conta se não falhasse.
@@ -223,7 +240,17 @@ export default function App() {
       // Erro que sobreviveu ao retry: rede fora, PostgREST fora, ou linha
       // duplicada quebrando o .maybeSingle(). Não é "loja inexistente".
       if (error) { console.error('[App] falha ao resolver a loja:', error); setEstado('falha'); return }
-      if (!data) { setEstado('inexistente'); return }
+      // Loja excluída (soft delete) é tratada como inexistente: mesma tela,
+      // mesma mensagem genérica, nada que revele que ela já existiu.
+      //
+      // A checagem é aqui e não como .neq() na query por dois motivos:
+      // 1) `status <> 'excluida'` no Postgres é NULL para linha com status
+      //    nulo, e a linha sumiria — derrubando uma loja legítima;
+      // 2) lf_config não tem RLS e já é legível por anon, então filtrar no
+      //    servidor não seria barreira de segurança nenhuma: o gate real é o
+      //    que este código faz com o dado. Um só caminho, que também
+      //    normaliza maiúsculas.
+      if (!data || isLojaExcluida(data.status)) { setEstado('inexistente'); return }
 
       setLojaSegment(segment)
       setLojaId(data.loja_id)

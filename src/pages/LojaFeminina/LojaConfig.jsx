@@ -589,6 +589,11 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
           </Button>
         </div>
       </Card>
+
+      {/* O cadastro de vendedores e comissão saiu daqui para a gaveta
+          "Vendedores e comissão" em Metas & Resultados — fica ao lado dos
+          números que o percentual alimenta, em vez de escondido em
+          Configurações. */}
     </div>
   )
 }

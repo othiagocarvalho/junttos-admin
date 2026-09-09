@@ -1,0 +1,69 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Comissão por vendedor.
+--
+-- NÃO FOI EXECUTADO. Rodar manualmente no SQL Editor.
+--
+-- ─── O QUE MUDA ─────────────────────────────────────────────────────────────
+-- Até aqui a comissão usava UM percentual por loja (lf_config.comissao_percentual)
+-- aplicado igual a todo mundo:
+--
+--   src/pages/LojaFeminina/Relatorios.jsx
+--     const pct = Number(config?.comissao_percentual || 0)
+--     .map(v => ({ ...v, comissao: v.total * (pct / 100), pct }))
+--
+-- Esse campo nunca teve tela: o único lugar que o grava é
+-- useLojaData.saveComissaoPercentual, que não é chamado por ninguém. Resultado
+-- prático: está zerado na Tropicale e a comissão saía R$ 0 para todos.
+--
+-- Agora o percentual mora no vendedor.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+alter table public.lf_vendedores
+  add column if not exists comissao_percentual numeric not null default 0;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SEM CHECK CONSTRAINT, DE PROPÓSITO
+--
+-- A faixa 0–100 é validada no front (src/utils/comissao.js: percentualValido /
+-- normalizarPercentual, e o campo do CRUD em VendedoresConfig.jsx).
+--
+-- Um `check (comissao_percentual between 0 and 100)` parece mais seguro, mas o
+-- modo de falha é pior: qualquer escrita fora da faixa — script de importação,
+-- correção manual no SQL Editor, integração futura — passaria a estourar um
+-- erro de constraint no meio de um UPDATE que talvez mexesse em outras colunas,
+-- e o cadastro inteiro do vendedor deixaria de salvar. Sem a constraint, um
+-- valor estranho no banco vira no máximo um número esquisito num relatório,
+-- que alguém corrige na tela.
+--
+-- O cálculo também não confia no banco: calcularComissoes() limita o percentual
+-- a 0–100 na leitura, então valor fora da faixa não vira comissão absurda.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- lf_config.comissao_percentual FICA NO BANCO, SEM USO
+--
+-- Nenhuma migration de remoção. A coluna deixa de ser lida (o cálculo agora sai
+-- de lf_vendedores) mas continua lá, com o valor que a loja tiver. Motivos:
+--   • dropar coluna é irreversível e não devolve nada — não ocupa espaço
+--     relevante nem atrapalha consulta;
+--   • se alguém quiser um padrão por loja no futuro, o dado histórico ainda
+--     está lá;
+--   • useLojaData.saveComissaoPercentual continua existindo e funcionando; só
+--     não há tela que o chame, exatamente como antes desta mudança.
+--
+-- Para ver se alguma loja tinha valor configurado (a Tropicale não tinha):
+--
+--   select loja_id, comissao_percentual
+--     from public.lf_config
+--    where coalesce(comissao_percentual, 0) <> 0;
+--
+-- Se aparecer alguma, vale copiar o valor para os vendedores dela antes de
+-- anunciar a mudança — senão a comissão dessa loja cai para zero até alguém
+-- preencher o percentual de cada pessoa:
+--
+--   -- update public.lf_vendedores v
+--   --    set comissao_percentual = c.comissao_percentual
+--   --   from public.lf_config c
+--   --  where c.loja_id = v.loja_id
+--   --    and coalesce(c.comissao_percentual, 0) <> 0;
+-- ─────────────────────────────────────────────────────────────────────────────

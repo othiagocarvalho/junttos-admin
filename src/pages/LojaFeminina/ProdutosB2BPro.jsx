@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
+import { renovarSessao } from '../../lib/authRefresh'
 import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
+import VariacaoBadge from '../../components/studio/VariacaoBadge'
 
 const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
 
@@ -36,6 +39,101 @@ const inp = {
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 
+// ── Storage: buckets e montagem do caminho ───────────────────
+//
+// Os nomes dos buckets ficam em constante exportada, e não como literal solto
+// dentro da função de upload, para o teste conseguir afirmar sem rede que o
+// bucket usado é exatamente o que existe no projeto. Mesmo motivo do
+// LOGO_BUCKET em src/utils/uploadLogo.js.
+export const BUCKET_FOTOS  = 'produtos-fotos'
+export const BUCKET_VIDEOS = 'produtos-videos'
+
+// Extensão por MIME, usada quando o nome do arquivo não traz uma aproveitável.
+const EXT_POR_MIME = {
+  'image/jpeg': 'jpg',  'image/jpg': 'jpg',   'image/png': 'png',
+  'image/webp': 'webp', 'image/gif': 'gif',   'image/heic': 'heic',
+  'image/heif': 'heif', 'image/avif': 'avif',
+  'video/mp4': 'mp4',   'video/quicktime': 'mov', 'video/webm': 'webm',
+}
+
+/**
+ * Extensão do arquivo, com o MIME como fonte de reserva.
+ *
+ * `file.name.split('.').pop()` devolve o NOME INTEIRO quando não existe ponto
+ * (uma foto chamada "IMG_4567" viraria a "extensão" img_4567) e string vazia
+ * quando o nome termina em ponto — os dois casos entram no path e produzem um
+ * objeto de nome estranho no bucket. O MIME já foi validado antes (FotosSection
+ * só aceita image/*), então serve bem de fallback.
+ */
+export function extensaoDe(file) {
+  const partes = String(file?.name ?? '').split('.')
+  const doNome = partes.length > 1 ? partes.pop().toLowerCase() : ''
+  if (/^[a-z0-9]{2,5}$/.test(doNome)) return doNome
+  return EXT_POR_MIME[String(file?.type ?? '').toLowerCase()] || 'bin'
+}
+
+/**
+ * Caminho no bucket: {loja_id}/{prefixo}_{timestamp}.{ext}.
+ *
+ * A PRIMEIRA PASTA PRECISA SER O loja_id. As policies de storage.objects deste
+ * projeto autorizam por
+ *   (storage.foldername(name))[1] = auth.jwt() -> 'app_metadata' ->> 'loja_id'
+ * (mesmo desenho documentado em supabase/migration_fiscal.sql). Com lojaId
+ * vazio o caminho viraria "undefined/..." e o Postgres recusaria o INSERT com
+ * "new row violates row-level security policy" — mensagem que não diz nada
+ * sobre a causa real. Falhar aqui, antes da rede, deixa o motivo explícito.
+ */
+export function caminhoMidia(lojaId, prefix, file, agora = Date.now()) {
+  if (!lojaId) throw new Error('Loja não identificada. Recarregue a página e tente de novo.')
+  return `${lojaId}/${prefix}_${agora}.${extensaoDe(file)}`
+}
+
+/**
+ * Traduz o erro do Storage para algo acionável.
+ *
+ * ─── POR QUE A MENSAGEM ANTIGA ATRAPALHOU ───────────────────────────────────
+ * Ela afirmava "confira se o bucket tem policy de INSERT", como se a causa
+ * fosse certa. Mas "new row violates row-level security policy" é a MESMA
+ * resposta em dois cenários diferentes, e a versão anterior não tinha como
+ * distinguir:
+ *
+ *   • sem sessão válida — o supabase-js manda a anon key no lugar do token;
+ *   • policy faltando ou errada no bucket.
+ *
+ * Medido contra o projeto em 23/08/2026: um upload com a anon key devolve
+ * HTTP 400 com corpo
+ *   {"statusCode":"403","error":"Unauthorized",
+ *    "message":"new row violates row-level security policy"}
+ * — ou seja, o 400 do relato NÃO é um erro separado, é a própria recusa de
+ * RLS. O 401, esse sim, é outra coisa: é JWT inválido ou expirado.
+ *
+ * Agora a mensagem usa o STATUS para separar os casos, e quando não dá para
+ * ter certeza ela diz as duas possibilidades em vez de apontar uma. Mensagem
+ * que afirma a causa errada custou duas investigações neste projeto.
+ */
+export function erroDeUpload(error, bucket, lojaId) {
+  const msg = String(error?.message ?? error ?? '')
+  const status = Number(error?.status) || Number(error?.statusCode) || 0
+
+  // 401 = o servidor recusou o token. Não adianta falar de policy.
+  if (status === 401 || /jwt|invalid token|token expired/i.test(msg)) {
+    return 'sua sessão expirou ou não foi aceita pelo servidor. '
+      + 'Saia, entre de novo e repita o envio.'
+  }
+
+  if (/row-level security/i.test(msg)) {
+    return `permissão negada pelo Storage ao gravar em ${bucket}/${lojaId}/. `
+      + 'São duas causas possíveis, e o Storage responde igual nas duas: '
+      + 'sessão não aceita (saia e entre de novo) ou o bucket sem policy de '
+      + 'INSERT para "authenticated" nessa pasta '
+      + '(ver supabase/migration_storage_produtos_midia.sql).'
+  }
+
+  // Status no fim de tudo: sem ele, quem investiga não sabe se olhou 400, 401
+  // ou 404 — foi exatamente o que faltou no relato original.
+  return status ? `${msg} (HTTP ${status})` : msg
+}
+
 // ── Grade form (shared between Novo e Editar) ────────────────
 function GradeForm({ grade, setGrade, theme }) {
   function addTamanho() {
@@ -56,7 +154,7 @@ function GradeForm({ grade, setGrade, theme }) {
 
   return (
     <div>
-      <label style={lbl}>Grade de Tamanho</label>
+      <Label>Grade de Tamanho</Label>
       {grade.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           {grade.map((t, idx) => (
@@ -139,7 +237,7 @@ function SeletorTamanhos({ selected, onChange, theme }) {
   }
   return (
     <div>
-      <label style={lbl}>Tamanhos disponíveis</label>
+      <Label>Tamanhos disponíveis</Label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {TAMANHOS_SIMPLES.map(t => {
           const active = selected.includes(t)
@@ -230,7 +328,7 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
 }
 
 // ── Seção de upload de fotos (múltiplas por produto) ─────────
-function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, theme }) {
+function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, error, theme }) {
   const MAX = 10 * 1024 * 1024
   function pick(files) {
     const validos = Array.from(files).filter(f => f.size <= MAX && f.type.startsWith('image/'))
@@ -269,6 +367,7 @@ function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onR
         </div>
       </label>
       {uploading && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: theme.primary }}>Enviando fotos...</p>}
+      {error && <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--status-bad-tx)' }}>{error}</p>}
     </div>
   )
 }
@@ -312,9 +411,11 @@ export default function ProdutosB2BPro({
 
   // Fotos — novo produto
   const [newFotoFiles, setNewFotoFiles]   = useState([])
+  const [newFotoError, setNewFotoError]   = useState('')
   // Fotos — editar produto
   const [editFotos, setEditFotos]         = useState([])
   const [editFotoFiles, setEditFotoFiles] = useState([])
+  const [editFotoError, setEditFotoError] = useState('')
 
   const [uploadingFotos, setUploadingFotos] = useState(false)
 
@@ -363,26 +464,59 @@ export default function ProdutosB2BPro({
     setTimeout(() => setLinkCopiado(false), 2000)
   }
 
-  async function uploadVideo(file, prefix) {
-    const ext = file.name.split('.').pop().toLowerCase()
-    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
-    const { error } = await supabase.storage
-      .from('produtos-videos')
+  // Sem sessão viva o supabase-js NÃO falha: ele manda a anon key no lugar do
+  // token (SupabaseClient._getAccessToken → `session?.access_token ?? supabaseKey`).
+  // Como as tabelas lf_* estão sem RLS, uma sessão expirada passa despercebida
+  // no painel inteiro e só aparece no Storage, como 403 "new row violates
+  // row-level security policy" — texto idêntico ao de policy faltando. Conferir
+  // (e tentar renovar) antes de subir separa um caso do outro.
+  async function garantirSessao() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) return session
+    // Single-flight: subir foto logo depois de voltar para a aba não pode
+    // disparar um segundo refresh em cima do que já está em voo.
+    const { data, error } = await renovarSessao(supabase)
+    if (error || !data?.session) {
+      throw new Error('sua sessão expirou. Entre de novo para enviar arquivos.')
+    }
+    return data.session
+  }
+
+  async function uploadMidia(bucket, file, prefix) {
+    await garantirSessao()
+    const path = caminhoMidia(LOJA_ID, prefix, file)
+
+    let { error } = await supabase.storage
+      .from(bucket)
       .upload(path, file, { upsert: true, contentType: file.type })
-    if (error) throw new Error(error.message)
-    const { data: { publicUrl } } = supabase.storage.from('produtos-videos').getPublicUrl(path)
+
+    // 401 = o servidor recusou o token. Pode ser corrida: o token venceu
+    // ENTRE o garantirSessao e a chegada da requisição — foto grande sobe
+    // devagar, e a janela é real. Renova à força e tenta UMA vez.
+    //
+    // Uma vez só, de propósito: se o segundo 401 vier, o problema não é
+    // corrida, e insistir só empurraria o erro para mais longe de quem
+    // precisa lê-lo.
+    if (error && (Number(error.status) === 401 || Number(error.statusCode) === 401)) {
+      const { error: erroRenov } = await renovarSessao(supabase)
+      if (!erroRenov) {
+        ({ error } = await supabase.storage
+          .from(bucket)
+          .upload(path, file, { upsert: true, contentType: file.type }))
+      }
+    }
+
+    if (error) throw new Error(erroDeUpload(error, bucket, LOJA_ID))
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path)
     return publicUrl
   }
 
+  async function uploadVideo(file, prefix) {
+    return uploadMidia(BUCKET_VIDEOS, file, prefix)
+  }
+
   async function uploadFoto(file, prefix) {
-    const ext = file.name.split('.').pop().toLowerCase()
-    const path = `${LOJA_ID}/${prefix}_${Date.now()}.${ext}`
-    const { error } = await supabase.storage
-      .from('produtos-fotos')
-      .upload(path, file, { upsert: true, contentType: file.type })
-    if (error) throw new Error(error.message)
-    const { data: { publicUrl } } = supabase.storage.from('produtos-fotos').getPublicUrl(path)
-    return publicUrl
+    return uploadMidia(BUCKET_FOTOS, file, prefix)
   }
 
   function openEdit(produto) {
@@ -397,6 +531,7 @@ export default function ProdutosB2BPro({
     setEditVideoError('')
     setEditFotos(produto.fotos || [])
     setEditFotoFiles([])
+    setEditFotoError('')
     setEditModal({ produto })
   }
 
@@ -425,11 +560,16 @@ export default function ProdutosB2BPro({
     const fotoUrls = []
     if (newFotoFiles.length > 0) {
       setUploadingFotos(true)
+      setNewFotoError('')
       try {
         for (const { file } of newFotoFiles) {
           fotoUrls.push(await uploadFoto(file, `prod_${Date.now()}`))
         }
       } catch (e) {
+        // Antes este catch só dava return: o botão voltava de "Enviando
+        // fotos..." para "Salvar Produto" sem dizer nada, e o produto não era
+        // criado. Falha silenciosa é o pior desfecho possível aqui.
+        setNewFotoError('Erro no upload de foto: ' + e.message)
         setNewSaving(false)
         setUploadingFotos(false)
         return
@@ -481,6 +621,7 @@ export default function ProdutosB2BPro({
     let finalFotos = editFotos
     if (editFotoFiles.length > 0) {
       setUploadingFotos(true)
+      setEditFotoError('')
       try {
         const newUrls = []
         for (const { file } of editFotoFiles) {
@@ -488,7 +629,9 @@ export default function ProdutosB2BPro({
         }
         finalFotos = [...finalFotos, ...newUrls]
       } catch (e) {
-        setEditVideoError('Erro no upload de foto: ' + e.message)
+        // O erro de foto ia parar em setEditVideoError, e portanto aparecia
+        // embaixo da seção de VÍDEO — longe do campo que falhou.
+        setEditFotoError('Erro no upload de foto: ' + e.message)
         setEditSaving(false)
         setUploadingFotos(false)
         return
@@ -600,7 +743,7 @@ export default function ProdutosB2BPro({
         </div>
         <div
           role="button" tabIndex={0}
-          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewTamanhosSel([]); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewProdOpen(true) }}
+          onClick={() => { setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }); setNewTamanhosSel([]); setNewVideoFile(null); setNewVideoPreview(null); setNewVideoError(''); setNewFotoFiles([]); setNewFotoError(''); setNewProdOpen(true) }}
           onKeyDown={e => e.key === 'Enter' && (setNewProd({ nome: '', precoCusto: '', precoVenda: '', grade: EMPTY_GRADE() }), setNewTamanhosSel([]), setNewProdOpen(true))}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 16px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: theme.primary, color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
         >
@@ -656,21 +799,19 @@ export default function ProdutosB2BPro({
                     </span>
                   )}
                 </div>
-                {/* Mini-grade pills */}
+                {/* Mini-grade: bolinha da cor + texto neutro (o fundo colorido
+                    cheio virava mosaico com 5+ variações por produto). */}
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                   {variacoes.map((v, idx) => {
                     const label = getLabel(v)
                     const s = statusOf(v.quantidade)
                     return (
-                      <span key={idx} style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 7,
-                        background: s ? BADGE[s].bg : `${theme.primary}10`,
-                        color: s ? BADGE[s].color : theme.primary,
-                        border: `1px solid ${s ? BADGE[s].border : theme.primary + '28'}`,
-                        fontFamily: 'var(--font-ui)',
-                      }}>
-                        {label}: {v.quantidade}
-                      </span>
+                      <VariacaoBadge
+                        key={idx}
+                        nome={label}
+                        quantidade={v.quantidade}
+                        statusColor={s ? BADGE[s].color : null}
+                      />
                     )
                   })}
                   {variacoes.length === 0 && (
@@ -735,7 +876,7 @@ export default function ProdutosB2BPro({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={lbl}>Nome do Produto *</label>
+                <Label>Nome do Produto *</Label>
                 <input
                   value={newProd.nome}
                   onChange={e => setNewProd(p => ({ ...p, nome: e.target.value }))}
@@ -746,14 +887,14 @@ export default function ProdutosB2BPro({
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={lbl}>Preço de Custo</label>
+                  <Label>Preço de Custo</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoCusto} onChange={e => setNewProd(p => ({ ...p, precoCusto: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
                   </div>
                 </div>
                 <div>
-                  <label style={lbl}>Preço de Venda *</label>
+                  <Label>Preço de Venda *</Label>
                   <div style={{ position: 'relative' }}>
                     <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                     <input type="number" min="0" step="0.01" value={newProd.precoVenda} onChange={e => setNewProd(p => ({ ...p, precoVenda: e.target.value }))} placeholder="0,00" style={{ ...inp, paddingLeft: 36 }} />
@@ -779,7 +920,7 @@ export default function ProdutosB2BPro({
 
               {/* Upload de fotos */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <label style={lbl}>Fotos do produto (opcional)</label>
+                <Label>Fotos do produto (opcional)</Label>
                 <FotosSection
                   fotos={[]}
                   fotoFiles={newFotoFiles}
@@ -787,13 +928,14 @@ export default function ProdutosB2BPro({
                   onRemoveUrl={() => {}}
                   onRemoveFile={i => setNewFotoFiles(p => p.filter((_, j) => j !== i))}
                   uploading={uploadingFotos}
+                  error={newFotoError}
                   theme={theme}
                 />
               </div>
 
               {/* Upload de vídeo */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <label style={lbl}>Vídeo do produto (opcional)</label>
+                <Label>Vídeo do produto (opcional)</Label>
                 <VideoSection
                   previewUrl={newVideoPreview}
                   existingUrl={null}
@@ -861,7 +1003,7 @@ export default function ProdutosB2BPro({
 
             {/* Upload de fotos */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
-              <label style={lbl}>Fotos do produto</label>
+              <Label>Fotos do produto</Label>
               <FotosSection
                 fotos={editFotos}
                 fotoFiles={editFotoFiles}
@@ -869,13 +1011,14 @@ export default function ProdutosB2BPro({
                 onRemoveUrl={i => setEditFotos(p => p.filter((_, j) => j !== i))}
                 onRemoveFile={i => setEditFotoFiles(p => p.filter((_, j) => j !== i))}
                 uploading={uploadingFotos}
+                error={editFotoError}
                 theme={theme}
               />
             </div>
 
             {/* Upload de vídeo */}
             <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, marginTop: 16 }}>
-              <label style={lbl}>Vídeo do produto</label>
+              <Label>Vídeo do produto</Label>
               <VideoSection
                 previewUrl={editVideoPreview}
                 existingUrl={editVideoFile ? null : editVideoUrl}
@@ -945,7 +1088,7 @@ export default function ProdutosB2BPro({
                 {/* Campos globais aplicados a todas as peças do lote */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
                   <div>
-                    <label style={lbl}>Nome Base *</label>
+                    <Label>Nome Base *</Label>
                     <input
                       value={loteNomeBase}
                       onChange={e => setLoteNomeBase(e.target.value)}
@@ -955,7 +1098,7 @@ export default function ProdutosB2BPro({
                     />
                   </div>
                   <div>
-                    <label style={lbl}>Preço de Venda</label>
+                    <Label>Preço de Venda</Label>
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>
                       <input

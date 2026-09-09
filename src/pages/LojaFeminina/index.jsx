@@ -11,11 +11,11 @@ import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import UpgradeWall from '../../components/UpgradeWall'
 import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
-import CatalogoB2BAdmin from './CatalogoB2BAdmin'
+import CatalogoB2BAdmin, { ConfigB2B } from './CatalogoB2BAdmin'
 import CatalogoB2BAdminDesktop from './CatalogoB2BAdminDesktop'
 import NovaVenda from './NovaVenda'
 import Historico from './Historico'
-import Meta from './Meta'
+import MetasResultados from './MetasResultados'
 import Fechamento from './Fechamento'
 import Faturamento from './Faturamento'
 import Relatorios from './Relatorios'
@@ -342,7 +342,12 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, onFabClick, primary }) {
+function BottomTabBar({ tab, setTab, onFabClick, primary, config }) {
+  // Mesmo motivo do sidebar desktop: com atacado ligado, a aba "Catálogo"
+  // duplica o que o Catálogo B2B já mostra em "Pedidos".
+  const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
+  const tabs = b2bAtivo ? BOTTOM_TABS.filter(t => t.id !== 'catalogo') : BOTTOM_TABS
+
   const activeColor = primary || 'var(--primary)'
   return (
     <nav style={{
@@ -354,11 +359,11 @@ function BottomTabBar({ tab, setTab, onFabClick, primary }) {
     }}>
       <div style={{
         height: 68, width: '100%',
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+        display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
         alignItems: 'center',
         overflow: 'hidden',
       }}>
-        {BOTTOM_TABS.map(({ id, label, Icon, isFAB }) => {
+        {tabs.map(({ id, label, Icon, isFAB }) => {
           if (isFAB) {
             return (
               <button key={id} onClick={() => onFabClick ? onFabClick() : setTab(id)} aria-label="Nova venda" style={{
@@ -405,6 +410,10 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
         {[
           { id: 'produtos', label: 'Produtos' },
           { id: 'pedidos',  label: 'Pedidos'  },
+          // A aba de config existia só no admin reduzido (CatalogoB2BAdmin),
+          // que nenhuma loja alcança hoje — é por isso que a Chave Pix não
+          // tinha onde ser editada a não ser por SQL.
+          { id: 'config',   label: 'Configurações' },
         ].map(st => (
           <button key={st.id} onClick={() => setSubTab(st.id)} style={{
             flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
@@ -415,7 +424,15 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
           }}>{st.label}</button>
         ))}
       </div>
-      {subTab === 'produtos'
+      {subTab === 'config' ? (
+        <ConfigB2B
+          config={data.config}
+          saveConfig={data.saveConfig}
+          theme={theme}
+          nivel={nivel}
+          lojaId={lojaId}
+        />
+      ) : subTab === 'produtos'
         ? nivel === 'pro'
           ? <ProdutosB2BPro
               produtosData={data.produtosData}
@@ -441,6 +458,9 @@ function CatalogoB2BModulo({ data, theme, lojaId, nivel }) {
             pedidos={data.pedidos || []}
             updatePedido={data.updatePedido}
             cancelarPedido={data.cancelarPedido}
+            excluirPedido={data.excluirPedido}
+            config={data.config}
+            saveConfig={data.saveConfig}
             theme={theme}
             lojaId={lojaId}
           />
@@ -633,14 +653,16 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
-    meta: (legado || temAcesso(plano, 'starter'))
-      ? <Meta {...data} theme={theme} plano={plano} mobile />
-      : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="meta" theme={theme} onVoltar={() => setTab('inicio')} />,
+    // As 4 gavetas cuidam do próprio gate (UpgradeWall dentro de cada uma),
+    // então a tela abre para qualquer plano — quem não tem Starter vê o muro
+    // na primeira gaveta em vez de uma tela inteira bloqueada, e ainda enxerga
+    // que Curva ABC e Corrida existem.
+    meta: <MetasResultados data={data} theme={theme} plano={plano} legado={legado} mobile />,
     crm: (legado || temAcesso(plano, 'starter'))
       ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
-      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} theme={theme} lojaId={lojaId} />
+      ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="catalogo" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModulo data={data} theme={theme} lojaId={lojaId} nivel={catalogoB2BNivel} />
