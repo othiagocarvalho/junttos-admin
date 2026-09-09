@@ -1,6 +1,7 @@
 // Montagem do PDF do contrato. Separado do index.ts para poder ser exercitado
 // isoladamente (deno run) sem subir o servidor HTTP da function.
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1'
+import { valorImplantacaoPorLojaRede, DESCONTO_IMPLANTACAO_REDE, type LojaIncluida } from './contratoRede.ts'
 
 // Duplicado de src/utils/planos.js de propósito: a function roda em Deno e não
 // consegue importar de src/. Se um segmento novo entrar lá, entra aqui também.
@@ -33,6 +34,16 @@ export function taxaImplantacaoTexto(): string {
   return extenso
     ? `R$ ${fmtValor(TAXA_IMPLANTACAO)} (${extenso})`
     : `R$ ${fmtValor(TAXA_IMPLANTACAO)}`
+}
+
+// Implantação de contrato de rede: taxa por loja implantada, já com o
+// desconto padrão de rede aplicado (20% — ver DESCONTO_IMPLANTACAO_REDE e o
+// comentário completo em contratoRede.ts, que é onde a conta de verdade mora
+// e onde o vitest a testa; este arquivo só formata o texto da cláusula).
+export function taxaImplantacaoTextoRede(qtdLojas: number): string {
+  const porLoja = valorImplantacaoPorLojaRede(TAXA_IMPLANTACAO)
+  const total = porLoja * qtdLojas
+  return `R$ ${fmtValor(porLoja)} por loja implantada (${Math.round(DESCONTO_IMPLANTACAO_REDE * 100)}% de desconto sobre os R$ ${fmtValor(TAXA_IMPLANTACAO)} padrão) — ${qtdLojas} ${qtdLojas === 1 ? 'loja' : 'lojas'} × R$ ${fmtValor(porLoja)} = R$ ${fmtValor(total)} no total`
 }
 
 // ── Helpers de formatação ────────────────────────────────────────────────────
@@ -203,6 +214,117 @@ export function montaBlocos(c: Record<string, unknown>): Bloco[] {
   ]
 }
 
+// ── Contrato de rede: mesmas cláusulas 3–7, mas CONTRATANTE não tem um único
+// plano/valor — em vez disso lista cada loja incluída com seu plano e valor,
+// e fecha com o total mensal somado. montaPdf() decide sozinho qual dos dois
+// usar, olhando se c.lojas_incluidas veio preenchido — então a Edge Function
+// chama montaPdf(novo) do mesmo jeito nos dois fluxos, sem precisar saber
+// qual é qual.
+function montaBlocosRede(c: Record<string, unknown>): Bloco[] {
+  const lojas = (Array.isArray(c.lojas_incluidas) ? c.lojas_incluidas : []) as LojaIncluida[]
+  const qtd = lojas.length
+
+  const linhasLojas: Bloco[] = lojas.map(l => ({
+    texto: `• ${ou(l.nome)} — ${labelSegmento(l.segmento)} — ${PLANO_LABEL[String(l.plano ?? '')] ?? ou(l.plano)} — R$ ${fmtValor(l.valor_mensal)}/mês`,
+    espacoAntes: 4,
+  }))
+
+  return [
+    { texto: 'CONTRATO DE PRESTAÇÃO DE SERVIÇOS — SISTEMA JUNTTOS', bold: true, centro: true },
+
+    {
+      texto:
+        `CONTRATANTE: ${ou(c.razao_social)}, inscrito(a) sob ${ou(c.cpf_cnpj)}, com ` +
+        `sede/domicílio em ${montaEndereco(c)}, neste ato representado(a) por ` +
+        `${ou(c.responsavel_nome)}, e-mail ${ou(c.responsavel_email)}, telefone ` +
+        `${ou(c.responsavel_telefone)}.`,
+      espacoAntes: 22,
+    },
+    { texto: 'CONTRATADA: Junttos Sistemas.', espacoAntes: 12 },
+
+    { texto: 'LOJAS INCLUÍDAS NESTE CONTRATO', bold: true, espacoAntes: 20 },
+    ...linhasLojas,
+    {
+      texto: `TOTAL MENSAL: R$ ${fmtValor(c.valor_mensal)} (${qtd} ${qtd === 1 ? 'loja' : 'lojas'})`,
+      bold: true, espacoAntes: 10,
+    },
+
+    { texto: 'CLÁUSULA 1 — DO OBJETO', bold: true, espacoAntes: 20 },
+    {
+      texto:
+        `O presente contrato tem por objeto a prestação de serviço de licenciamento ` +
+        `de uso do sistema Junttos para as lojas listadas acima, cada uma no plano e ` +
+        `sistema (Moda/Mercado) indicado, incluindo as funcionalidades descritas em ` +
+        `cada plano contratado.`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 2 — DOS VALORES E FORMA DE PAGAMENTO', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `No ato da assinatura, será cobrada a taxa de implantação de ${taxaImplantacaoTextoRede(qtd)} ` +
+        `somada à primeira mensalidade integral do total do plano contratado, ` +
+        `no valor de R$ ${fmtValor(c.valor_mensal)}. A partir do segundo mês, será ` +
+        `cobrada apenas a soma das mensalidades recorrentes das lojas listadas, com vencimento ` +
+        `todo dia ${ou(c.vencimento_dia)} de cada mês.`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 3 — DA VIGÊNCIA', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `Este contrato vigora a partir de ${fmtData(c.contrato_inicio)}, por prazo ` +
+        `indeterminado, renovando-se automaticamente a cada período mensal.`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 4 — DO CANCELAMENTO', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `Qualquer das partes pode rescindir este contrato mediante aviso prévio de 30 ` +
+        `(trinta) dias, sem multa rescisória, respeitando-se as mensalidades já vencidas. ` +
+        `A rescisão pode ser total (todas as lojas listadas) ou parcial (uma ou mais lojas), ` +
+        `mediante acordo entre as partes.`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 5 — DO SUPORTE', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `A CONTRATADA prestará suporte técnico referente ao uso do sistema, para todas as ` +
+        `lojas listadas, conforme os canais e horários vigentes divulgados pela Junttos.`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 6 — DA PROTEÇÃO DE DADOS (LGPD)', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `As partes se comprometem a tratar os dados pessoais envolvidos na execução ` +
+        `deste contrato em conformidade com a Lei Geral de Proteção de Dados ` +
+        `(Lei nº 13.709/2018).`,
+      espacoAntes: 6,
+    },
+
+    { texto: 'CLÁUSULA 7 — DO FORO', bold: true, espacoAntes: 16 },
+    {
+      texto:
+        `Fica eleito o foro da comarca de ${ou(c.cidade)}/${ou(c.estado)} para dirimir ` +
+        `quaisquer dúvidas oriundas deste contrato.`,
+      espacoAntes: 6,
+    },
+
+    {
+      texto:
+        `Este documento constitui aceite eletrônico, com identificação do signatário, ` +
+        `registro de IP, data/hora e hash de integridade do documento, nos termos da ` +
+        `MP 2.200-2/2001. A assinatura abaixo cobre todas as lojas listadas neste contrato, ` +
+        `sem necessidade de assinatura separada por loja. Este contrato não substitui a ` +
+        `revisão de um advogado antes de seu uso oficial.`,
+      espacoAntes: 26,
+    },
+  ]
+}
+
 export async function montaPdf(c: Record<string, unknown>): Promise<Uint8Array> {
   const pdf = await PDFDocument.create()
   const regular = await pdf.embedFont(StandardFonts.Helvetica)
@@ -211,7 +333,10 @@ export async function montaPdf(c: Record<string, unknown>): Promise<Uint8Array> 
   let page = pdf.addPage(A4)
   let y = A4[1] - MARGIN
 
-  for (const bloco of montaBlocos(c)) {
+  const ehRede = Array.isArray(c.lojas_incluidas) && (c.lojas_incluidas as unknown[]).length > 0
+  const blocos = ehRede ? montaBlocosRede(c) : montaBlocos(c)
+
+  for (const bloco of blocos) {
     const font = bloco.bold ? negrito : regular
     const size = bloco.centro ? 13 : SIZE
     y -= bloco.espacoAntes ?? 0

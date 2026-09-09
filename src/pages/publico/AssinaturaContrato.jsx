@@ -270,6 +270,10 @@ export default function AssinaturaContrato() {
 
   // ── pendente ──
   const planoLabel = PLANOS[contrato?.plano]?.label || contrato?.plano || '—'
+  // Só contrato de rede vem com isto preenchido — cobre várias lojas, então
+  // não faz sentido mostrar "Sistema"/"Plano" como um valor só (ver
+  // publico-obter na Edge Function).
+  const lojasIncluidas = Array.isArray(contrato?.lojas_incluidas) ? contrato.lojas_incluidas : null
 
   return (
     <Moldura>
@@ -281,13 +285,15 @@ export default function AssinaturaContrato() {
           {contrato?.razao_social || 'Contratante'}
         </h1>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: lojasIncluidas ? 14 : 18 }}>
           {[
             ['CPF / CNPJ', contrato?.cpf_cnpj, true],
             ['Responsável', contrato?.responsavel_nome, false],
-            ['Sistema', nomeModulo(contrato?.segmento), false],
-            ['Plano', planoLabel, false],
-            ['Mensalidade', contrato?.valor_mensal != null ? `R$ ${fmtValorPlano(contrato.valor_mensal)}` : '—', false],
+            ...(lojasIncluidas ? [] : [
+              ['Sistema', nomeModulo(contrato?.segmento), false],
+              ['Plano', planoLabel, false],
+            ]),
+            ['Mensalidade' + (lojasIncluidas ? ' total' : ''), contrato?.valor_mensal != null ? `R$ ${fmtValorPlano(contrato.valor_mensal)}` : '—', false],
             ['Início', fmtData(contrato?.contrato_inicio), false],
             ['Vencimento', contrato?.vencimento_dia ? `Todo dia ${contrato.vencimento_dia}` : '—', false],
           ].map(([label, valor, mono]) => (
@@ -297,6 +303,26 @@ export default function AssinaturaContrato() {
             </div>
           ))}
         </div>
+
+        {lojasIncluidas && lojasIncluidas.length > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+              Lojas incluídas neste contrato ({lojasIncluidas.length})
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {lojasIncluidas.map(l => (
+                <div key={l.loja_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: T.mist, borderRadius: T.rInput, padding: '9px 12px' }}>
+                  <span style={{ fontSize: 12.5, color: T.ink, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {l.nome} <span style={{ color: T.muted, fontWeight: 500 }}>· {PLANOS[l.plano]?.label || l.plano || '—'}</span>
+                  </span>
+                  <span style={{ fontSize: 12.5, color: T.ink, fontFamily: T.mono, flexShrink: 0 }}>
+                    R$ {fmtValorPlano(l.valor_mensal)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {contrato?.pdf_url && (
           <a
