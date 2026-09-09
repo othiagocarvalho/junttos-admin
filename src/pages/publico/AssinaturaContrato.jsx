@@ -324,6 +324,52 @@ export default function AssinaturaContrato() {
           </div>
         )}
 
+        {/* Total a pagar hoje — implantação (já com o desconto de rede quando
+            for o caso, calculado pela Edge Function) + primeira mensalidade.
+            taxa_implantacao vem pronto de publico-obter (ver
+            contratoRede.ts/resumoImplantacao) — a tela não recalcula desconto
+            nenhum, só soma os dois números que já chegam prontos. */}
+        {contrato?.taxa_implantacao && (
+          <div style={{
+            background: T.tintPurple, border: `1px solid ${T.purple}22`,
+            borderRadius: T.rInput, padding: '14px 16px', marginBottom: 18,
+          }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: T.purpleText, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+              Total a pagar na assinatura
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, color: T.ink, marginBottom: 6 }}>
+              <span>
+                Taxa de implantação
+                {contrato.taxa_implantacao.qtd_lojas > 1 && (
+                  <span style={{ color: T.muted }}>
+                    {' '}— R$ {fmtValorPlano(contrato.taxa_implantacao.por_loja)} por loja × {contrato.taxa_implantacao.qtd_lojas}
+                  </span>
+                )}
+              </span>
+              <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>R$ {fmtValorPlano(contrato.taxa_implantacao.total)}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, color: T.ink }}>
+              <span>{lojasIncluidas ? 'Mensalidade total' : 'Primeira mensalidade'}</span>
+              <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+                {contrato.valor_mensal != null ? `R$ ${fmtValorPlano(contrato.valor_mensal)}` : '—'}
+              </span>
+            </div>
+
+            <div style={{ height: 1, background: `${T.purple}30`, margin: '10px 0' }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 15, color: T.purpleText, fontWeight: 800 }}>
+              <span>Total na assinatura</span>
+              <span>R$ {fmtValorPlano(contrato.taxa_implantacao.total + (Number(contrato.valor_mensal) || 0))}</span>
+            </div>
+
+            <p style={{ fontSize: 11, color: T.purpleText, marginTop: 8, lineHeight: 1.5 }}>
+              Cobrado uma única vez, no ato da assinatura. A partir do 2º mês, só a mensalidade recorrente será cobrada.
+            </p>
+          </div>
+        )}
+
         {contrato?.pdf_url && (
           <a
             href={contrato.pdf_url} target="_blank" rel="noopener noreferrer"

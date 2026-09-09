@@ -1,9 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { montaPdf, sha256Hex } from './contrato-pdf.ts'
+import { montaPdf, sha256Hex, TAXA_IMPLANTACAO } from './contrato-pdf.ts'
 import { avaliarLojaParaContrato } from './lojaStatus.ts'
 import {
   somaValorMensal, segmentoComum, validarSelecaoLojas, filtroCancelamentoRede,
+  resumoImplantacao,
   type LojaIncluida,
 } from './contratoRede.ts'
 
@@ -220,6 +221,12 @@ serve(async (req) => {
       const { data: signed } = await admin.storage
         .from(BUCKET).createSignedUrl(c.pdf_path, 600)
 
+      // Taxa de implantação a cobrar no ato — mesma conta da Cláusula 2 do
+      // PDF (contrato-pdf.ts / contratoRede.ts), reaproveitada aqui em vez de
+      // duplicada, para a tela de resumo poder mostrar "quanto pagar hoje"
+      // sem escrever seu próprio cálculo de desconto.
+      const implantacao = resumoImplantacao(TAXA_IMPLANTACAO, c.lojas_incluidas)
+
       return json({
         estado: 'pendente',
         contrato: {
@@ -236,6 +243,9 @@ serve(async (req) => {
           // loja que já vai no PDF público, então não expõe nada a mais do
           // que o pdf_url já expõe.
           lojas_incluidas:  c.lojas_incluidas ?? null,
+          // Objeto pronto para a tela renderizar sem fazer conta — total já
+          // vem com o desconto de rede aplicado quando for o caso.
+          taxa_implantacao: implantacao,
         },
       })
     }

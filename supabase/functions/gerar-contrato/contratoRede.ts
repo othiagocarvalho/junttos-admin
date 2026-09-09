@@ -104,3 +104,24 @@ export function valorImplantacaoPorLojaRede(taxaImplantacaoBase: number): number
 export function totalImplantacaoRede(taxaImplantacaoBase: number, qtdLojas: number): number {
   return valorImplantacaoPorLojaRede(taxaImplantacaoBase) * qtdLojas
 }
+
+/**
+ * Resumo pronto da taxa de implantação a cobrar no ato da assinatura — usado
+ * pela rota pública (publico-obter) para a tela de resumo mostrar "quanto
+ * pagar hoje" sem duplicar a regra de desconto.
+ *
+ * Contrato de rede (lojasIncluidas preenchido) usa o desconto padrão de rede.
+ * Contrato individual (lojasIncluidas vazio/ausente) não tem desconto de
+ * implantação — sempre a taxa cheia, para 1 loja só.
+ */
+export function resumoImplantacao(
+  taxaImplantacaoBase: number,
+  lojasIncluidas: unknown,
+): { por_loja: number; qtd_lojas: number; total: number } {
+  const ehRede = Array.isArray(lojasIncluidas) && lojasIncluidas.length > 0
+  const qtd_lojas = ehRede ? lojasIncluidas.length : 1
+  const total = ehRede
+    ? totalImplantacaoRede(taxaImplantacaoBase, qtd_lojas)
+    : taxaImplantacaoBase
+  return { por_loja: total / qtd_lojas, qtd_lojas, total }
+}
