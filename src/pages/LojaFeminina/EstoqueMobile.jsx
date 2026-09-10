@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil, History } from 'lucide-react'
+import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil, History, Image } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { uploadFotoProduto } from '../../utils/uploadMidiaProduto'
 import { HeroCard } from '../../components/studio/Card'
 import StatusPill from '../../components/studio/StatusPill'
 import Button from '../../components/studio/Button'
@@ -93,6 +94,71 @@ export function buildProdPayload(form) {
 import EtiquetasPrint from '../../components/etiquetas/EtiquetasPrint'
 import { etiquetasDoProduto, etiquetasDeProdutos } from '../../utils/codigoBarras'
 
+// Limite por foto: o mesmo dos 10MB da seção de fotos do Catálogo B2B.
+const FOTO_MAX = 10 * 1024 * 1024
+
+// Campo de foto(s) do produto no cadastro rápido do Estoque.
+//
+// O upload é o mesmo mecanismo do Catálogo B2B (util uploadMidiaProduto). A UI
+// aqui é enxuta de propósito — sem reordenar nem marcar capa — porque este
+// cadastro é para ser rápido. A 1ª foto do array é a capa (mesma convenção do
+// catálogo), e produtoVisivelNoCatalogo() só exige ≥1 foto para o produto
+// passar a aparecer na vitrine pública; hoje, produto criado por aqui nasce
+// sem foto e portanto invisível no catálogo até alguém abrir outra tela.
+function CampoFotos({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, error, theme }) {
+  function pick(fileList) {
+    const validos = Array.from(fileList).filter(f => f.size <= FOTO_MAX && f.type.startsWith('image/'))
+    if (!validos.length) return
+    onAddFiles(validos.map(f => ({ file: f, previewUrl: URL.createObjectURL(f) })))
+  }
+  const total = fotos.length + fotoFiles.length
+  const mini = borda => ({ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: borda, display: 'block' })
+  const xBtn = {
+    position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
+    background: '#dc2626', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff',
+    fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {total > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {fotos.map((url, i) => (
+            <div key={`u${i}`} style={{ position: 'relative' }}>
+              <img src={url} alt="" style={mini('1px solid var(--line)')} />
+              <button type="button" onClick={() => onRemoveUrl(i)} aria-label="Remover foto" style={xBtn}>×</button>
+            </div>
+          ))}
+          {fotoFiles.map(({ previewUrl }, i) => (
+            <div key={`f${i}`} style={{ position: 'relative' }}>
+              <img src={previewUrl} alt="" style={mini(`1.5px solid ${theme.primary}`)} />
+              <button type="button" onClick={() => onRemoveFile(i)} aria-label="Remover foto" style={xBtn}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <label style={{ display: 'block', cursor: 'pointer' }}>
+        <input
+          type="file" accept="image/*" multiple style={{ display: 'none' }}
+          onChange={e => { pick(e.target.files); e.target.value = '' }}
+        />
+        <div style={{ border: '1.5px dashed var(--line)', borderRadius: 12, padding: '14px 16px', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <Image size={18} color="var(--muted)" />
+          <div>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 2 }}>
+              {total > 0 ? 'Adicionar mais fotos' : 'Selecionar fotos'}
+            </p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
+              JPG, PNG, WebP · Máx. 10MB cada · a 1ª foto vira a capa no catálogo
+            </p>
+          </div>
+        </div>
+      </label>
+      {uploading && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: theme.primary }}>Enviando fotos...</p>}
+      {error && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#dc2626' }}>{error}</p>}
+    </div>
+  )
+}
+
 export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
   // Balanço que está travando as vendas desta loja. Fica aqui porque o Estoque
   // é a única tela que a lojista alcança — o /balanco é do admin, então sem
@@ -125,6 +191,15 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [movErro, setMovErro]       = useState(null)
   const [movFiltro, setMovFiltro]   = useState('')
   const [movVenda, setMovVenda]     = useState(null) // { id, carregando, venda }
+
+  // Fotos — modal "Novo Produto": só arquivos pendentes, sobem no salvar.
+  const [newFotoFiles, setNewFotoFiles] = useState([]) // [{ file, previewUrl }]
+  const [newFotoError, setNewFotoError] = useState('')
+  // Fotos — modal "Editar Produto": URLs já salvas + arquivos novos pendentes.
+  const [prodFotos, setProdFotos]         = useState([])
+  const [prodFotoFiles, setProdFotoFiles] = useState([])
+  const [prodFotoError, setProdFotoError] = useState('')
+  const [uploadingFotos, setUploadingFotos] = useState(false)
 
   useEffect(() => {
     function handleKey(e) {
@@ -237,8 +312,18 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     setEtiquetas(etiquetasDeProdutos(escolhidos, LOJA_ID))
   }
 
+  function abrirNovoProduto() {
+    setNewProd(EMPTY_NEW)
+    setNewFotoFiles([])
+    setNewFotoError('')
+    setNewProdOpen(true)
+  }
+
   function openEditProd(produto) {
     setProdForm(initProdForm(produto))
+    setProdFotos(produto.fotos || [])
+    setProdFotoFiles([])
+    setProdFotoError('')
     setEditProdModal({ produto })
   }
 
@@ -288,8 +373,31 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   async function handleSaveProd() {
     if (!prodForm.nome.trim() || prodSaving) return
     setProdSaving(true)
-    await updateProduto(editProdModal.produto.id, buildProdPayload(prodForm))
+
+    // prodFotos já reflete remoções feitas na tela; as novas entram no fim,
+    // como no Catálogo B2B. Erro de upload aborta sem gravar nada.
+    let fotos = prodFotos
+    if (prodFotoFiles.length > 0) {
+      setUploadingFotos(true)
+      setProdFotoError('')
+      try {
+        const novas = []
+        for (const { file } of prodFotoFiles) {
+          novas.push(await uploadFotoProduto(supabase, LOJA_ID, file, editProdModal.produto.id))
+        }
+        fotos = [...prodFotos, ...novas]
+      } catch (e) {
+        setProdFotoError('Erro no upload de foto: ' + e.message)
+        setUploadingFotos(false)
+        setProdSaving(false)
+        return
+      }
+      setUploadingFotos(false)
+    }
+
+    await updateProduto(editProdModal.produto.id, { ...buildProdPayload(prodForm), fotos })
     setProdSaving(false)
+    setProdFotoFiles([])
     setEditProdModal(null)
   }
 
@@ -320,14 +428,40 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       : newProd.variacoes
           .filter(v => v.nome.trim())
           .map(v => ({ cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }))
+
+    // Fotos primeiro: sobem na ordem escolhida e a 1ª vira a capa do catálogo.
+    // Falha aqui aborta o cadastro com mensagem — nunca cria o produto calado.
+    const fotos = []
+    if (newFotoFiles.length > 0) {
+      setUploadingFotos(true)
+      setNewFotoError('')
+      try {
+        for (const { file } of newFotoFiles) {
+          fotos.push(await uploadFotoProduto(supabase, LOJA_ID, file, `prod_${Date.now()}`))
+        }
+      } catch (e) {
+        setNewFotoError('Erro no upload de foto: ' + e.message)
+        setUploadingFotos(false)
+        setNewProdSaving(false)
+        return
+      }
+      setUploadingFotos(false)
+    }
+
     const err = await addProduto(newProd.nome.trim(), {
       precoCusto: parseFloat((newProd.precoCusto || '').replace(',', '.')) || 0,
       precoVenda: parseFloat((newProd.precoVenda || '').replace(',', '.')) || 0,
       variacoes,
       referencia: null,
+      fotos,
     })
     setNewProdSaving(false)
-    if (!err) { setNewProdOpen(false); setNewProd(EMPTY_NEW) }
+    if (!err) {
+      setNewProdOpen(false)
+      setNewProd(EMPTY_NEW)
+      setNewFotoFiles([])
+      setNewFotoError('')
+    }
   }
 
   useEffect(() => {
@@ -478,7 +612,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
         </div>
         <Button
           variant="primary" icon={Plus} style={{ height: 46, flexShrink: 0, background: theme.primary }}
-          onClick={() => { setNewProd(EMPTY_NEW); setNewProdOpen(true) }}
+          onClick={abrirNovoProduto}
         >
           Novo
         </Button>
@@ -492,7 +626,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             title="Nenhum produto"
             subtitle="Cadastre seu primeiro produto para começar a vender."
             actionLabel="Novo produto"
-            onAction={() => { setNewProd(EMPTY_NEW); setNewProdOpen(true) }}
+            onAction={abrirNovoProduto}
           />
         </div>
       ) : filtered.length === 0 ? (
@@ -845,6 +979,21 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   </div>
                 )}
               </div>
+
+              {/* Fotos (opcional) */}
+              <div>
+                <label style={{ ...labelStyle, color: theme.primary, marginBottom: 10 }}>Fotos do produto (opcional)</label>
+                <CampoFotos
+                  fotos={[]}
+                  fotoFiles={newFotoFiles}
+                  onAddFiles={novos => setNewFotoFiles(p => [...p, ...novos])}
+                  onRemoveUrl={() => {}}
+                  onRemoveFile={i => setNewFotoFiles(p => p.filter((_, j) => j !== i))}
+                  uploading={uploadingFotos}
+                  error={newFotoError}
+                  theme={theme}
+                />
+              </div>
             </div>
 
             {/* Botões */}
@@ -872,7 +1021,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   color: (newProd.nome.trim() && !newProdSaving && (newProd.variacoes.some(v => v.nome.trim()) || (parseInt(newProd.quantidade_total) || 0) >= 1)) ? '#fff' : 'var(--muted)', fontSize: 14,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                {newProdSaving ? 'Salvando...' : 'Salvar Produto'}
+                {newProdSaving ? (uploadingFotos ? 'Enviando fotos...' : 'Salvando...') : 'Salvar Produto'}
               </div>
             </div>
           </div>
@@ -1049,6 +1198,21 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   </div>
                 </div>
               </div>
+
+              {/* Fotos */}
+              <div>
+                <label style={{ ...labelStyle, color: theme.primary, marginBottom: 10 }}>Fotos do produto</label>
+                <CampoFotos
+                  fotos={prodFotos}
+                  fotoFiles={prodFotoFiles}
+                  onAddFiles={novos => setProdFotoFiles(p => [...p, ...novos])}
+                  onRemoveUrl={i => setProdFotos(p => p.filter((_, j) => j !== i))}
+                  onRemoveFile={i => setProdFotoFiles(p => p.filter((_, j) => j !== i))}
+                  uploading={uploadingFotos}
+                  error={prodFotoError}
+                  theme={theme}
+                />
+              </div>
             </div>
 
             {/* Botões */}
@@ -1070,7 +1234,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                   color: prodForm.nome.trim() && !prodSaving ? '#fff' : 'var(--muted)', fontSize: 14,
                 }}
               >
-                {prodSaving ? 'Salvando...' : 'Salvar alterações'}
+                {prodSaving ? (uploadingFotos ? 'Enviando fotos...' : 'Salvando...') : 'Salvar alterações'}
               </button>
             </div>
           </div>
