@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
-import { renovarSessao } from '../../lib/authRefresh'
-import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link } from 'lucide-react'
+import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy, Check, Link, ExternalLink } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
+import { BUCKET_FOTOS, BUCKET_VIDEOS, uploadMidiaProduto } from '../../utils/uploadMidiaProduto'
 import VariacaoBadge from '../../components/studio/VariacaoBadge'
 
 const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
@@ -39,100 +39,14 @@ const inp = {
   color: 'var(--ink)', background: 'var(--bg)', outline: 'none', boxSizing: 'border-box',
 }
 
-// ── Storage: buckets e montagem do caminho ───────────────────
+// ── Storage de mídia de produto ─────────────────────────────
 //
-// Os nomes dos buckets ficam em constante exportada, e não como literal solto
-// dentro da função de upload, para o teste conseguir afirmar sem rede que o
-// bucket usado é exatamente o que existe no projeto. Mesmo motivo do
-// LOGO_BUCKET em src/utils/uploadLogo.js.
-export const BUCKET_FOTOS  = 'produtos-fotos'
-export const BUCKET_VIDEOS = 'produtos-videos'
-
-// Extensão por MIME, usada quando o nome do arquivo não traz uma aproveitável.
-const EXT_POR_MIME = {
-  'image/jpeg': 'jpg',  'image/jpg': 'jpg',   'image/png': 'png',
-  'image/webp': 'webp', 'image/gif': 'gif',   'image/heic': 'heic',
-  'image/heif': 'heif', 'image/avif': 'avif',
-  'video/mp4': 'mp4',   'video/quicktime': 'mov', 'video/webm': 'webm',
-}
-
-/**
- * Extensão do arquivo, com o MIME como fonte de reserva.
- *
- * `file.name.split('.').pop()` devolve o NOME INTEIRO quando não existe ponto
- * (uma foto chamada "IMG_4567" viraria a "extensão" img_4567) e string vazia
- * quando o nome termina em ponto — os dois casos entram no path e produzem um
- * objeto de nome estranho no bucket. O MIME já foi validado antes (FotosSection
- * só aceita image/*), então serve bem de fallback.
- */
-export function extensaoDe(file) {
-  const partes = String(file?.name ?? '').split('.')
-  const doNome = partes.length > 1 ? partes.pop().toLowerCase() : ''
-  if (/^[a-z0-9]{2,5}$/.test(doNome)) return doNome
-  return EXT_POR_MIME[String(file?.type ?? '').toLowerCase()] || 'bin'
-}
-
-/**
- * Caminho no bucket: {loja_id}/{prefixo}_{timestamp}.{ext}.
- *
- * A PRIMEIRA PASTA PRECISA SER O loja_id. As policies de storage.objects deste
- * projeto autorizam por
- *   (storage.foldername(name))[1] = auth.jwt() -> 'app_metadata' ->> 'loja_id'
- * (mesmo desenho documentado em supabase/migration_fiscal.sql). Com lojaId
- * vazio o caminho viraria "undefined/..." e o Postgres recusaria o INSERT com
- * "new row violates row-level security policy" — mensagem que não diz nada
- * sobre a causa real. Falhar aqui, antes da rede, deixa o motivo explícito.
- */
-export function caminhoMidia(lojaId, prefix, file, agora = Date.now()) {
-  if (!lojaId) throw new Error('Loja não identificada. Recarregue a página e tente de novo.')
-  return `${lojaId}/${prefix}_${agora}.${extensaoDe(file)}`
-}
-
-/**
- * Traduz o erro do Storage para algo acionável.
- *
- * ─── POR QUE A MENSAGEM ANTIGA ATRAPALHOU ───────────────────────────────────
- * Ela afirmava "confira se o bucket tem policy de INSERT", como se a causa
- * fosse certa. Mas "new row violates row-level security policy" é a MESMA
- * resposta em dois cenários diferentes, e a versão anterior não tinha como
- * distinguir:
- *
- *   • sem sessão válida — o supabase-js manda a anon key no lugar do token;
- *   • policy faltando ou errada no bucket.
- *
- * Medido contra o projeto em 23/08/2026: um upload com a anon key devolve
- * HTTP 400 com corpo
- *   {"statusCode":"403","error":"Unauthorized",
- *    "message":"new row violates row-level security policy"}
- * — ou seja, o 400 do relato NÃO é um erro separado, é a própria recusa de
- * RLS. O 401, esse sim, é outra coisa: é JWT inválido ou expirado.
- *
- * Agora a mensagem usa o STATUS para separar os casos, e quando não dá para
- * ter certeza ela diz as duas possibilidades em vez de apontar uma. Mensagem
- * que afirma a causa errada custou duas investigações neste projeto.
- */
-export function erroDeUpload(error, bucket, lojaId) {
-  const msg = String(error?.message ?? error ?? '')
-  const status = Number(error?.status) || Number(error?.statusCode) || 0
-
-  // 401 = o servidor recusou o token. Não adianta falar de policy.
-  if (status === 401 || /jwt|invalid token|token expired/i.test(msg)) {
-    return 'sua sessão expirou ou não foi aceita pelo servidor. '
-      + 'Saia, entre de novo e repita o envio.'
-  }
-
-  if (/row-level security/i.test(msg)) {
-    return `permissão negada pelo Storage ao gravar em ${bucket}/${lojaId}/. `
-      + 'São duas causas possíveis, e o Storage responde igual nas duas: '
-      + 'sessão não aceita (saia e entre de novo) ou o bucket sem policy de '
-      + 'INSERT para "authenticated" nessa pasta '
-      + '(ver supabase/migration_storage_produtos_midia.sql).'
-  }
-
-  // Status no fim de tudo: sem ele, quem investiga não sabe se olhou 400, 401
-  // ou 404 — foi exatamente o que faltou no relato original.
-  return status ? `${msg} (HTTP ${status})` : msg
-}
+// O mecanismo (buckets, formato do path, tradução de erro de RLS, garantia de
+// sessão e retry de 401) saiu para src/utils/uploadMidiaProduto.js quando o
+// cadastro rápido do Estoque (EstoqueMobile.jsx) passou a precisar do mesmo
+// upload. Reexportado aqui porque ProdutosB2BPro.storage.test.js importa estes
+// nomes a partir deste arquivo.
+export { BUCKET_FOTOS, BUCKET_VIDEOS, caminhoMidia, extensaoDe, erroDeUpload } from '../../utils/uploadMidiaProduto'
 
 // ── Grade form (shared between Novo e Editar) ────────────────
 function GradeForm({ grade, setGrade, theme }) {
@@ -327,8 +241,94 @@ function VideoSection({ previewUrl, existingUrl, onSelect, onRemovePreview, onRe
   )
 }
 
+/**
+ * Move um item de posição dentro da lista, devolvendo uma lista NOVA.
+ *
+ * É o coração da reordenação de fotos: a ordem do array `fotos` em
+ * lf_produtos é literalmente a ordem que o catálogo público exibe —
+ * `CardProduto` usa `produto.fotos[0]` como capa e `ModalProduto` percorre
+ * `produto.fotos.map(...)` na ordem crua (CatalogoPublicoV2.jsx). Reordenar o
+ * array aqui é, portanto, tudo o que o catálogo precisa; nada muda lá.
+ *
+ * Índice fora da faixa devolve a MESMA referência, de propósito: a seta da
+ * ponta vira no-op e o setState do React não dispara render à toa.
+ */
+export function moverItem(lista, de, para) {
+  const arr = Array.isArray(lista) ? lista : []
+  if (de === para) return arr
+  if (de < 0 || de >= arr.length) return arr
+  if (para < 0 || para >= arr.length) return arr
+  const copia = [...arr]
+  const [item] = copia.splice(de, 1)
+  copia.splice(para, 0, item)
+  return copia
+}
+
+// ── Miniatura com remover + setas de reordenar ───────────────
+//
+// As setas só aparecem quando quem usa a seção passa `onMover`. Sem o handler
+// a miniatura é exatamente a de antes — é o que mantém intocado qualquer uso
+// que não queira reordenar.
+//
+// Setas em vez de arrastar: o módulo de Catálogo B2B roda dentro do dashboard
+// MOBILE (LojaFeminina/index.jsx), e o HTML5 drag-and-drop não funciona em
+// toque sem uma biblioteca a mais. Setas funcionam igual no dedo e no mouse,
+// não trazem dependência nova e não têm como quebrar o upload.
+function Miniatura({ src, borda, ehCapa, aoRemover, onMover, indice, total, theme }) {
+  const podeMover = typeof onMover === 'function' && total > 1
+  const btnSeta = habilitado => ({
+    flex: 1, height: 22, borderRadius: 6, padding: 0,
+    border: '1px solid var(--line)',
+    background: habilitado ? 'var(--surface)' : 'var(--bg)',
+    color: habilitado ? 'var(--ink)' : 'var(--line)',
+    cursor: habilitado ? 'pointer' : 'not-allowed',
+    fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 700, lineHeight: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: 72 }}>
+      <div style={{ position: 'relative' }}>
+        <img src={src} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: borda, display: 'block' }} />
+        <button onClick={aoRemover} aria-label="Remover foto" style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+        {/* A capa é a foto que o cliente vê no card da vitrine — vale dizer
+            qual é, senão "primeira do array" é informação invisível. */}
+        {ehCapa && (
+          <span style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0,
+            background: theme.primary, color: '#fff',
+            fontFamily: 'var(--font-ui)', fontSize: 9, fontWeight: 700,
+            textAlign: 'center', padding: '2px 0',
+            borderRadius: '0 0 8px 8px', letterSpacing: '0.04em',
+          }}>CAPA</span>
+        )}
+      </div>
+      {podeMover && (
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => onMover(indice, indice - 1)}
+            disabled={indice === 0}
+            aria-label={`Mover foto ${indice + 1} para trás`}
+            title="Mover para trás"
+            style={btnSeta(indice > 0)}
+          >←</button>
+          <button
+            type="button"
+            onClick={() => onMover(indice, indice + 1)}
+            disabled={indice === total - 1}
+            aria-label={`Mover foto ${indice + 1} para a frente`}
+            title="Mover para a frente"
+            style={btnSeta(indice < total - 1)}
+          >→</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Seção de upload de fotos (múltiplas por produto) ─────────
-function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, uploading, error, theme }) {
+function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRemoveFile, onMoverUrl, onMoverFile, uploading, error, theme }) {
   const MAX = 10 * 1024 * 1024
   function pick(files) {
     const validos = Array.from(files).filter(f => f.size <= MAX && f.type.startsWith('image/'))
@@ -336,23 +336,49 @@ function FotosSection({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onR
     onAddFiles(validos.map(f => ({ file: f, previewUrl: URL.createObjectURL(f) })))
   }
   const total = fotos.length + fotoFiles.length
+  // A capa é a primeira foto JÁ SALVA; só quando não há nenhuma é que a
+  // primeira foto nova assume o posto. Isso espelha o save, que anexa as novas
+  // no fim do array (`[...finalFotos, ...newUrls]`).
+  const capaEhArquivoNovo = fotos.length === 0
+  const podeReordenar = typeof onMoverUrl === 'function' || typeof onMoverFile === 'function'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {total > 0 && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {fotos.map((url, i) => (
-            <div key={`u${i}`} style={{ position: 'relative' }}>
-              <img src={url} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)', display: 'block' }} />
-              <button onClick={() => onRemoveUrl(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
-            </div>
+            <Miniatura
+              key={`u${i}`}
+              src={url}
+              borda="1px solid var(--line)"
+              ehCapa={i === 0}
+              aoRemover={() => onRemoveUrl(i)}
+              onMover={onMoverUrl}
+              indice={i}
+              total={fotos.length}
+              theme={theme}
+            />
           ))}
           {fotoFiles.map(({ previewUrl }, i) => (
-            <div key={`f${i}`} style={{ position: 'relative' }}>
-              <img src={previewUrl} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: `1.5px solid ${theme.primary}`, display: 'block' }} />
-              <button onClick={() => onRemoveFile(i)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--status-bad-tx)', border: '2px solid var(--surface)', cursor: 'pointer', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
-            </div>
+            <Miniatura
+              key={`f${i}`}
+              src={previewUrl}
+              borda={`1.5px solid ${theme.primary}`}
+              ehCapa={capaEhArquivoNovo && i === 0}
+              aoRemover={() => onRemoveFile(i)}
+              onMover={onMoverFile}
+              indice={i}
+              total={fotoFiles.length}
+              theme={theme}
+            />
           ))}
         </div>
+      )}
+      {podeReordenar && total > 1 && (
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, margin: 0 }}>
+          Use ← e → para mudar a ordem. A foto marcada como <strong style={{ color: 'var(--ink)' }}>CAPA</strong> é a que aparece no catálogo; as demais entram na galeria nessa mesma ordem.
+          {fotos.length > 0 && fotoFiles.length > 0 && ' Fotos novas entram no fim — salve e reabra para movê-las junto com as antigas.'}
+        </p>
       )}
       <label style={{ display: 'block', cursor: 'pointer' }}>
         <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => pick(e.target.files)} />
@@ -458,57 +484,36 @@ export default function ProdutosB2BPro({
     setTimeout(() => setToast(''), 2500)
   }
 
+  const linkCatalogo = `${window.location.origin}/${LOJA_ID}/catalogo`
+
   function copiarLinkCatalogo() {
-    navigator.clipboard.writeText(`${window.location.origin}/${LOJA_ID}/catalogo`)
+    navigator.clipboard.writeText(linkCatalogo)
     setLinkCopiado(true)
     setTimeout(() => setLinkCopiado(false), 2000)
   }
 
-  // Sem sessão viva o supabase-js NÃO falha: ele manda a anon key no lugar do
-  // token (SupabaseClient._getAccessToken → `session?.access_token ?? supabaseKey`).
-  // Como as tabelas lf_* estão sem RLS, uma sessão expirada passa despercebida
-  // no painel inteiro e só aparece no Storage, como 403 "new row violates
-  // row-level security policy" — texto idêntico ao de policy faltando. Conferir
-  // (e tentar renovar) antes de subir separa um caso do outro.
-  async function garantirSessao() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) return session
-    // Single-flight: subir foto logo depois de voltar para a aba não pode
-    // disparar um segundo refresh em cima do que já está em voo.
-    const { data, error } = await renovarSessao(supabase)
-    if (error || !data?.session) {
-      throw new Error('sua sessão expirou. Entre de novo para enviar arquivos.')
-    }
-    return data.session
+  /**
+   * Abre o catálogo público real numa aba nova.
+   *
+   * É a MESMA URL que a cliente recebe — nenhum parâmetro de preview é
+   * acrescentado, e o CatalogoPublicoV2 não sabe que veio do painel. Isso é
+   * deliberado: qualquer marcação de "modo visualização" moraria numa URL que
+   * a lojista pode copiar da barra e mandar para a cliente, e aí o aviso
+   * vazaria para o catálogo de verdade. O recado de que é visualização fica
+   * aqui no painel, onde não tem como escapar.
+   *
+   * noopener/noreferrer porque a aba nova não precisa de window.opener.
+   */
+  function abrirCatalogo() {
+    window.open(linkCatalogo, '_blank', 'noopener,noreferrer')
   }
 
+  // garantirSessao + montagem do path + retry de 401 + tradução do erro de RLS
+  // vivem em src/utils/uploadMidiaProduto.js (o mesmo mecanismo que o cadastro
+  // rápido do Estoque usa). O client entra por parâmetro seguindo a convenção
+  // dos outros utils de Storage (uploadLogo.js, videoTopo.js).
   async function uploadMidia(bucket, file, prefix) {
-    await garantirSessao()
-    const path = caminhoMidia(LOJA_ID, prefix, file)
-
-    let { error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, { upsert: true, contentType: file.type })
-
-    // 401 = o servidor recusou o token. Pode ser corrida: o token venceu
-    // ENTRE o garantirSessao e a chegada da requisição — foto grande sobe
-    // devagar, e a janela é real. Renova à força e tenta UMA vez.
-    //
-    // Uma vez só, de propósito: se o segundo 401 vier, o problema não é
-    // corrida, e insistir só empurraria o erro para mais longe de quem
-    // precisa lê-lo.
-    if (error && (Number(error.status) === 401 || Number(error.statusCode) === 401)) {
-      const { error: erroRenov } = await renovarSessao(supabase)
-      if (!erroRenov) {
-        ({ error } = await supabase.storage
-          .from(bucket)
-          .upload(path, file, { upsert: true, contentType: file.type }))
-      }
-    }
-
-    if (error) throw new Error(erroDeUpload(error, bucket, LOJA_ID))
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path)
-    return publicUrl
+    return uploadMidiaProduto(supabase, LOJA_ID, bucket, file, prefix)
   }
 
   async function uploadVideo(file, prefix) {
@@ -734,6 +739,17 @@ export default function ProdutosB2BPro({
           {linkCopiado ? <Check size={14} /> : <Copy size={14} />}
           {linkCopiado ? 'Copiado!' : 'Link'}
         </div>
+        {/* Visualizar: abre a vitrine como a cliente vê, sem precisar de aba
+            anônima nem de colar o link em outro navegador. */}
+        <div
+          role="button" tabIndex={0}
+          onClick={abrirCatalogo}
+          onKeyDown={e => e.key === 'Enter' && abrirCatalogo()}
+          title="Abrir o catálogo público numa aba nova, exatamente como a cliente vê"
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: 46, borderRadius: 'var(--r-input)', flexShrink: 0, background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--line)', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 600, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+        >
+          <ExternalLink size={14} /> Ver
+        </div>
         <div
           role="button" tabIndex={0}
           onClick={() => { setLoteItems([]); setLoteNomeBase(''); setLotePrecoVenda(''); setLoteGrade(EMPTY_GRADE()); setLoteTamanhosSel([]); setLoteError(''); setLoteOpen(true) }}
@@ -927,6 +943,10 @@ export default function ProdutosB2BPro({
                   onAddFiles={novos => setNewFotoFiles(p => [...p, ...novos])}
                   onRemoveUrl={() => {}}
                   onRemoveFile={i => setNewFotoFiles(p => p.filter((_, j) => j !== i))}
+                  // No produto novo a ordem de upload É a ordem final do array
+                  // (handleAddProduto sobe na sequência de newFotoFiles), então
+                  // reordenar aqui já define a capa do catálogo.
+                  onMoverFile={(de, para) => setNewFotoFiles(p => moverItem(p, de, para))}
                   uploading={uploadingFotos}
                   error={newFotoError}
                   theme={theme}
@@ -1010,6 +1030,10 @@ export default function ProdutosB2BPro({
                 onAddFiles={novos => setEditFotoFiles(p => [...p, ...novos])}
                 onRemoveUrl={i => setEditFotos(p => p.filter((_, j) => j !== i))}
                 onRemoveFile={i => setEditFotoFiles(p => p.filter((_, j) => j !== i))}
+                // editFotos é gravado como está em handleSaveEdit, então esta
+                // é a ordem que o catálogo público passa a mostrar.
+                onMoverUrl={(de, para) => setEditFotos(p => moverItem(p, de, para))}
+                onMoverFile={(de, para) => setEditFotoFiles(p => moverItem(p, de, para))}
                 uploading={uploadingFotos}
                 error={editFotoError}
                 theme={theme}

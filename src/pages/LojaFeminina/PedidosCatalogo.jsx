@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ShoppingBag, Copy, Check, ChevronDown, MessageCircle, Search, Clock, CheckCircle2, Package, Pencil, Trash2, Eye, EyeOff, X } from 'lucide-react'
+import { ShoppingBag, Copy, Check, ChevronDown, MessageCircle, Search, Clock, CheckCircle2, Package, Pencil, Trash2, Eye, EyeOff, ExternalLink, X } from 'lucide-react'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import { HeroCard } from '../../components/studio/Card'
 import StatusPill from '../../components/studio/StatusPill'
@@ -171,6 +171,17 @@ export default function PedidosCatalogo({
     setTimeout(() => setCopiado(false), 2000)
   }
 
+  /**
+   * Abre o catálogo público real numa aba nova — o "ver como a cliente vê".
+   *
+   * URL idêntica à que a cliente recebe, sem parâmetro de preview: qualquer
+   * marcação de "modo visualização" viveria numa URL copiável e acabaria
+   * vazando para o catálogo real. O aviso fica no painel, logo abaixo.
+   */
+  function abrirCatalogo() {
+    window.open(linkCatalogo, '_blank', 'noopener,noreferrer')
+  }
+
   function limparFiltros() {
     setFiltro('todos')
     setBusca('')
@@ -272,8 +283,9 @@ export default function PedidosCatalogo({
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 16, fontWeight: 700, color: 'var(--ink)' }}>Pedidos do catálogo</p>
       </div>
 
-      {/* Copiar link e publicar andam juntos: são as duas decisões sobre "o
-          catálogo está no ar?". flex-wrap resolve o celular sem media query. */}
+      {/* Copiar link, visualizar e publicar andam juntos: são as decisões
+          sobre "o catálogo está no ar, e como ele está?". flex-wrap resolve o
+          celular sem media query. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <Button
           variant="secondary"
@@ -282,6 +294,17 @@ export default function PedidosCatalogo({
           style={{ color: copiado ? 'var(--status-ok-tx)' : 'var(--ink)' }}
         >
           {copiado ? 'Copiado!' : 'Copiar link do catálogo'}
+        </Button>
+
+        {/* Ver como a cliente vê: evita a volta pelo navegador anônimo só
+            para conferir como a vitrine ficou. */}
+        <Button
+          variant="secondary"
+          icon={ExternalLink}
+          onClick={abrirCatalogo}
+          title="Abrir o catálogo público numa aba nova, exatamente como a cliente vê"
+        >
+          Visualizar catálogo
         </Button>
 
         {podePublicar && (
@@ -311,6 +334,17 @@ export default function PedidosCatalogo({
           </button>
         )}
       </div>
+
+      {/* O "modo visualização" é dito AQUI, no painel, e não dentro do
+          catálogo: um aviso na página pública dependeria de um parâmetro na
+          URL, que a lojista pode copiar da barra e mandar para a cliente. */}
+      <p style={{
+        fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, lineHeight: 1.5,
+        color: 'var(--muted)', margin: 0,
+      }}>
+        "Visualizar catálogo" abre a sua vitrine numa aba nova, do jeito exato que a cliente vê
+        {publicado ? '.' : ' — como ele está fora do ar, você verá o aviso de catálogo indisponível.'}
+      </p>
 
       {erroPublicar && (
         <p role="alert" style={{
