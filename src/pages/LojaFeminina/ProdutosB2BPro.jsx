@@ -5,11 +5,14 @@ import { Plus, X, Search, ChevronDown, ChevronRight, Package, Video, Image, Copy
 import { fmtR } from '../../utils/formatters'
 import { BUCKET_FOTOS, BUCKET_VIDEOS, uploadMidiaProduto } from '../../utils/uploadMidiaProduto'
 import VariacaoBadge from '../../components/studio/VariacaoBadge'
+import { normalizarCodigo } from '../../utils/codigoBarras'
 
 const TAMANHOS_SIMPLES = ['PP', 'P', 'M', 'G', 'GG', 'XG', 'Único']
 
+// 'codigo' é o código de barras manual opcional (ver utils/codigoBarras.js) —
+// excluído aqui, ou seria lido como se fosse o rótulo da variação (tamanho).
 function getLabel(v) {
-  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
   return key ? String(v[key]) : null
 }
 
@@ -26,7 +29,7 @@ const BADGE = {
 }
 
 const TAMANHOS_DEFAULT = ['PP', 'P', 'M', 'G', 'GG', 'XG']
-const EMPTY_GRADE = () => TAMANHOS_DEFAULT.map(t => ({ tamanho: t, quantidade: '' }))
+const EMPTY_GRADE = () => TAMANHOS_DEFAULT.map(t => ({ tamanho: t, quantidade: '', codigo: '' }))
 
 const lbl = {
   display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--muted)',
@@ -49,9 +52,16 @@ const inp = {
 export { BUCKET_FOTOS, BUCKET_VIDEOS, caminhoMidia, extensaoDe, erroDeUpload } from '../../utils/uploadMidiaProduto'
 
 // ── Grade form (shared between Novo e Editar) ────────────────
-function GradeForm({ grade, setGrade, theme }) {
+//
+// `permitirCodigo=false` esconde o campo de código de barras manual — usado
+// só no modal de Lote (handleLote), onde a MESMA grade vira a variação de
+// vários produtos DIFERENTES de uma vez. Um código manual ali seria
+// replicado para peças físicas distintas, que é exatamente a colisão que o
+// código manual existe para evitar entre lojas — aqui seria dentro da mesma
+// loja, ainda pior.
+function GradeForm({ grade, setGrade, theme, permitirCodigo = true }) {
   function addTamanho() {
-    setGrade(prev => [...prev, { tamanho: '', quantidade: '' }])
+    setGrade(prev => [...prev, { tamanho: '', quantidade: '', codigo: '' }])
   }
   function removeTamanho(idx) {
     setGrade(prev => prev.filter((_, i) => i !== idx))
@@ -72,33 +82,48 @@ function GradeForm({ grade, setGrade, theme }) {
       {grade.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
           {grade.map((t, idx) => (
-            <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                value={t.tamanho}
-                onChange={e => setField(idx, 'tamanho', e.target.value)}
-                placeholder="Ex: P, M, G, 36, 38..."
-                style={{ ...rowInp, flex: 2 }}
-              />
-              <input
-                type="number" min="0"
-                value={t.quantidade}
-                onChange={e => setField(idx, 'quantidade', e.target.value)}
-                placeholder="Qtd"
-                style={{ ...rowInp, flex: 1, textAlign: 'center' }}
-              />
-              <button
-                onClick={() => removeTamanho(idx)}
-                style={{
-                  width: 36, height: 36, borderRadius: 8, border: 'none',
-                  background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}
-              >
-                <X size={14} />
-              </button>
+            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  value={t.tamanho}
+                  onChange={e => setField(idx, 'tamanho', e.target.value)}
+                  placeholder="Ex: P, M, G, 36, 38..."
+                  style={{ ...rowInp, flex: 2 }}
+                />
+                <input
+                  type="number" min="0"
+                  value={t.quantidade}
+                  onChange={e => setField(idx, 'quantidade', e.target.value)}
+                  placeholder="Qtd"
+                  style={{ ...rowInp, flex: 1, textAlign: 'center' }}
+                />
+                <button
+                  onClick={() => removeTamanho(idx)}
+                  style={{
+                    width: 36, height: 36, borderRadius: 8, border: 'none',
+                    background: 'var(--bg)', cursor: 'pointer', color: 'var(--muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              {permitirCodigo && (
+                <input
+                  value={t.codigo || ''}
+                  onChange={e => setField(idx, 'codigo', e.target.value)}
+                  placeholder="Código de barras (opcional)"
+                  style={{ ...rowInp, height: 36, fontSize: 12.5 }}
+                />
+              )}
             </div>
           ))}
         </div>
+      )}
+      {permitirCodigo && grade.length > 0 && (
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, margin: '0 0 10px' }}>
+          Preencha o código só quando for o MESMO produto de outra loja (use o código já impresso lá). Em branco, o sistema gera um código novo automaticamente.
+        </p>
       )}
       <button
         onClick={addTamanho}
@@ -116,31 +141,46 @@ function GradeForm({ grade, setGrade, theme }) {
 }
 
 // ── Converte grade form → variacoes para salvar ──────────────
-function buildVariacoes(grade) {
+// Código de barras manual é opcional: só entra no item quando preenchido, e
+// normalizarCodigo() aplica a mesma normalização que a leitura no PDV usa
+// (trim, maiúsculas) — o que fica gravado é o que vai ser comparado depois.
+export function buildVariacoes(grade) {
   return grade
     .filter(t => t.tamanho.trim() && (parseInt(t.quantidade) || 0) >= 0)
-    .map(t => ({ tamanho: t.tamanho.trim(), quantidade: parseInt(t.quantidade) || 0 }))
+    .map(t => {
+      const item = { tamanho: t.tamanho.trim(), quantidade: parseInt(t.quantidade) || 0 }
+      const codigo = normalizarCodigo(t.codigo)
+      if (codigo) item.codigo = codigo
+      return item
+    })
 }
 
 // ── Modo simples: salva tamanhos selecionados com quantidade fixa ──
-function buildVariacoesModoSimples(tamanhos) {
+// Sem suporte a código manual: o seletor é só chips ligados/desligados, sem
+// uma linha por tamanho para digitar nada — adicionar o campo aqui pediria
+// redesenhar o seletor inteiro, fora do escopo desta mudança.
+export function buildVariacoesModoSimples(tamanhos) {
   return tamanhos.map(t => ({ tamanho: t, quantidade: 9999 }))
 }
 
-function variacoeesToTamanhosSel(variacoes) {
+// 'codigo' é o código de barras manual opcional — excluído da busca de
+// rótulo, ou o chip do modo simples mostraria o código em vez do tamanho.
+export function variacoeesToTamanhosSel(variacoes) {
   if (!variacoes?.length) return []
   return variacoes.map(v => {
-    const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
     return key ? String(v[key]) : null
   }).filter(Boolean)
 }
 
 // ── Converte variacoes salvas → grade form ───────────────────
-function variacaoesToGrade(variacoes) {
+// Carrega o código manual já salvo (se houver) de volta pro campo — reabrir
+// "Editar Grade" não pode apagar um código que já foi definido antes.
+export function variacaoesToGrade(variacoes) {
   if (!variacoes?.length) return EMPTY_GRADE()
   return variacoes.map(v => {
-    const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
-    return { tamanho: key ? String(v[key]) : '', quantidade: String(v.quantidade || 0) }
+    const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
+    return { tamanho: key ? String(v[key]) : '', quantidade: String(v.quantidade || 0), codigo: v.codigo || '' }
   })
 }
 
@@ -1142,7 +1182,7 @@ export default function ProdutosB2BPro({
                         theme={theme}
                       />
                     ) : (
-                      <GradeForm grade={loteGrade} setGrade={setLoteGrade} theme={theme} />
+                      <GradeForm grade={loteGrade} setGrade={setLoteGrade} theme={theme} permitirCodigo={false} />
                     )}
                   </div>
                 </div>

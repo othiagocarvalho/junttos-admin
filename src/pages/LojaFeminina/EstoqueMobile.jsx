@@ -92,7 +92,7 @@ export function buildProdPayload(form) {
 }
 
 import EtiquetasPrint from '../../components/etiquetas/EtiquetasPrint'
-import { etiquetasDoProduto, etiquetasDeProdutos } from '../../utils/codigoBarras'
+import { etiquetasDoProduto, etiquetasDeProdutos, normalizarCodigo } from '../../utils/codigoBarras'
 
 // Limite por foto: o mesmo dos 10MB da seção de fotos do Catálogo B2B.
 const FOTO_MAX = 10 * 1024 * 1024
@@ -169,7 +169,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
-  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', referencia: '' })
+  const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', codigo: '', referencia: '' })
   const [saving, setSaving]         = useState(false)
   const [newProdOpen, setNewProdOpen] = useState(false)
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
@@ -234,7 +234,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   }
 
   function openAdd(produto) {
-    setForm({ cor: '', quantidade: '0', custo: '' })
+    setForm({ cor: '', quantidade: '0', custo: '', codigo: '' })
     setModal({ mode: 'add', produto })
   }
 
@@ -242,6 +242,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     const v = produto.variacoes[idx]
     setForm({
       cor: v.cor, quantidade: String(v.quantidade), custo: v.custo ? String(v.custo) : '',
+      codigo: v.codigo || '',
       referencia: produto.referencia || '',
     })
     setModal({ mode: 'edit', produto, idx })
@@ -255,6 +256,10 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       quantidade: parseInt(form.quantidade) || 0,
       custo: parseFloat((form.custo || '').replace(',', '.')) || 0,
     }
+    // Código manual: só entra quando preenchido. Vazio continua gerando o
+    // código automático de sempre (codigoDaVariacao em utils/codigoBarras.js).
+    const codigoManual = normalizarCodigo(form.codigo)
+    if (codigoManual) item.codigo = codigoManual
     const current = modal.produto.variacoes || []
     const updated = modal.mode === 'add'
       ? [...current, item]
@@ -404,7 +409,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const canSave = form.cor.trim() && !saving
 
   function addNewVar() {
-    setNewProd(prev => ({ ...prev, variacoes: [...prev.variacoes, { nome: '', quantidade: '1' }] }))
+    setNewProd(prev => ({ ...prev, variacoes: [...prev.variacoes, { nome: '', quantidade: '1', codigo: '' }] }))
   }
 
   function removeNewVar(idx) {
@@ -427,7 +432,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
       ? [{ cor: 'Único', quantidade: parseInt(newProd.quantidade_total) || 0 }]
       : newProd.variacoes
           .filter(v => v.nome.trim())
-          .map(v => ({ cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }))
+          .map(v => {
+            const item = { cor: v.nome.trim(), quantidade: parseInt(v.quantidade) || 0 }
+            // Código manual: só entra quando preenchido — vazio continua
+            // gerando o código automático de sempre.
+            const codigoManual = normalizarCodigo(v.codigo)
+            if (codigoManual) item.codigo = codigoManual
+            return item
+          })
 
     // Fotos primeiro: sobem na ordem escolhida e a 1ª vira a capa do catálogo.
     // Falha aqui aborta o cadastro com mensagem — nunca cria o produto calado.
@@ -918,33 +930,43 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
               <div>
                 <label style={{ ...labelStyle, color: theme.primary, marginBottom: 10 }}>Variações</label>
                 {newProd.variacoes.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 10 }}>
                     {newProd.variacoes.map((v, idx) => (
-                      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input
-                          value={v.nome} onChange={e => setNewVar(idx, 'nome', e.target.value)}
-                          placeholder="Ex: P, M, G, Preta, Azul..."
-                          style={{ ...inputStyle, flex: 2, height: 42 }}
-                        />
-                        <input
-                          type="number" min="0"
-                          value={v.quantidade} onChange={e => setNewVar(idx, 'quantidade', e.target.value)}
-                          placeholder="Qtd"
-                          style={{ ...inputStyle, flex: 1, height: 42, textAlign: 'center' }}
-                        />
-                        <div role="button" tabIndex={0}
-                          onClick={() => removeNewVar(idx)}
-                          onKeyDown={e => e.key === 'Enter' && removeNewVar(idx)}
-                          style={{
-                            width: 36, height: 42, borderRadius: 10, flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            background: 'var(--bg)', border: '1px solid var(--line)',
-                            cursor: 'pointer', color: 'var(--muted)',
-                          }}>
-                          <X size={14} />
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input
+                            value={v.nome} onChange={e => setNewVar(idx, 'nome', e.target.value)}
+                            placeholder="Ex: P, M, G, Preta, Azul..."
+                            style={{ ...inputStyle, flex: 2, height: 42 }}
+                          />
+                          <input
+                            type="number" min="0"
+                            value={v.quantidade} onChange={e => setNewVar(idx, 'quantidade', e.target.value)}
+                            placeholder="Qtd"
+                            style={{ ...inputStyle, flex: 1, height: 42, textAlign: 'center' }}
+                          />
+                          <div role="button" tabIndex={0}
+                            onClick={() => removeNewVar(idx)}
+                            onKeyDown={e => e.key === 'Enter' && removeNewVar(idx)}
+                            style={{
+                              width: 36, height: 42, borderRadius: 10, flexShrink: 0,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: 'var(--bg)', border: '1px solid var(--line)',
+                              cursor: 'pointer', color: 'var(--muted)',
+                            }}>
+                            <X size={14} />
+                          </div>
                         </div>
+                        <input
+                          value={v.codigo || ''} onChange={e => setNewVar(idx, 'codigo', e.target.value)}
+                          placeholder="Código de barras (opcional)"
+                          style={{ ...inputStyle, height: 36, fontSize: 12.5 }}
+                        />
                       </div>
                     ))}
+                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', lineHeight: 1.4, margin: 0 }}>
+                      Preencha o código só quando for o MESMO produto de outra loja. Em branco, o sistema gera um código novo automaticamente.
+                    </p>
                   </div>
                 )}
                 <div role="button" tabIndex={0}
@@ -1068,6 +1090,17 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     placeholder="0,00" style={inputStyle}
                   />
                 </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Código de barras (opcional)</label>
+                <input
+                  value={form.codigo} onChange={e => setForm({ ...form, codigo: e.target.value })}
+                  placeholder="Deixe em branco para gerar automaticamente"
+                  style={inputStyle}
+                />
+                <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+                  Preencha só quando for o MESMO produto de outra loja (use o código já impresso lá).
+                </p>
               </div>
             </div>
 

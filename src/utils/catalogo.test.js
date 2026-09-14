@@ -72,6 +72,14 @@ describe('detectarItensEsgotados', () => {
     const freshProds = [mkProd('p1', [{ tamanho: 'M', quantidade: 3 }])]
     expect(detectarItensEsgotados(carrinho, freshProds)).toEqual([])
   })
+
+  it('casa a variação pelo rótulo mesmo quando ela tem código de barras manual', () => {
+    // Regressão: getVariacaoLabel (interno) ignora 'codigo', senão a variação
+    // nunca seria encontrada aqui e o item cairia em "esgotado" por engano.
+    const carrinho = [mkItem('p1', 'M', 2)]
+    const freshProds = [mkProd('p1', [{ tamanho: 'M', quantidade: 5, codigo: '7891234560012' }])]
+    expect(detectarItensEsgotados(carrinho, freshProds)).toEqual([])
+  })
 })
 
 describe('produtoVisivelNoCatalogo', () => {

@@ -7,6 +7,7 @@ import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import VariacaoBadge from '../../components/studio/VariacaoBadge'
+import { normalizarCodigo } from '../../utils/codigoBarras'
 
 export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
   const [preview, setPreview]   = useState(null)
@@ -17,16 +18,25 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
   const fileRef = useRef(null)
 
   function downloadTemplate() {
-    const headers  = ['Nome', 'Preço Custo', 'Preço Venda', 'Variação 1', 'Qtd 1', 'Variação 2', 'Qtd 2', 'Variação 3', 'Qtd 3']
+    const headers  = [
+      'Nome', 'Preço Custo', 'Preço Venda',
+      'Variação 1', 'Qtd 1', 'Código 1',
+      'Variação 2', 'Qtd 2', 'Código 2',
+      'Variação 3', 'Qtd 3', 'Código 3',
+    ]
     const examples = [
-      ['Vestido Floral', 45.00, 89.90, 'P', 5, 'M', 3, 'G', 2],
-      ['Blusa Básica',   20.00, 49.90, 'Preta', 4, 'Branca', 6, '', ''],
-      ['Calça Jeans',    60.00, 129.90, '36', 3, '38', 5, '40', 2],
+      ['Vestido Floral', 45.00, 89.90, 'P', 5, '', 'M', 3, '', 'G', 2, ''],
+      ['Blusa Básica',   20.00, 49.90, 'Preta', 4, '', 'Branca', 6, '', '', '', ''],
+      // Demonstra o código manual: mesmo produto físico de outra loja da
+      // rede, código já impresso na etiqueta de lá.
+      ['Calça Jeans',    60.00, 129.90, '36', 3, '7891234560012', '38', 5, '7891234560029', '40', 2, ''],
     ]
     const ws = XLSX.utils.aoa_to_sheet([headers, ...examples])
     ws['!cols'] = [
       { wch: 22 }, { wch: 14 }, { wch: 14 },
-      { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 8 },
+      { wch: 12 }, { wch: 8 }, { wch: 16 },
+      { wch: 12 }, { wch: 8 }, { wch: 16 },
+      { wch: 12 }, { wch: 8 }, { wch: 16 },
     ]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Produtos')
@@ -47,14 +57,25 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         const ws   = wb.Sheets[wb.SheetNames[0]]
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
 
+        // Cada variação: [nome, qtd, código] — código é opcional e só entra
+        // no item quando a célula vem preenchida (mesma regra do cadastro
+        // manual, ver utils/codigoBarras.js: vazio = gera automático).
+        const variacaoDaCelula = (nomeCel, qtdCel, codCel) => {
+          if (!nomeCel) return null
+          const item = { cor: String(nomeCel).trim(), quantidade: parseInt(qtdCel) || 0 }
+          const codigo = normalizarCodigo(codCel)
+          if (codigo) item.codigo = codigo
+          return item
+        }
+
         const products = rows
           .slice(1)
           .filter(row => String(row[0] || '').trim())
           .map(row => {
             const variacoes = [
-              row[3] ? { cor: String(row[3]).trim(), quantidade: parseInt(row[4]) || 0 } : null,
-              row[5] ? { cor: String(row[5]).trim(), quantidade: parseInt(row[6]) || 0 } : null,
-              row[7] ? { cor: String(row[7]).trim(), quantidade: parseInt(row[8]) || 0 } : null,
+              variacaoDaCelula(row[3], row[4], row[5]),
+              variacaoDaCelula(row[6], row[7], row[8]),
+              variacaoDaCelula(row[9], row[10], row[11]),
             ].filter(v => v && v.cor)
 
             return {
@@ -128,8 +149,11 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
         }}>
           Passo 1 — Baixar o modelo
         </p>
-        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 14, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--ink-soft)', marginBottom: 8, lineHeight: 1.6 }}>
           Baixe o modelo, preencha com seus produtos e volte para importar.
+        </p>
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
+          As colunas "Código 1/2/3" são opcionais: deixe em branco para o sistema gerar o código de barras automaticamente, ou preencha com um código já usado em outra loja quando for o MESMO produto físico (mesmo fornecedor, mesma peça).
         </p>
         <Button
           variant="secondary"
@@ -236,6 +260,11 @@ export default function ImportarPlanilha({ theme, importarProdutos, onBack }) {
                       <VariacaoBadge key={j} nome={v.cor} quantidade={v.quantidade} />
                     ))}
                   </div>
+                )}
+                {p.variacoes.some(v => v.codigo) && (
+                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10.5, color: theme.primary, marginTop: 5 }}>
+                    Código de barras manual: {p.variacoes.filter(v => v.codigo).map(v => `${v.codigo} (${v.cor})`).join(', ')}
+                  </p>
                 )}
               </div>
             ))}

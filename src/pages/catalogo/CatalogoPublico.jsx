@@ -5,8 +5,10 @@ import { rpcAusente } from '../../utils/estoqueMov'
 import { ShoppingBag, Plus, Minus, X, Check, ChevronLeft, Copy, Search, Play } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
 
+// 'codigo' é o código de barras manual opcional (ver utils/codigoBarras.js)
+// — excluído aqui, ou seria lido como se fosse o rótulo da variação.
 function getVariacaoLabel(v) {
-  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
   return key ? String(v[key]) : null
 }
 
@@ -153,7 +155,10 @@ function ProdutoCard({ produto, onAdd, primary, isB2BPro, modoSimples }) {
   // Grade de tamanho — ativo apenas quando Pro E variacao usa chave 'tamanho'
   const isGrade = isB2BPro && (produto.variacoes || []).length > 0 && (() => {
     const v0 = produto.variacoes[0]
-    const firstKey = Object.keys(v0).find(k => k !== 'quantidade' && k !== 'custo')
+    // 'codigo' (código de barras manual opcional) também fica de fora — senão
+    // um produto de grade com código manual deixava de ser reconhecido como
+    // grade aqui.
+    const firstKey = Object.keys(v0).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
     return firstKey === 'tamanho'
   })()
 

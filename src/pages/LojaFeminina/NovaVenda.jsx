@@ -162,8 +162,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     salvarRascunho(LOJA_ID, extrairRascunho(form, { ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo }))
   }, [LOJA_ID, done, form, ajusteTipo, ajusteModo, ajusteInput, isTroca, produtoTroca, trocaDesconto, trocaAcrescimo])
 
+  // 'codigo' é o código de barras manual opcional (ver utils/codigoBarras.js)
+  // — excluído aqui, ou seria lido como se fosse o rótulo da variação.
   function getVarLabel(v) {
-    const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
     return k ? String(v[k]) : null
   }
 

@@ -52,6 +52,14 @@ describe('labelVariacao', () => {
   it('ignora quantidade e custo na escolha da chave', () => {
     expect(labelVariacao({ quantidade: 2, custo: 10, cor: 'Rosa' })).toBe('Rosa')
   })
+
+  it('ignora `codigo` (código de barras manual) — não pode virar o "rótulo"', () => {
+    // Regressão: sem excluir 'codigo', o histórico de movimentação passaria a
+    // mostrar o número do código de barras em vez de "Rosa"/"M".
+    const v = { cor: 'Rosa', quantidade: 2, codigo: '7891234560012' }
+    expect(labelVariacao(v)).toBe('Rosa')
+    expect(labelVariacao(v)).toBe(getVarLabel(v))
+  })
 })
 
 describe('labelsDeVariacoes', () => {
@@ -171,6 +179,17 @@ describe('saldo resultante — o que o trigger vai ver', () => {
     const variacoes = [{ cor: 'P', quantidade: 1 }]
     const itens = normalizarItensEstoque([{ nome: 'Vestido', variacao: 'P', qtd: 4 }])
     expect(decrementarVariacoes(variacoes, itens)).toEqual([{ cor: 'P', quantidade: 0 }])
+  })
+
+  it('venda e devolução preservam o código de barras manual da variação', () => {
+    // decrementarVariacoes/restaurarVariacoes usam spread ({ ...v, quantidade })
+    // — o código sobrevive por construção, mas é o comportamento que a
+    // etiqueta impressa depende para continuar batendo com o banco.
+    const variacoes = [{ cor: 'P', quantidade: 5, codigo: '7891234560012' }]
+    const itens = normalizarItensEstoque([{ nome: 'Vestido', variacao: 'P', qtd: 2 }])
+    const aposVenda = decrementarVariacoes(variacoes, itens)
+    expect(aposVenda).toEqual([{ cor: 'P', quantidade: 3, codigo: '7891234560012' }])
+    expect(restaurarVariacoes(aposVenda, itens)).toEqual([{ cor: 'P', quantidade: 5, codigo: '7891234560012' }])
   })
 })
 

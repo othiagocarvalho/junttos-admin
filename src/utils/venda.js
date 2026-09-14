@@ -5,7 +5,8 @@ export function decrementarVariacoes(variacoes, itens) {
     qtdPorVariacao[label] = (qtdPorVariacao[label] || 0) + (item.quantidade || 1)
   })
   return (variacoes || []).map(v => {
-    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    // 'codigo' é o código de barras manual opcional — nunca o rótulo.
+    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
     const labelVal = labelKey ? String(v[labelKey]) : null
     const qtd = qtdPorVariacao[labelVal] || 0
     return qtd > 0
@@ -21,7 +22,8 @@ export function restaurarVariacoes(variacoes, itens) {
     qtdPorVariacao[label] = (qtdPorVariacao[label] || 0) + (item.quantidade || 1)
   })
   return (variacoes || []).map(v => {
-    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+    // 'codigo' é o código de barras manual opcional — nunca o rótulo.
+    const labelKey = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
     const labelVal = labelKey ? String(v[labelKey]) : null
     const qtd = qtdPorVariacao[labelVal] || 0
     return qtd > 0
