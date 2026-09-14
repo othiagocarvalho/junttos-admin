@@ -47,7 +47,7 @@ function productStatus(variacoes) {
   return null
 }
 
-const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', quantidade_total: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
+const EMPTY_NEW = { nome: '', precoCusto: '', precoVenda: '', variacoes: [], referencia: '', quantidade_total: '', codigo_unico: '', valor_lote: '', data_vencimento: '', status_pgto: 'a_pagar' }
 
 // Totais dos cards do topo (peças, custo, venda).
 //
@@ -429,7 +429,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     if (semVariacoes && (parseInt(newProd.quantidade_total) || 0) < 1) return
     setNewProdSaving(true)
     const variacoes = semVariacoes
-      ? [{ cor: 'Único', quantidade: parseInt(newProd.quantidade_total) || 0 }]
+      ? (() => {
+          const item = { cor: 'Único', quantidade: parseInt(newProd.quantidade_total) || 0 }
+          // Código manual: só entra quando preenchido — vazio continua
+          // gerando o código automático de sempre.
+          const codigoManual = normalizarCodigo(newProd.codigo_unico)
+          if (codigoManual) item.codigo = codigoManual
+          return [item]
+        })()
       : newProd.variacoes
           .filter(v => v.nome.trim())
           .map(v => {
@@ -998,6 +1005,18 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
                     <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                       Produto sem variações — informe a quantidade total.
                     </p>
+                    <div style={{ marginTop: 10 }}>
+                      <label style={labelStyle}>Código de barras (opcional)</label>
+                      <input
+                        value={newProd.codigo_unico}
+                        onChange={e => setNewProd(p => ({ ...p, codigo_unico: e.target.value }))}
+                        placeholder="Deixe em branco para gerar automaticamente"
+                        style={inputStyle}
+                      />
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
+                        Preencha só quando for o MESMO produto de outra loja (use o código já impresso lá).
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
