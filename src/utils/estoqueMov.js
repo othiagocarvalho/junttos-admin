@@ -30,11 +30,13 @@ export function fmtDelta(delta) {
 
 /**
  * Rótulo de uma variação. Mesma regra de utils/balanco.js:getVarLabel e da
- * função lf_var_label no banco: a primeira chave que não é quantidade/custo.
+ * função lf_var_label no banco: a primeira chave que não é
+ * quantidade/custo/codigo — 'codigo' é o código de barras manual opcional
+ * (ver src/utils/codigoBarras.js), nunca o rótulo.
  */
 export function labelVariacao(v) {
   if (!v || typeof v !== 'object') return null
-  const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
   return k ? String(v[k]) : null
 }
 

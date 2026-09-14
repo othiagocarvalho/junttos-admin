@@ -8,31 +8,28 @@
 // vestido que existe em Rosa e Nude teria de perguntar a cor na mão, que é
 // justamente o trabalho que o leitor deveria eliminar.
 //
-// ─── POR QUE O CÓDIGO NÃO É ARMAZENADO ──────────────────────────────────────
-// A alternativa óbvia era gravar um campo `codigo` dentro de cada item de
-// `variacoes`. Foi descartada por evidência no próprio código:
+// ─── POR QUE O CÓDIGO É DERIVADO, POR PADRÃO ────────────────────────────────
+// Por padrão, o código NÃO é armazenado: é DERIVADO de (loja_id, produto.id,
+// label) — a mesma trinca que o sistema já usa para baixar estoque, então o
+// código automático nunca pode divergir do que o estoque enxerga. Não há
+// migration, não há caminho de escrita, não há corrida com lf_set_variacoes.
 //
-//   • supabase/migration_estoque_mov.sql, lf_set_variacoes:
-//         UPDATE lf_produtos SET variacoes = p_variacoes
-//     substitui o ARRAY INTEIRO;
-//   • ProdutosB2BPro.jsx, buildVariacoes(), reconstrói cada item do zero
-//         .map(t => ({ tamanho: ..., quantidade: ... }))
-//     descartando qualquer chave extra.
+// Custo assumido: renomear uma cor ("Rosa" → "Rosa Bebê") muda o código
+// automático e invalida etiquetas já impressas daquela variação. É raro, é
+// visível (a peça simplesmente não bipa e cai na busca manual) e é reversível
+// reimprimindo — bem melhor do que um modo de falha silencioso.
 //
-// Ou seja: um código gravado no JSONB seria apagado em silêncio na primeira
-// edição de grade — e etiquetas já impressas e coladas na roupa parariam de
-// casar com o banco, sem ninguém perceber. Coluna nova em lf_produtos também
-// não serve, porque seria por produto, e o estoque é por variação.
-//
-// Então o código é DERIVADO de (loja_id, produto.id, label). Essa trinca é
-// exatamente a identidade que o sistema já usa para baixar estoque, então o
-// código nunca pode divergir do que o estoque enxerga. Não há migration, não
-// há caminho de escrita, não há corrida com lf_set_variacoes.
-//
-// Custo assumido: renomear uma cor ("Rosa" → "Rosa Bebê") muda o código e
-// invalida etiquetas já impressas daquela variação. É raro, é visível (a peça
-// simplesmente não bipa e cai na busca manual) e é reversível reimprimindo —
-// bem melhor do que o modo de falha silencioso do JSONB apagado.
+// ─── CÓDIGO MANUAL (override opcional, por variação) ────────────────────────
+// Exceção deliberada a tudo isso: quando duas lojas do MESMO dono vendem o
+// MESMO produto físico e precisam do MESMO código nas duas — ver
+// codigoEfetivo() e o comentário maior logo abaixo dela. Esse valor SIM é
+// armazenado, na chave `codigo` dentro do próprio item de `variacoes`. Isso só
+// é seguro porque buildVariacoes() (ProdutosB2BPro.jsx) e o
+// handleSave()/handleAddProduto() de EstoqueMobile.jsx — os únicos lugares que
+// reconstroem um item de variação do zero antes de salvar — foram ajustados
+// para preservar essa chave; lf_set_variacoes (migration_estoque_mov.sql)
+// sempre foi um UPDATE direto do jsonb que o client manda, sem reconstruir
+// nada, então nunca foi ele quem ameaçava apagar a chave.
 
 /** Chaves de controle dentro de uma variação; o resto é o rótulo. */
 const CHAVES_CONTROLE = new Set(['quantidade', 'custo', 'codigo'])
@@ -125,6 +122,24 @@ export function normalizarCodigo(bruto) {
 }
 
 /**
+ * Código EFETIVO de uma variação: usa o manual em `v.codigo` quando presente
+ * e não vazio, senão cai no hash automático de sempre (ver cabeçalho do
+ * arquivo para o porquê de cada um).
+ *
+ * Custo assumido, documentado para quem for ler os call-sites: como o item de
+ * variação ganhou uma chave a mais, todo código que descobre o RÓTULO da
+ * variação por "a primeira chave que não é quantidade/custo" (padrão repetido
+ * em ~9 arquivos deste projeto, incluindo a função Postgres lf_var_label) tem
+ * que também excluir 'codigo' — senão o "rótulo" descoberto vira o número do
+ * código de barras. Foram todos ajustados junto com esta função.
+ */
+export function codigoEfetivo(lojaId, produtoId, v) {
+  const manual = normalizarCodigo(v?.codigo)
+  if (manual) return manual
+  return codigoDaVariacao(lojaId, produtoId, rotuloVariacao(v))
+}
+
+/**
  * Todas as etiquetas de um produto — uma por variação.
  *
  * Produto sem variação nenhuma devolve lista vazia de propósito: não existe
@@ -142,7 +157,7 @@ export function etiquetasDoProduto(produto, lojaId) {
         rotulo,
         quantidade: Number(v.quantidade) || 0,
         preco: Number(produto.preco_venda) || 0,
-        codigo: codigoDaVariacao(lojaId, produto.id, rotulo),
+        codigo: codigoEfetivo(lojaId, produto.id, v),
       }
     })
     .filter(Boolean)

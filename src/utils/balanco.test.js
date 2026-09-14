@@ -66,6 +66,9 @@ describe('getVarLabel', () => {
   it('retorna null para valor nulo', () => {
     expect(getVarLabel(null)).toBeNull()
   })
+  it('ignora `codigo` (código de barras manual) — não é o rótulo', () => {
+    expect(getVarLabel({ cor: 'Rosa', quantidade: 2, codigo: '7891234560012' })).toBe('Rosa')
+  })
 })
 
 // ── itemKey ──────────────────────────────────────────────────────────────────

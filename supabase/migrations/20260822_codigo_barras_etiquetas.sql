@@ -91,3 +91,16 @@
 -- Nesse cenário, buscarPorCodigo() passaria a consultar esta tabela e a
 -- derivação viraria só o fallback para produto ainda sem código gravado.
 -- ─────────────────────────────────────────────────────────────────────────────
+
+-- ─── ADENDO 14/09/2026 — o "não sobrevive" acima foi corrigido, não contornado ──
+-- Pedido de negócio (Atacadão dos Vestidos + Tropicale Atacado, mesmo dono)
+-- passou a exigir código IGUAL entre lojas para o mesmo produto físico — o
+-- oposto do hash acima, então virou override manual opcional por variação.
+-- A objeção "não sobrevive" ficava de pé porque buildVariacoes() (client)
+-- reconstruía cada item do zero e descartava qualquer chave extra — não
+-- porque o banco fizesse algo. Esse ponto foi corrigido no client
+-- (ProdutosB2BPro.jsx e EstoqueMobile.jsx passaram a preservar `codigo`), e
+-- só então a chave dentro de `variacoes` passou a ser viável. Detalhe e a
+-- única mudança de schema necessária (lf_var_label) em
+-- supabase/migrations/20260914_codigo_barras_manual.sql.
+-- ─────────────────────────────────────────────────────────────────────────────

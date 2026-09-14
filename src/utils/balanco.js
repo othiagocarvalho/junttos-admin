@@ -1,10 +1,12 @@
 import { isErroAuth } from './authErro'
 import { renovarSessao } from '../lib/authRefresh'
 
-// Extracts the display label from a variacao JSONB object
+// Extracts the display label from a variacao JSONB object.
+// 'codigo' is the optional manual barcode override (src/utils/codigoBarras.js)
+// — excluded here too, or it would be picked up as the label.
 export function getVarLabel(v) {
   if (!v || typeof v !== 'object') return null
-  const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  const k = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
   return k ? String(v[k]) : null
 }
 

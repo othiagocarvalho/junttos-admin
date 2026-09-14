@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   rotuloVariacao, codigoDaVariacao, normalizarCodigo, CODIGO_DIGITOS,
   etiquetasDoProduto, etiquetasDeProdutos, buscarPorCodigo, pareceLeitura,
+  codigoEfetivo,
 } from './codigoBarras'
 
 // Formatos reais medidos em produção (426 variações da base):
@@ -79,6 +80,97 @@ describe('codigoDaVariacao', () => {
   it('sem produto ou sem rótulo devolve vazio, não um código quebrado', () => {
     expect(codigoDaVariacao('l', '', 'ROSA')).toBe('')
     expect(codigoDaVariacao('l', prodCor.id, '')).toBe('')
+  })
+})
+
+describe('codigoEfetivo', () => {
+  it('usa o código manual quando a variação tem `codigo` preenchido', () => {
+    const v = { cor: 'ROSA', quantidade: 3, codigo: '7891234560012' }
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, v)).toBe('7891234560012')
+  })
+
+  it('normaliza o manual (espaço, caixa) do mesmo jeito que a leitura no PDV', () => {
+    const v = { cor: 'ROSA', quantidade: 3, codigo: ' 789 123 4560012 ' }
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, v)).toBe('7891234560012')
+  })
+
+  it('cai no hash automático quando `codigo` está ausente', () => {
+    const v = { cor: 'ROSA', quantidade: 3 }
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, v))
+      .toBe(codigoDaVariacao('tropicaleatacado', prodCor.id, 'ROSA'))
+  })
+
+  it('string vazia ou só espaço em `codigo` NÃO conta como manual — continua automático', () => {
+    const automatico = codigoDaVariacao('tropicaleatacado', prodCor.id, 'ROSA')
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, { cor: 'ROSA', quantidade: 3, codigo: '' }))
+      .toBe(automatico)
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, { cor: 'ROSA', quantidade: 3, codigo: '   ' }))
+      .toBe(automatico)
+  })
+
+  it('É O PONTO CENTRAL DO PEDIDO: o mesmo código manual funciona em lojas diferentes, de propósito', () => {
+    // Ao contrário do automático (que muda por loja_id para NUNCA colidir),
+    // o manual existe exatamente para IGNORAR essa separação quando é o
+    // mesmo produto físico, do mesmo dono, em duas lojas.
+    const v = { cor: 'ROSA', quantidade: 3, codigo: '7891234560012' }
+    expect(codigoEfetivo('atacadaodosvestidos', prodCor.id, v)).toBe('7891234560012')
+    expect(codigoEfetivo('tropicaleatacado', prodCor.id, v)).toBe('7891234560012')
+  })
+})
+
+describe('etiquetasDoProduto — código manual', () => {
+  it('usa o manual só na variação que o tem; a outra continua com o automático de sempre', () => {
+    const produto = {
+      id: prodCor.id, nome: 'VESTIDO PATY', preco_venda: 44.9,
+      variacoes: [
+        { cor: 'ROSA', quantidade: 3, codigo: '7891234560012' },
+        { cor: 'NUDE', custo: 20, quantidade: 5 },
+      ],
+    }
+    const ets = etiquetasDoProduto(produto, 'tropicaleatacado')
+    expect(ets[0].codigo).toBe('7891234560012')
+    expect(ets[1].codigo).toBe(codigoDaVariacao('tropicaleatacado', prodCor.id, 'NUDE'))
+  })
+
+  it('sem nenhum `codigo` em nenhuma variação, o comportamento é IDÊNTICO ao de antes desta mudança', () => {
+    // Regressão: comportamento automático não pode mudar para quem não usa
+    // código manual.
+    const ets = etiquetasDoProduto(prodCor, 'tropicaleatacado')
+    expect(ets[0].codigo).toBe(codigoDaVariacao('tropicaleatacado', prodCor.id, 'ROSA'))
+    expect(ets[1].codigo).toBe(codigoDaVariacao('tropicaleatacado', prodCor.id, 'NUDE'))
+  })
+})
+
+describe('buscarPorCodigo — código manual', () => {
+  it('acha a variação pelo código manual', () => {
+    const produto = { id: prodCor.id, nome: 'VESTIDO PATY', preco_venda: 44.9,
+      variacoes: [{ cor: 'ROSA', quantidade: 3, codigo: '7891234560012' }] }
+    const achado = buscarPorCodigo([produto], 'tropicaleatacado', '7891234560012')
+    expect(achado.produto.id).toBe(prodCor.id)
+    expect(achado.rotulo).toBe('ROSA')
+  })
+
+  it('duas lojas com o MESMO código manual não conflitam — cada uma só enxerga os próprios produtos', () => {
+    // Simula duas lojas: cada `buscarPorCodigo` recebe só a lista de produtos
+    // daquela loja (é assim que a tela já funciona — produtosData vem
+    // filtrado por loja do useLojaData). O código manual é igual de propósito.
+    const codigoCompartilhado = '7891234560012'
+    const produtoAtacadao = {
+      id: 'prod-atacadao-uuid', nome: 'Vestido Floral', preco_venda: 89.9,
+      variacoes: [{ cor: 'ROSA', quantidade: 3, codigo: codigoCompartilhado }],
+    }
+    const produtoTropicale = {
+      id: 'prod-tropicale-uuid', nome: 'Vestido Floral', preco_venda: 89.9,
+      variacoes: [{ cor: 'ROSA', quantidade: 8, codigo: codigoCompartilhado }],
+    }
+
+    const achadoAtacadao = buscarPorCodigo([produtoAtacadao], 'atacadaodosvestidos', codigoCompartilhado)
+    expect(achadoAtacadao.produto.id).toBe('prod-atacadao-uuid')
+    expect(achadoAtacadao.quantidade).toBe(3)
+
+    const achadoTropicale = buscarPorCodigo([produtoTropicale], 'tropicaleatacado', codigoCompartilhado)
+    expect(achadoTropicale.produto.id).toBe('prod-tropicale-uuid')
+    expect(achadoTropicale.quantidade).toBe(8)
   })
 })
 

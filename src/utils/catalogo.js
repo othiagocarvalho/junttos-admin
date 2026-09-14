@@ -1,5 +1,7 @@
+// 'codigo' é o código de barras manual opcional (ver src/utils/codigoBarras.js)
+// — precisa ficar de fora, senão vira "rótulo" quando presente.
 function getVariacaoLabel(v) {
-  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo')
+  const key = Object.keys(v).find(k => k !== 'quantidade' && k !== 'custo' && k !== 'codigo')
   return key ? String(v[key]) : null
 }
 
