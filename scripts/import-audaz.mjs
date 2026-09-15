@@ -8,7 +8,9 @@
  *   node scripts/import-audaz.mjs --apply         # grava de verdade
  *   node scripts/import-audaz.mjs --apply --force # grava mesmo se já houver dados da loja
  *
- * Chave: SUPABASE_SERVICE_KEY no ambiente (fallback: VITE_SUPABASE_SERVICE_KEY do .env)
+ * Chave: SUPABASE_SERVICE_KEY no ambiente (fallback: SUPABASE_SERVICE_KEY do .env).
+ * O nome NÃO leva prefixo VITE_ — com esse prefixo o Vite embutiria a chave no
+ * bundle que vai para o navegador. Ver docs/SEGREDOS_E_VARIAVEIS.md.
  *
  * NOTA IMPORTANTE SOBRE OS ARQUIVOS DE ORIGEM
  * Os três arquivos são HTML disfarçado (inclusive o .txt, que tem cabeçalho HTML
@@ -121,7 +123,18 @@ const raiz = path.resolve(import.meta.dirname, '..')
 const env  = lerEnv(path.join(raiz, '.env'))
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || env.VITE_SUPABASE_SERVICE_KEY
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY || env.SUPABASE_SERVICE_KEY
+
+// A chave já se chamou VITE_SUPABASE_SERVICE_KEY. Esse nome vazaria a chave no
+// bundle do navegador (tudo com prefixo VITE_ é embutido em texto puro), então
+// ele foi aposentado. Se o nome antigo ainda estiver por aí, avisamos em vez de
+// usá-lo em silêncio — usar seria manter vivo o nome que precisa sumir.
+const NOME_ANTIGO = process.env.VITE_SUPABASE_SERVICE_KEY || env.VITE_SUPABASE_SERVICE_KEY
+if (!SERVICE_KEY && NOME_ANTIGO) {
+  console.error('⚠️  Achei VITE_SUPABASE_SERVICE_KEY — nome aposentado por risco de vazamento.')
+  console.error('   Renomeie para SUPABASE_SERVICE_KEY (na Vercel e no .env local) e rode de novo.')
+  console.error('   Detalhes: docs/SEGREDOS_E_VARIAVEIS.md\n')
+}
 
 /**
  * Descobre as colunas reais de cada tabela pelo schema OpenAPI do PostgREST.
@@ -446,7 +459,7 @@ async function main() {
   if (!SERVICE_KEY && APPLY) {
     console.error('❌ Service key ausente — necessária para gravar.')
     console.error('   Rode:  SUPABASE_SERVICE_KEY=<chave> node scripts/import-audaz.mjs --apply')
-    console.error('   (ou preencha VITE_SUPABASE_SERVICE_KEY no .env)')
+    console.error('   (ou preencha SUPABASE_SERVICE_KEY no .env — sem prefixo VITE_)')
     process.exit(1)
   }
   for (const [k, f] of Object.entries(ARQUIVOS)) {

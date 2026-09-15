@@ -7,9 +7,12 @@
  *   node scripts/importarFotosTropicale.js --apply --force
  *       # sobrescreve produto que JÁ tem outra foto (por padrão esse produto é pulado)
  *
- * Chave: SUPABASE_SERVICE_KEY no ambiente (fallback: VITE_SUPABASE_SERVICE_KEY,
- * depois VITE_SUPABASE_ANON_KEY do .env — lf_produtos está com RLS desligada,
+ * Chave: SUPABASE_SERVICE_KEY no ambiente (fallback: SUPABASE_SERVICE_KEY do
+ * .env, depois VITE_SUPABASE_ANON_KEY — lf_produtos está com RLS desligada,
  * então a anon consegue gravar; o Storage pode exigir a service key).
+ * A service key NÃO leva prefixo VITE_: com esse prefixo o Vite a embutiria no
+ * bundle do navegador. A anon key leva, e pode — ela é pública por desenho.
+ * Ver docs/SEGREDOS_E_VARIAVEIS.md.
  *
  * ─── POR QUE EXISTE UM MANIFESTO ───────────────────────────────────────────
  * O vínculo foto↔produto é POSICIONAL: 01.jpg é o 1º produto, 02.jpg o 2º, etc.
@@ -62,9 +65,21 @@ const env  = lerEnv(path.join(raiz, '.env'))
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL
 const CHAVE = process.env.SUPABASE_SERVICE_KEY
-  || (env.VITE_SUPABASE_SERVICE_KEY || '')
+  || env.SUPABASE_SERVICE_KEY
   || process.env.VITE_SUPABASE_ANON_KEY
   || env.VITE_SUPABASE_ANON_KEY
+
+// A service key já se chamou VITE_SUPABASE_SERVICE_KEY. Esse nome vazaria a
+// chave no bundle do navegador (tudo com prefixo VITE_ é embutido em texto
+// puro), então foi aposentado. Se o nome antigo ainda estiver por aí, avisamos
+// em vez de usá-lo em silêncio — usar seria manter vivo o nome que deve sumir.
+if (!process.env.SUPABASE_SERVICE_KEY && !env.SUPABASE_SERVICE_KEY
+    && (process.env.VITE_SUPABASE_SERVICE_KEY || env.VITE_SUPABASE_SERVICE_KEY)) {
+  console.error('⚠️  Achei VITE_SUPABASE_SERVICE_KEY — nome aposentado por risco de vazamento.')
+  console.error('   Renomeie para SUPABASE_SERVICE_KEY (na Vercel e no .env local).')
+  console.error('   Seguindo com a chave anon, que basta para lf_produtos mas pode')
+  console.error('   não bastar para o Storage. Detalhes: docs/SEGREDOS_E_VARIAVEIS.md\n')
+}
 
 // ── Helpers ───────────────────────────────────────────────────
 function morrer(msg, ...extras) {
@@ -118,7 +133,7 @@ async function main() {
   }
 
   // 2. Supabase ------------------------------------------------
-  if (!SUPABASE_URL || !CHAVE) morrer('VITE_SUPABASE_URL / chave ausentes no .env.')
+  if (!SUPABASE_URL || !CHAVE) morrer('VITE_SUPABASE_URL / SUPABASE_SERVICE_KEY ausentes no .env.')
   const sb = createClient(SUPABASE_URL, CHAVE, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
