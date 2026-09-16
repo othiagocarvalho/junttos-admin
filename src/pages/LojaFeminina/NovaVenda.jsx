@@ -16,6 +16,7 @@ import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { salvarAniversarioCliente } from '../../utils/clienteVenda'
+import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
@@ -38,14 +39,6 @@ const inputBase = {
   color: 'var(--ink)', background: 'var(--bg)',
   outline: 'none', boxSizing: 'border-box',
   transition: 'border-color .18s, box-shadow .18s',
-}
-
-// Mesmo padrão de Relatorios.jsx: clicar em qualquer parte do campo abre o
-// calendário nativo, não só no ícone pequeno do input type="date".
-function openDatePicker(e) {
-  const input = e.currentTarget.querySelector('input')
-  if (input?.showPicker) input.showPicker()
-  else input?.focus()
 }
 
 function focusIn(e) {
@@ -293,10 +286,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       setSavedVenda(novaVenda)
       setDone(true)
       limparRascunho(LOJA_ID)
-      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js.
+      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
+      // incompleta/inválida vira null e simplesmente não grava nada.
       salvarAniversarioCliente({
         clientes, addCliente, updateCliente,
-        nome: form.nome, telefone: form.tel, aniversario: form.aniversario,
+        nome: form.nome, telefone: form.tel, aniversario: dataDigitadaParaISO(form.aniversario),
       })
       fetchAll?.()
     }
@@ -469,7 +463,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   }}>
                     {cliNomeMatches.map(c => (
                       <button key={c.id} type="button"
-                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel })); setCliNomeOpen(false) }}
+                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel, aniversario: c.data_nascimento ? isoParaDataDigitada(c.data_nascimento) : prev.aniversario })); setCliNomeOpen(false) }}
                         style={{
                           display: 'block', width: '100%', textAlign: 'left',
                           padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
@@ -505,7 +499,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                   }}>
                     {cliTelMatches.map(c => (
                       <button key={c.id} type="button"
-                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '' })); setCliTelOpen(false) }}
+                        onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '', aniversario: c.data_nascimento ? isoParaDataDigitada(c.data_nascimento) : prev.aniversario })); setCliTelOpen(false) }}
                         style={{
                           display: 'block', width: '100%', textAlign: 'left',
                           padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
@@ -523,14 +517,19 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
               </div>
             </Field>
             <Field label="Aniversário" Icon={Cake}>
-              <div onClick={openDatePicker} style={{ position: 'relative', cursor: 'pointer' }}>
-                <input
-                  type="date"
-                  value={form.aniversario}
-                  onChange={e => setForm({ ...form, aniversario: e.target.value })}
-                  style={{ ...inputBase, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
-                />
-              </div>
+              {/* Texto com máscara, não <input type="date">: no celular esse
+                  tipo sempre abre o seletor nativo ao tocar, sem opção de
+                  digitar — e aniversário costuma ser décadas atrás, então
+                  rolar o calendário até lá é lento. Ver utils/dataAniversario.js. */}
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.aniversario}
+                onChange={e => setForm({ ...form, aniversario: mascararDataDigitada(e.target.value) })}
+                placeholder="DD/MM/AAAA"
+                maxLength={10}
+                style={inputBase}
+              />
             </Field>
             <Field label="Vendedor(a)">
               {/* Pro+ escolhe de uma lista cadastrada; abaixo disso o campo de

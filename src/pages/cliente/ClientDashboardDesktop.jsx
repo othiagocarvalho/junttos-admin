@@ -46,6 +46,7 @@ import { fmtR } from '../../utils/formatters'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
 import { salvarAniversarioCliente } from '../../utils/clienteVenda'
+import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
 
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', {
@@ -64,13 +65,6 @@ function fmtPgtos(v) {
   return parsePgtos(v).map(p =>
     p.forma === 'Boleto' && p.vencimento ? `Boleto ${p.vencimento}d` : p.forma
   ).join(' + ')
-}
-// Mesmo padrão do date picker em RelatoriosDesktop.jsx: clicar em qualquer
-// parte do campo abre o calendário nativo, não só no ícone do input.
-function openDatePicker(e) {
-  const input = e.currentTarget.querySelector('input')
-  if (input?.showPicker) input.showPicker()
-  else input?.focus()
 }
 
 const NAV = [
@@ -921,10 +915,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       setSavedVenda(novaVenda)
       setDone(true)
       limparRascunho(LOJA_ID)
-      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js.
+      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
+      // incompleta/inválida vira null e simplesmente não grava nada.
       salvarAniversarioCliente({
         clientes, addCliente, updateCliente,
-        nome: form.nome, telefone: form.tel, aniversario: form.aniversario,
+        nome: form.nome, telefone: form.tel, aniversario: dataDigitadaParaISO(form.aniversario),
       })
       fetchAll?.()
     }
@@ -1088,7 +1083,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 }}>
                   {cliNomeMatches.map(c => (
                     <button key={c.id} type="button"
-                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel })); setCliNomeOpen(false) }}
+                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome, tel: c.telefone || prev.tel, aniversario: c.data_nascimento ? isoParaDataDigitada(c.data_nascimento) : prev.aniversario })); setCliNomeOpen(false) }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
@@ -1123,7 +1118,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 }}>
                   {cliTelMatches.map(c => (
                     <button key={c.id} type="button"
-                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '' })); setCliTelOpen(false) }}
+                      onMouseDown={() => { setForm(prev => ({ ...prev, nome: c.nome || prev.nome, tel: c.telefone || '', aniversario: c.data_nascimento ? isoParaDataDigitada(c.data_nascimento) : prev.aniversario })); setCliTelOpen(false) }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
@@ -1141,14 +1136,18 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             </div>
             <div>
               <Label><Cake size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Aniversário</Label>
-              <div onClick={openDatePicker} style={{ position: 'relative', cursor: 'pointer' }}>
-                <input
-                  type="date"
-                  value={form.aniversario}
-                  onChange={e => setForm({ ...form, aniversario: e.target.value })}
-                  style={{ ...inputS, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
-                />
-              </div>
+              {/* Texto com máscara, não <input type="date">: ver
+                  utils/dataAniversario.js — digitar é mais rápido do que
+                  procurar no calendário uma data de décadas atrás. */}
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.aniversario}
+                onChange={e => setForm({ ...form, aniversario: mascararDataDigitada(e.target.value) })}
+                placeholder="DD/MM/AAAA"
+                maxLength={10}
+                style={inputS}
+              />
             </div>
             <div>
               <Label>Vendedor(a)</Label>
