@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil, History, Image } from 'lucide-react'
+import { Search, Plus, X, ChevronDown, ChevronRight, Package, Pencil, History, Image, FileSpreadsheet } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { uploadFotoProduto } from '../../utils/uploadMidiaProduto'
 import { HeroCard } from '../../components/studio/Card'
@@ -93,6 +93,7 @@ export function buildProdPayload(form) {
 
 import EtiquetasPrint from '../../components/etiquetas/EtiquetasPrint'
 import { etiquetasDoProduto, etiquetasDeProdutos, normalizarCodigo } from '../../utils/codigoBarras'
+import ImportarEstoqueModal from './ImportarEstoqueModal'
 
 // Limite por foto: o mesmo dos 10MB da seção de fotos do Catálogo B2B.
 const FOTO_MAX = 10 * 1024 * 1024
@@ -159,7 +160,7 @@ function CampoFotos({ fotos = [], fotoFiles = [], onAddFiles, onRemoveUrl, onRem
   )
 }
 
-export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, features = {}, theme, LOJA_ID = '', fetchAll }) {
+export default function EstoqueMobile({ produtosData = [], updateVariacoes, addProduto, updateProduto, importarProdutos, features = {}, theme, LOJA_ID = '', fetchAll }) {
   // Balanço que está travando as vendas desta loja. Fica aqui porque o Estoque
   // é a única tela que a lojista alcança — o /balanco é do admin, então sem
   // isso ela não tem como destravar sozinha uma sessão aberta em outro
@@ -172,6 +173,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   const [form, setForm]             = useState({ cor: '', quantidade: '0', custo: '', codigo: '', referencia: '' })
   const [saving, setSaving]         = useState(false)
   const [newProdOpen, setNewProdOpen] = useState(false)
+  const [importOpen, setImportOpen]   = useState(false)
   const [newProd, setNewProd]         = useState(EMPTY_NEW)
   const [newProdSaving, setNewProdSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(null) // { produto }
@@ -616,8 +618,8 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
           <Search size={15} color="var(--muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
@@ -629,6 +631,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
             }}
           />
         </div>
+        {/* Sem gate de plano: importação em lote vale para Starter, Pro e
+            Business — é a mesma tela de Estoque de todas as lojas. */}
+        <Button
+          variant="secondary" icon={FileSpreadsheet} style={{ height: 46, flexShrink: 0 }}
+          onClick={() => setImportOpen(true)}
+        >
+          Importar Estoque
+        </Button>
         <Button
           variant="primary" icon={Plus} style={{ height: 46, flexShrink: 0, background: theme.primary }}
           onClick={abrirNovoProduto}
@@ -1489,6 +1499,14 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           etiquetas={etiquetas}
           aoFechar={() => setEtiquetas(null)}
           theme={theme}
+        />
+      )}
+
+      {importOpen && (
+        <ImportarEstoqueModal
+          theme={theme}
+          importarProdutos={importarProdutos}
+          onClose={() => setImportOpen(false)}
         />
       )}
     </div>
