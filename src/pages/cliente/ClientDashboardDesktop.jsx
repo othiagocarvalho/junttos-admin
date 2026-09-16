@@ -3,7 +3,7 @@ import { Label } from '../../components/studio/Input'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
   Trash2, Search, Check, ChevronRight, ChevronLeft, ChevronDown, X, Pencil,
-  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, Target, Receipt, ArrowLeftRight, Sparkles,
+  User, Phone, CreditCard, ShoppingBag, Lock, Package, Users, Target, Receipt, ArrowLeftRight, Sparkles, Cake,
 } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -43,6 +43,9 @@ import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteM
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
+import { useClientAuth } from '../../context/ClientAuthContext'
+import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
+import { salvarAniversarioCliente } from '../../utils/clienteVenda'
 
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', {
@@ -62,6 +65,13 @@ function fmtPgtos(v) {
     p.forma === 'Boleto' && p.vencimento ? `Boleto ${p.vencimento}d` : p.forma
   ).join(' + ')
 }
+// Mesmo padrão do date picker em RelatoriosDesktop.jsx: clicar em qualquer
+// parte do campo abre o calendário nativo, não só no ícone do input.
+function openDatePicker(e) {
+  const input = e.currentTarget.querySelector('input')
+  if (input?.showPicker) input.showPicker()
+  else input?.focus()
+}
 
 const NAV = [
   { id: 'inicio',     label: 'Início',        Icon: Home      },
@@ -70,6 +80,15 @@ const NAV = [
   { id: 'relatorios', label: 'Relatórios',    Icon: BarChart2 },
   { id: 'conta',      label: 'Fechamento',    Icon: Wallet    },
 ]
+
+// Ids de tab escondidos do papel 'gerente' (ver utils/permissoes.js) — mesma
+// lista da versão mobile (LojaFeminina/index.jsx), usada aqui tanto para
+// filtrar a sidebar quanto como guarda de rota (tabEfetiva) mais abaixo.
+//
+// 'inicio' entrou a pedido do Daniel: o gerente não deve ver o dashboard
+// (valor vendido, ticket médio, P.A.). Por isso o fallback de tabEfetiva
+// deixa de ser 'inicio' e vira 'venda' só para quem tem esse papel.
+const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b']
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
@@ -121,7 +140,7 @@ const PLANO_BADGE_DESKTOP = {
 }
 
 // ── Sidebar (fixo 250px) ──────────────────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile, lojaId }) {
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile, lojaId, gerente }) {
   const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
   const [imgErr, setImgErr] = useState(false)
 
@@ -130,7 +149,11 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
   // já responde pela presença online da loja. Nada se perde ao esconder — o
   // Catálogo B2B tem a aba "Pedidos" com exatamente as mesmas props.
   const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
-  const itensPlano = b2bAtivo ? PLANO_NAV_ITEMS.filter(i => i.id !== 'catalogo') : PLANO_NAV_ITEMS
+  const itensPlano = (b2bAtivo || gerente) ? PLANO_NAV_ITEMS.filter(i => i.id !== 'catalogo') : PLANO_NAV_ITEMS
+  // Papel 'gerente' (ver utils/permissoes.js): Metas & Resultados e
+  // Financeiro somem da sidebar — mesma lista usada como guarda de rota
+  // (tabEfetiva) no componente principal, mais abaixo neste arquivo.
+  const itensPlanoVisiveis = gerente ? itensPlano.filter(i => !TABS_RESTRITAS_GERENTE.includes(i.id)) : itensPlano
 
   function navItemStyle(active) {
     return {
@@ -193,7 +216,8 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
-        {NAV.map((item, i) => {
+        {/* Papel 'gerente': "Início" some do NAV base (ver TABS_RESTRITAS_GERENTE) — o dashboard de valor vendido/ticket médio/P.A. não é para esse papel. */}
+        {NAV.filter(item => !(gerente && item.id === 'inicio')).map((item, i) => {
           if (item.divider) return <div key={`div-${i}`} style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
           const { id, label, Icon } = item
           const active = tab === id
@@ -208,7 +232,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
           )
         })}
         <div style={{ height: 1, background: 'var(--line)', margin: '8px 4px' }} />
-        {itensPlano.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+        {itensPlanoVisiveis.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
           const hasAccess = apenasPlano ? temAcesso(plano, planoMinimo) : (legado || temAcesso(plano, planoMinimo))
           const active = tab === id
           const badge = !hasAccess ? PLANO_BADGE_DESKTOP[planoMinimo] : null
@@ -233,7 +257,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             </button>
           )
         })}
-        {config?.features?.catalogo_b2b && (
+        {config?.features?.catalogo_b2b && !gerente && (
           <button
             onClick={() => setTab('catalogo_b2b')}
             className={tab === 'catalogo_b2b' ? '' : 'cds-nav-btn'}
@@ -253,14 +277,16 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Sócio Digital</span>
           </button>
         )}
-        <button
-          onClick={() => setTab('config')}
-          className={tab === 'config' ? '' : 'cds-nav-btn'}
-          style={navItemStyle(tab === 'config')}
-        >
-          <Settings size={16} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Configurações</span>
-        </button>
+        {!gerente && (
+          <button
+            onClick={() => setTab('config')}
+            className={tab === 'config' ? '' : 'cds-nav-btn'}
+            style={navItemStyle(tab === 'config')}
+          >
+            <Settings size={16} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Configurações</span>
+          </button>
+        )}
       </nav>
 
       {/* Footer */}
@@ -685,7 +711,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
 }
 
 // ── Desktop Nova Venda (2 colunas) ────────────────────────────
-const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
+const EMPTY_VENDA = { nome: '', tel: '', aniversario: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 
 // Mesmo stepper do mobile (LojaFeminina/NovaVenda.jsx), mesma numeração e
 // mesmos rótulos — o desktop só aproveita a largura: a coluna da esquerda
@@ -693,7 +719,7 @@ const EMPTY_VENDA = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{
 // tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
 const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null, addCliente, updateCliente }) {
   // Mesmo critério da comissão automática nos Relatórios (temAcesso(plano, 'pro')).
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   const isDark = theme.primary === '#D4A017'
@@ -703,7 +729,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     ...EMPTY_VENDA,
     pagamentos: [{ forma: 'Pix', valor: '' }],
     ...(rascunho ? {
-      nome: rascunho.nome, tel: rascunho.tel, vendedora: rascunho.vendedora, obs: rascunho.obs,
+      nome: rascunho.nome, tel: rascunho.tel, aniversario: rascunho.aniversario || '', vendedora: rascunho.vendedora, obs: rascunho.obs,
       produtos: rascunho.produtos,
       pagamentos: rascunho.pagamentos?.length ? rascunho.pagamentos : [{ forma: 'Pix', valor: '' }],
     } : {}),
@@ -895,6 +921,11 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       setSavedVenda(novaVenda)
       setDone(true)
       limparRascunho(LOJA_ID)
+      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js.
+      salvarAniversarioCliente({
+        clientes, addCliente, updateCliente,
+        nome: form.nome, telefone: form.tel, aniversario: form.aniversario,
+      })
       fetchAll?.()
     }
   }
@@ -1107,6 +1138,17 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                   ))}
                 </div>
               )}
+            </div>
+            <div>
+              <Label><Cake size={11} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Aniversário</Label>
+              <div onClick={openDatePicker} style={{ position: 'relative', cursor: 'pointer' }}>
+                <input
+                  type="date"
+                  value={form.aniversario}
+                  onChange={e => setForm({ ...form, aniversario: e.target.value })}
+                  style={{ ...inputS, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
+                />
+              </div>
             </div>
             <div>
               <Label>Vendedor(a)</Label>
@@ -1863,7 +1905,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
 
 // ── Desktop Relatórios ────────────────────────────────────────
-function DesktopRelatorios({ data, theme, temAcessoPro }) {
+function DesktopRelatorios({ data, theme, temAcessoPro, gerente }) {
   return (
     <RelatoriosDesktop
       vendas={data.vendas}
@@ -1872,6 +1914,7 @@ function DesktopRelatorios({ data, theme, temAcessoPro }) {
       theme={theme}
       temAcessoPro={temAcessoPro}
       lojaId={data.LOJA_ID}
+      gerente={gerente}
     />
   )
 }
@@ -1950,6 +1993,8 @@ function CatalogoB2BModuloDesktop({ data, theme, lojaId, nivel }) {
 // ── Main export ───────────────────────────────────────────────
 export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }) {
   const [tab, setTab] = useState('inicio')
+  const { user } = useClientAuth()
+  const gerente = ehGerente(papelDoUsuario(user))
 
   // Estado derivado em vez de useEffect + setState: o modal está aberto
   // enquanto a flag do banco disser que sim E a lojista não tiver fechado
@@ -2028,7 +2073,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
       : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     estoque:    <EstoqueMobile produtosData={data.produtosData} updateVariacoes={data.updateVariacoes} addProduto={data.addProduto} updateProduto={data.updateProduto} importarProdutos={data.importarProdutos} features={data.features} theme={theme} LOJA_ID={data.LOJA_ID} fetchAll={data.fetchAll} />,
-    relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
+    relatorios: <DesktopRelatorios data={data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} gerente={gerente} />,
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={data.LOJA_ID} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -2060,12 +2105,18 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     )
   }
 
+  // Guarda de rota do papel 'gerente' — mesma lógica da versão mobile
+  // (LojaFeminina/index.jsx): o que é efetivamente renderizado cai para
+  // 'inicio' mesmo que `tab` tenha sido setado para uma aba restrita por
+  // outro caminho que não o menu (defesa em profundidade).
+  const tabEfetiva = (gerente && TABS_RESTRITAS_GERENTE.includes(tab)) ? 'venda' : tab
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
-      <DesktopSidebar tab={tab} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} />
+      <DesktopSidebar tab={tabEfetiva} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} gerente={gerente} />
       <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100vh', boxSizing: 'border-box', minWidth: 0 }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-          {panels[tab]}
+          {panels[tabEfetiva]}
         </div>
       </div>
       {tourAberto && slidesTour.length > 0 && (

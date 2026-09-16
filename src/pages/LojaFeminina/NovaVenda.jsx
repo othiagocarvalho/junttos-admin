@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search } from 'lucide-react'
+import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search, Cake } from 'lucide-react'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
@@ -15,11 +15,12 @@ import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from
 import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
+import { salvarAniversarioCliente } from '../../utils/clienteVenda'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
-const EMPTY = { nome: '', tel: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
+const EMPTY = { nome: '', tel: '', aniversario: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
 const labelStyle = {
@@ -39,6 +40,14 @@ const inputBase = {
   transition: 'border-color .18s, box-shadow .18s',
 }
 
+// Mesmo padrão de Relatorios.jsx: clicar em qualquer parte do campo abre o
+// calendário nativo, não só no ícone pequeno do input type="date".
+function openDatePicker(e) {
+  const input = e.currentTarget.querySelector('input')
+  if (input?.showPicker) input.showPicker()
+  else input?.focus()
+}
+
 function focusIn(e) {
   e.target.style.borderColor = 'var(--rose-deep)'
   e.target.style.boxShadow = '0 0 0 3px rgba(180,122,107,0.12)'
@@ -50,7 +59,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null, addCliente, updateCliente }) {
   // Mesmo critério que libera a comissão automática nos Relatórios
   // (index.jsx: temAcesso(plano, 'pro')). Sem gate novo.
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
@@ -64,7 +73,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     ...EMPTY,
     pagamentos: [{ forma: 'Pix', valor: '' }],
     ...(rascunho ? {
-      nome: rascunho.nome, tel: rascunho.tel, vendedora: rascunho.vendedora, obs: rascunho.obs,
+      nome: rascunho.nome, tel: rascunho.tel, aniversario: rascunho.aniversario || '', vendedora: rascunho.vendedora, obs: rascunho.obs,
       produtos: rascunho.produtos,
       pagamentos: rascunho.pagamentos?.length ? rascunho.pagamentos : [{ forma: 'Pix', valor: '' }],
     } : {}),
@@ -284,6 +293,11 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       setSavedVenda(novaVenda)
       setDone(true)
       limparRascunho(LOJA_ID)
+      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js.
+      salvarAniversarioCliente({
+        clientes, addCliente, updateCliente,
+        nome: form.nome, telefone: form.tel, aniversario: form.aniversario,
+      })
       fetchAll?.()
     }
   }
@@ -506,6 +520,16 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     ))}
                   </div>
                 )}
+              </div>
+            </Field>
+            <Field label="Aniversário" Icon={Cake}>
+              <div onClick={openDatePicker} style={{ position: 'relative', cursor: 'pointer' }}>
+                <input
+                  type="date"
+                  value={form.aniversario}
+                  onChange={e => setForm({ ...form, aniversario: e.target.value })}
+                  style={{ ...inputBase, cursor: 'pointer', colorScheme: theme?.isDark ? 'dark' : 'light' }}
+                />
               </div>
             </Field>
             <Field label="Vendedor(a)">

@@ -6,6 +6,8 @@ import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
 import { useLojaData } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
+import { useClientAuth } from '../../context/ClientAuthContext'
+import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
 import { gerarLogoDataURL } from '../../utils/gerarLogoSVG'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
@@ -34,6 +36,18 @@ import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
 import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
 import SocioDigital from './SocioDigital'
 import { fmtR } from '../../utils/formatters'
+
+// Ids de tab escondidos do papel 'gerente' (ver utils/permissoes.js) — usados
+// tanto para filtrar os menus quanto como guarda de rota mais abaixo
+// (tabEfetiva), para que um gerente não alcance a tela nem setando o tab por
+// outro caminho que não o menu.
+//
+// 'inicio' entrou na lista a pedido do Daniel: o gerente não deve ver o
+// dashboard (valor vendido, ticket médio, P.A.). Por isso o fallback de
+// tabEfetiva, mais abaixo, deixa de ser 'inicio' e vira 'venda' só para quem
+// tem esse papel — 'inicio' não pode ser destino de fallback e também estar
+// na lista do que precisa cair em outro lugar.
+const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b']
 
 const BOTTOM_TABS = [
   { id: 'inicio',   label: 'Início',   Icon: Home          },
@@ -342,11 +356,13 @@ function AppHeader({ primary, accent, logoUrl, storeName, plano, legado, onSwitc
 
 // ── BottomTabBar ────────────────────────────────────────────
 
-function BottomTabBar({ tab, setTab, onFabClick, primary, config }) {
+function BottomTabBar({ tab, setTab, onFabClick, primary, config, gerente }) {
   // Mesmo motivo do sidebar desktop: com atacado ligado, a aba "Catálogo"
   // duplica o que o Catálogo B2B já mostra em "Pedidos".
   const b2bAtivo = config?.features?.catalogo_b2b === 'simples' || config?.features?.catalogo_b2b === 'pro'
-  const tabs = b2bAtivo ? BOTTOM_TABS.filter(t => t.id !== 'catalogo') : BOTTOM_TABS
+  let tabs = (b2bAtivo || gerente) ? BOTTOM_TABS.filter(t => t.id !== 'catalogo') : BOTTOM_TABS
+  // Papel 'gerente': também não vê "Início" (ver TABS_RESTRITAS_GERENTE).
+  if (gerente) tabs = tabs.filter(t => t.id !== 'inicio')
 
   const activeColor = primary || 'var(--primary)'
   return (
@@ -476,6 +492,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const data = useLojaData(lojaId)
   useLojaTheme(data.config)
   const { viewMode, setViewMode } = useViewMode()
+  const { user } = useClientAuth()
+  const gerente = ehGerente(papelDoUsuario(user))
   const [tab, setTab] = useState('inicio')
   const [initDone, setInitDone] = useState(false)
   const [showVendaModal, setShowVendaModal] = useState(false)
@@ -650,7 +668,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
-    relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} />,
+    relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} gerente={gerente} />,
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
       : <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crediario" theme={theme} onVoltar={() => setTab('inicio')} />,
@@ -674,7 +692,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     conta: <Fechamento {...data} theme={theme} />,
     mais: (
       <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {MAIS_ITEMS.map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
+        {MAIS_ITEMS.filter(({ id }) => !(gerente && TABS_RESTRITAS_GERENTE.includes(id))).map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
           const unlocked = apenasPlano
             ? (!planoMinimo || temAcesso(plano, planoMinimo))
             : (!planoMinimo || legado || temAcesso(plano, planoMinimo))
@@ -709,7 +727,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             </button>
           )
         })}
-        {catalogoB2BNivel && (
+        {catalogoB2BNivel && !gerente && (
           <button
             onClick={() => setTab('catalogo_b2b')}
             style={{
@@ -760,16 +778,22 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     socio_digital: lojaId === 'sualoja' ? <SocioDigital mobile /> : null,
   }
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'socio_digital'].includes(tab)
+  // Guarda de rota do papel 'gerente': mesmo que `tab` tenha sido setado para
+  // uma aba restrita por algum caminho fora do menu (que já filtra), o que é
+  // efetivamente renderizado/realçado cai para 'inicio' — defesa em
+  // profundidade, não só esconder o botão.
+  const tabEfetiva = (gerente && TABS_RESTRITAS_GERENTE.includes(tab)) ? 'venda' : tab
+
+  const showBottomBar = !['faturamento', 'config', 'meta', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'socio_digital'].includes(tabEfetiva)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>
       <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} legado={legado} onSwitchToDesktop={() => setViewMode('desktop')} />
       <main style={{ maxWidth: 480, margin: '0 auto', padding: '0 16px 110px', overflowX: 'hidden', boxSizing: 'border-box' }}>
-        {panels[tab]}
+        {panels[tabEfetiva]}
       </main>
       {showBottomBar
-        ? <BottomTabBar tab={tab} setTab={setTab} onFabClick={() => setShowVendaModal(true)} primary={theme.primary} config={data.config} />
+        ? <BottomTabBar tab={tabEfetiva} setTab={setTab} onFabClick={() => setShowVendaModal(true)} primary={theme.primary} config={data.config} gerente={gerente} />
         : (
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
