@@ -38,7 +38,7 @@ function fmtDayLabel(dateStr) {
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
-function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack }) {
+function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack, gerente }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const [editVenda, setEditVenda] = useState(null)
@@ -72,13 +72,17 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
   const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
   const editPgtoOk = editVenda && Math.abs(editAlloc - editTotal) < 0.005
 
+  // Guarda dupla contra o papel 'gerente' (ver utils/permissoes.js) — mesmo
+  // padrão do Relatorios.jsx mobile: os handlers recusam agir, não só os
+  // botões ficam escondidos.
   function openEdit(v) {
+    if (gerente) return
     setEditPgtos(parsePgtos(v).map(p => ({ ...p, valor: String(p.valor) })))
     setEditVenda(v)
   }
 
   async function handleSaveEdit() {
-    if (!editPgtoOk) return
+    if (gerente || !editPgtoOk) return
     setEditSaving(true)
     await updateVenda(editVenda.id, {
       forma_pgto: JSON.stringify(editPgtos.map(p => ({
@@ -91,6 +95,7 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
   }
 
   async function handleDelete() {
+    if (gerente || !confirmDel) return
     await deleteVenda(confirmDel.id)
     setConfirmDel(null)
   }
@@ -185,22 +190,26 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
                   >
                     <Receipt size={14} />
                   </button>
-                  <button
-                    onClick={() => openEdit(v)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = theme.primary}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDel(v)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {!gerente && (
+                    <>
+                      <button
+                        onClick={() => openEdit(v)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = theme.primary}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDel(v)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 6, display: 'flex', alignItems: 'center', borderRadius: 8, transition: 'color .15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -314,7 +323,7 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
   )
 }
 
-export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '' }) {
+export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '', gerente = false }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -374,6 +383,7 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
         updateVenda={updateVenda}
         theme={theme}
         onBack={() => setShowDetalhadas(false)}
+        gerente={gerente}
       />
     )
   }
@@ -538,7 +548,7 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
           O desktop NÃO tinha este bloco: a comissão automática existia só no
           relatório mobile. Com o cálculo agora compartilhado, as duas telas
           mostram o mesmo número. */}
-      {temAcessoPro && (
+      {temAcessoPro && !gerente && (
         <ComissaoVendedores lojaId={lojaId} vendas={filtered} theme={theme} />
       )}
     </div>

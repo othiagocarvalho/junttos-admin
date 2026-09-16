@@ -19,8 +19,9 @@ export function chaveRascunho(lojaId) {
 /** Campos restaurados. O valor total não entra: é recalculado dos produtos. */
 export function extrairRascunho(form, extras = {}) {
   return {
-    nome:      form?.nome ?? '',
-    tel:       form?.tel ?? '',
+    nome:        form?.nome ?? '',
+    tel:         form?.tel ?? '',
+    aniversario: form?.aniversario ?? '',
     vendedora: form?.vendedora ?? '',
     obs:       form?.obs ?? '',
     produtos:   Array.isArray(form?.produtos) ? form.produtos : [],

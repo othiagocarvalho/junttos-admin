@@ -34,7 +34,7 @@ function groupByDay(vendas) {
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 // ── Subview: lista de vendas com editar/excluir ────────────────
-function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, theme, onBack }) {
+function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, theme, onBack, gerente }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const [editVenda, setEditVenda] = useState(null)
@@ -72,18 +72,25 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 
   const groups = groupByDay(filtradas)
 
+  // Guarda dupla contra o papel 'gerente' (ver utils/permissoes.js): além de
+  // esconder os botões abaixo, os próprios handlers recusam agir — a mesma
+  // defesa em profundidade que o projeto já usa para RLS, aqui do lado do
+  // client, já que só o botão escondido não impede chamar a função por outro
+  // caminho (ex: reabrir um modal já montado).
   async function handleDelete() {
+    if (gerente || !confirmDel) return
     await deleteVenda(confirmDel.id)
     setConfirmDel(null)
   }
 
   function openEdit(v) {
+    if (gerente) return
     setEditPgtos(parsePgtos(v).map(p => ({ ...p, valor: String(p.valor) })))
     setEditVenda(v)
   }
 
   async function handleSaveEdit() {
-    if (!editPgtoOk) return
+    if (gerente || !editPgtoOk) return
     setEditSaving(true)
     await updateVenda(editVenda.id, {
       forma_pgto: JSON.stringify(editPgtos.map(p => ({
@@ -187,20 +194,22 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
                       <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--rose-deep)' }}>
                         {fmtR(v.valor)}
                       </span>
-                      <div style={{ display: 'flex', gap: 2 }}>
-                        <button onClick={() => openEdit(v)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-deep)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
-                          <Pencil size={13} />
-                        </button>
-                        <button onClick={() => setConfirmDel(v)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      {!gerente && (
+                        <div style={{ display: 'flex', gap: 2 }}>
+                          <button onClick={() => openEdit(v)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = 'var(--rose-deep)'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                            <Pencil size={13} />
+                          </button>
+                          <button onClick={() => setConfirmDel(v)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--line)', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'var(--line)'}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -293,7 +302,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '' }) {
+export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '', gerente = false }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -354,6 +363,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         updateVenda={updateVenda}
         theme={theme}
         onBack={() => setShowDetalhadas(false)}
+        gerente={gerente}
       />
     )
   }
@@ -487,8 +497,8 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         </>
       )}
 
-      {/* Comissão por vendedor(a) — Pro+ */}
-      {temAcessoPro && (
+      {/* Comissão por vendedor(a) — Pro+, escondida do papel 'gerente' */}
+      {temAcessoPro && !gerente && (
         <ComissaoVendedores lojaId={LOJA_ID} vendas={filtered} theme={theme} compacto />
       )}
 
