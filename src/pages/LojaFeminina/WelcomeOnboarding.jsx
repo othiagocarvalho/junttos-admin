@@ -1,22 +1,14 @@
-import { useState } from 'react'
-import { FileSpreadsheet, Plus, Package } from 'lucide-react'
-import ImportarPlanilha from './ImportarPlanilha'
+import { Package } from 'lucide-react'
 import Card from '../../components/studio/Card'
 import Button from '../../components/studio/Button'
 
-export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualmente, importarProdutos }) {
-  const [showImport, setShowImport] = useState(false)
-
-  if (showImport) {
-    return (
-      <ImportarPlanilha
-        theme={theme}
-        importarProdutos={importarProdutos}
-        onBack={() => setShowImport(false)}
-      />
-    )
-  }
-
+// A tela antiga de importação por planilha larga foi removida — lia por
+// posição fixa de coluna e corrompeu dados de loja real quando alimentada com
+// o layout novo (Produto|Cor|Tamanho|Quantidade|Custo|Venda). A importação em
+// lote agora só existe dentro do Estoque (botão "Importar Estoque" em
+// EstoqueMobile.jsx), então o onboarding só precisa levar a lojista até lá —
+// sem inventar uma segunda tela para a mesma tarefa.
+export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualmente }) {
   return (
     <div style={{
       minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -47,26 +39,16 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
           Para começar a registrar vendas, cadastre os produtos do seu estoque.
         </p>
 
-        {/* Botões */}
+        {/* Botão */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
           <Button
             variant="primary"
             fullWidth
-            icon={FileSpreadsheet}
-            onClick={() => setShowImport(true)}
+            icon={Package}
+            onClick={onCadastrarManualmente}
             style={{ height: 52, background: theme.primary, boxShadow: `0 4px 20px ${theme.primary}45` }}
           >
-            Importar planilha Excel
-          </Button>
-
-          <Button
-            variant="secondary"
-            fullWidth
-            icon={Plus}
-            onClick={onCadastrarManualmente}
-            style={{ height: 52, color: theme.primary, border: `1.5px solid ${theme.primary}35` }}
-          >
-            Cadastrar manualmente
+            Cadastrar produtos
           </Button>
         </div>
 
@@ -75,7 +57,7 @@ export default function WelcomeOnboarding({ theme, storeName, onCadastrarManualm
           fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11,
           color: 'var(--muted)', marginTop: 24, marginBottom: 0, lineHeight: 1.5,
         }}>
-          Você pode importar uma planilha Excel com todos os seus produtos de uma vez, ou adicioná-los um por um.
+          Na tela de Estoque você pode importar uma planilha com todos os seus produtos de uma vez, ou cadastrá-los um por um.
         </p>
       </Card>
     </div>
