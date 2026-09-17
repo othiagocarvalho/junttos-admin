@@ -38,7 +38,7 @@ function fmtDayLabel(dateStr) {
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
-function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack, gerente }) {
+function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack, gerente, config }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const [editVenda, setEditVenda] = useState(null)
@@ -317,13 +317,13 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
         </div>
       )}
       {reciboVenda && (
-        <ReciboVenda venda={reciboVenda} vendas={allVendas.length > 0 ? allVendas : vendas} theme={theme} onFechar={() => setReciboVenda(null)} />
+        <ReciboVenda venda={reciboVenda} vendas={allVendas.length > 0 ? allVendas : vendas} theme={theme} onFechar={() => setReciboVenda(null)} avisoRecibo={config?.features?.texto_aviso_recibo} />
       )}
     </div>
   )
 }
 
-export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '', gerente = false }) {
+export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '', gerente = false, config = null }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
@@ -384,6 +384,7 @@ export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVend
         theme={theme}
         onBack={() => setShowDetalhadas(false)}
         gerente={gerente}
+        config={config}
       />
     )
   }

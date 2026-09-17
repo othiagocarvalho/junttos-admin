@@ -171,3 +171,53 @@ describe('formatarReciboTexto', () => {
     expect(txt.split('\n')[0]).toBe('Loja')
   })
 })
+
+// ── formatarReciboTexto — aviso fixo (lf_config.features.texto_aviso_recibo) ──
+describe('formatarReciboTexto — aviso fixo opcional', () => {
+  const vendaBase = {
+    data: '2025-07-18T14:30:00',
+    valor: 150,
+    tipo_venda: 'venda',
+    forma_pgto: JSON.stringify([{ forma: 'Pix', valor: 150 }]),
+    produtos: [{ nome: 'Calça', variacao: '38', quantidade: 2 }],
+    cliente_nome: null,
+    vendedora: null,
+    obs: null,
+  }
+  const AVISO = 'Não efetuamos trocas de peças no atacado e/ou promoção'
+
+  it('aparece em negrito (*asterisco*, formatação do WhatsApp) quando o texto é passado', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1, AVISO)
+    expect(txt).toContain(`*${AVISO}*`)
+  })
+
+  it('não aparece quando o parâmetro não é passado — comportamento idêntico ao de antes', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1)
+    expect(txt).not.toContain(AVISO)
+    expect(txt).not.toContain('*')
+  })
+
+  it('não aparece quando o parâmetro é string vazia (flag ausente/desligada)', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1, '')
+    expect(txt).not.toContain('*')
+  })
+
+  it('não aparece quando o parâmetro é null (mesmo caso de loja sem o campo em lf_config)', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1, null)
+    expect(txt).not.toContain('*')
+  })
+
+  it('usa o texto literal, sem alterar uma letra', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1, AVISO)
+    expect(txt).toContain('Não efetuamos trocas de peças no atacado e/ou promoção')
+  })
+
+  it('continua terminando com o aviso de documento sem valor fiscal, depois do aviso fixo', () => {
+    const txt = formatarReciboTexto(vendaBase, 'Loja', 1, AVISO)
+    const linhas = txt.split('\n')
+    const idxAviso = linhas.findIndex(l => l === `*${AVISO}*`)
+    const idxFiscal = linhas.findIndex(l => l === 'Documento sem valor fiscal')
+    expect(idxAviso).toBeGreaterThan(-1)
+    expect(idxFiscal).toBeGreaterThan(idxAviso)
+  })
+})

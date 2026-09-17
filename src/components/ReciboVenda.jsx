@@ -8,7 +8,11 @@ function fmtDT(s) {
     d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function ReciboVenda({ venda, vendas = [], theme, onFechar }) {
+// `avisoRecibo`: texto fixo opcional (lf_config.features.texto_aviso_recibo),
+// hoje usado para o aviso de não-troca em atacado/promoção do grupo do
+// Daniel. Ausente/vazio para o resto das lojas — nenhuma mudança de
+// comportamento fora de quem tiver o campo preenchido.
+export default function ReciboVenda({ venda, vendas = [], theme, onFechar, avisoRecibo }) {
   const nomeFantasia = theme?.nome || 'Loja'
   const isTroca = venda.tipo_venda === 'troca'
   const pgtos = parsePgtosRecibo(venda)
@@ -16,7 +20,7 @@ export default function ReciboVenda({ venda, vendas = [], theme, onFechar }) {
   const numero = numeracaoRecibo(allVendas, venda.id)
 
   function handleWhatsApp() {
-    const texto = formatarReciboTexto(venda, nomeFantasia, numero)
+    const texto = formatarReciboTexto(venda, nomeFantasia, numero, avisoRecibo)
     const tel = (venda.cliente_tel || '').replace(/\D/g, '')
     const url = tel
       ? `https://wa.me/55${tel}?text=${encodeURIComponent(texto)}`
@@ -46,6 +50,14 @@ export default function ReciboVenda({ venda, vendas = [], theme, onFechar }) {
     const obsHTML = venda.obs
       ? `<div class="row" style="margin-top:5px"><span>Obs:</span><span>${venda.obs}</span></div>`
       : ''
+    // Mesma fonte que o WhatsApp (formatarReciboTexto) — aqui em negrito via
+    // CSS (font-weight:bold), que é como o resto do recibo já marca negrito
+    // (.title, .total). Serve tanto para "Imprimir/PDF" quanto para a
+    // impressora térmica: os dois saem deste MESMO HTML, só muda o destino
+    // que a pessoa escolhe na caixa de impressão do navegador.
+    const avisoHTML = avisoRecibo
+      ? `<div class="aviso">${avisoRecibo}</div>`
+      : ''
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
@@ -57,6 +69,7 @@ body{font-family:'Courier New',Courier,monospace;font-size:11px;color:#000;width
 .sep{border:none;border-top:1px dashed #000;margin:5px 0}
 .row{display:flex;justify-content:space-between;margin:2px 0}
 .total{display:flex;justify-content:space-between;font-weight:bold;font-size:13px;margin:4px 0}
+.aviso{font-weight:bold;text-align:center;margin-top:6px;font-size:11px}
 .small{font-size:9px;text-align:center;margin-top:8px;color:#555}
 </style></head><body>
 <div class="center title">${nomeFantasia}</div>
@@ -73,6 +86,7 @@ ${prodHTML}
 <hr class="sep">
 ${pgtoHTML}
 ${obsHTML}
+${avisoHTML}
 <div class="small">Documento sem valor fiscal</div>
 </body></html>`
 
@@ -165,6 +179,12 @@ ${obsHTML}
           {venda.obs && (
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>
               Obs: {venda.obs}
+            </div>
+          )}
+
+          {avisoRecibo && (
+            <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+              {avisoRecibo}
             </div>
           )}
 
