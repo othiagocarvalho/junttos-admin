@@ -2089,7 +2089,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     financeiro: temAcesso(plano, 'business')
       ? <FinanceiroDesktop data={data} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
-    conta:        <Fechamento       {...data} theme={theme} />,
+    conta:        <Fechamento       {...data} theme={theme} gerente={gerente} />,
     config:       <LojaConfig       {...data} theme={theme} />,
     catalogo_b2b: catalogoB2BNivel
       ? <CatalogoB2BModuloDesktop data={data} theme={theme} lojaId={data.LOJA_ID} nivel={catalogoB2BNivel} />
