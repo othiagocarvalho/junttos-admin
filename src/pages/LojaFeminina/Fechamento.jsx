@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Wallet, History, Trash2, Info } from 'lucide-react'
+import { Wallet, History, Trash2, Info, CheckCircle2 } from 'lucide-react'
 import Card, { HeroCard } from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -30,25 +30,70 @@ const EMPTY = {
   despesas: '', obs: '',
 }
 
-function CurrField({ k, label, form, setForm }) {
+/**
+ * Deriva o modo de exibição da tela a partir da data escolhida — pura, sem
+ * estado, para poder testar sem DOM (ver Fechamento.test.js).
+ *
+ * `modoConsulta`: fechamento já salvo para a data + não é gerente → mostra o
+ * detalhe completo do registro salvo, somente-leitura.
+ * `semFechamentoRetroativo`: data passada (nunca hoje) sem nenhum registro +
+ * não é gerente → mostra o aviso de que os valores abaixo são estimativa.
+ * Gerente nunca ativa nenhum dos dois (ver item 5 do pedido): mantém sempre o
+ * aviso de bloqueio simples de antes desta feature.
+ */
+export function derivarModoFechamento(caixas, dataSelecionada, hoje, gerente) {
+  const fechamentoSalvo = (caixas || []).find(c => c.data === dataSelecionada) || null
+  const jaDuplicado = !!fechamentoSalvo
+  const modoConsulta = jaDuplicado && !gerente
+  const semFechamentoRetroativo = !jaDuplicado && dataSelecionada !== hoje && !gerente
+  return { fechamentoSalvo, jaDuplicado, modoConsulta, semFechamentoRetroativo }
+}
+
+/**
+ * Valores REAIS de um fechamento já salvo, no mesmo formato que os campos do
+ * formulário esperam — nunca deriva de `vendas`/auto-fill. Recebe só o
+ * registro de `lf_caixas`, então é estruturalmente impossível misturar com a
+ * estimativa (a função nem tem acesso a `vendas`).
+ */
+export function valoresDoFechamentoSalvo(fechamentoSalvo) {
+  if (!fechamentoSalvo) return null
+  return {
+    dinheiro: Number(fechamentoSalvo.dinheiro) || 0,
+    pix: Number(fechamentoSalvo.pix) || 0,
+    debito: Number(fechamentoSalvo.debito) || 0,
+    credito: Number(fechamentoSalvo.credito) || 0,
+    saldo_ini: Number(fechamentoSalvo.saldo_ini) || 0,
+    sangria: Number(fechamentoSalvo.sangria) || 0,
+    suprimento: Number(fechamentoSalvo.suprimento) || 0,
+    valor_contado: fechamentoSalvo.valor_contado != null ? Number(fechamentoSalvo.valor_contado) : '',
+    despesas: Number(fechamentoSalvo.despesas) || 0,
+  }
+}
+
+// `readOnly` + `valores`: modo consulta (fechamento já salvo) exibe o valor
+// REAL do registro, não o `form` — que é só rascunho de um fechamento novo.
+function CurrField({ k, label, form, setForm, readOnly = false, valores }) {
+  const value = readOnly ? (valores?.[k] ?? '') : form[k]
   return (
     <div>
       <Label>{label}</Label>
       <div style={{ position: 'relative' }}>
         <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none', zIndex: 1 }}>R$</span>
         <Input
-          type="number" value={form[k]} step="0.01" min="0"
-          onChange={e => setForm({ ...form, [k]: e.target.value })}
+          type="number" value={value} step="0.01" min="0"
+          onChange={e => !readOnly && setForm({ ...form, [k]: e.target.value })}
           placeholder="0,00"
           mono
-          style={{ paddingLeft: 34 }}
+          readOnly={readOnly}
+          disabled={readOnly}
+          style={{ paddingLeft: 34, ...(readOnly ? { opacity: 0.75, cursor: 'default' } : {}) }}
         />
       </div>
     </div>
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [] }) {
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [], gerente = false }) {
   const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
@@ -100,18 +145,33 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
     }))
   }, [dataSelecionada, vendas])
 
-  const n = k => parseFloat(form[k] || 0) || 0
+  // Fechamento já salvo para a data escolhida, e o modo de exibição derivado
+  // disso — ver derivarModoFechamento() acima (função pura, testada em
+  // Fechamento.test.js sem precisar de DOM).
+  const { fechamentoSalvo, jaDuplicado, modoConsulta, semFechamentoRetroativo } =
+    derivarModoFechamento(caixas, dataSelecionada, hoje, gerente)
+  const valoresSalvos = valoresDoFechamentoSalvo(fechamentoSalvo)
+
+  // Em modo consulta, todo cálculo abaixo lê do registro SALVO em vez do
+  // `form` (que é só rascunho de fechamento novo) — sem duplicar as fórmulas
+  // de totalVendas/saldoFinal/dinheiroEsperado/diferença, que continuam
+  // exatamente as mesmas dos dois lados.
+  const n = k => {
+    if (modoConsulta) return Number(valoresSalvos[k]) || 0
+    return parseFloat(form[k] || 0) || 0
+  }
   const totalVendas = n('dinheiro') + n('pix') + n('debito') + n('credito')
   const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria') + n('suprimento')
   const liquido = totalVendas - n('despesas')
 
   // Cash count verification
   const dinheiroEsperado = n('dinheiro') - n('sangria') + n('suprimento')
-  const hasValorContado = form.valor_contado !== ''
+  const hasValorContado = modoConsulta ? fechamentoSalvo.valor_contado != null : form.valor_contado !== ''
   const diferenca = hasValorContado ? n('valor_contado') - dinheiroEsperado : null
   const temDivergenciaCaixa = diferenca !== null && Math.abs(diferenca) >= 0.01
 
-  // Total real de vendas do sistema para a data escolhida (usado na validação de divergência)
+  // Total real de vendas do sistema para a data escolhida (usado na validação de divergência
+  // e no aviso de estimativa quando não há fechamento salvo)
   const vendasDoDia = vendas.filter(v => {
     try { return toLocalISO(new Date(v.data)) === dataSelecionada }
     catch { return false }
@@ -119,8 +179,6 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
   const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
   const divergencia = Math.abs(totalVendas - totalVendasSistema)
 
-  // Bloqueio de data duplicada
-  const jaDuplicado = caixas.some(c => c.data === dataSelecionada)
   const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
 
   async function salvarFechamento() {
@@ -182,7 +240,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Seletor de data + avisos */}
       <Card>
-        <div style={{ marginBottom: jaDuplicado ? 16 : 0 }}>
+        <div style={{ marginBottom: (jaDuplicado || semFechamentoRetroativo) ? 16 : 0 }}>
           <Label>Data do Fechamento</Label>
           <Input
             type="date"
@@ -197,11 +255,36 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           )}
         </div>
 
-        {/* Aviso de duplicidade (bloqueio real) */}
-        {jaDuplicado && (
+        {/* Modo consulta (dono): selo de fechamento salvo, no lugar do aviso de bloqueio */}
+        {modoConsulta && (
+          <div style={{ background: 'color-mix(in srgb, var(--positive) 10%, white)', border: '1px solid color-mix(in srgb, var(--positive) 35%, white)', borderRadius: 'var(--r-input)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CheckCircle2 size={16} color="var(--positive)" style={{ flexShrink: 0 }} />
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: 'var(--positive)' }}>
+              Fechamento salvo — {fmtDate(dataSelecionada)}
+            </p>
+          </div>
+        )}
+
+        {/* Aviso de duplicidade — comportamento de sempre para gerente; para
+            dono só aparece se, por algum motivo, o modo consulta não coube
+            (defensivo — hoje os dois são sempre complementares). */}
+        {jaDuplicado && !modoConsulta && (
           <div style={{ background: 'color-mix(in srgb, var(--negative) 10%, white)', border: '1px solid color-mix(in srgb, var(--negative) 35%, white)', borderRadius: 'var(--r-input)', padding: '12px 14px' }}>
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--negative)', lineHeight: 1.5 }}>
               Já existe um fechamento registrado para {fmtDate(dataSelecionada)}. Não é possível fechar a mesma data duas vezes.
+            </p>
+          </div>
+        )}
+
+        {/* Data passada sem fechamento salvo: os valores abaixo são estimativa
+            a partir de lf_vendas, não um fechamento de verdade. */}
+        {semFechamentoRetroativo && (
+          <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 'var(--r-input)', padding: '12px 14px' }}>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 3 }}>
+              ⚠️ Nenhum fechamento foi registrado neste dia
+            </p>
+            <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#92400e', lineHeight: 1.5 }}>
+              Os valores de venda abaixo são uma estimativa a partir do histórico de vendas — saldo inicial, sangria, suprimento e conferência de caixa não foram informados.
             </p>
           </div>
         )}
@@ -215,7 +298,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>Recebimentos</p>
-          {autoFilled && (
+          {autoFilled && !modoConsulta && (
             <span style={{
               display: 'flex', alignItems: 'center', gap: 4,
               fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, fontWeight: 700,
@@ -228,10 +311,10 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} />
-          <CurrField k="pix" label="Pix" form={form} setForm={setForm} />
-          <CurrField k="debito" label="Débito" form={form} setForm={setForm} />
-          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} />
+          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+          <CurrField k="pix" label="Pix" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+          <CurrField k="debito" label="Débito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
         </div>
       </Card>
 
@@ -239,10 +322,10 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Caixa</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} />
+          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} />
-            <CurrField k="suprimento" label="Suprimento" form={form} setForm={setForm} />
+            <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+            <CurrField k="suprimento" label="Suprimento" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
           </div>
         </div>
       </Card>
@@ -259,7 +342,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           </strong>
           {' '}(vendas − sangria + suprimento)
         </p>
-        <CurrField k="valor_contado" label="Valor Físico Contado" form={form} setForm={setForm} />
+        <CurrField k="valor_contado" label="Valor Físico Contado" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
 
         {hasValorContado && (
           <div style={{
@@ -286,7 +369,9 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
             </div>
             {temDivergenciaCaixa && (
               <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                Divergência informativa — o fechamento pode ser confirmado normalmente.
+                {modoConsulta
+                  ? 'Divergência registrada neste fechamento.'
+                  : 'Divergência informativa — o fechamento pode ser confirmado normalmente.'}
               </p>
             )}
           </div>
@@ -296,15 +381,19 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       {/* Despesas */}
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Despesas</p>
-        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} />
+        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
       </Card>
 
       {/* Observações */}
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Observações</p>
         <Input
-          value={form.obs} onChange={e => setForm({ ...form, obs: e.target.value })}
+          value={modoConsulta ? (fechamentoSalvo.obs || '') : form.obs}
+          onChange={e => !modoConsulta && setForm({ ...form, obs: e.target.value })}
           placeholder="Ocorrências, trocas, anotações..."
+          readOnly={modoConsulta}
+          disabled={modoConsulta}
+          style={modoConsulta ? { opacity: 0.75, cursor: 'default' } : undefined}
         />
       </Card>
 
@@ -337,7 +426,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
         onClick={handleSave} disabled={!canSave}
         style={{ height: 50, borderRadius: 'var(--r-pill)', ...(done ? { background: 'var(--positive)' } : {}) }}
       >
-        {done ? '✓ Caixa fechado!' : saving ? 'Salvando...' : jaDuplicado ? 'Data já fechada' : 'Fechar Caixa'}
+        {done ? '✓ Caixa fechado!' : saving ? 'Salvando...' : modoConsulta ? 'Este dia já foi fechado' : jaDuplicado ? 'Data já fechada' : 'Fechar Caixa'}
       </Button>
 
       {/* Histórico — ordenado por data de referência (c.data), garantido pelo useLojaData */}
@@ -353,8 +442,25 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           />
         ) : (
           <div>
-            {caixas.slice(0, 10).map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--line)', gap: 12 }}>
+            {caixas.slice(0, 10).map(c => {
+              // Clicar na linha seleciona a data no seletor do topo, ativando
+              // o modo consulta — só para quem não é gerente (ver item 5).
+              const clicavel = !gerente
+              const selecionado = clicavel && c.data === dataSelecionada
+              return (
+              <div
+                key={c.id}
+                onClick={clicavel ? () => setDataSelecionada(c.data) : undefined}
+                role={clicavel ? 'button' : undefined}
+                tabIndex={clicavel ? 0 : undefined}
+                onKeyDown={clicavel ? (e => { if (e.key === 'Enter') setDataSelecionada(c.data) }) : undefined}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '12px 0',
+                  borderBottom: '1px solid var(--line)', gap: 12,
+                  cursor: clicavel ? 'pointer' : 'default',
+                  background: selecionado ? 'color-mix(in srgb, var(--primary) 6%, white)' : 'transparent',
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{fmtDate(c.data)}</p>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
@@ -371,7 +477,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
                   <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>{fmtR(c.total)}</p>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)' }}>desp. {fmtR(c.despesas)}</p>
                   <button
-                    onClick={() => handleDeleteRequest(c)}
+                    onClick={e => { e.stopPropagation(); handleDeleteRequest(c) }}
                     title="Excluir fechamento"
                     style={{
                       border: 'none', background: 'none', cursor: 'pointer',
@@ -383,7 +489,8 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>

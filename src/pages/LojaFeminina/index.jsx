@@ -689,7 +689,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     financeiro: temAcesso(plano, 'business')
       ? <Financeiro lojaId={lojaId} vendas={data.vendas} theme={theme} />
       : <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="financeiro" theme={theme} onVoltar={() => setTab('inicio')} />,
-    conta: <Fechamento {...data} theme={theme} />,
+    conta: <Fechamento {...data} theme={theme} gerente={gerente} />,
     mais: (
       <div style={{ paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {MAIS_ITEMS.filter(({ id }) => !(gerente && TABS_RESTRITAS_GERENTE.includes(id))).map(({ id, label, Icon, planoMinimo, apenasPlano }) => {
