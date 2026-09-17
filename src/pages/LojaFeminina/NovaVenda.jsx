@@ -363,7 +363,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
           </div>
         </div>
         {reciboAberto && savedVenda && (
-          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} />
+          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} avisoRecibo={config?.features?.texto_aviso_recibo} />
         )}
       </>
     )

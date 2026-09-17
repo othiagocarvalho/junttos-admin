@@ -11,7 +11,12 @@ export function numeracaoRecibo(vendas, vendaId) {
   return idx === -1 ? null : idx + 1
 }
 
-export function formatarReciboTexto(venda, nomeFantasia, numero) {
+// `avisoTexto` vem de lf_config.features.texto_aviso_recibo (ver
+// components/ReciboVenda.jsx) — texto livre, ausente por padrão. Quando
+// presente, entra em negrito (*asterisco*, formatação nativa do WhatsApp) no
+// rodapé, perto do aviso "Documento sem valor fiscal" — mesma família de
+// aviso fixo, sem mexer no bloco de itens/total/pagamento.
+export function formatarReciboTexto(venda, nomeFantasia, numero, avisoTexto) {
   const pgtos = parsePgtosRecibo(venda)
   const isTroca = venda.tipo_venda === 'troca'
   const d = new Date(venda.data)
@@ -36,6 +41,7 @@ export function formatarReciboTexto(venda, nomeFantasia, numero) {
   L.push('')
   pgtos.forEach(p => L.push(`• ${p.forma}: ${fmtR(p.valor)}`))
   if (venda.obs) { L.push(''); L.push(`Obs: ${venda.obs}`) }
+  if (avisoTexto) { L.push(''); L.push(`*${avisoTexto}*`) }
   L.push('')
   L.push('Documento sem valor fiscal')
   return L.join('\n')

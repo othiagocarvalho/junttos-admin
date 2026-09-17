@@ -36,7 +36,7 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
+export default function Historico({ vendas, deleteVenda, updateVenda, theme, config = null }) {
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -380,7 +380,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme }) {
         </div>
       )}
       {reciboVenda && (
-        <ReciboVenda venda={reciboVenda} vendas={vendas} theme={theme} onFechar={() => setReciboVenda(null)} />
+        <ReciboVenda venda={reciboVenda} vendas={vendas} theme={theme} onFechar={() => setReciboVenda(null)} avisoRecibo={config?.features?.texto_aviso_recibo} />
       )}
     </div>
   )

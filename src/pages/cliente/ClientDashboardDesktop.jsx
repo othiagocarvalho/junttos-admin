@@ -990,7 +990,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           </div>
         </div>
         {reciboAberto && savedVenda && (
-          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} />
+          <ReciboVenda venda={savedVenda} vendas={vendas} theme={theme} onFechar={() => setReciboAberto(false)} avisoRecibo={config?.features?.texto_aviso_recibo} />
         )}
       </>
     )
@@ -1914,6 +1914,7 @@ function DesktopRelatorios({ data, theme, temAcessoPro, gerente }) {
       temAcessoPro={temAcessoPro}
       lojaId={data.LOJA_ID}
       gerente={gerente}
+      config={data.config}
     />
   )
 }
