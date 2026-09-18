@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 import { checarTravaBalanco } from '../../utils/balanco'
 import { precisaDevolverEstoque, normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
+import { buscarTodasAsLinhas } from '../../utils/supabasePaginacao'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
 const _DEMO_MULT_DIA = [
@@ -86,7 +87,15 @@ export function useLojaData(lojaId = 'estrada') {
     if (!hasLoaded.current) setLoading(true)
     try {
       const [vendasRes, caixasRes, metasRes, produtosRes, configRes, clientesRes, metasVendRes, metaProdRes, corridasRes] = await Promise.all([
-        supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
+        // Paginado de propósito: lf_vendas já passa de 1000 linhas em mais de
+        // uma loja em produção (auditado: audazwear 3595, tropicaleatacado
+        // 1115) — um .select('*') sem range() vinha cortado pelo max-rows do
+        // PostgREST, sem erro, e todo total/contagem/média calculado no
+        // client (Início, Relatórios, curva ABC, comissão, DRE) saía errado
+        // em silêncio. Ver src/utils/supabasePaginacao.js.
+        buscarTodasAsLinhas((from, to) =>
+          supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }).range(from, to)
+        ),
         supabase.from('lf_caixas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }),
         supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
         supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
@@ -163,8 +172,9 @@ export function useLojaData(lojaId = 'estrada') {
         const hasToday = (vendasRes.data || []).some(v => (v.data || '').startsWith(hojeStr))
         if (!hasToday) {
           await supabase.from('lf_vendas').insert(_vendasHojeDemo(lojaId))
-          const { data: vendasNow } = await supabase
-            .from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false })
+          const { data: vendasNow } = await buscarTodasAsLinhas((from, to) =>
+            supabase.from('lf_vendas').select('*').eq('loja_id', lojaId).order('data', { ascending: false }).range(from, to)
+          )
           setVendas(vendasNow || [])
         }
       }
