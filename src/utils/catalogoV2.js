@@ -126,6 +126,17 @@ export function estoqueVariacao(produto, nomeCor) {
   return Math.max(0, produto.estoquePorCor?.[nomeCor] ?? 0)
 }
 
+/**
+ * Texto do aviso ao bater o teto de estoque no seletor de quantidade.
+ *
+ * "dessa cor" só faz sentido quando existe um nome de cor de verdade — para
+ * produto sem variação (nomeCor null/vazio, saldo em estoqueSemVariacao) diz
+ * "dessa cor" seria confuso, já que nunca houve cor nenhuma para escolher.
+ */
+export function mensagemLimiteEstoque(nomeCor, n) {
+  return nomeCor ? t('estoqueLimiteCor', { n }) : t('estoqueLimiteGeral', { n })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Copy dinâmica — seção 6
 // ─────────────────────────────────────────────────────────────────────────────

@@ -141,7 +141,11 @@ export const TEXTOS = {
   // mostrar (rede, RLS...).
   erroEstoqueInsuficiente: 'Só temos {disponivel} unidade(s) de {nome} disponível agora. Ajuste a quantidade ou escolha outro produto para continuar.',
   erroEstoqueGenerico: 'Um item do seu pedido não está mais disponível na quantidade escolhida. Ajuste o carrinho e tente novamente.',
-  estoqueLimite: 'Só temos {n} unidade(s) disponíveis dessa variação.',
+  // Dois textos, não um só: "dessa cor" só faz sentido quando existe nome de
+  // cor de verdade (mensagemLimiteEstoque, em utils/catalogoV2.js, decide
+  // qual usar). Produto sem variação nunca teve cor para nomear.
+  estoqueLimiteCor: 'Só temos {n} unidade(s) disponíveis dessa cor.',
+  estoqueLimiteGeral: 'Só temos {n} unidade(s) disponíveis.',
   estoqueEsgotado: 'Esgotado',
   estoqueEsgotadoVariacao: 'Esgotado nesta variação.',
 

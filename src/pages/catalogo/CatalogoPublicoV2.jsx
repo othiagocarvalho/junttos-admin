@@ -43,7 +43,7 @@ import {
   mensagemWhatsApp, linkWhatsApp,
   carregarCarrinho, salvarCarrinho, TAMANHO_UNICO,
   validarDadosCliente, dadosClienteParaPedido,
-  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente,
+  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente, mensagemLimiteEstoque,
 } from '../../utils/catalogoV2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -940,6 +940,18 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
   const limiteAtual = escolhaCompleta ? estoqueVariacao(produto, corSel?.nome ?? null) : Infinity
   const semEstoque = escolhaCompleta && limiteAtual <= 0
 
+  // avisoEstoque some sozinho depois de um tempo — sem isso ficava preso na
+  // tela até a cliente trocar de cor/quantidade, e um aviso que só sai por
+  // uma ação que ninguém pediu para fazer não é "temporário" de verdade.
+  // Continua saindo na hora certa nos outros gatilhos (trocar de cor, apertar
+  // "−", confirmar o item) porque esses já fazem setAvisoEstoque('') direto —
+  // este efeito é só o reforço por tempo, não substitui isso.
+  useEffect(() => {
+    if (!avisoEstoque) return
+    const timer = setTimeout(() => setAvisoEstoque(''), 3200)
+    return () => clearTimeout(timer)
+  }, [avisoEstoque])
+
   // A chave do rascunho é EXATAMENTE a de antes — `${cor}|${tamanho}`, com cor
   // vazia quando o produto não oferece escolha de cor. aplicarRascunho e
   // chaveItem continuam recebendo o mesmo formato, então carrinho, drawer,
@@ -1221,6 +1233,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                         title={corEsgotada ? `${cor?.nome} — ${TEXTOS.estoqueEsgotado}` : cor?.nome}
                         style={{
                           width: 42, height: 42, borderRadius: 99, padding: 0,
+                          position: 'relative', // âncora do check sobreposto, abaixo
                           cursor: corEsgotada ? 'not-allowed' : 'pointer',
                           background: cor?.hex, flex: 'none',
                           // O anel por fora (box-shadow) em vez de borda mais
@@ -1232,7 +1245,32 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                             ? `0 0 0 2px ${C.fundo}, 0 0 0 4px ${C.tinta}`
                             : `inset 0 0 0 2px ${C.superficie}`,
                         }}
-                      />
+                      >
+                        {/* Check sobreposto — o anel sozinho (boxShadow acima)
+                            não lia como "selecionado" com clareza suficiente
+                            contra cores claras (branco, off-white...): um anel
+                            fino de 2-4px se perde ao lado da própria cor da
+                            bolinha. O check não depende de contraste com o
+                            fundo da bolinha — o "puck" escuro por trás garante
+                            leitura em QUALQUER cor. Não muda o tamanho do
+                            círculo: é um elemento absoluto por cima, position:
+                            relative no botão é só a âncora. */}
+                        {ativo && (
+                          <span aria-hidden="true" style={{
+                            position: 'absolute', inset: 0, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            pointerEvents: 'none',
+                          }}>
+                            <span style={{
+                              width: 20, height: 20, borderRadius: 99,
+                              background: 'rgba(0,0,0,.45)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>
+                            </span>
+                          </span>
+                        )}
+                      </button>
                     )
                   })}
                 </div>
@@ -1316,7 +1354,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 <button
                   onClick={() => {
                     if (qtd >= limiteAtual) {
-                      setAvisoEstoque(t('estoqueLimite', { n: limiteAtual }))
+                      setAvisoEstoque(mensagemLimiteEstoque(corSel?.nome ?? null, limiteAtual))
                       return
                     }
                     setAvisoEstoque('')
@@ -1421,9 +1459,14 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                             // Mesmo teto do stepper principal, aplicado à cor
                             // desta linha (pode ser diferente da corSel
                             // atual) — sem isso dava para contornar o limite
-                            // editando aqui em vez do seletor.
+                            // editando aqui em vez do seletor. Antes parava
+                            // sem dizer nada; agora avisa igual ao stepper —
+                            // este "+" tinha exatamente o problema relatado.
                             const limite = estoqueVariacao(produto, item.cor?.nome ?? null)
-                            if (item.n >= limite) return
+                            if (item.n >= limite) {
+                              setAvisoEstoque(mensagemLimiteEstoque(item.cor?.nome ?? null, limite))
+                              return
+                            }
                             definirItem(item.par, item.n + 1)
                           }}
                           aria-label={TEXTOS.ariaAumentar}
@@ -1757,7 +1800,7 @@ export function DrawerPedido({
                   </div>
                   {noLimite && (
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: ERRO }}>
-                      {t('estoqueLimite', { n: limiteLinha })}
+                      {mensagemLimiteEstoque(linha.cor || null, limiteLinha)}
                     </p>
                   )}
                 </div>

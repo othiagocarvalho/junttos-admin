@@ -923,6 +923,59 @@ describe('seleção por chips — trava do botão Adicionar', () => {
   })
 })
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Teto de estoque no seletor de quantidade — ajuste de UX aprovado por
+// Thiago em cima da correção de estoque do catálogo (fix_estoque_catalogo_
+// publico.sql): o "+" trava no teto desde a correção anterior, mas travava
+// SEM avisar nada. Aqui só dá para testar de verdade os casos em que o teto
+// já vale no PRIMEIRO render (produto de cor única/sem cor, onde corSel entra
+// pré-selecionado) — clique real em "+" depende de jsdom, que este projeto
+// não tem (mesma limitação documentada no topo do arquivo fonte). O caminho
+// só alcançável por clique (a mensagem `avisoEstoque` em si, e o check da
+// cor escolhida em produto multicor — corSel nasce null nesse caso) está
+// coberto por inspeção de código em CatalogoPublicoV2.estoqueUX.ordem.test.js.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('teto de estoque no seletor de quantidade', () => {
+  const umaUnidade = normalizarProduto({
+    id: 'p7', nome: 'PEÇA RARA', preco_venda: 40, ativo: true, fotos: ['f.jpg'],
+    variacoes: [{ cor: 'ÚNICA', quantidade: 1 }],
+  })
+  const esgotada = normalizarProduto({
+    id: 'p8', nome: 'PEÇA ESGOTADA', preco_venda: 40, ativo: true, fotos: ['f.jpg'],
+    variacoes: [{ cor: 'ÚNICA', quantidade: 0 }],
+  })
+  const BOTAO_MAIS_QTD = /<button[^>]*aria-label="Aumentar quantidade"[^>]*>/
+
+  it('com só 1 unidade, o "+" da quantidade já nasce travado (qtd inicial=1 = teto)', () => {
+    // comCor é false (só existe UMA "cor"), então corSel entra
+    // pré-selecionado no mount — o teto vale desde o primeiro render, sem
+    // precisar clicar em nada.
+    const btn = modal(umaUnidade).match(BOTAO_MAIS_QTD)?.[0]
+    expect(btn).toBeTruthy()
+    expect(btn).toContain('disabled')
+  })
+
+  it('com estoque de sobra, o "+" nasce livre', () => {
+    const btn = modal(umaCor).match(BOTAO_MAIS_QTD)?.[0] // VINHO, quantidade 5
+    expect(btn).toBeTruthy()
+    expect(btn).not.toContain('disabled')
+  })
+
+  it('produto esgotado mostra o aviso "Esgotado nesta variação" sem precisar clicar', () => {
+    expect(modal(esgotada)).toContain(TEXTOS.estoqueEsgotadoVariacao)
+  })
+
+  it('produto esgotado também trava o Adicionar', () => {
+    expect(addDesabilitado(modal(esgotada))).toBe(true)
+  })
+
+  it('produto com estoque normal não mostra nenhum aviso de estoque — só aparece quando bate o teto', () => {
+    const s = modal(umaCor)
+    expect(s).not.toContain(TEXTOS.estoqueEsgotadoVariacao)
+    expect(s).not.toContain('unidade(s) disponíve')
+  })
+})
+
 describe('seleção por chips — o que não pode ter mudado', () => {
   it('o rótulo da quantidade continua "Quantidade"', () => {
     expect(modal(semVariacao)).toContain('Quantidade')
