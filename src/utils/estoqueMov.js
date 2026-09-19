@@ -91,13 +91,20 @@ export function filtrarPorVariacao(movs, label) {
 /**
  * Excluir este pedido precisa devolver peças ao estoque?
  *
- * A baixa acontece na CRIAÇÃO do pedido (lf_pedido_baixa_estoque), não no
- * pagamento. Então qualquer pedido vivo está segurando estoque, e apagá-lo sem
- * devolver abre furo — foi o defeito que esta regra corrige.
+ * A baixa acontece na CRIAÇÃO do pedido, via a RPC criar_pedido_catalogo
+ * (supabase/fix_estoque_catalogo_publico.sql), não no pagamento. Então
+ * qualquer pedido vivo QUE TENHA BAIXADO ESTOQUE está segurando peça, e
+ * apagá-lo sem devolver abre furo — foi o defeito que esta regra corrige.
  *
  * A exceção é o pedido JÁ CANCELADO: cancelarPedido devolveu as peças no
  * momento do cancelamento. Devolver de novo na exclusão duplicaria estoque,
  * que é o erro oposto e igualmente caro.
+ *
+ * Esta função só olha o STATUS — quem chama (useLojaData.js:
+ * cancelarPedido/excluirPedido) ainda precisa checar
+ * `pedido.estoque_baixado === true` antes de devolver: pedido criado antes de
+ * fix_estoque_catalogo_publico.sql nunca baixou nada (INSERT direto, sem
+ * RPC), e devolver para ele infla o estoque com peças que nunca saíram de lá.
  *
  * Fica aqui, e não dentro do hook, porque é a regra do negócio inteira em uma
  * linha — e o hook não é testável sem Supabase.

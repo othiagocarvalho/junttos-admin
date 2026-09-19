@@ -135,6 +135,16 @@ export const TEXTOS = {
   toastAbaixoMinimo: 'Adicione mais peças para atingir o mínimo',
   toastSemWhatsapp: 'Esta loja ainda não cadastrou o WhatsApp',
 
+  // Estoque — fix_estoque_catalogo_publico.sql. erroEstoqueInsuficiente é o
+  // caso com detalhe (a RPC disse qual produto e quanto sobrou);
+  // erroEstoqueGenerico cobre qualquer outra falha da RPC sem detalhe para
+  // mostrar (rede, RLS...).
+  erroEstoqueInsuficiente: 'Só temos {disponivel} unidade(s) de {nome} disponível agora. Ajuste a quantidade ou escolha outro produto para continuar.',
+  erroEstoqueGenerico: 'Um item do seu pedido não está mais disponível na quantidade escolhida. Ajuste o carrinho e tente novamente.',
+  estoqueLimite: 'Só temos {n} unidade(s) disponíveis dessa variação.',
+  estoqueEsgotado: 'Esgotado',
+  estoqueEsgotadoVariacao: 'Esgotado nesta variação.',
+
   // mensagem do WhatsApp — seção 8.1
   waSaudacao: 'Olá! Quero fazer um pedido no catálogo da {loja}.',
   waTotal: 'Total: {pecas} peças — {valor}',

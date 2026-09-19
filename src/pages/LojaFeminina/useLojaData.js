@@ -669,9 +669,18 @@ export function useLojaData(lojaId = 'estrada') {
    * Cancela um pedido do catálogo e devolve ao estoque o que já tinha sido
    * baixado.
    *
-   * A baixa acontece na CRIAÇÃO do pedido (CatalogoPublico.jsx, via
-   * lf_pedido_baixa_estoque), não no pagamento. Sem devolver no cancelamento,
+   * A baixa acontece na CRIAÇÃO do pedido, via a RPC criar_pedido_catalogo
+   * (supabase/fix_estoque_catalogo_publico.sql), chamada por
+   * CatalogoPublicoV2.jsx — não no pagamento. Sem devolver no cancelamento,
    * a peça ficava reservada para sempre num pedido que não vai acontecer.
+   *
+   * `pedido.estoque_baixado` decide SE HOUVE baixa para devolver. Pedido
+   * criado antes de fix_estoque_catalogo_publico.sql (INSERT direto em
+   * lf_pedidos, sem RPC nenhuma) nunca decrementou nada — devolver estoque
+   * para ele infla o saldo com peças que nunca saíram de lá. A coluna existe
+   * exatamente para diferenciar os dois casos; sem ela, cancelar um pedido
+   * antigo depois do deploy desta correção quebraria o estoque na direção
+   * oposta ao bug original.
    *
    * O .neq('status', 'cancelado') faz a transição valer como trava: se o
    * pedido já estava cancelado nenhuma linha volta, e o estoque não é
@@ -680,7 +689,7 @@ export function useLojaData(lojaId = 'estrada') {
   async function cancelarPedido(id) {
     const { data: pedido } = await supabase
       .from('lf_pedidos')
-      .select('produtos')
+      .select('produtos, estoque_baixado')
       .eq('id', id)
       .eq('loja_id', lojaId)
       .maybeSingle()
@@ -707,15 +716,23 @@ export function useLojaData(lojaId = 'estrada') {
     // dos pontos a reconferir.
     if (!data) return null
 
-    // Só itens com variação foram baixados no checkout, e é exatamente esse
-    // filtro que normalizarItensEstoque aplica — a devolução espelha a baixa.
-    await aplicarEstoque(pedido?.produtos, {
-      modo:       'restauro',
-      tipo:       'devolucao',
-      origemTipo: 'pedido',
-      origemId:   id,
-      motivo:     'Pedido cancelado',
-    })
+    if (pedido?.estoque_baixado === true) {
+      // Só itens com variação foram baixados no checkout, e é exatamente
+      // esse filtro que normalizarItensEstoque aplica — a devolução espelha
+      // a baixa.
+      await aplicarEstoque(pedido?.produtos, {
+        modo:       'restauro',
+        tipo:       'devolucao',
+        origemTipo: 'pedido',
+        origemId:   id,
+        motivo:     'Pedido cancelado',
+      })
+    } else {
+      console.info(
+        '[estoque] pedido', id, 'cancelado sem devolução — não baixou estoque '
+        + 'na criação (estoque_baixado=false, pedido anterior à correção de estoque do catálogo)',
+      )
+    }
 
     setPedidos(prev => prev.map(p => p.id === id ? data : p))
     await fetchAll()
@@ -814,10 +831,11 @@ export function useLojaData(lojaId = 'estrada') {
    * Apaga um pedido do catálogo, de vez — devolvendo o estoque antes.
    *
    * ─── POR QUE DEVOLVE ────────────────────────────────────────────────────
-   * A baixa acontece na CRIAÇÃO do pedido (lf_pedido_baixa_estoque), não no
-   * pagamento. A primeira versão desta função só apagava a linha, e quem
-   * excluísse um pedido sem cancelar antes deixava a peça reservada num
-   * pedido que não existe mais: furo de estoque silencioso.
+   * A baixa acontece na CRIAÇÃO do pedido, via a RPC criar_pedido_catalogo
+   * (supabase/fix_estoque_catalogo_publico.sql), não no pagamento. A primeira
+   * versão desta função só apagava a linha, e quem excluísse um pedido sem
+   * cancelar antes deixava a peça reservada num pedido que não existe mais:
+   * furo de estoque silencioso.
    *
    * Agora a devolução é a MESMA de cancelarPedido — aplicarEstoque em modo
    * 'restauro'. Nada de lógica paralela: um caminho só para devolver peça.
@@ -825,7 +843,10 @@ export function useLojaData(lojaId = 'estrada') {
    * ─── QUANDO NÃO DEVOLVE ─────────────────────────────────────────────────
    * Pedido já cancelado teve o estoque devolvido no cancelamento. Devolver de
    * novo duplicaria peças — o erro oposto, igualmente caro. Quem decide é
-   * precisaDevolverEstoque(status), em utils/estoqueMov.js.
+   * precisaDevolverEstoque(status), em utils/estoqueMov.js — E, desde
+   * fix_estoque_catalogo_publico.sql, `pedido.estoque_baixado === true`: um
+   * pedido criado antes dessa correção nunca decrementou nada (INSERT direto,
+   * sem RPC), e devolver para ele infla o estoque com peças que nunca saíram.
    *
    * ─── A ORDEM IMPORTA ────────────────────────────────────────────────────
    * Devolve PRIMEIRO, apaga depois. Se a devolução falhar, o DELETE não
@@ -854,7 +875,7 @@ export function useLojaData(lojaId = 'estrada') {
     // Depois do DELETE não há mais de onde tirar os itens nem o status.
     const { data: pedido, error: erroLeitura } = await supabase
       .from('lf_pedidos')
-      .select('status, produtos')
+      .select('status, produtos, estoque_baixado')
       .eq('id', id)
       .eq('loja_id', lojaId)
       .maybeSingle()
@@ -868,7 +889,13 @@ export function useLojaData(lojaId = 'estrada') {
     }
 
     // ── 2. Devolve o estoque, se ainda não foi devolvido ──────────────────
-    const devolveu = precisaDevolverEstoque(pedido.status)
+    const devolveu = precisaDevolverEstoque(pedido.status) && pedido.estoque_baixado === true
+    if (!devolveu && precisaDevolverEstoque(pedido.status)) {
+      console.info(
+        '[estoque] pedido', id, 'excluído sem devolução — não baixou estoque '
+        + 'na criação (estoque_baixado=false, pedido anterior à correção de estoque do catálogo)',
+      )
+    }
     if (devolveu) {
       const falhas = await aplicarEstoque(pedido.produtos, {
         modo:       'restauro',

@@ -10,7 +10,7 @@
 
 import { fmtR } from './formatters'
 import { derivarCategoria } from './categoriaProduto'
-import { coresDeVariacoes } from './coresProduto'
+import { coresDeVariacoes, normalizarNomeCor } from './coresProduto'
 import { t, TEXTOS } from '../i18n/catalogo'
 
 /** Tamanho que significa "este produto não tem escolha de tamanho". */
@@ -29,6 +29,24 @@ export function chaveCarrinho(lojaId) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Soma a quantidade das entradas de `variacoes` cujo rótulo (cor OU tamanho —
+ * a mesma regra de coresDeVariacoes: `v.cor ?? v.tamanho`) casa com `nomeCor`
+ * sem diferenciar acento/caixa. Duas entradas com o mesmo nome (cadastro
+ * duplicado) somam — é a mesma tolerância que coresDeVariacoes já tem ao
+ * deduplicar pelo nome normalizado.
+ */
+function estoqueDaVariacao(variacoes, nomeCor) {
+  const alvo = normalizarNomeCor(nomeCor)
+  let total = 0
+  for (const v of variacoes || []) {
+    const nome = v?.cor ?? v?.tamanho
+    if (nome == null || normalizarNomeCor(nome) !== alvo) continue
+    total += Math.max(0, Math.floor(Number(v?.quantidade)) || 0)
+  }
+  return total
+}
+
+/**
  * Linha de lf_produtos → produto no formato da seção 2.2.
  *
  * Funciona com ou sem a migração aplicada: quando `cores` / `categoria` ainda
@@ -38,11 +56,40 @@ export function chaveCarrinho(lojaId) {
  * `tamanhos` é sempre ["Único"] quando o banco não trouxer outra coisa: nenhum
  * produto do sistema tem dimensão de tamanho hoje (só cor + quantidade), e
  * herdar uma grade padrão inventaria tamanho que a loja não vende.
+ *
+ * ─── ESTOQUE (fix_estoque_catalogo_publico.sql) ─────────────────────────────
+ * Até aqui esta função descartava `variacoes[].quantidade` e `row.quantidade`
+ * na normalização — o produto que chegava à tela não carregava estoque
+ * NENHUM, e o seletor de quantidade do modal (CatalogoPublicoV2.jsx) crescia
+ * sem teto (`setQtd(n => n + 1)`, sem Math.min contra nada). Cliente podia
+ * pedir 50 unidades de um produto com 2 em estoque, e o checkout confirmava
+ * o pedido sem checar nada — dois clientes disputando a mesma última peça não
+ * tinham nem fila nem trava, porque não havia dado de estoque em lugar nenhum
+ * da experiência pública.
+ *
+ * `estoquePorCor` mapeia CADA nome que aparece em `cores[]` (a chave é a
+ * mesma string, não normalizada — component lê direto por
+ * `estoquePorCor[cor.nome]`) para a soma disponível daquela variação.
+ * `estoqueSemVariacao` cobre o produto sem variação nenhuma (cores.length
+ * === 0), cujo saldo mora direto em lf_produtos.quantidade — é o mesmo campo
+ * que decrementar_estoque_variacao NÃO sabe mexer, por isso
+ * criar_pedido_catalogo trata os dois casos separado no SQL.
  */
 export function normalizarProduto(row) {
+  const variacoesRaw = Array.isArray(row?.variacoes) ? row.variacoes : []
+
   const cores = Array.isArray(row?.cores) && row.cores.length
     ? row.cores.filter(c => c && c.nome).map(c => ({ nome: String(c.nome), hex: c.hex || '#B7B2A6' }))
-    : coresDeVariacoes(row?.variacoes).map(({ nome, hex }) => ({ nome, hex }))
+    : coresDeVariacoes(variacoesRaw).map(({ nome, hex }) => ({ nome, hex }))
+
+  const estoquePorCor = {}
+  for (const c of cores) estoquePorCor[c.nome] = estoqueDaVariacao(variacoesRaw, c.nome)
+
+  const estoqueSemVariacao = Math.max(0, Math.floor(Number(row?.quantidade)) || 0)
+
+  const estoqueTotal = cores.length
+    ? cores.reduce((s, c) => s + (estoquePorCor[c.nome] || 0), 0)
+    : estoqueSemVariacao
 
   const tamanhos = Array.isArray(row?.tamanhos) && row.tamanhos.length
     ? row.tamanhos.map(String)
@@ -62,7 +109,21 @@ export function normalizarProduto(row) {
     cores,
     tamanhos,
     ativo: row?.ativo !== false,
+    estoquePorCor,
+    estoqueSemVariacao,
+    esgotado: estoqueTotal <= 0,
   }
+}
+
+/**
+ * Estoque disponível para uma escolha de cor deste produto — o teto que o
+ * seletor de quantidade do modal respeita. Sem cor (produto sem variação),
+ * devolve o saldo do produto inteiro.
+ */
+export function estoqueVariacao(produto, nomeCor) {
+  if (!produto) return 0
+  if (!produto.cores?.length) return Math.max(0, produto.estoqueSemVariacao || 0)
+  return Math.max(0, produto.estoquePorCor?.[nomeCor] ?? 0)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,6 +448,44 @@ export function dadosClienteParaPedido({ nome, whatsapp } = {}) {
     cliente_nome: String(nome ?? '').trim(),
     cliente_whatsapp: String(whatsapp ?? '').replace(/\D/g, ''),
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Erro de estoque no checkout — fix_estoque_catalogo_publico.sql
+//
+// criar_pedido_catalogo() rejeita com RAISE EXCEPTION quando algum item não
+// tem saldo suficiente, para garantir ROLLBACK de tudo (nenhum item decrementa
+// se um só faltar). O Postgres devolve o texto da exceção em error.message via
+// PostgREST; o prefixo abaixo carrega o JSON com o que faltou.
+// ─────────────────────────────────────────────────────────────────────────────
+const PREFIXO_ERRO_ESTOQUE = 'ESTOQUE_INSUFICIENTE:'
+
+/**
+ * Desembrulha o erro de estoque insuficiente devolvido por criar_pedido_catalogo.
+ * Devolve null para qualquer outro erro (rede, RLS, RPC ausente...) — quem
+ * chama decide o texto genérico nesse caso.
+ */
+export function parseErroEstoque(mensagem) {
+  const texto = String(mensagem ?? '')
+  if (!texto.startsWith(PREFIXO_ERRO_ESTOQUE)) return null
+  try {
+    const dados = JSON.parse(texto.slice(PREFIXO_ERRO_ESTOQUE.length))
+    return {
+      nome: dados?.nome || '',
+      cor: dados?.cor || '',
+      disponivel: Math.max(0, Math.floor(Number(dados?.disponivel)) || 0),
+      pedido: Math.max(0, Math.floor(Number(dados?.pedido)) || 0),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Texto pronto para o toast a partir do que parseErroEstoque devolveu. */
+export function mensagemEstoqueInsuficiente(info) {
+  if (!info) return TEXTOS.erroEstoqueGenerico
+  const rotulo = info.cor ? `${info.nome} (${info.cor})` : info.nome
+  return t('erroEstoqueInsuficiente', { nome: rotulo, disponivel: info.disponivel })
 }
 
 /** URL do wa.me com a mensagem já codificada; '' se não houver telefone. */

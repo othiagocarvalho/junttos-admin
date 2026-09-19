@@ -24,18 +24,24 @@ const { normalizarProduto, lojaDaConfig, estadoMinimo, linhasDoCarrinho } =
 const html = el => renderToStaticMarkup(el)
 
 // ── Fixtures: os dados reais da tropicaleatacado ─────────────────────────────
+// Quantidades nas variações abaixo (e o `quantidade` de produto sem variação,
+// mais adiante) existem só para os testes de estoque/esgotado não zerarem por
+// acidente estes fixtures — nenhum deles testa estoque, então o número em si
+// (qualquer valor > 0) não importa, só precisa existir.
 const multicor = normalizarProduto({
   id: 'p1', nome: 'VESTIDO CURTO PATY DUDA', preco_venda: 33.33, ativo: true,
   fotos: ['foto1.jpg'],
-  variacoes: [{ cor: 'ROSA BEBÊ' }, { cor: 'ROSA PINK' }, { cor: 'NUDE' }],
+  variacoes: [
+    { cor: 'ROSA BEBÊ', quantidade: 5 }, { cor: 'ROSA PINK', quantidade: 5 }, { cor: 'NUDE', quantidade: 5 },
+  ],
 })
 const umaCor = normalizarProduto({
   id: 'p2', nome: 'MACAQUINHO PATY MAVIE', preco_venda: 44.9, ativo: true,
-  fotos: ['foto2.jpg'], variacoes: [{ cor: 'VINHO' }],
+  fotos: ['foto2.jpg'], variacoes: [{ cor: 'VINHO', quantidade: 5 }],
 })
 const comTamanho = normalizarProduto({
   id: 'p4', nome: 'CAMISA LISA', preco_venda: 20, ativo: true,
-  fotos: ['f.jpg'], variacoes: [], tamanhos: ['P', 'M', 'G'],
+  fotos: ['f.jpg'], variacoes: [], tamanhos: ['P', 'M', 'G'], quantidade: 5,
 })
 const lojaAtacado = lojaDaConfig({
   nome: 'TropicaleAtacado', whatsapp_loja: '(85) 99999-0000',
@@ -228,7 +234,8 @@ describe('13.6 — chips e ordenação em uma linha só', () => {
 describe('13.7 — modal: galeria, miniaturas e zoom', () => {
   const comVariasFotos = normalizarProduto({
     id: 'p9', nome: 'VESTIDO', preco_venda: 30, ativo: true,
-    fotos: ['a.jpg', 'b.jpg', 'c.jpg'], variacoes: [{ cor: 'AZUL' }, { cor: 'VERDE' }],
+    fotos: ['a.jpg', 'b.jpg', 'c.jpg'],
+    variacoes: [{ cor: 'AZUL', quantidade: 5 }, { cor: 'VERDE', quantidade: 5 }],
   })
 
   it('é um dialog modal de verdade', () => {
@@ -843,10 +850,11 @@ describe('13.1 / A5 / A6 — grade: 2 colunas desde 320px, card travado em 258px
 
 const semVariacao = normalizarProduto({
   id: 'p5', nome: 'BOLSA UNICA', preco_venda: 25, ativo: true, fotos: ['f.jpg'], variacoes: [],
+  quantidade: 5,
 })
 const corETamanho = normalizarProduto({
   id: 'p6', nome: 'VESTIDO GRADE', preco_venda: 30, ativo: true, fotos: ['f.jpg'],
-  variacoes: [{ cor: 'ROSA' }, { cor: 'NUDE' }], tamanhos: ['P', 'M'],
+  variacoes: [{ cor: 'ROSA', quantidade: 5 }, { cor: 'NUDE', quantidade: 5 }], tamanhos: ['P', 'M'],
 })
 const modal = produto => html(
   <ModalProduto produto={produto} modoAtacado aoFechar={() => {}} aoConfirmar={() => {}} />,
