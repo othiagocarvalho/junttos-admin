@@ -8,7 +8,7 @@ import {
   chaveCarrinho, carregarCarrinho, salvarCarrinho, TTL_CARRINHO_MS, TAMANHO_UNICO,
   lojaDaConfig,
   nomeValido, whatsappValido, validarDadosCliente, dadosClienteParaPedido,
-  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente,
+  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente, mensagemLimiteEstoque,
 } from './catalogoV2'
 
 // ── Fixtures espelhando os dados reais da tropicaleatacado ───────────────────
@@ -912,6 +912,29 @@ describe('estoqueVariacao', () => {
   it('produto nulo/indefinido não explode — devolve 0', () => {
     expect(estoqueVariacao(null, 'X')).toBe(0)
     expect(estoqueVariacao(undefined, 'X')).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aviso ao bater o teto do seletor de quantidade — ajuste de UX aprovado por
+// Thiago em cima da correção de estoque: o "+" já travava no teto, mas
+// travava CALADO. mensagemLimiteEstoque decide o texto certo — "dessa cor"
+// só faz sentido quando existe cor de verdade.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('mensagemLimiteEstoque', () => {
+  it('com nome de cor, o texto menciona "dessa cor"', () => {
+    expect(mensagemLimiteEstoque('AZUL', 3)).toBe('Só temos 3 unidade(s) disponíveis dessa cor.')
+  })
+
+  it('sem nome de cor (produto sem variação), não inventa cor nenhuma', () => {
+    expect(mensagemLimiteEstoque(null, 5)).toBe('Só temos 5 unidade(s) disponíveis.')
+    expect(mensagemLimiteEstoque(undefined, 5)).toBe('Só temos 5 unidade(s) disponíveis.')
+    expect(mensagemLimiteEstoque('', 5)).toBe('Só temos 5 unidade(s) disponíveis.')
+    expect(mensagemLimiteEstoque(null, 5)).not.toContain('cor')
+  })
+
+  it('quantidade zero também formata certo (variação que zerou no meio da escolha)', () => {
+    expect(mensagemLimiteEstoque('VERDE', 0)).toBe('Só temos 0 unidade(s) disponíveis dessa cor.')
   })
 })
 
