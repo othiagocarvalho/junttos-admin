@@ -25,8 +25,16 @@ const pos = t => {
 
 describe('excluirPedido — a ordem que impede o furo de estoque', () => {
   it('lê o pedido ANTES de apagar', () => {
-    // Depois do DELETE não há de onde tirar os itens nem o status.
-    expect(pos("select('status, produtos')")).toBeLessThan(pos('.delete({ count:'))
+    // Depois do DELETE não há de onde tirar os itens, o status nem
+    // estoque_baixado (fix_estoque_catalogo_publico.sql — decide SE a
+    // devolução deve acontecer, não só o status).
+    expect(pos("select('status, produtos, estoque_baixado')")).toBeLessThan(pos('.delete({ count:'))
+  })
+
+  it('só devolve quando o pedido baixou estoque de verdade (estoque_baixado)', () => {
+    // Pedido criado antes da correção de estoque do catálogo nunca
+    // decrementou nada — devolver para ele infla o estoque.
+    expect(pos('pedido.estoque_baixado === true')).toBeLessThan(pos("modo:       'restauro'"))
   })
 
   it('devolve o estoque ANTES do DELETE', () => {

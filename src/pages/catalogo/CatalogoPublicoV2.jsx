@@ -43,6 +43,7 @@ import {
   mensagemWhatsApp, linkWhatsApp,
   carregarCarrinho, salvarCarrinho, TAMANHO_UNICO,
   validarDadosCliente, dadosClienteParaPedido,
+  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente,
 } from '../../utils/catalogoV2'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -610,6 +611,7 @@ export function Filtros({ categorias, categoria, setCategoria, ordem, setOrdem }
 // ─────────────────────────────────────────────────────────────────────────────
 export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridade }) {
   const foto = produto.fotos[0]
+  const esgotado = !!produto.esgotado
 
   function aoTeclar(e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aoAbrir() }
@@ -636,11 +638,25 @@ export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridad
           <img
             src={foto} alt={produto.nome}
             loading={prioridade ? 'eager' : 'lazy'} decoding="async"
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{
+              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+              // Esgotado continua visível (a cliente ainda reconhece a peça),
+              // só menos saturado — o selo é quem carrega a informação.
+              filter: esgotado ? 'grayscale(.55) opacity(.72)' : 'none',
+            }}
           />
         )}
 
-        {produto.selo && (
+        {/* Esgotado prevalece sobre o selo da lojista ("Novo" etc.): mostrar
+            os dois juntos empurraria um para fora, e "esgotado" é o dado mais
+            importante para quem está decidindo se abre o produto. */}
+        {esgotado ? (
+          <span style={{
+            position: 'absolute', top: 12, left: 12, background: C.texto2, color: C.fundo,
+            fontSize: 11.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase',
+            padding: '6px 10px', borderRadius: 99,
+          }}>{TEXTOS.estoqueEsgotado}</span>
+        ) : produto.selo && (
           <span style={{
             position: 'absolute', top: 12, left: 12, background: C.tinta, color: C.fundo,
             fontSize: 11.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase',
@@ -656,13 +672,18 @@ export function CardProduto({ produto, modoAtacado, noPedido, aoAbrir, prioridad
           }}>{noPedido} no pedido</span>
         )}
 
-        {/* Indicativo visual: quem clica é o card inteiro. */}
-        <span aria-hidden="true" style={{
-          position: 'absolute', right: 10, bottom: 10, width: 40, height: 40, borderRadius: 99,
-          background: C.tinta, color: C.fundo, fontSize: 22, lineHeight: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 14px rgba(25,23,19,.28)',
-        }}>+</span>
+        {/* Indicativo visual de que dá para adicionar direto — some quando
+            esgotado: a peça continua vendo-se (photo, preço, cores), mas
+            oferecer um atalho de "+" para algo que não tem estoque nenhum
+            engana antes mesmo de abrir o modal. */}
+        {!esgotado && (
+          <span aria-hidden="true" style={{
+            position: 'absolute', right: 10, bottom: 10, width: 40, height: 40, borderRadius: 99,
+            background: C.tinta, color: C.fundo, fontSize: 22, lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(25,23,19,.28)',
+          }}>+</span>
+        )}
       </div>
 
       <div style={{
@@ -906,6 +927,18 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
   const [corSel, setCorSel] = useState(comCor ? null : (cores[0] ?? null))
   const [tamSel, setTamSel] = useState(comTam ? null : tamanhos[0])
   const [qtd, setQtd] = useState(1)
+  // Aviso do teto de estoque — mesmo padrão de erroEscolha, mas para "tentou
+  // passar do que existe" em vez de "faltou escolher".
+  const [avisoEstoque, setAvisoEstoque] = useState('')
+
+  // ── Teto de estoque — fix_estoque_catalogo_publico.sql ──────────────────
+  // Sem cor escolhida ainda (produto com 2+ cores), o teto não tem o que
+  // significar: Infinity mantém o stepper livre até a escolha existir, sem
+  // mostrar "esgotado" para uma cor que ninguém selecionou. Uma vez a escolha
+  // completa, limiteAtual vira o saldo real dessa variação (0 incluído).
+  const escolhaCompleta = (!comCor || !!corSel) && (!comTam || !!tamSel)
+  const limiteAtual = escolhaCompleta ? estoqueVariacao(produto, corSel?.nome ?? null) : Infinity
+  const semEstoque = escolhaCompleta && limiteAtual <= 0
 
   // A chave do rascunho é EXATAMENTE a de antes — `${cor}|${tamanho}`, com cor
   // vazia quando o produto não oferece escolha de cor. aplicarRascunho e
@@ -913,7 +946,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
   // mensagem do WhatsApp e lf_pedidos não enxergam diferença nenhuma.
   const parDe = (cor, tam) => `${comCor && cor ? cor.nome : ''}|${tam}`
 
-  const podeAdicionar = (!comCor || corSel) && (!comTam || tamSel) && qtd > 0
+  const podeAdicionar = escolhaCompleta && qtd > 0 && qtd <= limiteAtual && limiteAtual > 0
 
   // ── Escolha obrigatória ──────────────────────────────────────────────────
   // O relato: o cliente toca no botão preto "Adicionar ao pedido" sem ter
@@ -979,6 +1012,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
     const par = parDe(corSel, tamSel)
     setRascunho(prev => ({ ...prev, [par]: (prev[par] || 0) + qtd }))
     setQtd(1)
+    setAvisoEstoque('')
   }
 
   /** Edita ou remove uma linha da lista compacta. 0 apaga. */
@@ -1162,20 +1196,38 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {cores.map(cor => {
                     const ativo = corSel?.nome === cor?.nome
+                    const qtdDaCor = estoqueVariacao(produto, cor?.nome)
+                    const corEsgotada = qtdDaCor <= 0
                     return (
                       <button
                         key={cor?.nome}
-                        onClick={() => { setCorSel(cor); setErroEscolha('') }}
+                        onClick={() => {
+                          if (corEsgotada) return
+                          setCorSel(cor)
+                          setErroEscolha('')
+                          setAvisoEstoque('')
+                          // Trocar de cor com uma quantidade que não cabe na
+                          // nova (ex.: 5 escolhido na cor com 10, cor nova só
+                          // tem 2) precisa baixar a quantidade junto — senão o
+                          // stepper mostraria um número que o "Adicionar" já
+                          // reprovaria sem dizer por quê.
+                          setQtd(n => Math.max(1, Math.min(n, qtdDaCor)))
+                        }}
                         aria-pressed={ativo}
-                        aria-label={t('ariaEscolherCor', { nome: cor?.nome })}
-                        title={cor?.nome}
+                        aria-disabled={corEsgotada || undefined}
+                        aria-label={corEsgotada
+                          ? `${cor?.nome} — ${TEXTOS.estoqueEsgotado}`
+                          : t('ariaEscolherCor', { nome: cor?.nome })}
+                        title={corEsgotada ? `${cor?.nome} — ${TEXTOS.estoqueEsgotado}` : cor?.nome}
                         style={{
-                          width: 42, height: 42, borderRadius: 99, padding: 0, cursor: 'pointer',
+                          width: 42, height: 42, borderRadius: 99, padding: 0,
+                          cursor: corEsgotada ? 'not-allowed' : 'pointer',
                           background: cor?.hex, flex: 'none',
                           // O anel por fora (box-shadow) em vez de borda mais
                           // grossa: borda encolheria a área de cor e cores
                           // claras ficariam ainda mais difíceis de distinguir.
                           border: '1px solid rgba(0,0,0,.16)',
+                          opacity: corEsgotada ? 0.35 : 1,
                           boxShadow: ativo
                             ? `0 0 0 2px ${C.fundo}, 0 0 0 4px ${C.tinta}`
                             : `inset 0 0 0 2px ${C.superficie}`,
@@ -1244,7 +1296,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
                 <button
-                  onClick={() => setQtd(n => Math.max(1, n - 1))}
+                  onClick={() => { setAvisoEstoque(''); setQtd(n => Math.max(1, n - 1)) }}
                   disabled={qtd <= 1}
                   aria-label={TEXTOS.ariaDiminuir}
                   style={{
@@ -1257,12 +1309,27 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 <span style={{
                   minWidth: 30, textAlign: 'center', fontSize: 16.5, fontWeight: 700, color: C.tinta,
                 }}>{qtd}</span>
+                {/* Trava no teto de estoque — antes crescia sem fim
+                    (setQtd(n => n + 1) puro), o ponto de origem do bug de
+                    vender mais do que existe. Ao bater no teto, não incrementa
+                    e avisa por que — nunca trava silenciosamente. */}
                 <button
-                  onClick={() => setQtd(n => n + 1)}
+                  onClick={() => {
+                    if (qtd >= limiteAtual) {
+                      setAvisoEstoque(t('estoqueLimite', { n: limiteAtual }))
+                      return
+                    }
+                    setAvisoEstoque('')
+                    setQtd(n => n + 1)
+                  }}
+                  disabled={escolhaCompleta && qtd >= limiteAtual}
                   aria-label={TEXTOS.ariaAumentar}
                   style={{
                     width: 40, height: 40, borderRadius: 12, flex: 'none', border: 'none',
-                    background: C.tinta, color: C.fundo, fontSize: 17, cursor: 'pointer',
+                    background: escolhaCompleta && qtd >= limiteAtual ? C.linhaInput : C.tinta,
+                    color: escolhaCompleta && qtd >= limiteAtual ? C.texto5 : C.fundo,
+                    fontSize: 17,
+                    cursor: escolhaCompleta && qtd >= limiteAtual ? 'not-allowed' : 'pointer',
                   }}
                 >+</button>
               </div>
@@ -1287,6 +1354,19 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 }}
               >{TEXTOS.adicionarItem}</button>
             </div>
+
+            {/* Mensagem de estoque: prioriza "esgotado nesta variação" (a
+                escolha está completa e o saldo é 0) sobre o aviso pontual de
+                "tentou passar do teto" — os dois nunca aparecem juntos. */}
+            {semEstoque ? (
+              <p role="alert" style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600, color: ERRO }}>
+                {TEXTOS.estoqueEsgotadoVariacao}
+              </p>
+            ) : avisoEstoque && (
+              <p role="alert" style={{ margin: '8px 0 0', fontSize: 13, fontWeight: 600, color: ERRO }}>
+                {avisoEstoque}
+              </p>
+            )}
 
             {/* ── 4. Lista compacta do que já foi escolhido ─────────────────
                 Fica DENTRO do modal, antes do rodapé: é a confirmação de que
@@ -1337,7 +1417,15 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                           minWidth: 24, textAlign: 'center', fontSize: 14.5, fontWeight: 700, color: C.tinta,
                         }}>{item.n}</span>
                         <button
-                          onClick={() => definirItem(item.par, item.n + 1)}
+                          onClick={() => {
+                            // Mesmo teto do stepper principal, aplicado à cor
+                            // desta linha (pode ser diferente da corSel
+                            // atual) — sem isso dava para contornar o limite
+                            // editando aqui em vez do seletor.
+                            const limite = estoqueVariacao(produto, item.cor?.nome ?? null)
+                            if (item.n >= limite) return
+                            definirItem(item.par, item.n + 1)
+                          }}
                           aria-label={TEXTOS.ariaAumentar}
                           style={{
                             width: 32, height: 32, borderRadius: 9, flex: 'none', border: 'none',
@@ -1616,6 +1704,11 @@ export function DrawerPedido({
             const detalhes = []
             if (linha.cor && temCor(produto)) detalhes.push(linha.cor)
             if (linha.tamanho && linha.tamanho !== TAMANHO_UNICO) detalhes.push(`Tamanho ${linha.tamanho}`)
+            // Mesmo teto do modal: o drawer é a última tela antes do
+            // checkout, e o "+" daqui também incrementava sem fim antes desta
+            // correção — dava para furar o limite do modal só editando aqui.
+            const limiteLinha = estoqueVariacao(produto, linha.cor || null)
+            const noLimite = linha.qtd >= limiteLinha
 
             return (
               <div key={linha.chave} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -1648,17 +1741,25 @@ export function DrawerPedido({
                       {linha.qtd}
                     </span>
                     <button
-                      onClick={() => aoMudarQtd(linha.chave, linha.qtd + 1)}
+                      onClick={() => { if (!noLimite) aoMudarQtd(linha.chave, linha.qtd + 1) }}
+                      disabled={noLimite}
                       aria-label={TEXTOS.ariaAumentar}
                       style={{
                         width: 36, height: 36, borderRadius: 10, flex: 'none', border: 'none',
-                        background: C.tinta, color: C.fundo, fontSize: 16, cursor: 'pointer',
+                        background: noLimite ? C.linhaInput : C.tinta,
+                        color: noLimite ? C.texto5 : C.fundo, fontSize: 16,
+                        cursor: noLimite ? 'not-allowed' : 'pointer',
                       }}
                     >+</button>
                     <span style={{ marginLeft: 'auto', fontSize: 14.5, fontWeight: 600, color: C.tinta }}>
                       {fmtR(linha.subtotal)}
                     </span>
                   </div>
+                  {noLimite && (
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: ERRO }}>
+                      {t('estoqueLimite', { n: limiteLinha })}
+                    </p>
+                  )}
                 </div>
               </div>
             )
@@ -1892,10 +1993,13 @@ export default function CatalogoPublicoV2({ lojaId }) {
     carregando: false, qrCode: '', qrBase64: '', pago: false, erro: false, pedidoId: null,
   })
   const timerToast = useRef(null)
-  const mostrarToast = useCallback(texto => {
+  // duracaoMs maior para o aviso de estoque insuficiente (mensagem mais
+  // longa, precisa dar tempo de ler qual produto e quanto sobrou) — os toasts
+  // curtos existentes continuam nos mesmos 2400ms de sempre.
+  const mostrarToast = useCallback((texto, duracaoMs = 2400) => {
     setToast(texto)
     clearTimeout(timerToast.current)
-    timerToast.current = setTimeout(() => setToast(''), 2400)
+    timerToast.current = setTimeout(() => setToast(''), duracaoMs)
   }, [])
   useEffect(() => () => clearTimeout(timerToast.current), [])
 
@@ -2022,32 +2126,69 @@ export default function CatalogoPublicoV2({ lojaId }) {
    * Registra o pedido antes de abrir o WhatsApp (seção 8.1) para o lojista
    * ver a intenção no painel mesmo se o cliente não mandar a mensagem.
    *
-   * Falha aqui NÃO bloqueia: o pedido do cliente vale mais do que o registro.
-   * Perder o insert custa um pedido não rastreado; travar o botão custa a venda.
+   * ─── fix_estoque_catalogo_publico.sql ───────────────────────────────────
+   * Antes disto, este ponto fazia um INSERT direto em lf_pedidos — sem
+   * checar estoque, sem decrementar nada. Era a causa raiz de conseguir
+   * comprar mais do que existia: nenhum caminho do checkout falava com
+   * `decrementar_estoque_variacao` (que já existia, já tinha lock e já
+   * rejeitava corretamente) porque só o CatalogoPublico.jsx antigo a chamava,
+   * e ele está sem rota desde 20/08/2026.
+   *
+   * Agora chama a RPC criar_pedido_catalogo, que faz TUDO — checar estoque
+   * de cada item com FOR UPDATE, decrementar e inserir o pedido — numa
+   * transação só: ou os itens todos cabem e o pedido é criado com
+   * estoque_baixado=true, ou nenhum decrementa e a RPC rejeita dizendo qual
+   * item faltou e quanto sobrou. É o que resolve concorrência: quem finalizar
+   * primeiro consegue o lock da linha do produto; o segundo, ao tentar,
+   * recebe a rejeição na hora — nunca depois.
+   *
+   * Falha por REDE (RPC fora do ar, RLS, etc.) segue sem bloquear — mesma
+   * filosofia de antes, perder o registro é menos custoso que travar a venda.
+   * Falha por ESTOQUE bloqueia de propósito: é exatamente o problema que essa
+   * correção existe para resolver, deixar passar seria não corrigir nada.
+   *
+   * @returns {Promise<{ok:boolean, pedidoId:?string, erroEstoque:?object}>}
    */
   async function registrarPedido(status) {
     try {
-      const { data, error } = await supabase.from('lf_pedidos').insert({
-        loja_id: lojaId,
-        ...dadosClienteParaPedido(cliente),
-        produtos: linhas.map(l => ({
-          nome: l.nome,
-          variacao: [l.cor, l.tamanho !== TAMANHO_UNICO ? l.tamanho : ''].filter(Boolean).join(' / '),
-          qtd: l.qtd,
-          preco: l.preco,
-        })),
-        valor_total: soma.valor,
-        status,
+      const itens = linhas.map(l => ({
+        produto_id: l.produtoId,
+        nome: l.nome,
+        cor: l.cor || null,
+        tamanho: l.tamanho && l.tamanho !== TAMANHO_UNICO ? l.tamanho : null,
+        qtd: l.qtd,
+        preco: l.preco,
+      }))
+
+      const { data, error } = await supabase.rpc('criar_pedido_catalogo', {
+        p_loja_id: lojaId,
+        p_dados_cliente: dadosClienteParaPedido(cliente),
+        p_itens: itens,
+        p_valor_total: soma.valor,
+        p_status: status,
       })
-        // O id volta porque o Pix dinâmico precisa dele para criar a cobrança.
-        // Os outros chamadores ignoram o retorno, como antes.
-        .select('id')
-        .maybeSingle()
-      if (error) throw error
-      return data?.id ?? null
+
+      if (error) {
+        const erroEstoque = parseErroEstoque(error.message)
+        mostrarToast(mensagemEstoqueInsuficiente(erroEstoque), 5200)
+        console.warn('[catalogo] pedido rejeitado:', error.message)
+        return { ok: false, pedidoId: null, erroEstoque }
+      }
+
+      if (data?.ok === false) {
+        // Defensivo: a RPC hoje só devolve isto via RAISE EXCEPTION (bloco
+        // acima), nunca com `ok:false` num retorno normal — mas se algum dia
+        // mudar para retornar erro sem exceção, este ramo evita tratar como
+        // sucesso.
+        const erroEstoque = data?.erro === 'estoque_insuficiente' ? data : null
+        mostrarToast(mensagemEstoqueInsuficiente(erroEstoque), 5200)
+        return { ok: false, pedidoId: null, erroEstoque }
+      }
+
+      return { ok: true, pedidoId: data?.pedido_id ?? null, erroEstoque: null }
     } catch (e) {
       console.error('[catalogo] não foi possível registrar o pedido:', e)
-      return null
+      return { ok: false, pedidoId: null, erroEstoque: null }
     }
   }
 
@@ -2064,7 +2205,15 @@ export default function CatalogoPublicoV2({ lojaId }) {
       url: window.location.href,
     })
 
-    await registrarPedido('aguardando_contato')
+    // Mudança de comportamento desta correção: antes, falha ao registrar
+    // NUNCA impedia abrir o WhatsApp (o registro era só bookkeeping). Agora
+    // registrar É a checagem de estoque — a mesma chamada que grava o pedido
+    // é quem confere se ainda cabe. Deixar abrir o WhatsApp com estoque
+    // insuficiente reintroduziria exatamente o bug que esta correção existe
+    // para fechar, então bloqueia igual aos caminhos de Pix. O toast com o
+    // motivo já foi mostrado dentro de registrarPedido.
+    const resultado = await registrarPedido('aguardando_contato')
+    if (!resultado.ok) return
     window.open(linkWhatsApp(loja.whatsapp, mensagem), '_blank', 'noopener,noreferrer')
   }
 
@@ -2085,6 +2234,18 @@ export default function CatalogoPublicoV2({ lojaId }) {
     if (!linhas.length) return false
     if (!clienteOk()) return false
 
+    // Ordem trocada nesta correção: antes copiava a chave PRIMEIRO e só
+    // depois registrava o pedido — quem via "Chave copiada!" já tinha
+    // literalmente copiado a chave antes de qualquer checagem de estoque
+    // acontecer. Registrar (que agora TAMBÉM valida estoque) precisa vir
+    // antes da confirmação de cópia: "recebe o aviso na hora de finalizar,
+    // nunca depois" só é verdade se a validação roda antes do "copiado".
+    if (!pixRegistrado.current) {
+      const resultado = await registrarPedido('aguardando_pagamento')
+      if (!resultado.ok) return false
+      pixRegistrado.current = true
+    }
+
     try {
       await navigator.clipboard.writeText(chave)
     } catch {
@@ -2093,10 +2254,6 @@ export default function CatalogoPublicoV2({ lojaId }) {
       return false
     }
 
-    if (!pixRegistrado.current) {
-      pixRegistrado.current = true
-      await registrarPedido('aguardando_pagamento')
-    }
     mostrarToast(TEXTOS.toastPixCopiado)
     return true
   }
@@ -2137,7 +2294,15 @@ export default function CatalogoPublicoV2({ lojaId }) {
       // Precisa do pedido no banco antes: é o pedido_id que amarra a cobrança.
       let pedidoId = pixMp.pedidoId
       if (!pedidoId) {
-        pedidoId = await registrarPedido('aguardando_pagamento')
+        const resultado = await registrarPedido('aguardando_pagamento')
+        if (!resultado.ok) {
+          // Toast de estoque já apareceu dentro de registrarPedido; só
+          // encerra o carregamento sem cair no catch (que mostraria o toast
+          // genérico de QR por cima do toast de estoque).
+          setPixMp(p => ({ ...p, carregando: false }))
+          return
+        }
+        pedidoId = resultado.pedidoId
         if (!pedidoId) throw new Error('pedido não registrado')
         pixRegistrado.current = true
       }
@@ -2177,7 +2342,8 @@ export default function CatalogoPublicoV2({ lojaId }) {
     if (minimo && !minimo.atingido) { mostrarToast(TEXTOS.toastAbaixoMinimo); return }
     if (!linhas.length) return
     if (!clienteOk()) return
-    await registrarPedido('aguardando_pagamento')
+    const resultado = await registrarPedido('aguardando_pagamento')
+    if (!resultado.ok) return
     // O provedor de pagamento ainda não está plugado — ver seção 8.2 da spec.
     mostrarToast('Pagamento online em breve')
   }

@@ -110,6 +110,48 @@ serve(async (req) => {
     if (!r.ok) return json({ error: `Mercado Pago não devolveu o pagamento: HTTP ${r.status}` }, 502)
 
     const pg = await r.json()
+
+    // ── Pagamento rejeitado/cancelado: libera o estoque reservado ───────────
+    // Até esta correção (fix_estoque_catalogo_publico.sql), este branch só
+    // devolvia `alterado:false` sem tocar no pedido nem no estoque — um Pix
+    // recusado pelo Mercado Pago deixava o pedido preso em
+    // 'aguardando_pagamento' para sempre, e a peça reservada (estoque_baixado
+    // = true, decrementada por criar_pedido_catalogo) nunca voltava.
+    //
+    // 'rejected'/'cancelled' são estados TERMINAIS do pagamento — não há como
+    // ele ainda vir a ser aprovado depois disso, então é seguro liberar a
+    // peça na hora. `pending`/`in_process`/etc. NÃO entram aqui: o pagamento
+    // ainda pode ser aprovado, e cancelar cedo demais devolveria estoque que
+    // pode ser vendido de novo antes da confirmação chegar.
+    const FALHAS_TERMINAIS = new Set(['rejected', 'cancelled'])
+    if (FALHAS_TERMINAIS.has(pg.status) && pedido.status !== 'cancelado' && pedido.status !== 'pago') {
+      const { error: errCancela } = await admin
+        .from('lf_pedidos')
+        .update({ status: 'cancelado' })
+        .eq('id', pedido.id)
+        .neq('status', 'cancelado') // mesma trava de useLojaData.js:cancelarPedido
+
+      if (errCancela) return json({ error: `Falha ao cancelar o pedido: ${errCancela.message}` }, 500)
+
+      // Condicional por estoque_baixado é feita DENTRO da RPC (ver
+      // restaurar_estoque_pedido_catalogo em fix_estoque_catalogo_publico.sql)
+      // — aqui só chama; não há como um pedido criado antes desta correção
+      // (estoque_baixado=false) ter estoque devolvido.
+      const { data: restauro, error: errRestauro } = await admin.rpc(
+        'restaurar_estoque_pedido_catalogo',
+        { p_pedido_id: pedido.id },
+      )
+      if (errRestauro) {
+        // Não falha o webhook por isto: o pedido já foi cancelado (o que
+        // importa para não cobrar a cliente de novo), e o MP reenviaria a
+        // mesma notificação em loop se devolvêssemos erro aqui. Fica só o log
+        // para investigação manual.
+        console.error('[mp-webhook] falha ao restaurar estoque do pedido', pedido.id, errRestauro.message)
+      }
+
+      return json({ ok: true, status: pg.status, alterado: true, cancelado: true, estoque: restauro ?? null }, 200)
+    }
+
     if (pg.status !== 'approved') {
       return json({ ok: true, status: pg.status, alterado: false }, 200)
     }

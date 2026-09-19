@@ -8,6 +8,7 @@ import {
   chaveCarrinho, carregarCarrinho, salvarCarrinho, TTL_CARRINHO_MS, TAMANHO_UNICO,
   lojaDaConfig,
   nomeValido, whatsappValido, validarDadosCliente, dadosClienteParaPedido,
+  estoqueVariacao, parseErroEstoque, mensagemEstoqueInsuficiente,
 } from './catalogoV2'
 
 // ── Fixtures espelhando os dados reais da tropicaleatacado ───────────────────
@@ -809,5 +810,165 @@ describe('lojaDaConfig — catalogo_publicado', () => {
 
     const so_segmento = { catalogo_publico: 'masculino' }
     expect(lojaDaConfig(so_segmento).publicado).toBe(true)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Estoque no catálogo público — fix_estoque_catalogo_publico.sql
+//
+// Antes desta correção, normalizarProduto() descartava variacoes[].quantidade
+// e row.quantidade — o produto que chegava à tela não carregava estoque
+// NENHUM, e o seletor de quantidade crescia sem teto. Estes testes travam o
+// contrato de dados que o componente (CatalogoPublicoV2.jsx) passou a usar
+// para capar a quantidade e marcar variação/produto esgotado.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('normalizarProduto — estoque por variação', () => {
+  it('estoquePorCor soma a quantidade de cada cor de variacoes', () => {
+    const p = normalizarProduto(linhaBanco())
+    expect(p.estoquePorCor).toEqual({ 'ROSA BEBÊ': 2, 'ROSA PINK': 1, NUDE: 0 })
+  })
+
+  it('soma quando duas variações têm o mesmo nome (cadastro duplicado)', () => {
+    const p = normalizarProduto(linhaBanco({
+      variacoes: [{ cor: 'AZUL', quantidade: 3 }, { cor: 'AZUL', quantidade: 4 }],
+    }))
+    expect(p.estoquePorCor.AZUL).toBe(7)
+  })
+
+  it('casa por nome sem diferenciar acento/caixa entre variacoes e cores', () => {
+    // A coluna `cores` (denormalizada) pode ter grafia levemente diferente da
+    // variação de origem — o casamento não pode depender de string idêntica.
+    const p = normalizarProduto(linhaBanco({
+      cores: [{ nome: 'Rosa Bebê', hex: '#fff' }],
+      variacoes: [{ cor: 'ROSA BEBÊ', quantidade: 6 }],
+    }))
+    expect(p.estoquePorCor['Rosa Bebê']).toBe(6)
+  })
+
+  it('variação rotulada por tamanho (sem chave cor) também soma estoque', () => {
+    // Caso real de produção: variacoes com só {tamanho, quantidade}, sem
+    // `cor` — coresDeVariacoes trata o tamanho como se fosse a "cor" (spec
+    // não implementa tamanho de verdade ainda), e o estoque tem que seguir a
+    // mesma regra para o número bater com o que a tela mostra.
+    const p = normalizarProduto(linhaBanco({
+      nome: 'CAMISA FANBOY', variacoes: [
+        { tamanho: 'P', quantidade: 10 }, { tamanho: 'M', quantidade: 5 }, { tamanho: 'G', quantidade: 0 },
+      ],
+    }))
+    expect(p.cores.map(c => c.nome)).toEqual(['P', 'M', 'G'])
+    expect(p.estoquePorCor).toEqual({ P: 10, M: 5, G: 0 })
+  })
+
+  it('estoqueSemVariacao vem de row.quantidade quando não há variacoes', () => {
+    const p = normalizarProduto(linhaBanco({ variacoes: [], quantidade: 7 }))
+    expect(p.cores).toEqual([])
+    expect(p.estoqueSemVariacao).toBe(7)
+  })
+
+  it('quantidade ausente ou negativa normaliza para 0, nunca NaN', () => {
+    expect(normalizarProduto(linhaBanco({ variacoes: [], quantidade: undefined })).estoqueSemVariacao).toBe(0)
+    expect(normalizarProduto(linhaBanco({ variacoes: [], quantidade: -3 })).estoqueSemVariacao).toBe(0)
+    expect(normalizarProduto(linhaBanco({ variacoes: [], quantidade: null })).estoqueSemVariacao).toBe(0)
+  })
+
+  it('esgotado é true só quando a soma de TODAS as variações é zero', () => {
+    const comEstoque = normalizarProduto(linhaBanco()) // soma 2+1+0 = 3
+    expect(comEstoque.esgotado).toBe(false)
+
+    const tudoZerado = normalizarProduto(linhaBanco({
+      variacoes: [{ cor: 'A', quantidade: 0 }, { cor: 'B', quantidade: 0 }],
+    }))
+    expect(tudoZerado.esgotado).toBe(true)
+
+    const semVariacaoComEstoque = normalizarProduto(linhaBanco({ variacoes: [], quantidade: 5 }))
+    expect(semVariacaoComEstoque.esgotado).toBe(false)
+
+    const semVariacaoZerado = normalizarProduto(linhaBanco({ variacoes: [], quantidade: 0 }))
+    expect(semVariacaoZerado.esgotado).toBe(true)
+  })
+})
+
+describe('estoqueVariacao', () => {
+  const multi = normalizarProduto(linhaBanco()) // ROSA BEBÊ:2, ROSA PINK:1, NUDE:0
+  const semVar = normalizarProduto(linhaBanco({ id: 'sv', variacoes: [], quantidade: 8 }))
+
+  it('devolve o saldo da cor escolhida', () => {
+    expect(estoqueVariacao(multi, 'ROSA BEBÊ')).toBe(2)
+    expect(estoqueVariacao(multi, 'NUDE')).toBe(0)
+  })
+
+  it('cor inexistente devolve 0, nunca undefined nem negativo', () => {
+    expect(estoqueVariacao(multi, 'COR QUE NÃO EXISTE')).toBe(0)
+    expect(estoqueVariacao(multi, undefined)).toBe(0)
+  })
+
+  it('produto sem cor nenhuma usa o saldo do produto inteiro', () => {
+    expect(estoqueVariacao(semVar, null)).toBe(8)
+    // Mesmo se, por algum motivo, um nome de cor for passado — sem `cores`
+    // cadastradas o saldo é sempre o do produto.
+    expect(estoqueVariacao(semVar, 'qualquer coisa')).toBe(8)
+  })
+
+  it('produto nulo/indefinido não explode — devolve 0', () => {
+    expect(estoqueVariacao(null, 'X')).toBe(0)
+    expect(estoqueVariacao(undefined, 'X')).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Erro de estoque insuficiente no checkout — o que criar_pedido_catalogo
+// devolve quando algum item não cabe é um texto de exceção do Postgres com um
+// prefixo fixo carregando JSON (ver fix_estoque_catalogo_publico.sql). Estes
+// testes travam o desembrulho desse texto e a mensagem final mostrada à
+// cliente — é o "tratamento de erro no frontend" da correção, isolado em
+// função pura porque o projeto não tem jsdom para testar o componente
+// renderizado (ver o comentário no topo de CatalogoPublicoV2.jsx).
+// ─────────────────────────────────────────────────────────────────────────────
+describe('parseErroEstoque', () => {
+  it('desembrulha o JSON de um erro de estoque insuficiente com cor', () => {
+    const msg = 'ESTOQUE_INSUFICIENTE:'
+      + JSON.stringify({ produto_id: 'p1', nome: 'VESTIDO X', cor: 'AZUL', disponivel: 2, pedido: 5 })
+    expect(parseErroEstoque(msg)).toEqual({ nome: 'VESTIDO X', cor: 'AZUL', disponivel: 2, pedido: 5 })
+  })
+
+  it('produto sem variação vem com cor vazia', () => {
+    const msg = 'ESTOQUE_INSUFICIENTE:'
+      + JSON.stringify({ nome: 'LONGO REF 90', cor: null, disponivel: 0, pedido: 3 })
+    expect(parseErroEstoque(msg)).toEqual({ nome: 'LONGO REF 90', cor: '', disponivel: 0, pedido: 3 })
+  })
+
+  it('mensagem sem o prefixo devolve null — não é erro de estoque', () => {
+    expect(parseErroEstoque('permission denied for table lf_pedidos')).toBeNull()
+    expect(parseErroEstoque('Failed to fetch')).toBeNull()
+    expect(parseErroEstoque('')).toBeNull()
+    expect(parseErroEstoque(undefined)).toBeNull()
+  })
+
+  it('JSON quebrado depois do prefixo não derruba a tela — devolve null', () => {
+    expect(parseErroEstoque('ESTOQUE_INSUFICIENTE:{quebrado')).toBeNull()
+  })
+
+  it('números negativos ou ausentes no payload normalizam para 0', () => {
+    const msg = 'ESTOQUE_INSUFICIENTE:' + JSON.stringify({ nome: 'X' })
+    expect(parseErroEstoque(msg)).toEqual({ nome: 'X', cor: '', disponivel: 0, pedido: 0 })
+  })
+})
+
+describe('mensagemEstoqueInsuficiente', () => {
+  it('sem info (erro que não é de estoque) devolve o texto genérico', () => {
+    expect(mensagemEstoqueInsuficiente(null)).toBe(
+      'Um item do seu pedido não está mais disponível na quantidade escolhida. Ajuste o carrinho e tente novamente.',
+    )
+  })
+
+  it('com cor, o nome da variação aparece entre parênteses', () => {
+    const msg = mensagemEstoqueInsuficiente({ nome: 'VESTIDO X', cor: 'AZUL', disponivel: 2, pedido: 5 })
+    expect(msg).toBe('Só temos 2 unidade(s) de VESTIDO X (AZUL) disponível agora. Ajuste a quantidade ou escolha outro produto para continuar.')
+  })
+
+  it('sem cor (produto sem variação), o nome não ganha sufixo de variação', () => {
+    const msg = mensagemEstoqueInsuficiente({ nome: 'LONGO REF 90', cor: '', disponivel: 0, pedido: 3 })
+    expect(msg).toBe('Só temos 0 unidade(s) de LONGO REF 90 disponível agora. Ajuste a quantidade ou escolha outro produto para continuar.')
+    expect(msg).not.toContain('LONGO REF 90 (')
   })
 })
