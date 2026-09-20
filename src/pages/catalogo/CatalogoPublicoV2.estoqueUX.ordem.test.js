@@ -53,6 +53,40 @@ describe('ModalProduto — destaque visual da cor selecionada', () => {
   })
 })
 
+describe('regressão — "+" não pode voltar a usar disabled real', () => {
+  // Bug de produção: os dois "+" (seletor principal do modal e o do
+  // carrinho/drawer) usavam `disabled` de verdade. Um <button disabled> não
+  // recebe o evento click do navegador — o onClick (que chama
+  // setAvisoEstoque) nunca rodava, então o aviso nunca aparecia, mesmo com o
+  // botão corretamente travado visualmente (cursor not-allowed).
+  //
+  // CatalogoPublicoV2.test.jsx (describe 'regressão — "+" trava mas continua
+  // clicável') já confirma isso pelo HTML renderizado (aria-disabled="true" +
+  // disabled="" ausente). Aqui é o mesmo fato visto pelo lado do código-fonte:
+  // trava que ninguém escreveu `disabled={` de verdade de volta nesses dois
+  // pontos — pega a regressão mesmo antes de rodar o componente.
+  it('"+" do seletor principal usa aria-disabled, não disabled', () => {
+    expect(fonte).toContain('aria-disabled={escolhaCompleta && qtd >= limiteAtual}')
+    expect(fonte).not.toMatch(/[^a-zA-Z-]disabled=\{escolhaCompleta && qtd >= limiteAtual\}/)
+  })
+
+  it('"+" do carrinho (drawer) usa aria-disabled, não disabled', () => {
+    expect(fonte).toContain('aria-disabled={noLimite}')
+    expect(fonte).not.toMatch(/[^a-zA-Z-]disabled=\{noLimite\}/)
+  })
+
+  it('os dois têm comentário próprio explicando por que NÃO é disabled real', () => {
+    // Mesma exigência que o "Adicionar" já tinha — um comentário ao lado do
+    // atributo, não só no changelog, é o que sobrevive a quem edita o código
+    // sem ler o histórico do commit. Frases exatas, não uma checagem solta no
+    // arquivo inteiro: cada botão precisa do seu próprio comentário, não só
+    // de UM comentário que exista em algum lugar.
+    expect(fonte).toContain('não recebe o clique no navegador') // comentário do "+" do modal
+    expect(fonte).toContain('não recebe clique no navegador')   // comentário do "+" do drawer
+    expect(fonte).toContain('mesma razão do "+" do')
+  })
+})
+
 describe('ModalProduto — aviso ao bater o teto de estoque', () => {
   it('o "+" principal avisa com mensagemLimiteEstoque ao bater o teto — não trava calado', () => {
     expect(fonte).toContain(
