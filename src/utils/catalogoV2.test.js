@@ -922,19 +922,34 @@ describe('estoqueVariacao', () => {
 // só faz sentido quando existe cor de verdade.
 // ─────────────────────────────────────────────────────────────────────────────
 describe('mensagemLimiteEstoque', () => {
-  it('com nome de cor, o texto menciona "dessa cor"', () => {
-    expect(mensagemLimiteEstoque('AZUL', 3)).toBe('Só temos 3 unidade(s) disponíveis dessa cor.')
+  // Texto trocado a pedido do Thiago: "Só temos N unidade(s)..." virou
+  // "Última unidade" / "Últimas N unidades" — frases DIFERENTES no singular
+  // e no plural, não a mesma frase com "s" a mais.
+  it('plural com nome de cor', () => {
+    expect(mensagemLimiteEstoque('AZUL', 3)).toBe('Últimas 3 unidades dessa cor.')
   })
 
-  it('sem nome de cor (produto sem variação), não inventa cor nenhuma', () => {
-    expect(mensagemLimiteEstoque(null, 5)).toBe('Só temos 5 unidade(s) disponíveis.')
-    expect(mensagemLimiteEstoque(undefined, 5)).toBe('Só temos 5 unidade(s) disponíveis.')
-    expect(mensagemLimiteEstoque('', 5)).toBe('Só temos 5 unidade(s) disponíveis.')
+  it('singular (N === 1) com nome de cor', () => {
+    expect(mensagemLimiteEstoque('AZUL', 1)).toBe('Última unidade dessa cor.')
+    expect(mensagemLimiteEstoque('AZUL', 1)).not.toContain('Últimas')
+  })
+
+  it('plural sem nome de cor (produto sem variação), não inventa cor nenhuma', () => {
+    expect(mensagemLimiteEstoque(null, 5)).toBe('Últimas 5 unidades.')
+    expect(mensagemLimiteEstoque(undefined, 5)).toBe('Últimas 5 unidades.')
+    expect(mensagemLimiteEstoque('', 5)).toBe('Últimas 5 unidades.')
     expect(mensagemLimiteEstoque(null, 5)).not.toContain('cor')
   })
 
-  it('quantidade zero também formata certo (variação que zerou no meio da escolha)', () => {
-    expect(mensagemLimiteEstoque('VERDE', 0)).toBe('Só temos 0 unidade(s) disponíveis dessa cor.')
+  it('singular (N === 1) sem nome de cor', () => {
+    expect(mensagemLimiteEstoque(null, 1)).toBe('Última unidade.')
+    expect(mensagemLimiteEstoque(undefined, 1)).toBe('Última unidade.')
+    expect(mensagemLimiteEstoque(null, 1)).not.toContain('cor')
+  })
+
+  it('quantidade zero cai no plural (variação que zerou no meio da escolha) — texto nunca chega a ser mostrado nesse caso, o componente prioriza o aviso de "esgotado"', () => {
+    expect(mensagemLimiteEstoque('VERDE', 0)).toBe('Últimas 0 unidades dessa cor.')
+    expect(mensagemLimiteEstoque(null, 0)).toBe('Últimas 0 unidades.')
   })
 })
 
