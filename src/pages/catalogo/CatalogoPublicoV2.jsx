@@ -1350,7 +1350,15 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                 {/* Trava no teto de estoque — antes crescia sem fim
                     (setQtd(n => n + 1) puro), o ponto de origem do bug de
                     vender mais do que existe. Ao bater no teto, não incrementa
-                    e avisa por que — nunca trava silenciosamente. */}
+                    e avisa por que — nunca trava silenciosamente.
+                    `aria-disabled` e NÃO `disabled`, pela MESMA razão do
+                    "Adicionar" logo abaixo: botão com `disabled` de verdade
+                    não recebe o clique no navegador — o evento nem chega a
+                    disparar, então o onClick (que é quem seta avisoEstoque)
+                    nunca roda. Foi exatamente o bug relatado em produção:
+                    cursor de proibido aparecia, aviso nenhum. Se um dia
+                    voltar a usar `disabled` aqui, o aviso volta a morrer
+                    calado. */}
                 <button
                   onClick={() => {
                     if (qtd >= limiteAtual) {
@@ -1360,7 +1368,7 @@ export function ModalProduto({ produto, modoAtacado, aoFechar, aoConfirmar }) {
                     setAvisoEstoque('')
                     setQtd(n => n + 1)
                   }}
-                  disabled={escolhaCompleta && qtd >= limiteAtual}
+                  aria-disabled={escolhaCompleta && qtd >= limiteAtual}
                   aria-label={TEXTOS.ariaAumentar}
                   style={{
                     width: 40, height: 40, borderRadius: 12, flex: 'none', border: 'none',
@@ -1783,9 +1791,18 @@ export function DrawerPedido({
                     <span style={{ fontSize: 15, fontWeight: 700, color: C.tinta, minWidth: 20, textAlign: 'center' }}>
                       {linha.qtd}
                     </span>
+                    {/* aria-disabled e NÃO disabled — mesma razão do "+" do
+                        modal (ModalProduto) e do "Adicionar" ali: `disabled`
+                        de verdade não recebe clique no navegador, o evento
+                        nem chega a disparar. Aqui a mensagem abaixo já é
+                        estado derivado (não depende do clique), então
+                        `disabled` não escondia aviso nenhum neste ponto
+                        específico — mas deixava o botão mudo do mesmo jeito,
+                        e reintroduzir `disabled` de verdade é o caminho mais
+                        fácil de voltar a quebrar isso. */}
                     <button
                       onClick={() => { if (!noLimite) aoMudarQtd(linha.chave, linha.qtd + 1) }}
-                      disabled={noLimite}
+                      aria-disabled={noLimite}
                       aria-label={TEXTOS.ariaAumentar}
                       style={{
                         width: 36, height: 36, borderRadius: 10, flex: 'none', border: 'none',

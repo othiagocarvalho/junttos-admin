@@ -946,19 +946,24 @@ describe('teto de estoque no seletor de quantidade', () => {
   })
   const BOTAO_MAIS_QTD = /<button[^>]*aria-label="Aumentar quantidade"[^>]*>/
 
-  it('com só 1 unidade, o "+" da quantidade já nasce travado (qtd inicial=1 = teto)', () => {
+  it('com só 1 unidade, o "+" da quantidade já nasce marcado como travado (aria-disabled)', () => {
     // comCor é false (só existe UMA "cor"), então corSel entra
     // pré-selecionado no mount — o teto vale desde o primeiro render, sem
     // precisar clicar em nada.
+    //
+    // aria-disabled, e não .toContain('disabled') puro: essa string bate em
+    // "aria-disabled" também, então não distinguia os dois casos — foi
+    // exatamente esse ponto cego que deixou passar o bug de produção (ver
+    // describe 'regressão' abaixo).
     const btn = modal(umaUnidade).match(BOTAO_MAIS_QTD)?.[0]
     expect(btn).toBeTruthy()
-    expect(btn).toContain('disabled')
+    expect(btn).toContain('aria-disabled="true"')
   })
 
-  it('com estoque de sobra, o "+" nasce livre', () => {
+  it('com estoque de sobra, o "+" nasce livre (aria-disabled="false")', () => {
     const btn = modal(umaCor).match(BOTAO_MAIS_QTD)?.[0] // VINHO, quantidade 5
     expect(btn).toBeTruthy()
-    expect(btn).not.toContain('disabled')
+    expect(btn).toContain('aria-disabled="false"')
   })
 
   it('produto esgotado mostra o aviso "Esgotado nesta variação" sem precisar clicar', () => {
@@ -972,6 +977,80 @@ describe('teto de estoque no seletor de quantidade', () => {
   it('produto com estoque normal não mostra nenhum aviso de estoque — só aparece quando bate o teto', () => {
     const s = modal(umaCor)
     expect(s).not.toContain(TEXTOS.estoqueEsgotadoVariacao)
+    expect(s).not.toContain('unidade(s) disponíve')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGRESSÃO — bug de produção: "+" travava (cursor not-allowed), mas nenhum
+// aviso aparecia.
+//
+// Causa: os dois "+" (seletor principal do modal e o do carrinho/drawer)
+// usavam `disabled` de VERDADE (o atributo HTML nativo), não `aria-disabled`.
+// Um <button disabled> não recebe o evento `click` do navegador — o clique
+// nem chega a disparar, então o onClick (que é quem chama setAvisoEstoque)
+// nunca rodava. O "Adicionar" ao lado já resolvia isso com `aria-disabled`
+// desde a correção anterior; os dois "+" não tinham recebido o mesmo
+// tratamento.
+//
+// POR QUE O TESTE ANTERIOR NÃO PEGOU ISSO: a suíte deste projeto roda em
+// vitest com environment 'node', sem jsdom — não existe simulação de clique
+// real (nem `fireEvent`, nem qualquer disparo de evento DOM), só
+// renderToStaticMarkup, que renderiza uma vez e não executa handler nenhum.
+// O teste de 'com só 1 unidade...' (acima) já confirmava CORRETAMENTE que o
+// botão nasce "travado" — mas a asserção original era `.toContain('disabled')`,
+// uma substring que bate em "disabled=\"\"" (o real) E em "aria-disabled=\"true\""
+// (o correto) por igual. A troca de um pelo outro não mudava o resultado do
+// teste — daí o ponto cego: o teste continuava verde nos dois casos, correto
+// e incorreto. Não há como simular o clique em si sem jsdom (não foi
+// adicionado — fora do que foi pedido); o que dá para travar, e é o que os
+// testes abaixo fazem, é a FORMA exata do atributo: `aria-disabled="true"`
+// presente, `disabled=""` (a forma que o disabled real assume no HTML
+// renderizado) ausente. Isso é suficiente para pegar uma regressão futura
+// que volte a escrever `disabled={...}` num desses dois botões.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('regressão — "+" trava mas continua clicável (aria-disabled, não disabled)', () => {
+  const umaUnidadeReg = normalizarProduto({
+    id: 'p9', nome: 'PEÇA RARA REGRESSÃO', preco_venda: 40, ativo: true, fotos: ['f.jpg'],
+    variacoes: [{ cor: 'ÚNICA', quantidade: 1 }],
+  })
+  const BOTAO_MAIS_QTD_REG = /<button[^>]*aria-label="Aumentar quantidade"[^>]*>/
+
+  it('"+" do seletor principal (modal): aria-disabled presente, disabled real ausente', () => {
+    const btn = modal(umaUnidadeReg).match(BOTAO_MAIS_QTD_REG)?.[0]
+    expect(btn).toBeTruthy()
+    expect(btn).toContain('aria-disabled="true"')
+    // disabled="" é como React renderiza o atributo booleano disabled=true —
+    // "aria-disabled" não bate nessa string exata, só "disabled" puro bate.
+    expect(btn).not.toContain('disabled=""')
+  })
+
+  it('"+" do carrinho (drawer): aria-disabled presente, disabled real ausente', () => {
+    const mapaLimite = { p2: umaCor } // VINHO, quantidade 5
+    const linhasNoTeto = linhasDoCarrinho({ 'p2|VINHO|Único': 5 }, mapaLimite) // exatamente no teto
+    const s = html(
+      <DrawerPedido
+        linhas={linhasNoTeto} produtosPorId={mapaLimite} minimo={null} loja={lojaAtacado}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    const btn = s.match(BOTAO_MAIS_QTD_REG)?.[0]
+    expect(btn).toBeTruthy()
+    expect(btn).toContain('aria-disabled="true"')
+    expect(btn).not.toContain('disabled=""')
+  })
+
+  it('drawer: abaixo do teto, aria-disabled="false" e sem aviso', () => {
+    const mapaLimite = { p2: umaCor }
+    const linhasAbaixo = linhasDoCarrinho({ 'p2|VINHO|Único': 3 }, mapaLimite) // 3 de 5
+    const s = html(
+      <DrawerPedido
+        linhas={linhasAbaixo} produtosPorId={mapaLimite} minimo={null} loja={lojaAtacado}
+        aoFechar={() => {}} aoMudarQtd={() => {}} aoEnviar={() => {}} aoPagar={() => {}}
+      />,
+    )
+    const btn = s.match(BOTAO_MAIS_QTD_REG)?.[0]
+    expect(btn).toContain('aria-disabled="false"')
     expect(s).not.toContain('unidade(s) disponíve')
   })
 })
