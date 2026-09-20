@@ -132,9 +132,25 @@ export function estoqueVariacao(produto, nomeCor) {
  * "dessa cor" só faz sentido quando existe um nome de cor de verdade — para
  * produto sem variação (nomeCor null/vazio, saldo em estoqueSemVariacao) diz
  * "dessa cor" seria confuso, já que nunca houve cor nenhuma para escolher.
+ *
+ * Singular ("Última unidade") e plural ("Últimas {n} unidades") são frases
+ * diferentes, não a mesma frase com "s" a mais — por isso são 4 casos, não 2.
+ *
+ * ─── POR QUE O TEXTO ESTÁ AQUI E NÃO EM i18n/catalogo.js ───────────────────
+ * Todo texto que o cliente final lê deveria morar em i18n/catalogo.js — é a
+ * regra do arquivo (ver o cabeçalho dele) e o resto deste módulo a segue. A
+ * exceção aqui é deliberada: esta troca de texto foi pedida com o escopo
+ * explicitamente fechado em catalogoV2.js + seu teste, então os 4 textos
+ * ficam como literais nesta função em vez de virar chaves novas em TEXTOS.
+ * As chaves antigas (estoqueLimiteCor/estoqueLimiteGeral) ficaram órfãs em
+ * i18n/catalogo.js — não foram removidas para não tocar naquele arquivo.
  */
 export function mensagemLimiteEstoque(nomeCor, n) {
-  return nomeCor ? t('estoqueLimiteCor', { n }) : t('estoqueLimiteGeral', { n })
+  const singular = n === 1
+  if (nomeCor) {
+    return singular ? 'Última unidade dessa cor.' : `Últimas ${n} unidades dessa cor.`
+  }
+  return singular ? 'Última unidade.' : `Últimas ${n} unidades.`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
