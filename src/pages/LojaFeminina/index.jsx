@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useLojaTheme } from '../../hooks/useLojaTheme'
-import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, ArrowLeftRight, X, Sparkles } from 'lucide-react'
+import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, BarChart2, Wallet, ChevronRight, MoreHorizontal, Settings, Target, Receipt, CreditCard, ArrowLeftRight, X, Sparkles, ScanLine } from 'lucide-react'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
@@ -16,6 +16,8 @@ import ClientDashboardDesktop from '../cliente/ClientDashboardDesktop'
 import CatalogoB2BAdmin, { ConfigB2B } from './CatalogoB2BAdmin'
 import CatalogoB2BAdminDesktop from './CatalogoB2BAdminDesktop'
 import NovaVenda from './NovaVenda'
+import PreVenda from './PreVenda'
+import PreVendasLista from './PreVendasLista'
 import Historico from './Historico'
 import MetasResultados from './MetasResultados'
 import Fechamento from './Fechamento'
@@ -58,6 +60,7 @@ const BOTTOM_TABS = [
 ]
 
 const MAIS_ITEMS = [
+  { id: 'prevenda',     label: 'Pré-venda',     Icon: ScanLine,   planoMinimo: null                              },
   { id: 'relatorios',   label: 'Relatórios',    Icon: BarChart2,  planoMinimo: null                              },
   { id: 'financeiro',   label: 'Financeiro',    Icon: CreditCard, planoMinimo: 'business', apenasPlano: true     },
   { id: 'crm',          label: 'CRM',           Icon: Users,      planoMinimo: 'starter'                         },
@@ -672,6 +675,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
+    prevenda:      <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
+    prevenda_bipar: <PreVenda {...data} theme={theme} onSalvo={() => setTab('prevenda')} />,
     relatorios: <Relatorios {...data} theme={theme} temAcessoPro={temAcesso(plano, 'pro')} gerente={gerente} />,
     crediario: temAcesso(plano, 'pro')
       ? <Crediario crediario={data.crediario || []} addCrediario={data.addCrediario} pagarParcela={data.pagarParcela} theme={theme} lojaId={lojaId} />
@@ -788,7 +793,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   // profundidade, não só esconder o botão.
   const tabEfetiva = (gerente && TABS_RESTRITAS_GERENTE.includes(tab)) ? 'venda' : tab
 
-  const showBottomBar = !['faturamento', 'config', 'meta', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'socio_digital'].includes(tabEfetiva)
+  const showBottomBar = !['faturamento', 'config', 'meta', 'crm', 'financeiro', 'crediario', 'relatorios', 'conta', 'catalogo_b2b', 'socio_digital', 'prevenda', 'prevenda_bipar'].includes(tabEfetiva)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', maxWidth: '100vw', boxSizing: 'border-box', ...themeVars }}>

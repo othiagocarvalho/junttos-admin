@@ -34,12 +34,16 @@ export default function CampoScanner({ aoLer, theme, autoFoco = true, dica = '' 
     avisoTimer.current = setTimeout(() => setAviso(null), 2600)
   }
 
-  function resolver(codigo) {
+  // async de propósito — Pré-venda usa isto com um aoLer que chama RPC
+  // (bipar_item_prevenda), que é rede, não memória. `await` numa função
+  // SÍNCRONA (o caso de Nova Venda, buscarPorCodigo em memória) resolve na
+  // mesma volta do event loop — não muda nada pra quem já usa isto hoje.
+  async function resolver(codigo) {
     clearTimeout(timerRajada.current)
     marcas.current = []
     const limpo = String(codigo || '').trim()
     if (!limpo) return
-    const r = aoLer?.(limpo)
+    const r = await aoLer?.(limpo)
     setValor('')
     // O foco volta para o campo: quem está bipando passa várias peças seguidas.
     inputRef.current?.focus()

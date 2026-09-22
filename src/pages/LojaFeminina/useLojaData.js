@@ -459,6 +459,31 @@ export function useLojaData(lojaId = 'estrada') {
     return { error: null, venda: novaVenda || null }
   }
 
+  /**
+   * INSERT em lf_vendas SEM side-effect nenhum de estoque — ao contrário de
+   * addVenda, que sempre chama aplicarEstoque(modo:'baixa') depois de
+   * inserir.
+   *
+   * Existe só para o primeiro bipe de uma Pré-venda (PreVenda.jsx): o
+   * estoque já foi decrementado atomicamente pela RPC bipar_item_prevenda
+   * ANTES desta função ser chamada — se ela também rodasse aplicarEstoque,
+   * a peça sairia do estoque duas vezes pro mesmo bipe. `payload` já vem
+   * pronto (loja_id incluído) de utils/prevenda.js:montarInsertPrimeiroBipe.
+   *
+   * Bipes seguintes da mesma pré-venda usam updateVenda normal — updateVenda
+   * já não mexe em estoque (nunca mexeu), então não precisa de um "raw"
+   * próprio.
+   */
+  async function addVendaRaw(payload) {
+    const { data, error } = await supabase
+      .from('lf_vendas')
+      .insert(payload)
+      .select()
+      .single()
+    if (!error) await fetchAll()
+    return { error, venda: data || null }
+  }
+
   async function deleteVenda(id) {
     const { data: venda } = await supabase
       .from('lf_vendas')
@@ -995,6 +1020,7 @@ export function useLojaData(lojaId = 'estrada') {
     fetchAll,
     ensureDefaults,
     addVenda,
+    addVendaRaw,
     deleteVenda,
     updateVenda,
     fecharCaixa,
