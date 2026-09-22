@@ -6,6 +6,7 @@ import {
   normalizeWaPhone,
 } from '../../utils/crm'
 import Clientes from './Clientes'
+import { vendasCompletas } from './useLojaData'
 
 const BADGE_CONFIG = {
   aniversario: { label: 'Aniversário', bg: '#fdf4ff', color: '#7e22ce' },
@@ -407,11 +408,17 @@ export default function CRM({
   const primary = theme?.primary || '#5E2BD0'
   const [aba, setAba] = useState('followups')
 
+  // Sugestão automática de follow-up ("cliente não compra há X dias", "é
+  // VIP"...) não pode nascer de uma pré-venda ('aguardando_pagamento') como
+  // se já fosse uma compra de verdade — sinalizaria engajamento que ainda
+  // não aconteceu. Filtrado uma vez, desce para FollowUpsTab e Clientes.
+  const vendasReais = vendasCompletas(vendas)
+
   const totalFeed = useMemo(() => {
     const hoje = new Date().toISOString().slice(0, 10)
-    const sugs = gerarSugestoesAuto(clientes || [], vendas || [], hoje)
+    const sugs = gerarSugestoesAuto(clientes || [], vendasReais || [], hoje)
     return combinarFeed(sugs, lembretes || [], dispensados || [], hoje).length
-  }, [clientes, vendas, lembretes, dispensados])
+  }, [clientes, vendasReais, lembretes, dispensados])
 
   function tabStyle(active) {
     return {
@@ -448,7 +455,7 @@ export default function CRM({
       {aba === 'followups' && (
         <FollowUpsTab
           clientes={clientes || []}
-          vendas={vendas || []}
+          vendas={vendasReais}
           lembretes={lembretes || []}
           addLembrete={addLembrete}
           concluirLembrete={concluirLembrete}
@@ -461,7 +468,7 @@ export default function CRM({
       {aba === 'clientes' && (
         <Clientes
           clientes={clientes || []}
-          vendas={vendas || []}
+          vendas={vendasReais}
           addCliente={addCliente}
           updateCliente={updateCliente}
           deleteCliente={deleteCliente}

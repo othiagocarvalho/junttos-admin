@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X, Receipt } from 'lucide-react'
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from './useLojaData'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
@@ -37,6 +38,12 @@ function groupByDay(vendas) {
 }
 
 export default function Historico({ vendas, deleteVenda, updateVenda, theme, config = null }) {
+  // Histórico soma um total por dia (groupByDay) e lista cada venda como
+  // "o que já aconteceu" — pré-venda ('aguardando_pagamento') não é
+  // histórico ainda, é entrarmos com a peça reservada antes da venda de
+  // verdade existir. Ela ganha tela própria na etapa 2; aqui, filtrada fora
+  // por completo (soma E listagem), não só da soma.
+  const vendasReais = vendasCompletas(vendas)
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -60,7 +67,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
   const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
   const editPgtoOk = editVenda && Math.abs(editAlloc - editTotal) < 0.005
 
-  const filtradas = vendas.filter(v => {
+  const filtradas = vendasReais.filter(v => {
     const d = new Date(v.data)
     if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
     if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false
@@ -379,6 +386,11 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
           </div>
         </div>
       )}
+      {/* vendas cru de propósito, não vendasReais: aqui é o pool de
+          numeracaoRecibo (numeração sequencial do recibo), não um total
+          financeiro — fora do escopo desta correção (ver decisão no
+          relatório da tarefa). Mesmo padrão em NovaVenda.jsx,
+          ClientDashboardDesktop.jsx e RelatoriosDesktop.jsx. */}
       {reciboVenda && (
         <ReciboVenda venda={reciboVenda} vendas={vendas} theme={theme} onFechar={() => setReciboVenda(null)} avisoRecibo={config?.features?.texto_aviso_recibo} />
       )}

@@ -4,6 +4,7 @@ import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import SeloPlano from '../../components/studio/SeloPlano'
 import { calcularProgressoMetaProduto } from '../../utils/metas'
 import CorridaSection from './CorridaSection'
+import { vendasCompletas } from './useLojaData'
 import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -44,6 +45,10 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   // Dentro de uma gaveta o título já está no cabeçalho dela, e o selo de plano
   // vai na prop `badge` da Gaveta. Repetir os dois aqui dentro seria eco.
   const mostrar = chave => secoes.includes(chave)
+  // Toda esta tela mede progresso de meta — pré-venda ('aguardando_pagamento')
+  // não pode contar como realizado antes de ser finalizada, tanto na meta
+  // geral quanto por vendedora, por produto e no comparativo de 6 meses.
+  const vendasReais = vendasCompletas(vendas)
   const temPro      = temAcesso(plano, 'pro')
   const temBusiness = temAcesso(plano, 'business')
   const now = new Date()
@@ -57,7 +62,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
 
   const meta = metas[mes] || 0
   const [y, m] = mes.split('-').map(Number)
-  const vendasMes = vendas.filter(v => {
+  const vendasMes = vendasReais.filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === y && d.getMonth() + 1 === m
   })
@@ -97,7 +102,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   // São consts, não hooks — condicionar é seguro.
   const vendedoras = !mostrar('vendedor') ? [] : [...new Set([
     ...(vendedoresCadastrados || []).filter(v => v?.ativo !== false && v?.nome).map(v => String(v.nome).trim()),
-    ...vendas.filter(v => v.vendedora).map(v => v.vendedora),
+    ...vendasReais.filter(v => v.vendedora).map(v => v.vendedora),
   ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'))
   const [mesVend, setMesVend] = useState(currentYM)
   const [vendedoraSel, setVendedoraSel] = useState('')
@@ -105,7 +110,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   const [savingVend, setSavingVend] = useState(false)
 
   const [yV, mV] = mesVend.split('-').map(Number)
-  const vendasMesVend = !mostrar('vendedor') ? [] : vendas.filter(v => {
+  const vendasMesVend = !mostrar('vendedor') ? [] : vendasReais.filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === yV && d.getMonth() + 1 === mV
   })
@@ -155,7 +160,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
   }
 
   const progProd = (mostrar('produto') && metaProduto)
-    ? calcularProgressoMetaProduto(vendas, produtosData, metaProduto)
+    ? calcularProgressoMetaProduto(vendasReais, produtosData, metaProduto)
     : null
 
   // ── Comparativo últimos 6 meses ──
@@ -164,7 +169,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const metaValor = metas[ym] || 0
-    const realizadoMes = vendas
+    const realizadoMes = vendasReais
       .filter(v => { const dd = new Date(v.data); return dd.getFullYear() === d.getFullYear() && dd.getMonth() === d.getMonth() })
       .reduce((s, v) => s + Number(v.valor), 0)
     mesesComp.push({
@@ -524,7 +529,7 @@ export default function Meta({ vendas, metas, salvarMeta, metasVendedora = [], s
             <UpgradeWall planoAtual={plano} planoNecessario="business" funcionalidade="corrida" theme={theme} />
           ) : (
             <CorridaSection
-              vendas={vendas}
+              vendas={vendasReais}
               corridas={corridas}
               salvarCorrida={salvarCorrida}
               excluirCorrida={excluirCorrida}

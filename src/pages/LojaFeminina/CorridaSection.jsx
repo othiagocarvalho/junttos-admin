@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trophy, Gift, ChevronDown, Trash2 } from 'lucide-react'
 import { calcularRankingCorrida, diasRestantesCorrida } from '../../utils/corrida'
+import { vendasCompletas } from './useLojaData'
 import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -241,6 +242,12 @@ function CorridaCard({ corrida, ranking, cardTheme, mobile, onDelete }) {
 // ── Main export ────────────────────────────────────────────────
 
 export default function CorridaSection({ vendas, corridas, salvarCorrida, excluirCorrida, produtosData, mobile }) {
+  // Ranking da corrida (quem vendeu mais) não pode contar pré-venda
+  // ('aguardando_pagamento') como venda de verdade — inflaria o placar de
+  // quem ainda não fechou a venda. Filtrado uma vez, desce para
+  // EncerradasSection já limpo.
+  const vendasReais = vendasCompletas(vendas)
+
   // Form state
   const [nome, setNome] = useState('')
   const [tipoMedicao, setTipoMedicao] = useState('faturamento')
@@ -404,7 +411,7 @@ export default function CorridaSection({ vendas, corridas, salvarCorrida, exclui
         <>
           {vigentes.map((corrida, i) => {
             const cardTheme = CARD_THEMES[i % CARD_THEMES.length]
-            const ranking = calcularRankingCorrida(vendas, corrida)
+            const ranking = calcularRankingCorrida(vendasReais, corrida)
             return (
               <CorridaCard
                 key={corrida.id}
@@ -420,7 +427,7 @@ export default function CorridaSection({ vendas, corridas, salvarCorrida, exclui
           {encerradas.length > 0 && (
             <EncerradasSection
               encerradas={encerradas}
-              vendas={vendas}
+              vendas={vendasReais}
               mobile={mobile}
               onDelete={(c) => setConfirmDel(c)}
               vigentesCount={vigentes.length}

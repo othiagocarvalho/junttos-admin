@@ -6,6 +6,7 @@ import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
+import { vendasCompletas } from './useLojaData'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -303,19 +304,23 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 
 // ── Main component ─────────────────────────────────────────────
 export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '', gerente = false }) {
+  // Faturamento, ticket médio, P.A., comissão e a lista detalhada desta tela
+  // inteira não podem contar pré-venda ('aguardando_pagamento') como venda
+  // de verdade.
+  const vendasReais = vendasCompletas(vendas)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
 
   const filtered = useMemo(() => {
     if (!dateFrom || !dateTo) return []
-    return vendas.filter(v => {
+    return vendasReais.filter(v => {
       const d = new Date(v.data)
       if (d < new Date(dateFrom + 'T00:00:00')) return false
       if (d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [vendas, dateFrom, dateTo])
+  }, [vendasReais, dateFrom, dateTo])
 
   const totalVendas = filtered.reduce((s, v) => s + Number(v.valor), 0)
   const nVendas = filtered.length
@@ -356,7 +361,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
   if (showDetalhadas) {
     return (
       <VendasDetalhadas
-        vendas={vendas}
+        vendas={vendasReais}
         dateFrom={dateFrom}
         dateTo={dateTo}
         deleteVenda={deleteVenda}

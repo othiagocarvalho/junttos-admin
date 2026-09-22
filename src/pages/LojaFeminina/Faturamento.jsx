@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { BarChart2, TrendingUp, ShoppingBag, CreditCard } from 'lucide-react'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from './useLojaData'
 
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 function monthStartStr() {
@@ -32,8 +33,10 @@ export default function Faturamento({ vendas, theme }) {
   const [dateFrom, setDateFrom] = useState(monthStartStr)
   const [dateTo,   setDateTo]   = useState(todayStr)
 
+  // Esta é literalmente a tela de Faturamento — pré-venda ('aguardando_pagamento')
+  // não é faturamento até ser finalizada.
   const filtered = useMemo(() => {
-    return vendas.filter(v => {
+    return vendasCompletas(vendas).filter(v => {
       const d = new Date(v.data)
       if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false
       if (dateTo   && d > new Date(dateTo   + 'T23:59:59')) return false

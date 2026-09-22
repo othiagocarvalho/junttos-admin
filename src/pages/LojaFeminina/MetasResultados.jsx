@@ -44,6 +44,7 @@ import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import CurvaABC from '../../components/relatorios/CurvaABC'
 import { temAcesso } from '../../utils/planos'
 import SeloPlano from '../../components/studio/SeloPlano'
+import { vendasCompletas } from './useLojaData'
 
 // Fora do componente de propósito: array novo a cada render faria o Meta
 // remontar sem necessidade.
@@ -54,13 +55,18 @@ import SeloPlano from '../../components/studio/SeloPlano'
 const METAS_DO_MES   = ['mensal', 'vendedor', 'produto']
 const SO_COMPARATIVO = ['comparativo']
 
-/** Vendas do mês corrente — recorte que as gavetas 2 e 3 usam.
- *  Metas e Corrida têm o próprio recorte interno e não passam por aqui. */
+/** Vendas do mês corrente — recorte que as gavetas 2 e 3 usam (comissão e
+ *  Curva ABC). Metas e Corrida têm o próprio recorte interno (e o próprio
+ *  filtro de vendasCompletas) e não passam por aqui.
+ *
+ *  Comissão e Curva ABC não podem contar pré-venda ('aguardando_pagamento')
+ *  — pagaria comissão sobre venda que ainda nem foi confirmada, e o ranking
+ *  de produto incluiria peça que só foi reservada, não vendida de verdade. */
 function vendasDoMes(vendas = []) {
   const agora = new Date()
   const ano = agora.getFullYear()
   const mes = agora.getMonth()
-  return (vendas || []).filter(v => {
+  return vendasCompletas(vendas).filter(v => {
     const d = new Date(v?.data)
     return d.getFullYear() === ano && d.getMonth() === mes
   })

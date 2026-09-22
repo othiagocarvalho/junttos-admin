@@ -6,6 +6,7 @@ import Input, { Label } from '../../components/studio/Input'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
+import { vendasCompletas } from '../LojaFeminina/useLojaData'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -324,19 +325,23 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
 }
 
 export default function RelatoriosDesktop({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro = false, lojaId = '', gerente = false, config = null }) {
+  // Faturamento, ticket médio, P.A., comissão e a lista detalhada desta tela
+  // inteira não podem contar pré-venda ('aguardando_pagamento') como venda
+  // de verdade. Mesmo filtro do Relatorios.jsx mobile.
+  const vendasReais = vendasCompletas(vendas)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDetalhadas, setShowDetalhadas] = useState(false)
 
   const filtered = useMemo(() => {
     if (!dateFrom || !dateTo) return []
-    return vendas.filter(v => {
+    return vendasReais.filter(v => {
       const d = new Date(v.data)
       if (d < new Date(dateFrom + 'T00:00:00')) return false
       if (d > new Date(dateTo + 'T23:59:59')) return false
       return true
     })
-  }, [vendas, dateFrom, dateTo])
+  }, [vendasReais, dateFrom, dateTo])
 
   const totalVendas = filtered.reduce((s, v) => s + Number(v.valor), 0)
   const nVendas = filtered.length
