@@ -4,7 +4,7 @@ import { Home, Plus, ShoppingBag, AlertCircle, Monitor, Package, Users, Lock, Ba
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
 import EmptyState from '../../components/studio/EmptyState'
-import { useLojaData } from './useLojaData'
+import { useLojaData, vendasCompletas } from './useLojaData'
 import { useViewMode } from '../../hooks/useViewMode'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
@@ -73,11 +73,15 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const vendasMes = vendas.filter(v => {
+  // Dashboard principal (total vendido, ticket médio, P.A.) — pré-venda
+  // ('aguardando_pagamento') não pode contar como faturamento antes de ser
+  // finalizada.
+  const vendasReais = vendasCompletas(vendas)
+  const vendasMes = vendasReais.filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
   })
-  const vendasHoje = filtrarVendasDoDia(vendas, now)
+  const vendasHoje = filtrarVendasDoDia(vendasReais, now)
   const mes  = calcularIndicadores(vendasMes)
   const hoje = calcularIndicadores(vendasHoje)
   const totalMes = mes.total
@@ -248,7 +252,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
         </div>
       )}
 
-      {topProds.length === 0 && vendas.length === 0 && (
+      {topProds.length === 0 && vendasReais.length === 0 && (
         <EmptyState
           icon={ShoppingBag}
           title="Nenhuma venda ainda"

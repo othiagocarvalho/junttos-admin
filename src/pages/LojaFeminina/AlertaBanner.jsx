@@ -3,6 +3,7 @@ import { AlertTriangle, TrendingUp, CreditCard, ChevronRight } from 'lucide-reac
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from './useLojaData'
 
 export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {} }) {
   const [contasData, setContasData] = useState(null)
@@ -33,7 +34,9 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
 
   const now = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const vendasMes = (vendas || []).filter(v => {
+  // vendasCompletas: pré-venda (status 'aguardando_pagamento') ainda não é
+  // faturamento — não pode disparar o alerta de "Meta batida!" sozinha.
+  const vendasMes = vendasCompletas(vendas).filter(v => {
     const d = new Date(v.data)
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
   })

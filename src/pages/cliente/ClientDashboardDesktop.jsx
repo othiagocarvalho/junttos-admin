@@ -10,6 +10,7 @@ import { StatGrid } from '../../components/studio/StatCard'
 import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
+import { vendasCompletas } from '../LojaFeminina/useLojaData'
 import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
 import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/venda/ResumoVenda'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
@@ -311,8 +312,12 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const vendasMes  = vendas.filter(v => { const d = new Date(v.data); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() })
-  const vendasHoje = filtrarVendasDoDia(vendas, now)
+  // Dashboard principal (total vendido, ticket médio, P.A.) — pré-venda
+  // ('aguardando_pagamento') não pode contar como faturamento antes de ser
+  // finalizada. Mesmo filtro do Inicio mobile equivalente (LojaFeminina/index.jsx).
+  const vendasReais = vendasCompletas(vendas)
+  const vendasMes  = vendasReais.filter(v => { const d = new Date(v.data); return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() })
+  const vendasHoje = filtrarVendasDoDia(vendasReais, now)
   const mes        = calcularIndicadores(vendasMes)
   const hoje       = calcularIndicadores(vendasHoje)
   const totalMes   = mes.total
@@ -459,7 +464,11 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
 }
 
 // ── Desktop Histórico (table) ─────────────────────────────────
+// Não referenciado em nenhuma rota hoje (RelatoriosDesktop cobre a listagem
+// detalhada) — mas o filtro abaixo fica de qualquer forma: é trivial e evita
+// que religar este componente reintroduza pré-venda contando como histórico.
 function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
+  const vendasReais = vendasCompletas(vendas)
   const [search,     setSearch]     = useState('')
   const [filtro,     setFiltro]     = useState('todos')
   const [confirmDel, setConfirmDel] = useState(null)
@@ -483,7 +492,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
   const editAlloc = editPgtos.reduce((s, p) => s + (parseFloat((String(p.valor) || '0').replace(',', '.')) || 0), 0)
   const editPgtoOk = editVenda && Math.abs(editAlloc - editTotal) < 0.005
 
-  const filtered = vendas.filter(v => {
+  const filtered = vendasReais.filter(v => {
     const d = new Date(v.data)
     if (filtro === 'hoje')   return d.toDateString() === now.toDateString()
     if (filtro === 'semana') { const c = new Date(now); c.setDate(now.getDate() - 7); return d >= c }

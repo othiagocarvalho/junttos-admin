@@ -8,6 +8,7 @@ import StatCard, { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from './useLojaData'
 
 const fmtDate = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
@@ -658,6 +659,10 @@ const TABS = [
 ]
 
 export default function Financeiro({ lojaId, vendas = [], theme }) {
+  // DRE e Fluxo de Caixa são o núcleo financeiro do app — pré-venda
+  // ('aguardando_pagamento') não é caixa recebido nem receita realizada até
+  // ser finalizada, então não pode entrar em nenhuma das duas contas.
+  const vendasReais = vendasCompletas(vendas)
   const [tab, setTab] = useState('pagar')
   const [crediarios, setCrediarios] = useState([])
 
@@ -688,8 +693,8 @@ export default function Financeiro({ lojaId, vendas = [], theme }) {
 
       {tab === 'pagar'   && <ContasPagarTab   lojaId={lojaId} theme={theme} />}
       {tab === 'receber' && <ContasReceberTab  lojaId={lojaId} crediarios={crediarios} theme={theme} />}
-      {tab === 'fluxo'   && <FluxoCaixaTab    lojaId={lojaId} vendas={vendas} crediarios={crediarios} theme={theme} />}
-      {tab === 'dre'     && <DRETab           lojaId={lojaId} vendas={vendas} theme={theme} />}
+      {tab === 'fluxo'   && <FluxoCaixaTab    lojaId={lojaId} vendas={vendasReais} crediarios={crediarios} theme={theme} />}
+      {tab === 'dre'     && <DRETab           lojaId={lojaId} vendas={vendasReais} theme={theme} />}
     </div>
   )
 }

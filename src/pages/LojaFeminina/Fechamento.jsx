@@ -5,6 +5,7 @@ import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from './useLojaData'
 
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 // Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
@@ -94,6 +95,11 @@ function CurrField({ k, label, form, setForm, readOnly = false, valores }) {
 }
 
 export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [], gerente = false }) {
+  // O fechamento de caixa concilia dinheiro FÍSICO contra o que o sistema diz
+  // que entrou — uma pré-venda ('aguardando_pagamento') ainda não é dinheiro
+  // em caixa nenhum. Contá-la aqui criaria uma divergência falsa: o sistema
+  // diria que entrou mais do que realmente está na gaveta.
+  const vendasReais = vendasCompletas(vendas)
   const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
   const [form, setForm] = useState(EMPTY)
@@ -117,7 +123,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
 
   // Auto-fill payment fields by summing registered sales for the selected date
   useEffect(() => {
-    const doDia = vendas.filter(v => {
+    const doDia = vendasReais.filter(v => {
       try { return toLocalISO(new Date(v.data)) === dataSelecionada }
       catch { return false }
     })
@@ -143,7 +149,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       debito:   tot.debito   > 0 ? tot.debito.toFixed(2)   : '',
       credito:  tot.credito  > 0 ? tot.credito.toFixed(2)  : '',
     }))
-  }, [dataSelecionada, vendas])
+  }, [dataSelecionada, vendasReais])
 
   // Fechamento já salvo para a data escolhida, e o modo de exibição derivado
   // disso — ver derivarModoFechamento() acima (função pura, testada em
@@ -172,7 +178,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
 
   // Total real de vendas do sistema para a data escolhida (usado na validação de divergência
   // e no aviso de estimativa quando não há fechamento salvo)
-  const vendasDoDia = vendas.filter(v => {
+  const vendasDoDia = vendasReais.filter(v => {
     try { return toLocalISO(new Date(v.data)) === dataSelecionada }
     catch { return false }
   })

@@ -63,6 +63,32 @@ const DEFAULT_FEATURES = {
   estoque: false,
 }
 
+/**
+ * Filtra `vendas` para só as que são faturamento de verdade — a base segura
+ * da Pré-venda (fix_prevenda_schema.sql, etapa 1). Uma pré-venda
+ * ('aguardando_pagamento') já baixou estoque, mas ainda não foi paga nem
+ * confirmada: contá-la em faturamento, ticket médio, comissão, DRE, metas
+ * etc. infla o número com uma venda que pode nem se concretizar — o mesmo
+ * tipo de furo que a correção de estoque do catálogo público fechou, só que
+ * do lado financeiro em vez do lado de estoque.
+ *
+ * TODO CONSUMIDOR de `vendas` que soma/conta para exibir indicador
+ * financeiro ou quantitativo (faturamento, P.A., curva ABC, ranking...) deve
+ * passar por aqui ANTES de calcular. Consumidor que só LISTA vendas para
+ * exibição bruta (histórico simples, sem soma nenhuma) não precisa — uma
+ * pré-venda listada como "o que está acontecendo" não é o mesmo problema que
+ * uma pré-venda somada como "quanto faturei".
+ *
+ * status ausente/null conta como 'completa': é o estado de toda venda
+ * gravada antes desta coluna existir, e de qualquer venda normal nova que
+ * nunca passa `status` explicitamente (Nova Venda, Troca — nenhuma delas
+ * muda nesta etapa). Só a futura tela de Pré-venda grava
+ * 'aguardando_pagamento' de propósito.
+ */
+export function vendasCompletas(vendas) {
+  return (vendas || []).filter(v => (v?.status ?? 'completa') !== 'aguardando_pagamento')
+}
+
 export function useLojaData(lojaId = 'estrada') {
   const [vendas, setVendas] = useState([])
   const [caixas, setCaixas] = useState([])

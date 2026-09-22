@@ -10,6 +10,7 @@ import { StatGrid } from '../../components/studio/StatCard'
 import StatusPill from '../../components/studio/StatusPill'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
+import { vendasCompletas } from '../LojaFeminina/useLojaData'
 
 const fmtDate = s => s ? new Date(s + 'T12:00:00').toLocaleDateString('pt-BR') : '—'
 
@@ -606,7 +607,9 @@ export default function FinanceiroDesktop({ data, theme }) {
   const [tab, setTab] = useState('pagar')
   const [crediarios, setCrediarios] = useState([])
   const lojaId = data.LOJA_ID
-  const vendas = data.vendas || []
+  // DRE e Fluxo de Caixa não podem contar pré-venda ('aguardando_pagamento')
+  // como receita/caixa realizado. Mesmo filtro do Financeiro.jsx mobile.
+  const vendas = vendasCompletas(data.vendas || [])
   const primary = theme.primary
 
   useEffect(() => {

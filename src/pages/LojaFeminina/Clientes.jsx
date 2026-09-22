@@ -5,6 +5,7 @@ import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { temAcesso } from '../../utils/planos'
+import { vendasCompletas } from './useLojaData'
 import {
   diasDesdeUltima,
   isInativo,
@@ -447,20 +448,28 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
   const cadastroCompleto = !!features?.cadastro_completo_cliente
   const hoje = new Date().toISOString().slice(0, 10)
 
-  const ticket = useMemo(() => ticketMedioLoja(vendas, hoje), [vendas, hoje])
+  // Filtrado UMA vez aqui, no topo: ticket médio da loja, total gasto por
+  // cliente (VIP), última compra e inatividade não podem contar uma
+  // pré-venda ('aguardando_pagamento') como se já fosse dinheiro — a
+  // cliente marcaria "comprou hoje"/"é VIP" antes de a venda existir de
+  // verdade. `vendasCompletas` desce para ClienteCard já filtrado (linha
+  // ~598), então o card não precisa filtrar de novo.
+  const vendasReais = vendasCompletas(vendas)
+
+  const ticket = useMemo(() => ticketMedioLoja(vendasReais, hoje), [vendasReais, hoje])
 
   const enriched = useMemo(() => clientes.map(c => {
     const norm = s => (s || '').trim().toLowerCase()
-    const vendasC = vendas.filter(v => norm(v.cliente_nome) === norm(c.nome))
+    const vendasC = vendasReais.filter(v => norm(v.cliente_nome) === norm(c.nome))
     const totalGasto = vendasC.reduce((s, v) => s + Number(v.valor || 0), 0)
     return {
       ...c,
-      _diasUltima: diasDesdeUltima(vendas, c.nome, hoje),
+      _diasUltima: diasDesdeUltima(vendasReais, c.nome, hoje),
       _vip:        isVip(totalGasto, ticket),
-      _inativo:    isInativo(vendas, c.nome, hoje),
+      _inativo:    isInativo(vendasReais, c.nome, hoje),
       _badgeAniv:  badgeAniversario(c.data_nascimento, hoje),
     }
-  }), [clientes, vendas, hoje, ticket])
+  }), [clientes, vendasReais, hoje, ticket])
 
   const counts = useMemo(() => ({
     aniversariantes: enriched.filter(c => c._badgeAniv !== null).length,
@@ -595,7 +604,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
         <ClienteCard
           key={c.id}
           cliente={c}
-          vendas={vendas}
+          vendas={vendasReais}
           produtosData={produtosData}
           theme={theme}
           onEditar={cl => setModal(cl)}
