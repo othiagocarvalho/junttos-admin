@@ -6,6 +6,7 @@ import {
   calcularDRE,
   mesAtualRange,
   navegarMes,
+  estadoVazioContas,
 } from './financeiro.js'
 
 // ── calcularStatusReal ────────────────────────────────────────────
@@ -293,5 +294,29 @@ describe('navegarMes', () => {
   it('avança mais de um mês de uma vez', () => {
     const { inicio } = navegarMes('2026-01-01', 6)
     expect(inicio).toBe('2026-07-01')
+  })
+})
+
+// ── estadoVazioContas ─────────────────────────────────────────────
+describe('estadoVazioContas', () => {
+  it('sem nenhuma conta: convida a cadastrar apontando para o botão do topo, sem ação própria', () => {
+    const r = estadoVazioContas({ totalContas: 0, filtro: 'todas', botaoNova: 'Nova' })
+    expect(r.titulo).toBe('Nenhuma conta cadastrada ainda')
+    expect(r.subtitulo).toContain('"Nova"')
+    expect(r.acaoLimparFiltro).toBe(false)
+  })
+
+  it('sem nenhuma conta, mesmo com filtro ativo, continua sendo "cadastrada ainda"', () => {
+    const r = estadoVazioContas({ totalContas: 0, filtro: 'pago', botaoNova: 'Nova Conta' })
+    expect(r.titulo).toBe('Nenhuma conta cadastrada ainda')
+    expect(r.subtitulo).toContain('"Nova Conta"')
+    expect(r.acaoLimparFiltro).toBe(false)
+  })
+
+  it('com contas mas filtro sem resultado: não fala em "primeira conta" e oferece limpar o filtro', () => {
+    const r = estadoVazioContas({ totalContas: 20, filtro: 'pago', botaoNova: 'Nova' })
+    expect(r.titulo).toBe('Nenhuma conta encontrada com esse filtro')
+    expect(r.titulo + r.subtitulo).not.toMatch(/primeira/i)
+    expect(r.acaoLimparFiltro).toBe(true)
   })
 })

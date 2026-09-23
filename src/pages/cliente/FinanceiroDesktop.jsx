@@ -3,7 +3,7 @@ import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas } from '../../utils/financeiro'
 import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -118,6 +118,7 @@ function ContasPagarPane({ lojaId, theme }) {
   }
 
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
+  const vazio = estadoVazioContas({ totalContas: contas.length, filtro, botaoNova: 'Nova Conta' })
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalPago = contas.filter(c => c._status === 'pago').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -173,10 +174,10 @@ function ContasPagarPane({ lojaId, theme }) {
       ) : filtradas.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="Nada por aqui"
-          subtitle="Cadastre sua primeira conta."
-          actionLabel="Nova Conta"
-          onAction={() => setShowModal(true)}
+          title={vazio.titulo}
+          subtitle={vazio.subtitulo}
+          actionLabel={vazio.acaoLimparFiltro ? 'Ver todas' : undefined}
+          onAction={vazio.acaoLimparFiltro ? () => setFiltro('todas') : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -287,6 +288,7 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
 
   const contas = mesclarContasReceber(contasRaw, crediarios)
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
+  const vazio = estadoVazioContas({ totalContas: contas.length, filtro, botaoNova: 'Nova Conta' })
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalRecebido = contas.filter(c => c._status === 'recebido').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -328,10 +330,10 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
       ) : filtradas.length === 0 ? (
         <EmptyState
           icon={Receipt}
-          title="Nada por aqui"
-          subtitle="Cadastre sua primeira conta."
-          actionLabel="Nova Conta"
-          onAction={() => setShowModal(true)}
+          title={vazio.titulo}
+          subtitle={vazio.subtitulo}
+          actionLabel={vazio.acaoLimparFiltro ? 'Ver todas' : undefined}
+          onAction={vazio.acaoLimparFiltro ? () => setFiltro('todas') : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

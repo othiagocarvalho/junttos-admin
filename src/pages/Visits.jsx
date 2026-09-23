@@ -186,9 +186,7 @@ export default function Visits() {
           <div style={{ background: T.white, borderRadius: T.rCard, boxShadow: T.cardShadow, border: `1px solid ${T.line}` }}>
             <EmptyState
               title="Nenhuma visita encontrada"
-              description="Tente ajustar os filtros ou registre uma nova visita"
-              action="Registrar Visita"
-              onAction={openModal}
+              description={'Tente ajustar os filtros ou clique em "Registrar Visita" para registrar uma nova.'}
             />
           </div>
         ) : (

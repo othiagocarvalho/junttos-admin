@@ -580,9 +580,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
           <EmptyState
             icon={Users}
             title="Nenhum cliente ainda"
-            subtitle="Cadastre suas clientes para acompanhar o histórico e faturar mais no crediário."
-            actionLabel="Cadastrar primeira cliente"
-            onAction={() => setModal('novo')}
+            subtitle={'Toque em "Novo cliente" para cadastrar suas clientes, acompanhar o histórico e faturar mais no crediário.'}
           />
         </div>
       )}

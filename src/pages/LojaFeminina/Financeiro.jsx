@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle, RefreshCw } from 'lucide-react'
-import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes } from '../../utils/financeiro'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas } from '../../utils/financeiro'
 import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
@@ -111,6 +111,7 @@ function ContasPagarTab({ lojaId, theme }) {
   }
 
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
+  const vazio = estadoVazioContas({ totalContas: contas.length, filtro, botaoNova: 'Nova' })
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalPago = contas.filter(c => c._status === 'pago').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -163,10 +164,10 @@ function ContasPagarTab({ lojaId, theme }) {
       ) : filtradas.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="Nada por aqui"
-          subtitle="Cadastre sua primeira conta."
-          actionLabel="Nova Conta"
-          onAction={() => setShowModal(true)}
+          title={vazio.titulo}
+          subtitle={vazio.subtitulo}
+          actionLabel={vazio.acaoLimparFiltro ? 'Ver todas' : undefined}
+          onAction={vazio.acaoLimparFiltro ? () => setFiltro('todas') : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -329,6 +330,7 @@ function ContasReceberTab({ lojaId, crediarios, theme }) {
 
   const contas = mesclarContasReceber(contasRaw, crediarios)
   const filtradas = filtro === 'todas' ? contas : contas.filter(c => c._status === filtro)
+  const vazio = estadoVazioContas({ totalContas: contas.length, filtro, botaoNova: 'Nova' })
   const totalPendente = contas.filter(c => c._status === 'pendente').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalAtrasado = contas.filter(c => c._status === 'atrasado').reduce((s, c) => s + Number(c.valor || 0), 0)
   const totalRecebido = contas.filter(c => c._status === 'recebido').reduce((s, c) => s + Number(c.valor || 0), 0)
@@ -367,10 +369,10 @@ function ContasReceberTab({ lojaId, crediarios, theme }) {
       ) : filtradas.length === 0 ? (
         <EmptyState
           icon={Receipt}
-          title="Nada por aqui"
-          subtitle="Cadastre sua primeira conta."
-          actionLabel="Nova Conta"
-          onAction={() => setShowModal(true)}
+          title={vazio.titulo}
+          subtitle={vazio.subtitulo}
+          actionLabel={vazio.acaoLimparFiltro ? 'Ver todas' : undefined}
+          onAction={vazio.acaoLimparFiltro ? () => setFiltro('todas') : undefined}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
