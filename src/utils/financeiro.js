@@ -146,3 +146,34 @@ export function navegarMes(inicio, delta) {
   const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
   return { inicio: novoInicio, fim: novoFim, label }
 }
+
+// Texto do estado vazio das listas de Contas a Pagar/Receber.
+//
+// A lista exibida é a FILTRADA, então "vazia" tem dois significados:
+// - sem nenhuma conta na loja → convida a cadastrar, apontando para o botão
+//   do cabeçalho (o estado vazio não repete o botão de criar);
+// - há contas, mas o filtro não trouxe nenhuma → não fala em "primeira
+//   conta"; oferece voltar para "Todas" (acaoLimparFiltro: true).
+export function estadoVazioContas({ totalContas, filtro, botaoNova }) {
+  if (totalContas === 0) {
+    return {
+      titulo: 'Nenhuma conta cadastrada ainda',
+      subtitulo: `Use o botão "${botaoNova}" no topo para cadastrar a primeira.`,
+      acaoLimparFiltro: false,
+    }
+  }
+  if (filtro !== 'todas') {
+    return {
+      titulo: 'Nenhuma conta encontrada com esse filtro',
+      subtitulo: 'Experimente outro filtro ou veja todas as contas.',
+      acaoLimparFiltro: true,
+    }
+  }
+  // Não acontece hoje (filtro 'todas' devolve a lista inteira), mas fica
+  // coerente caso a regra de filtragem mude.
+  return {
+    titulo: 'Nenhuma conta para mostrar',
+    subtitulo: '',
+    acaoLimparFiltro: false,
+  }
+}

@@ -97,9 +97,7 @@ export default function Consultants() {
         <div style={{ background: T.white, borderRadius: T.rCard, boxShadow: T.cardShadow, border: `1px solid ${T.line}` }}>
           <EmptyState
             title="Nenhum consultor cadastrado"
-            description="Adicione consultores para ver métricas de desempenho."
-            action="Novo Consultor"
-            onAction={openAdd}
+            description={'Clique em "Novo Consultor" para adicionar consultores e ver métricas de desempenho.'}
           />
         </div>
       ) : (

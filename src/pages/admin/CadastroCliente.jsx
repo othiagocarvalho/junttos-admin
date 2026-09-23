@@ -842,9 +842,7 @@ export default function CadastroCliente() {
         <div style={{ background: T.white, border: `1px solid ${T.line}`, borderRadius: T.rCard, boxShadow: T.cardShadow }}>
           <EmptyState
             title="Nenhuma loja cadastrada"
-            description="Comece criando o primeiro painel de loja."
-            action="Nova Loja"
-            onAction={() => setModalOpen(true)}
+            description={'Clique em "Nova Loja" para criar o primeiro painel de loja.'}
           />
         </div>
       ) : (

@@ -292,9 +292,9 @@ export default function PreVendasLista({ vendas = [], produtosData = [], updateV
         <EmptyState
           icon={ScanLine}
           title="Nenhuma pré-venda ainda"
-          subtitle="Bipe as peças separadas pela cliente para criar a primeira."
-          actionLabel={onNovaPreVenda ? 'Nova pré-venda' : undefined}
-          onAction={onNovaPreVenda}
+          subtitle={onNovaPreVenda
+            ? 'Toque em "Nova" e bipe as peças separadas pela cliente para criar a primeira.'
+            : 'Bipe as peças separadas pela cliente para criar a primeira.'}
         />
       ) : (
         <>

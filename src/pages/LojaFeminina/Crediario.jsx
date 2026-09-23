@@ -106,9 +106,7 @@ export default function Crediario({ crediario = [], addCrediario, pagarParcela, 
           <EmptyState
             icon={Receipt}
             title="Nenhuma venda fiada"
-            subtitle="Registre vendas a prazo e acompanhe as cobranças em um só lugar."
-            actionLabel="Nova venda fiada"
-            onAction={() => setShowModal(true)}
+            subtitle={'Toque em "Nova venda fiada" para registrar vendas a prazo e acompanhar as cobranças em um só lugar.'}
           />
         </div>
       )}

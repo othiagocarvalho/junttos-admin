@@ -761,10 +761,7 @@ export default function Redes() {
             <Share2 size={24} color={T.purple} />
           </div>
           <p style={{ fontSize: 16, fontWeight: 700, color: T.ink, marginBottom: 6 }}>Nenhuma rede criada</p>
-          <p style={{ fontSize: 13, color: T.muted, marginBottom: 20 }}>Crie uma rede para agrupar lojas do mesmo dono ou franquia.</p>
-          <button onClick={() => setModalOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 20px', borderRadius: T.rPill, background: T.purple, color: T.white, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: T.ui }}>
-            <Plus size={15} /> Nova Rede
-          </button>
+          <p style={{ fontSize: 13, color: T.muted }}>Clique em "Nova Rede" para agrupar lojas do mesmo dono ou franquia.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

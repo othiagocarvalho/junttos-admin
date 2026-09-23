@@ -653,9 +653,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           <EmptyState
             icon={Package}
             title="Nenhum produto"
-            subtitle="Cadastre seu primeiro produto para começar a vender."
-            actionLabel="Novo produto"
-            onAction={abrirNovoProduto}
+            subtitle={'Toque em "Novo" para cadastrar seu primeiro produto e começar a vender.'}
           />
         </div>
       ) : filtered.length === 0 ? (
