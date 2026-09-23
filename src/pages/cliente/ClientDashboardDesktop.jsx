@@ -1628,7 +1628,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             No desktop abre com foco: o leitor USB costuma ficar plugado na
             máquina do caixa, e quem abre a venda já vai bipar. */}
         <div style={{ marginBottom: 10 }}>
-          <CampoScanner aoLer={lerCodigoBarras} theme={theme} dica="Ou busque pelo nome abaixo" />
+          <CampoScanner aoLer={lerCodigoBarras} theme={theme} camera={false} dica="Ou busque pelo nome abaixo" />
         </div>
 
         {/* Busca por nome — estoque grande fica impraticável de rolar. */}
@@ -2094,7 +2094,7 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
             </p>
           )}
 
-          <CampoScanner aoLer={lerCodigoBarras} theme={theme} autoFoco dica="Bipe a peça separada" />
+          <CampoScanner aoLer={lerCodigoBarras} theme={theme} autoFoco camera={false} dica="Bipe a peça separada" />
 
           {itens.length === 0 ? (
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '32px 0' }}>
