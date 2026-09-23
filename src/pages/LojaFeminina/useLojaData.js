@@ -81,12 +81,21 @@ const DEFAULT_FEATURES = {
  *
  * status ausente/null conta como 'completa': é o estado de toda venda
  * gravada antes desta coluna existir, e de qualquer venda normal nova que
- * nunca passa `status` explicitamente (Nova Venda, Troca — nenhuma delas
- * muda nesta etapa). Só a futura tela de Pré-venda grava
+ * nunca passa `status` explicitamente (Nova Venda, Troca). A Pré-venda grava
  * 'aguardando_pagamento' de propósito.
+ *
+ * Pré-venda CANCELADA ('cancelada' — PreVendasLista, PreVenda, DesktopPreVenda)
+ * também fica de fora: a peça voltou ao estoque e o dinheiro nunca entrou. A
+ * primeira versão só excluía 'aguardando_pagamento', e uma pré-venda
+ * cancelada voltava a contar como faturamento em todas as telas.
+ *
+ * Por isso a regra é uma LISTA DE PERMISSÃO — só 'completa' ou ausente —
+ * e não uma lista de exclusão: um status novo que alguém criar amanhã fica
+ * fora do faturamento até ser incluído aqui de propósito, em vez de entrar
+ * por padrão sem ninguém perceber.
  */
 export function vendasCompletas(vendas) {
-  return (vendas || []).filter(v => (v?.status ?? 'completa') !== 'aguardando_pagamento')
+  return (vendas || []).filter(v => (v?.status ?? 'completa') === 'completa')
 }
 
 export function useLojaData(lojaId = 'estrada') {
