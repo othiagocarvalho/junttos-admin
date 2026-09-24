@@ -320,3 +320,26 @@ ${cx.maior_conta ? `<p class="muted">Maior conta do período: ${e(cx.maior_conta
 <div class="rodape">Gerado pelo Junttos · números congelados no fechamento do período</div>
 </body></html>`
 }
+
+// ── Máquina de escrever (introdução do Sócio) ──────────────────────────────
+// Uma fala é uma lista de segmentos { texto, negrito? }. Digitar por segmento
+// (e não por string com tags) mantém o negrito formatado enquanto aparece.
+// Conta por code point (Array.from) para nunca partir um emoji ao meio.
+
+/** Total de caracteres visíveis de uma fala. */
+export function tamanhoSegmentos(segmentos) {
+  return segmentos.reduce((n, s) => n + Array.from(s.texto).length, 0)
+}
+
+/** Os primeiros `n` caracteres da fala, preservando a formatação de cada segmento. */
+export function fatiarSegmentos(segmentos, n) {
+  const out = []
+  let resta = Math.max(0, n)
+  for (const s of segmentos) {
+    if (resta <= 0) break
+    const chars = Array.from(s.texto)
+    out.push({ ...s, texto: chars.slice(0, resta).join('') })
+    resta -= chars.length
+  }
+  return out
+}

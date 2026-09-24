@@ -5,7 +5,7 @@ import { fmtR } from '../../utils/formatters'
 import {
   DIAS_INATIVO, rotuloPeriodo, textoProximoResumo, dataPorExtenso, proximaGeracao,
   montarLeituraSocio, fraseAbertura, variacaoPct, formatarDelta,
-  formatarSocioTexto, montarHtmlSocio,
+  formatarSocioTexto, montarHtmlSocio, fatiarSegmentos, tamanhoSegmentos,
 } from '../../utils/socioDigital'
 
 // Sócio Digital — resumo quinzenal da loja.
@@ -369,13 +369,19 @@ function AgentSidebar({ onVoltar, relatorio, nomeLoja }) {
 // Sem relatório ainda: o Sócio se apresenta em 3 falas + "Entendi". O clique
 // não grava nada (o "visto" do banner é outra coisa — socio_visto_periodo).
 //
-// Cada fala passa por "digitando…" (3 pontinhos) e depois vira texto; a
-// próxima só começa quando a anterior já apareceu. `etapa` avança de 0 a
-// 2*N-1: par = fala i digitando, ímpar = fala i com texto.
+// Cada fala passa por "digitando…" (3 pontinhos) e depois o texto é escrito
+// letra a letra; a próxima só começa quando a anterior terminou. `etapa`
+// avança de 0 a 2*N-1: par = fala i com pontinhos, ímpar = fala i escrevendo
+// (`letras` = quantos caracteres já aparecem).
 // Acessibilidade: a sequência visual é aria-hidden; o texto completo das 3
 // falas fica sempre no DOM num bloco só para leitor de tela.
 const DIGITANDO_MS = 1000
+const LETRA_MS = 18
 const PAUSA_MS = 500
+
+function TextoSegmentos({ segmentos }) {
+  return segmentos.map((s, i) => s.negrito ? <strong key={i}>{s.texto}</strong> : <span key={i}>{s.texto}</span>)
+}
 
 function Digitando() {
   return (
@@ -393,14 +399,36 @@ function SemRelatorio({ mobile, carregando }) {
   const [entendi, setEntendi] = useState(false)
   const ultimaEtapa = 5   // 3 falas × (digitando, texto) − 1
   // Quem pede menos movimento no sistema vê as falas direto, sem digitação.
-  const [etapa, setEtapa] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? ultimaEtapa : 0)
+  const [reduzir] = useState(() =>
+    typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+  const [etapa, setEtapa] = useState(reduzir ? ultimaEtapa : 0)
+  const [letras, setLetras] = useState(reduzir ? Infinity : 0)
+
+  const falas = [
+    [{ texto: 'Oi! Sou seu Sócio Digital. A cada 15 dias eu olho tudo que aconteceu na sua loja e te conto o que importa.' }],
+    [{ texto: 'Vou avisar quando um produto parar de vender, quando uma cliente sumir, e como seu caixa fica nos próximos 15 dias.' }],
+    [
+      { texto: 'Meu primeiro resumo pra você sai em ' },
+      { texto: dataPorExtenso(proximaGeracao()), negrito: true },
+      { texto: '. Até lá, só estou de olho.' },
+    ],
+  ]
+  const falaAtual = Math.floor(etapa / 2)
+  const escrevendo = etapa % 2 === 1
+  const falaCompleta = escrevendo && letras >= tamanhoSegmentos(falas[falaAtual])
 
   useEffect(() => {
-    if (carregando || etapa >= ultimaEtapa) return
-    const t = setTimeout(() => setEtapa(e => e + 1), etapa % 2 === 0 ? DIGITANDO_MS : PAUSA_MS)
+    if (carregando) return
+    let t
+    if (!escrevendo) {
+      t = setTimeout(() => { setLetras(0); setEtapa(e => e + 1) }, DIGITANDO_MS)
+    } else if (!falaCompleta) {
+      t = setTimeout(() => setLetras(n => n + 1), LETRA_MS)
+    } else if (etapa < ultimaEtapa) {
+      t = setTimeout(() => setEtapa(e => e + 1), PAUSA_MS)
+    }
     return () => clearTimeout(t)
-  }, [carregando, etapa])
+  }, [carregando, etapa, letras, escrevendo, falaCompleta])
 
   const av = mobile ? 30 : 38
   const bPad = mobile ? '14px 16px' : '16px 20px'
@@ -419,32 +447,29 @@ function SemRelatorio({ mobile, carregando }) {
     )
   }
 
-  const falas = [
-    <>Oi! Sou seu Sócio Digital. A cada 15 dias eu olho tudo que aconteceu na sua loja e te conto o que importa.</>,
-    <>Vou avisar quando um produto parar de vender, quando uma cliente sumir, e como seu caixa fica nos próximos 15 dias.</>,
-    <>Meu primeiro resumo pra você sai em <strong>{dataPorExtenso(proximaGeracao())}</strong>. Até lá, só estou de olho.</>,
-  ]
   return (
     <div style={wrap}>
       <div style={srOnly}>
-        {falas.map((fala, i) => <p key={i}>{fala}</p>)}
+        {falas.map((fala, i) => <p key={i}><TextoSegmentos segmentos={fala} /></p>)}
       </div>
       <div aria-hidden="true">
         {falas.map((fala, i) => {
           if (etapa < i * 2) return null
           const digitando = etapa === i * 2
+          // Falas anteriores ficam completas; só a atual é fatiada.
+          const visivel = i === falaAtual ? fatiarSegmentos(fala, letras) : fala
           return (
             <MsgRow key={i} avatarSize={av} mb={14}>
               <Bubble style={{ padding: bPad, maxWidth: digitando ? 'fit-content' : 640 }}>
                 {digitando
                   ? <Digitando />
-                  : <p style={{ ...txt, animation: 'sd-fadein 0.35s ease' }}>{fala}</p>}
+                  : <p style={txt}><TextoSegmentos segmentos={visivel} /></p>}
               </Bubble>
             </MsgRow>
           )
         })}
       </div>
-      {etapa >= ultimaEtapa && (
+      {etapa >= ultimaEtapa && falaCompleta && (
         <div style={{ paddingLeft: av + 14, opacity: 0, animation: 'sd-fadein 0.5s ease 0.4s forwards' }}>
           <button type="button" disabled={entendi} onClick={() => setEntendi(true)}
             style={{ padding: '10px 18px', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, cursor: entendi ? 'default' : 'pointer', background: entendi ? '#ECECF1' : '#5E2BD0', color: entendi ? '#8A8A93' : '#fff' }}>
