@@ -365,18 +365,49 @@ function AgentSidebar({ onVoltar, relatorio, nomeLoja }) {
 }
 
 // ── Estados sem relatório ──────────────────────────────────────────────────
+// Sem relatório ainda: o Sócio se apresenta em 3 falas + "Entendi". O clique
+// não grava nada (o "visto" do banner é outra coisa — socio_visto_periodo).
 function SemRelatorio({ mobile, carregando }) {
+  const [entendi, setEntendi] = useState(false)
+  const av = mobile ? 30 : 38
+  const bPad = mobile ? '14px 16px' : '16px 20px'
+  const txt = { fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: FONT, margin: 0 }
+  const wrap = { flex: 1, background: '#F6F6F9', padding: mobile ? '18px 16px 88px' : '32px 40px 44px' }
+
+  if (carregando) {
+    return (
+      <div style={wrap}>
+        <MsgRow avatarSize={av}>
+          <Bubble style={{ padding: bPad, maxWidth: 640 }}>
+            <p style={txt}>Buscando seu último resumo…</p>
+          </Bubble>
+        </MsgRow>
+      </div>
+    )
+  }
+
+  const falas = [
+    <>Oi! Sou seu Sócio Digital. A cada 15 dias eu olho tudo que aconteceu na sua loja e te conto o que importa.</>,
+    <>Vou avisar quando um produto parar de vender, quando uma cliente sumir, e como seu caixa fica nos próximos 15 dias.</>,
+    <>Meu primeiro resumo pra você sai em <strong>{dataPorExtenso(proximaGeracao())}</strong>. Até lá, só estou de olho.</>,
+  ]
+  const D = [0.1, 0.9, 1.7, 2.3]
+
   return (
-    <div style={{ flex: 1, background: '#F6F6F9', padding: mobile ? '18px 16px 88px' : '32px 40px 44px' }}>
-      <MsgRow avatarSize={mobile ? 30 : 38}>
-        <Bubble style={{ padding: mobile ? '14px 16px' : '16px 20px', maxWidth: 640 }}>
-          <p style={{ fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: FONT, margin: 0 }}>
-            {carregando
-              ? 'Buscando seu último resumo…'
-              : <>Oi, sócio 👋 Ainda não fechei nenhum período para você. O primeiro resumo sai em <strong>{dataPorExtenso(proximaGeracao())}</strong>, às 9h — e eu te aviso na tela inicial.</>}
-          </p>
-        </Bubble>
-      </MsgRow>
+    <div style={wrap}>
+      {falas.map((fala, i) => (
+        <MsgRow key={i} avatarSize={av} mb={14} animDelay={D[i]}>
+          <Bubble style={{ padding: bPad, maxWidth: 640 }}>
+            <p style={txt}>{fala}</p>
+          </Bubble>
+        </MsgRow>
+      ))}
+      <div style={{ paddingLeft: av + 14, opacity: 0, animation: `sd-fadein 0.5s ease ${D[3]}s forwards` }}>
+        <button type="button" disabled={entendi} onClick={() => setEntendi(true)}
+          style={{ padding: '10px 18px', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, cursor: entendi ? 'default' : 'pointer', background: entendi ? '#ECECF1' : '#5E2BD0', color: entendi ? '#8A8A93' : '#fff' }}>
+          {entendi ? 'Combinado 👍' : 'Entendi'}
+        </button>
+      </div>
     </div>
   )
 }
