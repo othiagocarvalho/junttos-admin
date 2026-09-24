@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   periodoFechado, proximaGeracao, textoProximoResumo, dataPorExtenso, rotuloPeriodo,
   deveMostrarAvisoSocio, variacaoPct, formatarDelta, montarLeituraSocio, fraseAbertura,
-  formatarSocioTexto, montarHtmlSocio, escaparHtml,
+  formatarSocioTexto, montarHtmlSocio, escaparHtml, fatiarSegmentos, tamanhoSegmentos,
 } from './socioDigital.js'
 
 // ── Período fechado — tem de bater com gerar_relatorios_socio (SQL) ────────
@@ -218,5 +218,39 @@ describe('montarHtmlSocio (PDF)', () => {
   })
   it('escaparHtml cobre aspas', () => {
     expect(escaparHtml(`"a" 'b'`)).toBe('&quot;a&quot; &#39;b&#39;')
+  })
+})
+
+// ── Máquina de escrever: negrito continua negrito enquanto digita ──────────
+describe('fatiarSegmentos / tamanhoSegmentos', () => {
+  const fala = [
+    { texto: 'Sai em ' },
+    { texto: '1º de outubro', negrito: true },
+    { texto: '. Até lá.' },
+  ]
+
+  it('conta todos os caracteres visíveis, sem tags', () => {
+    expect(tamanhoSegmentos(fala)).toBe(7 + 13 + 9)
+  })
+  it('n = 0 não mostra nada', () => {
+    expect(fatiarSegmentos(fala, 0)).toEqual([])
+  })
+  it('antes do negrito: só o 1º segmento, parcial', () => {
+    expect(fatiarSegmentos(fala, 3)).toEqual([{ texto: 'Sai' }])
+  })
+  it('no meio do negrito: o pedaço digitado já vem marcado como negrito', () => {
+    expect(fatiarSegmentos(fala, 9)).toEqual([
+      { texto: 'Sai em ' },
+      { texto: '1º', negrito: true },
+    ])
+  })
+  it('completo: devolve a fala inteira, formatação intacta', () => {
+    expect(fatiarSegmentos(fala, tamanhoSegmentos(fala))).toEqual(fala)
+    expect(fatiarSegmentos(fala, Infinity)).toEqual(fala)
+  })
+  it('nunca parte um emoji ao meio', () => {
+    const f = [{ texto: 'oi 👋 tudo' }]
+    expect(tamanhoSegmentos(f)).toBe(9)
+    expect(fatiarSegmentos(f, 4)).toEqual([{ texto: 'oi 👋' }])
   })
 })
