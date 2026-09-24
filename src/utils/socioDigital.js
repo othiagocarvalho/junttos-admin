@@ -92,6 +92,27 @@ export function deveMostrarAvisoSocio({ periodoAtual, vistoPeriodo } = {}) {
   return String(vistoPeriodo || '') < String(periodoAtual)
 }
 
+/**
+ * Qual aviso do Sócio Digital o banner mostra: null | 'intro' | 'pronto'.
+ *
+ * `liberado`       = plano Pro/Business (temAcesso(plano, 'pro')).
+ * `ultimoPeriodo`  = periodo_inicio do relatório mais recente;
+ *                    null quando a busca voltou vazia, undefined enquanto
+ *                    não carregou OU deu erro (tabela ausente) — nesse caso
+ *                    não dá para afirmar que "não tem relatório", então nada.
+ * `vistoPeriodo`   = lf_config.socio_visto_periodo.
+ * `introVisto`     = lf_config.socio_intro_visto (coluna ausente → undefined
+ *                    → conta como "não viu", igual às outras colunas de visto).
+ *
+ * 'intro' só existe sem relatório e 'pronto' só com relatório — os dois
+ * nunca saem juntos, por construção.
+ */
+export function avisoSocioBanner({ liberado, ultimoPeriodo, vistoPeriodo, introVisto } = {}) {
+  if (!liberado || ultimoPeriodo === undefined) return null
+  if (ultimoPeriodo === null) return introVisto === true ? null : 'intro'
+  return deveMostrarAvisoSocio({ periodoAtual: ultimoPeriodo, vistoPeriodo }) ? 'pronto' : null
+}
+
 /** Variação percentual (número) ou null quando não há base de comparação. */
 export function variacaoPct(atual, anterior) {
   const a = Number(atual) || 0

@@ -74,7 +74,7 @@ const MAIS_ITEMS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo }) {
+function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo, socioIntroVisto }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -125,7 +125,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
           onDispensar={onDispensarLembrete}
         />
       )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} />
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} socioIntroVisto={socioIntroVisto} />
       {/* Hero */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{
@@ -517,6 +517,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   // Sócio Digital: período já aberto nesta sessão (esconde o aviso na hora e
   // impede regravar) e filtro de "Campanha de retorno" levado ao CRM.
   const [socioVistoLocal, setSocioVistoLocal] = useState(null)
+  const [socioIntroVistoLocal, setSocioIntroVistoLocal] = useState(false)
   const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
@@ -639,6 +640,15 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     if (data.config?.socio_visto_periodo !== periodo) data.saveConfig?.({ socio_visto_periodo: periodo })
   }
 
+  // Abriu a tela do Sócio → grava lf_config.socio_intro_visto = true (some o
+  // aviso "Conheça seu Sócio Digital"). Mesma trava local de marcarSocioVisto:
+  // grava uma vez, inclusive enquanto a coluna ainda não existir no banco.
+  function marcarSocioIntroVisto() {
+    if (socioIntroVistoLocal) return
+    setSocioIntroVistoLocal(true)
+    if (data.config?.socio_intro_visto !== true) data.saveConfig?.({ socio_intro_visto: true })
+  }
+
   function abrirCampanhaRetorno(nomes) {
     setCrmFiltro(nomes)
     setTab('crm')
@@ -657,6 +667,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
       nomeLoja={theme.nome}
       onVisto={marcarSocioVisto}
       onCampanhaRetorno={abrirCampanhaRetorno}
+      onIntroVista={marcarSocioIntroVisto}
     />
   )
 
@@ -712,7 +723,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} />,
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} socioIntroVisto={socioIntroVistoLocal || data.config?.socio_intro_visto} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
     prevenda:      <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,

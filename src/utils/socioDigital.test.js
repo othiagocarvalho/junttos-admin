@@ -3,6 +3,7 @@ import {
   periodoFechado, proximaGeracao, textoProximoResumo, dataPorExtenso, rotuloPeriodo,
   deveMostrarAvisoSocio, variacaoPct, formatarDelta, montarLeituraSocio, fraseAbertura,
   formatarSocioTexto, montarHtmlSocio, escaparHtml, fatiarSegmentos, tamanhoSegmentos,
+  avisoSocioBanner,
 } from './socioDigital.js'
 
 // ── Período fechado — tem de bater com gerar_relatorios_socio (SQL) ────────
@@ -64,6 +65,40 @@ describe('rotuloPeriodo', () => {
 })
 
 // ── Aviso do banner ──────────────────────────────────────────────────────────
+// ── Qual aviso do Sócio vai para o banner: nenhum / intro / pronto ────────
+describe('avisoSocioBanner', () => {
+  const base = { liberado: true }
+
+  it('INTRO: Pro sem relatório e sem ter visto a introdução', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: null, introVisto: false })).toBe('intro')
+  })
+  it('INTRO: coluna socio_intro_visto ausente (undefined) conta como não visto', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: null, introVisto: undefined })).toBe('intro')
+  })
+  it('NENHUM: sem relatório, mas já viu a introdução', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: null, introVisto: true })).toBeNull()
+  })
+  it('PRONTO: tem relatório novo não visto', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: '2026-09-16', vistoPeriodo: '2026-09-01' })).toBe('pronto')
+  })
+  it('PRONTO nunca vira INTRO: com relatório, introVisto falso não muda nada', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: '2026-09-16', vistoPeriodo: null, introVisto: false })).toBe('pronto')
+  })
+  it('NENHUM: relatório já visto (e intro não vista) — intro não reaparece', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: '2026-09-16', vistoPeriodo: '2026-09-16', introVisto: false })).toBeNull()
+  })
+  it('NENHUM: ainda carregando ou erro na busca (undefined)', () => {
+    expect(avisoSocioBanner({ ...base, ultimoPeriodo: undefined, introVisto: false })).toBeNull()
+  })
+  it('NENHUM: plano Starter, com ou sem relatório', () => {
+    expect(avisoSocioBanner({ liberado: false, ultimoPeriodo: null })).toBeNull()
+    expect(avisoSocioBanner({ liberado: false, ultimoPeriodo: '2026-09-16' })).toBeNull()
+  })
+  it('sem argumentos → nenhum', () => {
+    expect(avisoSocioBanner()).toBeNull()
+  })
+})
+
 describe('deveMostrarAvisoSocio', () => {
   it('sem relatório nenhum → não mostra', () => {
     expect(deveMostrarAvisoSocio({ periodoAtual: null, vistoPeriodo: undefined })).toBe(false)

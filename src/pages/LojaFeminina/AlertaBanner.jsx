@@ -3,16 +3,19 @@ import { AlertTriangle, TrendingUp, CreditCard, ChevronRight, Sparkles } from 'l
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
 import { fmtR } from '../../utils/formatters'
-import { deveMostrarAvisoSocio, rotuloPeriodo } from '../../utils/socioDigital'
+import { avisoSocioBanner, rotuloPeriodo } from '../../utils/socioDigital'
 import { vendasCompletas } from './useLojaData'
 
 // `socioVistoPeriodo`: lf_config.socio_visto_periodo (undefined enquanto a
 // coluna não existir — conta como "nunca viu", ver deveMostrarAvisoSocio).
-export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {}, socioVistoPeriodo }) {
+// `socioIntroVisto`: lf_config.socio_intro_visto — mesma regra de coluna
+// ausente; decide o aviso "Conheça seu Sócio Digital" (ver avisoSocioBanner).
+export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {}, socioVistoPeriodo, socioIntroVisto }) {
   const [contasData, setContasData] = useState(null)
   const [idx, setIdx] = useState(0)
   // Relatório mais recente do Sócio Digital (só o período — o corpo fica na tela dele).
-  const [socioUltimo, setSocioUltimo] = useState(null)
+  // undefined = ainda não carregou / erro; null = a loja não tem nenhum.
+  const [socioUltimo, setSocioUltimo] = useState(undefined)
   const socioLiberado = temAcesso(plano, 'pro')
 
   useEffect(() => {
@@ -94,10 +97,27 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
     })
   }
 
-  if (socioLiberado && socioUltimo && deveMostrarAvisoSocio({
-    periodoAtual: socioUltimo.periodo_inicio,
+  const avisoSocio = avisoSocioBanner({
+    liberado: socioLiberado,
+    ultimoPeriodo: socioUltimo === undefined ? undefined : (socioUltimo?.periodo_inicio ?? null),
     vistoPeriodo: socioVistoPeriodo,
-  })) {
+    introVisto: socioIntroVisto,
+  })
+
+  if (avisoSocio === 'intro') {
+    // Loja Pro/Business sem nenhum relatório ainda: apresenta o Sócio (a
+    // tela abre na introdução em primeira pessoa). Exclusivo com 'pronto'.
+    alerts.unshift({
+      type: 'socio_intro',
+      Icon: Sparkles,
+      bg: '#5E2BD0',
+      title: 'Conheça seu Sócio Digital',
+      sub: 'Ele te ajuda a entender sua loja a cada 15 dias',
+      tab: 'socio_digital',
+    })
+  }
+
+  if (avisoSocio === 'pronto') {
     // Primeiro do carrossel: é novidade de 15 em 15 dias, os outros são
     // estados que se repetem todo dia.
     alerts.unshift({
