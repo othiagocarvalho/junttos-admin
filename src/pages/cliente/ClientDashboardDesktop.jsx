@@ -44,11 +44,11 @@ import PedidosCatalogo from '../LojaFeminina/PedidosCatalogo'
 import PreVendasLista from '../LojaFeminina/PreVendasLista'
 import ProdutosB2BPro from '../LojaFeminina/ProdutosB2BPro'
 import FinanceiroDesktop from './FinanceiroDesktop'
-import AlertaBanner from '../LojaFeminina/AlertaBanner'
+import AvisosInicio from '../LojaFeminina/AvisosInicio'
 import TourBoasVindas from '../../components/onboarding/TourBoasVindas'
-import BannerMeta from '../../components/onboarding/BannerMeta'
 import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
-import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
+import { competenciaAtual } from '../../utils/lembreteMeta'
+import { aplicarDispensa } from '../../utils/avisosInicio'
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
@@ -318,7 +318,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo, socioIntroVisto }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, gerente, dispensas, onDispensarAviso }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -356,14 +356,7 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
 
   return (
     <div>
-      {mostrarLembreteMeta && (
-        <BannerMeta
-          primary={theme.primary}
-          onDefinirMeta={() => setTab('meta')}
-          onDispensar={onDispensarLembrete}
-        />
-      )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} socioIntroVisto={socioIntroVisto} />
+      <AvisosInicio vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} gerente={gerente} setTab={setTab} theme={theme} dispensas={dispensas} onDispensar={onDispensarAviso} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -2262,6 +2255,8 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   // Sócio Digital — ver o mesmo par em LojaFeminina/index.jsx.
   const [socioVistoLocal, setSocioVistoLocal] = useState(null)
   const [socioIntroVistoLocal, setSocioIntroVistoLocal] = useState(false)
+  // lf_config.avisos_dispensados gravado nesta sessão (ver dispensarAviso).
+  const [avisosDispensadosLocal, setAvisosDispensadosLocal] = useState(null)
   const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
@@ -2317,11 +2312,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     }
   }
 
-  const mostrarLembreteMeta = deveMostrarLembreteMeta({
-    metas: data.metas,
-    dispensadoEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
-  })
-
+  // A decisão de mostrar o lembrete de meta mora em montarAvisos.
   async function dispensarLembreteMeta() {
     const mes = competenciaAtual()
     setMetaDispensadaLocal(mes)
@@ -2347,6 +2338,24 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     if (data.config?.socio_intro_visto !== true) data.saveConfig?.({ socio_intro_visto: true })
   }
 
+  // X de um aviso do Início — mesma regra de LojaFeminina/index.jsx.
+  function dispensarAviso(dispensa) {
+    if (!dispensa) return
+    if (dispensa.campo === 'meta_lembrete_dispensado_em') return dispensarLembreteMeta()
+    if (dispensa.campo === 'socio_visto_periodo') return marcarSocioVisto(dispensa.valor)
+    if (dispensa.campo === 'socio_intro_visto') return marcarSocioIntroVisto()
+    const novo = aplicarDispensa(avisosDispensadosLocal ?? data.config?.avisos_dispensados, dispensa)
+    setAvisosDispensadosLocal(novo)
+    data.saveConfig?.({ avisos_dispensados: novo })
+  }
+
+  const dispensasAvisos = {
+    metaDispensadaEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
+    socioVistoPeriodo: socioVistoLocal ?? data.config?.socio_visto_periodo,
+    socioIntroVisto: socioIntroVistoLocal || data.config?.socio_intro_visto,
+    avisos: avisosDispensadosLocal ?? data.config?.avisos_dispensados,
+  }
+
   function abrirCampanhaRetorno(nomes) {
     setCrmFiltro(nomes)
     setTab('crm')
@@ -2361,7 +2370,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} socioIntroVisto={socioIntroVistoLocal || data.config?.socio_intro_visto} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} gerente={gerente} dispensas={dispensasAvisos} onDispensarAviso={dispensarAviso} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     prevenda:       <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
     prevenda_bipar: <DesktopPreVenda {...data} theme={theme} onSalvo={() => setTab('prevenda')} />,
