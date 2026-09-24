@@ -318,7 +318,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo, socioIntroVisto }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -363,7 +363,7 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
           onDispensar={onDispensarLembrete}
         />
       )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} />
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} socioIntroVisto={socioIntroVisto} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -2261,6 +2261,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
   // Sócio Digital — ver o mesmo par em LojaFeminina/index.jsx.
   const [socioVistoLocal, setSocioVistoLocal] = useState(null)
+  const [socioIntroVistoLocal, setSocioIntroVistoLocal] = useState(false)
   const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
@@ -2337,6 +2338,15 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     if (data.config?.socio_visto_periodo !== periodo) data.saveConfig?.({ socio_visto_periodo: periodo })
   }
 
+  // Abriu a tela do Sócio → grava lf_config.socio_intro_visto = true (some o
+  // aviso "Conheça seu Sócio Digital"). Mesma trava local de marcarSocioVisto:
+  // grava uma vez, inclusive enquanto a coluna ainda não existir no banco.
+  function marcarSocioIntroVisto() {
+    if (socioIntroVistoLocal) return
+    setSocioIntroVistoLocal(true)
+    if (data.config?.socio_intro_visto !== true) data.saveConfig?.({ socio_intro_visto: true })
+  }
+
   function abrirCampanhaRetorno(nomes) {
     setCrmFiltro(nomes)
     setTab('crm')
@@ -2351,7 +2361,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} socioIntroVisto={socioIntroVistoLocal || data.config?.socio_intro_visto} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     prevenda:       <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
     prevenda_bipar: <DesktopPreVenda {...data} theme={theme} onSalvo={() => setTab('prevenda')} />,
@@ -2389,6 +2399,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
           nomeLoja={theme.nome}
           onVisto={marcarSocioVisto}
           onCampanhaRetorno={abrirCampanhaRetorno}
+          onIntroVista={marcarSocioIntroVisto}
         />
       </div>
     )

@@ -749,7 +749,10 @@ function MessageStream({ mobile = false, relatorio, onVerProdutos, onCampanha })
 //   onVisto(periodo)     chamado ao abrir um relatório — o pai grava
 //                        lf_config.socio_visto_periodo e o aviso do banner some
 //   onCampanhaRetorno(nomes) leva ao CRM > Follow-ups filtrado por essas clientes
-export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoja, onVisto, onCampanhaRetorno }) {
+//   onIntroVista()       chamado ao abrir a tela — o pai grava
+//                        lf_config.socio_intro_visto e o aviso "Conheça seu
+//                        Sócio Digital" some do banner
+export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoja, onVisto, onCampanhaRetorno, onIntroVista }) {
   const [estado, setEstado] = useState({ carregando: true, relatorio: null })
   const [modal, setModal] = useState(null)   // { tipo: 'recomprar'|'parados', itens }
 
@@ -775,6 +778,12 @@ export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoj
 
   const relatorio = estado.relatorio
   const periodoVisto = relatorio?.periodo_inicio
+
+  // Abriu a tela (com ou sem relatório) → a apresentação conta como vista.
+  // O pai trava para gravar uma vez só.
+  useEffect(() => {
+    onIntroVista?.()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abriu a tela com relatório → marca como visto (uma vez por período).
   useEffect(() => {
