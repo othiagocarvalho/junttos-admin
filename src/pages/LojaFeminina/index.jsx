@@ -31,11 +31,11 @@ import Crediario from './Crediario'
 import PedidosCatalogo from './PedidosCatalogo'
 import ProdutosB2BPro from './ProdutosB2BPro'
 import Financeiro from './Financeiro'
-import AlertaBanner from './AlertaBanner'
+import AvisosInicio from './AvisosInicio'
 import TourBoasVindas from '../../components/onboarding/TourBoasVindas'
-import BannerMeta from '../../components/onboarding/BannerMeta'
 import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
-import { deveMostrarLembreteMeta, competenciaAtual } from '../../utils/lembreteMeta'
+import { competenciaAtual } from '../../utils/lembreteMeta'
+import { aplicarDispensa } from '../../utils/avisosInicio'
 import SocioDigital from './SocioDigital'
 import { fmtR } from '../../utils/formatters'
 
@@ -74,7 +74,7 @@ const MAIS_ITEMS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo, socioIntroVisto }) {
+function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, gerente, dispensas, onDispensarAviso }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -118,14 +118,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
 
   return (
     <div style={{ paddingTop: 8, width: '100%', boxSizing: 'border-box', overflowX: 'hidden' }}>
-      {mostrarLembreteMeta && (
-        <BannerMeta
-          primary={theme.primary}
-          onDefinirMeta={() => setTab('meta')}
-          onDispensar={onDispensarLembrete}
-        />
-      )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} socioIntroVisto={socioIntroVisto} />
+      <AvisosInicio vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} gerente={gerente} setTab={setTab} theme={theme} dispensas={dispensas} onDispensar={onDispensarAviso} />
       {/* Hero */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{
@@ -518,6 +511,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   // impede regravar) e filtro de "Campanha de retorno" levado ao CRM.
   const [socioVistoLocal, setSocioVistoLocal] = useState(null)
   const [socioIntroVistoLocal, setSocioIntroVistoLocal] = useState(false)
+  // lf_config.avisos_dispensados gravado nesta sessão (ver dispensarAviso).
+  const [avisosDispensadosLocal, setAvisosDispensadosLocal] = useState(null)
   const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
@@ -709,21 +704,38 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   }
 
   // ── Lembrete de meta ───────────────────────────────────────────
-  const mostrarLembreteMeta = deveMostrarLembreteMeta({
-    metas: data.metas,
-    dispensadoEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
-  })
-
+  // A decisão de mostrar mora em montarAvisos (utils/avisosInicio.js).
   async function dispensarLembreteMeta() {
     const mes = competenciaAtual()
     setMetaDispensadaLocal(mes)   // some na hora, sem esperar o banco
     await data.saveConfig?.({ meta_lembrete_dispensado_em: mes })
   }
 
+  // X de um aviso do Início (AvisosInicio / utils/avisosInicio.js): cada tipo
+  // grava na sua coluna. As 3 colunas antigas seguem com as funções de sempre;
+  // os tipos novos (meta_batida, conta, estoque) vão para avisos_dispensados.
+  // Trava local: some na hora e segura a sessão mesmo sem a coluna no banco.
+  function dispensarAviso(dispensa) {
+    if (!dispensa) return
+    if (dispensa.campo === 'meta_lembrete_dispensado_em') return dispensarLembreteMeta()
+    if (dispensa.campo === 'socio_visto_periodo') return marcarSocioVisto(dispensa.valor)
+    if (dispensa.campo === 'socio_intro_visto') return marcarSocioIntroVisto()
+    const novo = aplicarDispensa(avisosDispensadosLocal ?? data.config?.avisos_dispensados, dispensa)
+    setAvisosDispensadosLocal(novo)
+    data.saveConfig?.({ avisos_dispensados: novo })
+  }
+
+  const dispensasAvisos = {
+    metaDispensadaEm: metaDispensadaLocal ?? data.config?.meta_lembrete_dispensado_em,
+    socioVistoPeriodo: socioVistoLocal ?? data.config?.socio_visto_periodo,
+    socioIntroVisto: socioIntroVistoLocal || data.config?.socio_intro_visto,
+    avisos: avisosDispensadosLocal ?? data.config?.avisos_dispensados,
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} socioIntroVisto={socioIntroVistoLocal || data.config?.socio_intro_visto} />,
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} gerente={gerente} dispensas={dispensasAvisos} onDispensarAviso={dispensarAviso} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
     prevenda:      <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
