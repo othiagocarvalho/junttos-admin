@@ -25,6 +25,7 @@ const SD_CSS = `
   @keyframes sd-blink   { 0%,100% { opacity:1 } 50% { opacity:0 } }
   @keyframes sd-wave    { 0%,60%,100% { transform: scaleY(.35) } 30% { transform: scaleY(1) } }
   @keyframes sd-fadein  { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes sd-typing  { 0%,60%,100% { transform: translateY(0); opacity:.35 } 30% { transform: translateY(-4px); opacity:1 } }
 `
 
 const FONT = 'Plus Jakarta Sans, sans-serif'
@@ -367,8 +368,40 @@ function AgentSidebar({ onVoltar, relatorio, nomeLoja }) {
 // ── Estados sem relatório ──────────────────────────────────────────────────
 // Sem relatório ainda: o Sócio se apresenta em 3 falas + "Entendi". O clique
 // não grava nada (o "visto" do banner é outra coisa — socio_visto_periodo).
+//
+// Cada fala passa por "digitando…" (3 pontinhos) e depois vira texto; a
+// próxima só começa quando a anterior já apareceu. `etapa` avança de 0 a
+// 2*N-1: par = fala i digitando, ímpar = fala i com texto.
+// Acessibilidade: a sequência visual é aria-hidden; o texto completo das 3
+// falas fica sempre no DOM num bloco só para leitor de tela.
+const DIGITANDO_MS = 1000
+const PAUSA_MS = 500
+
+function Digitando() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22 }}>
+      {[0, 0.15, 0.3].map(delay => (
+        <span key={delay} style={{ width: 7, height: 7, borderRadius: '50%', background: '#5E2BD0', animation: `sd-typing 1s ease-in-out ${delay}s infinite` }} />
+      ))}
+    </div>
+  )
+}
+
+const srOnly = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }
+
 function SemRelatorio({ mobile, carregando }) {
   const [entendi, setEntendi] = useState(false)
+  const ultimaEtapa = 5   // 3 falas × (digitando, texto) − 1
+  // Quem pede menos movimento no sistema vê as falas direto, sem digitação.
+  const [etapa, setEtapa] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? ultimaEtapa : 0)
+
+  useEffect(() => {
+    if (carregando || etapa >= ultimaEtapa) return
+    const t = setTimeout(() => setEtapa(e => e + 1), etapa % 2 === 0 ? DIGITANDO_MS : PAUSA_MS)
+    return () => clearTimeout(t)
+  }, [carregando, etapa])
+
   const av = mobile ? 30 : 38
   const bPad = mobile ? '14px 16px' : '16px 20px'
   const txt = { fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: FONT, margin: 0 }
@@ -391,23 +424,34 @@ function SemRelatorio({ mobile, carregando }) {
     <>Vou avisar quando um produto parar de vender, quando uma cliente sumir, e como seu caixa fica nos próximos 15 dias.</>,
     <>Meu primeiro resumo pra você sai em <strong>{dataPorExtenso(proximaGeracao())}</strong>. Até lá, só estou de olho.</>,
   ]
-  const D = [0.1, 0.9, 1.7, 2.3]
-
   return (
     <div style={wrap}>
-      {falas.map((fala, i) => (
-        <MsgRow key={i} avatarSize={av} mb={14} animDelay={D[i]}>
-          <Bubble style={{ padding: bPad, maxWidth: 640 }}>
-            <p style={txt}>{fala}</p>
-          </Bubble>
-        </MsgRow>
-      ))}
-      <div style={{ paddingLeft: av + 14, opacity: 0, animation: `sd-fadein 0.5s ease ${D[3]}s forwards` }}>
-        <button type="button" disabled={entendi} onClick={() => setEntendi(true)}
-          style={{ padding: '10px 18px', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, cursor: entendi ? 'default' : 'pointer', background: entendi ? '#ECECF1' : '#5E2BD0', color: entendi ? '#8A8A93' : '#fff' }}>
-          {entendi ? 'Combinado 👍' : 'Entendi'}
-        </button>
+      <div style={srOnly}>
+        {falas.map((fala, i) => <p key={i}>{fala}</p>)}
       </div>
+      <div aria-hidden="true">
+        {falas.map((fala, i) => {
+          if (etapa < i * 2) return null
+          const digitando = etapa === i * 2
+          return (
+            <MsgRow key={i} avatarSize={av} mb={14}>
+              <Bubble style={{ padding: bPad, maxWidth: digitando ? 'fit-content' : 640 }}>
+                {digitando
+                  ? <Digitando />
+                  : <p style={{ ...txt, animation: 'sd-fadein 0.35s ease' }}>{fala}</p>}
+              </Bubble>
+            </MsgRow>
+          )
+        })}
+      </div>
+      {etapa >= ultimaEtapa && (
+        <div style={{ paddingLeft: av + 14, opacity: 0, animation: 'sd-fadein 0.5s ease 0.4s forwards' }}>
+          <button type="button" disabled={entendi} onClick={() => setEntendi(true)}
+            style={{ padding: '10px 18px', borderRadius: 10, border: 'none', fontFamily: FONT, fontSize: 13.5, fontWeight: 800, cursor: entendi ? 'default' : 'pointer', background: entendi ? '#ECECF1' : '#5E2BD0', color: entendi ? '#8A8A93' : '#fff' }}>
+            {entendi ? 'Combinado 👍' : 'Entendi'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
