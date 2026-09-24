@@ -49,7 +49,9 @@ import { fmtR } from '../../utils/formatters'
 // tabEfetiva, mais abaixo, deixa de ser 'inicio' e vira 'venda' só para quem
 // tem esse papel — 'inicio' não pode ser destino de fallback e também estar
 // na lista do que precisa cair em outro lugar.
-const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b']
+// 'socio_digital' entra pelo mesmo motivo do 'inicio': é um resumo de
+// faturamento, ticket e caixa da loja.
+const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b', 'socio_digital']
 
 const BOTTOM_TABS = [
   { id: 'inicio',   label: 'Início',   Icon: Home          },
@@ -72,7 +74,7 @@ const MAIS_ITEMS = [
 
 // ── Sub-views ──────────────────────────────────────────────
 
-function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete }) {
+function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo }) {
   const now = new Date()
   const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
@@ -123,7 +125,7 @@ function Inicio({ vendas, metas, setTab, theme = {}, produtosData = [], lojaId, 
           onDispensar={onDispensarLembrete}
         />
       )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} />
       {/* Hero */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ marginBottom: 16, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{
@@ -512,6 +514,10 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   // Fica antes de qualquer early return — rules-of-hooks.
   const [tourFechado, setTourFechado] = useState(false)
   const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
+  // Sócio Digital: período já aberto nesta sessão (esconde o aviso na hora e
+  // impede regravar) e filtro de "Campanha de retorno" levado ao CRM.
+  const [socioVistoLocal, setSocioVistoLocal] = useState(null)
+  const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
   const primary = data.config?.cor_primaria || '#5E2BD0'
@@ -620,12 +626,46 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const plano = data.config?.plano || 'starter'
   const legado = isLegado(data.config?.features)
 
+  // Sócio Digital: Pro e Business (mesma régua de temAcesso do resto do app),
+  // nunca para o papel 'gerente' (ver TABS_RESTRITAS_GERENTE).
+  const socioLiberado = temAcesso(plano, 'pro') && !gerente
+
+  // Abriu um relatório → grava o período em lf_config.socio_visto_periodo.
+  // A trava local evita regravar (e o fetchAll que vem junto) a cada
+  // remontagem — inclusive enquanto a coluna ainda não existir no banco.
+  function marcarSocioVisto(periodo) {
+    if (!periodo || socioVistoLocal === periodo) return
+    setSocioVistoLocal(periodo)
+    if (data.config?.socio_visto_periodo !== periodo) data.saveConfig?.({ socio_visto_periodo: periodo })
+  }
+
+  function abrirCampanhaRetorno(nomes) {
+    setCrmFiltro(nomes)
+    setTab('crm')
+  }
+
+  // Navegação pelos menus: sai do CRM filtrado de volta ao CRM completo.
+  function navegar(id) {
+    setCrmFiltro(null)
+    setTab(id)
+  }
+
+  const socioDigitalEl = (
+    <SocioDigital
+      mobile
+      lojaId={lojaId}
+      nomeLoja={theme.nome}
+      onVisto={marcarSocioVisto}
+      onCampanhaRetorno={abrirCampanhaRetorno}
+    />
+  )
+
   // Sócio Digital bypassa o <main> com padding lateral — renderiza diretamente sob o AppHeader
-  if (tab === 'socio_digital' && lojaId === 'sualoja') {
+  if (tab === 'socio_digital' && socioLiberado) {
     return (
       <div style={{ background: '#F6F6F9', minHeight: '100dvh', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowX: 'hidden', ...themeVars }}>
         <AppHeader primary={theme.primary} accent={theme.accent} logoUrl={effectiveLogo} storeName={theme.nome} plano={plano} legado={legado} onSwitchToDesktop={() => setViewMode('desktop')} />
-        <SocioDigital mobile />
+        {socioDigitalEl}
         <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
           <button onClick={() => setTab('mais')} style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}>← Voltar</button>
         </div>
@@ -672,7 +712,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
+      : <Inicio vendas={data.vendas} metas={data.metas} setTab={setTab} theme={theme} produtosData={data.produtosData} lojaId={lojaId} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} />,
     estoque:    <EstoqueMobile {...data} theme={theme} />,
     venda:      <NovaVenda {...data} theme={theme} initialIsTroca={vendaInitTroca} />,
     prevenda:      <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
@@ -687,7 +727,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     // que Curva ABC e Corrida existem.
     meta: <MetasResultados data={data} theme={theme} plano={plano} legado={legado} mobile />,
     crm: (legado || temAcesso(plano, 'starter'))
-      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
+      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={lojaId} produtosData={data.produtosData} plano={plano} features={data?.config?.features} filtroRetorno={crmFiltro} onLimparFiltro={() => setCrmFiltro(null)} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={lojaId} />
@@ -708,7 +748,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
           return (
             <button
               key={id}
-              onClick={unlocked ? () => setTab(id) : undefined}
+              onClick={unlocked ? () => navegar(id) : undefined}
               style={{
                 width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
                 borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
@@ -758,9 +798,9 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <ChevronRight size={16} color="var(--muted)" />
           </button>
         )}
-        {lojaId === 'sualoja' && (
+        {socioLiberado && (
           <button
-            onClick={() => setTab('socio_digital')}
+            onClick={() => navegar('socio_digital')}
             style={{
               width: '100%', border: '1px solid var(--line)', background: 'var(--surface)',
               borderRadius: 'var(--r-card)', padding: '14px 16px', textAlign: 'left',
@@ -784,7 +824,7 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
     ),
     faturamento:   <Faturamento {...data} theme={theme} />,
     config:        <LojaConfig {...data} theme={theme} />,
-    socio_digital: lojaId === 'sualoja' ? <SocioDigital mobile /> : null,
+    socio_digital: socioLiberado ? socioDigitalEl : null,
   }
 
   // Guarda de rota do papel 'gerente': mesmo que `tab` tenha sido setado para
@@ -802,11 +842,11 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
         {panels[tabEfetiva]}
       </main>
       {showBottomBar
-        ? <BottomTabBar tab={tabEfetiva} setTab={setTab} onFabClick={() => setShowVendaModal(true)} primary={theme.primary} config={data.config} gerente={gerente} />
+        ? <BottomTabBar tab={tabEfetiva} setTab={navegar} onFabClick={() => setShowVendaModal(true)} primary={theme.primary} config={data.config} gerente={gerente} />
         : (
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100, background: 'var(--surface)', borderTop: '1px solid var(--line)', padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'center' }}>
             <button
-              onClick={() => setTab('mais')}
+              onClick={() => navegar('mais')}
               style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 600, color: theme.primary, background: 'none', border: 'none', cursor: 'pointer', minHeight: 44 }}
             >
               ← Voltar
