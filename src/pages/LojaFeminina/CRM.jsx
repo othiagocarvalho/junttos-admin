@@ -4,6 +4,7 @@ import {
   gerarSugestoesAuto,
   combinarFeed,
   normalizeWaPhone,
+  filtrarFeedRetorno,
 } from '../../utils/crm'
 import Clientes from './Clientes'
 import { vendasCompletas } from './useLojaData'
@@ -274,7 +275,7 @@ function SectionLabel({ title, count }) {
   )
 }
 
-function FollowUpsTab({ clientes, vendas, lembretes, addLembrete, concluirLembrete, dispensados, dispensarFollowup, theme }) {
+function FollowUpsTab({ clientes, vendas, lembretes, addLembrete, concluirLembrete, dispensados, dispensarFollowup, theme, filtroRetorno = null, onLimparFiltro }) {
   const primary = theme?.primary || '#5E2BD0'
   const hoje = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const [showForm, setShowForm] = useState(false)
@@ -284,9 +285,19 @@ function FollowUpsTab({ clientes, vendas, lembretes, addLembrete, concluirLembre
     [clientes, vendas, hoje]
   )
 
-  const feed = useMemo(
+  const feedCompleto = useMemo(
     () => combinarFeed(sugestoesAuto, lembretes || [], dispensados || [], hoje),
     [sugestoesAuto, lembretes, dispensados, hoje]
+  )
+
+  // "Campanha de retorno" do Sócio Digital: só as sugestões automáticas de
+  // quem sumiu ('inativo', ou 'vip' sem visita) entre as clientes listadas no
+  // relatório. A regra de inatividade é a mesma dos dois lados (45+ dias,
+  // utils/crm.js), então a lista casa — mas quem já foi dispensado aqui
+  // continua dispensado.
+  const feed = useMemo(
+    () => filtrarFeedRetorno(feedCompleto, filtroRetorno),
+    [feedCompleto, filtroRetorno]
   )
 
   const feedHoje = feed.filter(f => f.data <= hoje)
@@ -327,6 +338,25 @@ function FollowUpsTab({ clientes, vendas, lembretes, addLembrete, concluirLembre
         </button>
       </div>
 
+      {filtroRetorno && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap',
+          background: `${primary}10`, border: `1px solid ${primary}30`, borderRadius: 'var(--r-card)',
+          padding: '10px 14px', marginBottom: 14, fontFamily: 'Plus Jakarta Sans, sans-serif',
+        }}>
+          <span style={{ fontSize: 13, color: 'var(--ink)' }}>
+            <strong>Campanha de retorno</strong> · {feed.length} {feed.length === 1 ? 'cliente' : 'clientes'} do Sócio Digital
+          </span>
+          <button
+            type="button"
+            onClick={onLimparFiltro}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: primary, padding: 4, fontFamily: 'Plus Jakarta Sans, sans-serif' }}
+          >
+            Ver todos os follow-ups
+          </button>
+        </div>
+      )}
+
       {showForm && (
         <FormLembrete
           clientes={clientes}
@@ -343,10 +373,12 @@ function FollowUpsTab({ clientes, vendas, lembretes, addLembrete, concluirLembre
         }}>
           <MessageCircle size={40} color="var(--line)" style={{ marginBottom: 16, display: 'block', margin: '0 auto 16px' }} />
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--muted)' }}>
-            Nenhum follow-up pendente
+            {filtroRetorno ? 'Nenhuma cliente pendente nesta campanha' : 'Nenhum follow-up pendente'}
           </p>
           <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--muted)' }}>
-            Clique em "Novo" para criar um lembrete manual.
+            {filtroRetorno
+              ? 'Quem estava na lista já voltou a comprar ou já foi dispensado aqui.'
+              : 'Clique em "Novo" para criar um lembrete manual.'}
           </p>
         </div>
       )}
@@ -404,6 +436,9 @@ export default function CRM({
   plano = 'starter',
   lojaId,
   features = null,
+  // Nomes vindos do "Campanha de retorno" do Sócio Digital (ou null).
+  filtroRetorno = null,
+  onLimparFiltro,
 }) {
   const primary = theme?.primary || '#5E2BD0'
   const [aba, setAba] = useState('followups')
@@ -462,6 +497,8 @@ export default function CRM({
           dispensados={dispensados || []}
           dispensarFollowup={dispensarFollowup}
           theme={theme}
+          filtroRetorno={filtroRetorno}
+          onLimparFiltro={onLimparFiltro}
         />
       )}
 

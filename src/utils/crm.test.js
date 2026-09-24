@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  filtrarFeedRetorno,
   normalizeWaPhone,
   diasDesdeUltima,
   isInativo,
@@ -497,5 +498,27 @@ describe('combinarFeed', () => {
 
   it('retorna lista vazia quando não há itens', () => {
     expect(combinarFeed([], [], [], hoje)).toHaveLength(0)
+  })
+})
+
+// ── filtrarFeedRetorno (Campanha de retorno do Sócio Digital) ─────────────
+
+describe('filtrarFeedRetorno', () => {
+  const feed = [
+    { id: 1, tipo: 'auto', subtipo: 'inativo', cliente_nome: 'Marina Ribeiro' },
+    { id: 2, tipo: 'auto', subtipo: 'vip', cliente_nome: 'Juliana Prado' },
+    { id: 3, tipo: 'auto', subtipo: 'aniversario', cliente_nome: 'Marina Ribeiro' },
+    { id: 4, tipo: 'lembrete', subtipo: null, cliente_nome: 'Marina Ribeiro' },
+    { id: 5, tipo: 'auto', subtipo: 'inativo', cliente_nome: 'Fora da Lista' },
+  ]
+  it('sem filtro devolve o feed inteiro', () => {
+    expect(filtrarFeedRetorno(feed, null)).toHaveLength(5)
+  })
+  it('só inativo/vip das clientes da lista, com nome normalizado', () => {
+    const r = filtrarFeedRetorno(feed, ['  marina ribeiro ', 'Juliana Prado'])
+    expect(r.map(i => i.id)).toEqual([1, 2])
+  })
+  it('lista vazia → feed vazio', () => {
+    expect(filtrarFeedRetorno(feed, [])).toEqual([])
   })
 })

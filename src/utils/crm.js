@@ -225,3 +225,18 @@ export function combinarFeed(sugestoesAuto, lembretes, dispensados, hoje = new D
   })
   return todos
 }
+
+// "Campanha de retorno" (Sócio Digital): mantém no feed só as sugestões
+// automáticas de quem sumiu — 'inativo' (45+ dias) ou 'vip' sem visita —
+// cujas clientes estão em `nomes`. `nomes` null/undefined = sem filtro.
+// Lembretes manuais saem: a campanha é sobre retorno, não sobre agenda.
+export function filtrarFeedRetorno(feed, nomes) {
+  if (!nomes) return feed || []
+  const norm = s => (s || '').trim().toLowerCase()
+  const alvo = new Set(nomes.map(norm))
+  return (feed || []).filter(item =>
+    item.tipo === 'auto' &&
+    (item.subtipo === 'inativo' || item.subtipo === 'vip') &&
+    alvo.has(norm(item.cliente_nome))
+  )
+}

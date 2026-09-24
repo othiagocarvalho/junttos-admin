@@ -1,5 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Download, ArrowLeft, ChevronDown } from 'lucide-react'
+import { Download, ArrowLeft, ChevronDown, X } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { fmtR } from '../../utils/formatters'
+import {
+  DIAS_INATIVO, rotuloPeriodo, textoProximoResumo, dataPorExtenso, proximaGeracao,
+  montarLeituraSocio, fraseAbertura, variacaoPct, formatarDelta,
+  formatarSocioTexto, montarHtmlSocio,
+} from '../../utils/socioDigital'
+
+// Sócio Digital — resumo quinzenal da loja.
+//
+// Os números vêm PRONTOS de lf_socio_relatorios (gerados e congelados pelo
+// banco nos dias 1 e 16 — ver supabase/fix_socio_digital.sql). Esta tela só
+// lê o relatório mais recente e apresenta; nada aqui recalcula métrica.
+// A leitura "Foi bem / De olho" e os textos de compartilhamento ficam em
+// utils/socioDigital.js, testados.
 
 // ── Keyframes ──────────────────────────────────────────────────────────────
 const SD_CSS = `
@@ -11,6 +26,9 @@ const SD_CSS = `
   @keyframes sd-wave    { 0%,60%,100% { transform: scaleY(.35) } 30% { transform: scaleY(1) } }
   @keyframes sd-fadein  { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
 `
+
+const FONT = 'Plus Jakarta Sans, sans-serif'
+const MONO = "'Space Mono', monospace"
 
 // ── Count-up hook ──────────────────────────────────────────────────────────
 function useCountUp(endValue, duration = 1200, startDelay = 0) {
@@ -31,13 +49,28 @@ function useCountUp(endValue, duration = 1200, startDelay = 0) {
   return value
 }
 
-// ── Static mock data ───────────────────────────────────────────────────────
-const METRICS = [
-  { label: 'FATURAMENTO', value: 'R$ 48.320', delta: '▲ +12%' },
-  { label: 'TICKET MÉDIO', value: 'R$ 187',   delta: '▲ +4%'  },
-  { label: 'VENDAS',       value: '258',       delta: '▲ +9%'  },
-  { label: 'TROCAS',       value: '14',        delta: '▼ −18%' },
-]
+// ── Compartilhamento ───────────────────────────────────────────────────────
+// Mesmo mecanismo do Recibo (components/ReciboVenda.jsx): janela com HTML
+// próprio + print(); o "PDF" é o "Salvar como PDF" da caixa de impressão.
+function baixarPdf(relatorio, nomeLoja) {
+  const w = window.open('', '_blank', 'width=900,height=1000')
+  if (!w) return
+  w.document.write(montarHtmlSocio(relatorio, nomeLoja))
+  w.document.close()
+  w.focus()
+  setTimeout(() => { w.print(); w.close() }, 300)
+}
+
+// Sem número de destino: a lojista escolhe o contato no WhatsApp (mesmo
+// fallback do Recibo quando a venda não tem telefone).
+function enviarWhatsApp(relatorio, nomeLoja) {
+  const texto = formatarSocioTexto(relatorio, nomeLoja)
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer')
+}
+
+function iniciais(nome) {
+  return (nome || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+}
 
 // ── JunttosSVG ─────────────────────────────────────────────────────────────
 function JunttosSVG({ size = 52 }) {
@@ -82,7 +115,7 @@ function WhatsAppSVG({ size = 16 }) {
   )
 }
 
-// ── Bubble ─────────────────────────────────────────────────────────────────
+// ── Bubble / MsgRow ────────────────────────────────────────────────────────
 function Bubble({ children, style = {} }) {
   return (
     <div style={{ background: '#fff', borderRadius: '6px 18px 18px 18px', border: '1px solid #ECECF1', boxShadow: '0 8px 24px -18px rgba(52,23,128,.5)', ...style }}>
@@ -91,7 +124,6 @@ function Bubble({ children, style = {} }) {
   )
 }
 
-// ── MsgRow ─────────────────────────────────────────────────────────────────
 function MsgRow({ children, avatarSize = 38, mb = 22, animDelay = 0 }) {
   return (
     <div style={{
@@ -106,23 +138,180 @@ function MsgRow({ children, avatarSize = 38, mb = 22, animDelay = 0 }) {
 }
 
 // ── Metric card ────────────────────────────────────────────────────────────
-// endValue: numeric end for count-up; prefix/suffix: text around the number
-function MetricCard({ label, endValue, prefix = '', suffix = '', delta, compact, startDelay = 0 }) {
-  const count = useCountUp(endValue, 1200, startDelay)
-  const formatted = endValue >= 1000
-    ? count.toLocaleString('pt-BR')
-    : String(count)
+function MetricCard({ label, endValue, prefix = '', delta, compact, startDelay = 0 }) {
+  const count = useCountUp(Math.round(Number(endValue) || 0), 1200, startDelay)
+  const formatted = count >= 1000 ? count.toLocaleString('pt-BR') : String(count)
+  const corDelta = delta?.startsWith('▲') ? '#1E8A54' : delta?.startsWith('▼') ? '#E0563F' : '#8A8A93'
   return (
     <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: compact ? 13 : 16 }}>
-      <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.4px', color: '#8A8A93', textTransform: 'uppercase', marginBottom: 6, marginTop: 0, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{label}</p>
-      <p style={{ fontFamily: "'Space Mono', monospace", fontSize: compact ? 18 : 22, fontWeight: 700, color: '#18181B', letterSpacing: '-.5px', margin: 0 }}>{prefix}{formatted}{suffix}</p>
-      <p style={{ fontSize: 12, fontWeight: 800, color: '#1E8A54', marginTop: 4, marginBottom: 0, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{delta}</p>
+      <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.4px', color: '#8A8A93', textTransform: 'uppercase', marginBottom: 6, marginTop: 0, fontFamily: FONT }}>{label}</p>
+      <p style={{ fontFamily: MONO, fontSize: compact ? 18 : 22, fontWeight: 700, color: '#18181B', letterSpacing: '-.5px', margin: 0 }}>{prefix}{formatted}</p>
+      <p style={{ fontSize: 12, fontWeight: 800, color: corDelta, marginTop: 4, marginBottom: 0, fontFamily: FONT }}>{delta}</p>
+    </div>
+  )
+}
+
+// ── Listas de produto / cliente ────────────────────────────────────────────
+function LinhaChip({ nome, chip, corChip, bgChip }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: FONT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+      <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: corChip, background: bgChip, borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{chip}</span>
+    </div>
+  )
+}
+
+function Vazio({ texto }) {
+  return <p style={{ fontSize: 12.5, color: '#8A8A93', fontFamily: FONT, margin: 0 }}>{texto}</p>
+}
+
+const btnLink = { marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: FONT, padding: 0, display: 'block' }
+
+function CardRecomprar({ itens, onVer, pad = 18 }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: pad }}>
+      <p style={{ fontSize: 14, fontWeight: 800, color: '#5E2BD0', fontFamily: FONT, marginTop: 0, marginBottom: 2 }}>🛒 Recomprar já</p>
+      <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: FONT, marginTop: 0, marginBottom: 12 }}>vendem muito, estoque no fim</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {itens.length === 0
+          ? <Vazio texto="Nenhum produto com estoque no fim." />
+          : itens.slice(0, 3).map(p => (
+              <LinhaChip key={p.nome} nome={p.nome} chip={`${p.estoque} ${Number(p.estoque) === 1 ? 'resta' : 'restam'}`} corChip="#C4443B" bgChip="#FDECEA" />
+            ))}
+      </div>
+      {itens.length > 0 && (
+        <button type="button" onClick={onVer} style={btnLink}>
+          Ver {itens.length} {itens.length === 1 ? 'produto' : 'produtos'} →
+        </button>
+      )}
+    </div>
+  )
+}
+
+function CardParados({ itens, onVer, pad = 18 }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: pad }}>
+      <p style={{ fontSize: 14, fontWeight: 800, color: '#FF6F5E', fontFamily: FONT, marginTop: 0, marginBottom: 2 }}>🏷️ Girar em promoção</p>
+      <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: FONT, marginTop: 0, marginBottom: 12 }}>parados faz tempo</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {itens.length === 0
+          ? <Vazio texto={`Nenhum produto parado há ${DIAS_INATIVO}+ dias.`} />
+          : itens.slice(0, 3).map(p => (
+              <LinhaChip key={p.nome} nome={p.nome} chip={`${p.dias} dias`} corChip="#8A6D00" bgChip="#FBF2D6" />
+            ))}
+      </div>
+      {itens.length > 0 && (
+        <button type="button" onClick={onVer} style={btnLink}>
+          Ver {itens.length} {itens.length === 1 ? 'produto' : 'produtos'} →
+        </button>
+      )}
+    </div>
+  )
+}
+
+function LinhaCliente({ nome, valor, destaque }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', background: destaque ? '#F1ECFE' : '#F4F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: destaque ? '#5E2BD0' : '#8A8A93', fontFamily: FONT }}>{iniciais(nome)}</span>
+      </div>
+      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: FONT, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+      <span style={{ fontFamily: MONO, fontSize: destaque ? 12 : 11, fontWeight: 700, color: destaque ? '#18181B' : '#C4443B', flexShrink: 0 }}>{valor}</span>
+    </div>
+  )
+}
+
+function CardTopClientes({ itens, pad = 18 }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: pad }}>
+      <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: FONT, marginTop: 0, marginBottom: 12 }}>⭐ Compraram mais</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {itens.length === 0
+          ? <Vazio texto="Nenhuma venda com cliente identificada." />
+          : itens.slice(0, 3).map(c => <LinhaCliente key={c.nome} nome={c.nome} valor={fmtR(c.total)} destaque />)}
+      </div>
+    </div>
+  )
+}
+
+function CardInativos({ inativos, onCampanha, pad = 18 }) {
+  const lista = inativos?.lista || []
+  const total = Number(inativos?.total) || 0
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: pad }}>
+      <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: FONT, marginTop: 0, marginBottom: 12 }}>⏰ Sumiram ({DIAS_INATIVO}+ dias)</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {lista.length === 0
+          ? <Vazio texto="Ninguém sumiu. Boa!" />
+          : lista.slice(0, 3).map(c => <LinhaCliente key={c.nome} nome={c.nome} valor={`${c.dias} dias`} />)}
+      </div>
+      {lista.length > 0 && onCampanha && (
+        <button type="button" onClick={() => onCampanha(lista.map(c => c.nome))} style={btnLink}>
+          Campanha de retorno{total > 3 ? ` (${total})` : ''} →
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Modal "Ver produtos" ───────────────────────────────────────────────────
+// Lista inline, sem sair da tela — mesmo padrão de bottom-sheet do resto do
+// app (EstoqueMobile, Crediário). Levar ao Estoque exigiria um filtro por
+// lista de nomes que a tela de Estoque não tem.
+function ModalProdutos({ modal, onFechar }) {
+  useEffect(() => {
+    function esc(e) { if (e.key === 'Escape') onFechar() }
+    document.addEventListener('keydown', esc)
+    return () => document.removeEventListener('keydown', esc)
+  }, [onFechar])
+
+  const recomprar = modal.tipo === 'recomprar'
+  return (
+    <div onClick={onFechar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 400, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '22px 20px', paddingBottom: 'calc(28px + env(safe-area-inset-bottom))', width: '100%', maxWidth: 520, maxHeight: '80dvh', overflowY: 'auto', boxSizing: 'border-box', fontFamily: FONT }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 800, color: recomprar ? '#5E2BD0' : '#FF6F5E', margin: 0 }}>
+              {recomprar ? '🛒 Recomprar já' : '🏷️ Girar em promoção'}
+            </p>
+            <p style={{ fontSize: 12.5, color: '#8A8A93', margin: '3px 0 0' }}>
+              {recomprar
+                ? 'Venderam 2+ peças no período e restam 3 ou menos'
+                : `Com estoque e sem venda há ${DIAS_INATIVO}+ dias`}
+            </p>
+          </div>
+          <button type="button" onClick={onFechar} aria-label="Fechar" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8A93', padding: 4, display: 'flex' }}>
+            <X size={18} />
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {modal.itens.map(p => (
+            <div key={p.nome} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, border: '1px solid #ECECF1' }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 700, color: '#18181B' }}>{p.nome}</span>
+              {recomprar ? (
+                <span style={{ fontSize: 12, color: '#52525B', flexShrink: 0 }}>
+                  vendeu <b>{p.vendidos}</b> · resta{Number(p.estoque) === 1 ? '' : 'm'} <b style={{ color: '#C4443B' }}>{p.estoque}</b>
+                </span>
+              ) : (
+                <span style={{ fontSize: 12, color: '#52525B', flexShrink: 0 }}>
+                  {p.estoque} em estoque · <b style={{ color: '#8A6D00' }}>{p.dias} dias</b>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 11.5, color: '#A1A1AA', marginTop: 14, marginBottom: 0 }}>
+          Estoque registrado no fechamento do período.
+        </p>
+      </div>
     </div>
   )
 }
 
 // ── Desktop agent sidebar ──────────────────────────────────────────────────
-function AgentSidebar({ onVoltar }) {
+function AgentSidebar({ onVoltar, relatorio, nomeLoja }) {
+  const periodo = relatorio ? { inicio: relatorio.periodo_inicio, fim: relatorio.periodo_fim } : null
+  const btnBase = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 12, border: 'none', fontFamily: FONT, fontSize: 14, fontWeight: 800 }
   return (
     <div style={{ width: 300, flexShrink: 0, background: 'linear-gradient(180deg,#341780,#5E2BD0 62%,#8B46E8)', color: '#fff', padding: '20px 26px 30px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
 
@@ -131,7 +320,7 @@ function AgentSidebar({ onVoltar }) {
         {onVoltar && (
           <button
             onClick={onVoltar}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, padding: '7px 11px', cursor: 'pointer', color: 'rgba(255,255,255,.85)', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, marginBottom: 0 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start', background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.2)', borderRadius: 8, padding: '7px 11px', cursor: 'pointer', color: 'rgba(255,255,255,.85)', fontFamily: FONT, fontSize: 12, fontWeight: 700, marginBottom: 0 }}
           >
             <ArrowLeft size={13} /> Voltar ao painel
           </button>
@@ -141,30 +330,32 @@ function AgentSidebar({ onVoltar }) {
           <Orb size={104} logoSize={52} />
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 19, fontWeight: 800, marginTop: 20, marginBottom: 0, letterSpacing: '-.3px', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+        <p style={{ textAlign: 'center', fontSize: 19, fontWeight: 800, marginTop: 20, marginBottom: 0, letterSpacing: '-.3px', fontFamily: FONT }}>
           Sócio Digital
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, alignSelf: 'center', justifyContent: 'center', marginTop: 10, background: 'rgba(255,255,255,.16)', border: '1px solid rgba(255,255,255,.3)', borderRadius: 999, padding: '4px 11px' }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#5CF2A0', boxShadow: '0 0 8px #5CF2A0', flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>resumo pronto</span>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: relatorio ? '#5CF2A0' : '#FFD27A', boxShadow: `0 0 8px ${relatorio ? '#5CF2A0' : '#FFD27A'}`, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONT }}>{relatorio ? 'resumo pronto' : 'aguardando o primeiro resumo'}</span>
         </div>
       </div>
 
       {/* ── BLOCO 2: divisor + período ── */}
       <div>
         <div style={{ height: 1, background: 'rgba(255,255,255,.2)', marginBottom: 20 }} />
-        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.7)', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>PERÍODO</p>
-        <p style={{ fontSize: 16, fontWeight: 800, marginTop: 7, marginBottom: 0, letterSpacing: '-.3px', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>01 a 15 de julho</p>
-        <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,.75)', marginTop: 4, marginBottom: 0, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Fechamento automático · quinzenal</p>
+        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.7)', fontFamily: FONT, margin: 0 }}>PERÍODO</p>
+        <p style={{ fontSize: 16, fontWeight: 800, marginTop: 7, marginBottom: 0, letterSpacing: '-.3px', fontFamily: FONT }}>{periodo ? rotuloPeriodo(periodo) : '—'}</p>
+        <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,.75)', marginTop: 4, marginBottom: 0, fontFamily: FONT }}>Fechamento automático · quinzenal</p>
       </div>
 
       {/* ── BLOCO 3: botões ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <button style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 12, border: 'none', cursor: 'pointer', background: '#fff', color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 800 }}>
+        <button type="button" disabled={!relatorio} onClick={() => baixarPdf(relatorio, nomeLoja)}
+          style={{ ...btnBase, cursor: relatorio ? 'pointer' : 'not-allowed', opacity: relatorio ? 1 : 0.5, background: '#fff', color: '#5E2BD0' }}>
           <Download size={16} /> Baixar PDF
         </button>
-        <button style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 13, borderRadius: 12, border: 'none', cursor: 'pointer', background: '#25D366', color: '#fff', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, fontWeight: 800 }}>
+        <button type="button" disabled={!relatorio} onClick={() => enviarWhatsApp(relatorio, nomeLoja)}
+          style={{ ...btnBase, cursor: relatorio ? 'pointer' : 'not-allowed', opacity: relatorio ? 1 : 0.5, background: '#25D366', color: '#fff' }}>
           <WhatsAppSVG size={16} /> Enviar no WhatsApp
         </button>
       </div>
@@ -173,10 +364,35 @@ function AgentSidebar({ onVoltar }) {
   )
 }
 
+// ── Estados sem relatório ──────────────────────────────────────────────────
+function SemRelatorio({ mobile, carregando }) {
+  return (
+    <div style={{ flex: 1, background: '#F6F6F9', padding: mobile ? '18px 16px 88px' : '32px 40px 44px' }}>
+      <MsgRow avatarSize={mobile ? 30 : 38}>
+        <Bubble style={{ padding: mobile ? '14px 16px' : '16px 20px', maxWidth: 640 }}>
+          <p style={{ fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: FONT, margin: 0 }}>
+            {carregando
+              ? 'Buscando seu último resumo…'
+              : <>Oi, sócio 👋 Ainda não fechei nenhum período para você. O primeiro resumo sai em <strong>{dataPorExtenso(proximaGeracao())}</strong>, às 9h — e eu te aviso na tela inicial.</>}
+          </p>
+        </Bubble>
+      </MsgRow>
+    </div>
+  )
+}
+
 // ── Message stream (shared) ────────────────────────────────────────────────
-function MessageStream({ mobile = false }) {
+function MessageStream({ mobile = false, relatorio, onVerProdutos, onCampanha }) {
   const av = mobile ? 30 : 38
   const bPad = mobile ? '14px 16px' : '16px 20px'
+  const dados = relatorio.dados || {}
+  const met = dados.metricas || {}
+  const ant = dados.anterior || {}
+  const periodo = { inicio: relatorio.periodo_inicio, fim: relatorio.periodo_fim }
+  const leitura = montarLeituraSocio(dados)
+  const caixa = dados.caixa || {}
+  const recomprar = dados.recomprar || []
+  const parados = dados.parados || []
 
   // Stagger delays: desktop 6 msgs, mobile 6 sections
   const D = mobile
@@ -186,19 +402,29 @@ function MessageStream({ mobile = false }) {
   const [sugOpen, setSugOpen] = useState(false)
   const [cliOpen, setCliOpen] = useState(false)
 
-  // Bar animation for msg 6 caixa
   const [barsActive, setBarsActive] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setBarsActive(true), (D[5] + 0.3) * 1000)
     return () => clearTimeout(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Count-up start delays: metrics appear at D[1], saldo at D[5]
   const metricDelay = D[1] * 1000
   const saldoDelay  = (D[5] + 0.3) * 1000
 
-  // Animated saldo (+R$ 12.800 → 12800)
-  const saldoCount = useCountUp(12800, 1200, saldoDelay)
+  const saldo = Number(caixa.saldo) || 0
+  const saldoCount = useCountUp(Math.abs(Math.round(saldo)), 1200, saldoDelay)
+  const saldoTxt = `${saldo < 0 ? '−' : '+'}R$ ${saldoCount.toLocaleString('pt-BR')}`
+  const corSaldo = saldo < 0 ? '#FFB4A6' : '#5CF2A0'
+  const entradas = Number(caixa.entradas) || 0
+  const saidas = Number(caixa.saidas) || 0
+  const base = Math.max(entradas, saidas, 1)
+  const maior = caixa.maior_conta
+
+  const textoCaixa = saldo < 0
+    ? <>As contas a pagar passam das entradas previstas. {maior ? <>Atenção a <strong>{maior.descricao}</strong> ({fmtR(maior.valor)}).</> : null}</>
+    : entradas === 0 && saidas === 0
+      ? <>Nada previsto para entrar ou sair nesses dias pelo Financeiro e pelo Crediário.</>
+      : <>Cruzei as entradas previstas com suas contas a pagar. Sobra <strong style={{ color: '#5CF2A0' }}>folga</strong>{maior ? <> — a maior conta é <strong>{maior.descricao}</strong> ({fmtR(maior.valor)})</> : null}.</>
 
   return (
     <div style={{ flex: 1, background: '#F6F6F9', overflowY: mobile ? undefined : 'auto', padding: mobile ? '18px 16px 88px' : '32px 40px 44px', display: 'flex', flexDirection: 'column' }}>
@@ -206,11 +432,8 @@ function MessageStream({ mobile = false }) {
       {/* ── MSG 1: Abertura ── */}
       <MsgRow avatarSize={av} animDelay={D[0]}>
         <Bubble style={{ padding: bPad, maxWidth: mobile ? '100%' : 640 }}>
-          <p style={{ fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>
-            {mobile
-              ? <>Oi, sócio 👋 Boa quinzena! Foi <strong style={{ color: '#1E8A54' }}>crescimento</strong>. Te passo o essencial.</>
-              : <>Oi, sócio 👋 Fechei a primeira quinzena de julho pra você. Foi um período de <strong style={{ color: '#1E8A54' }}>crescimento</strong> — puxei tudo e vou te passar o que importa, do jeito que a gente combinou: direto ao ponto.</>
-            }
+          <p style={{ fontSize: mobile ? 14 : 16, lineHeight: 1.55, color: '#18181B', fontFamily: FONT, margin: 0 }}>
+            {fraseAbertura(leitura.tom, periodo)}
             <span style={{ display: 'inline-block', width: 9, height: 18, background: '#5E2BD0', borderRadius: 2, marginLeft: 4, verticalAlign: 'middle', animation: 'sd-blink 1s step-end infinite' }} />
           </p>
         </Bubble>
@@ -220,15 +443,15 @@ function MessageStream({ mobile = false }) {
       <MsgRow avatarSize={av} animDelay={D[1]}>
         <div>
           {!mobile && (
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#52407F', marginTop: 0, marginBottom: 10, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              Começando pelos números:
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#52407F', marginTop: 0, marginBottom: 10, fontFamily: FONT }}>
+              Começando pelos números (comparado com a quinzena anterior):
             </p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12 }}>
-            <MetricCard label="FATURAMENTO" endValue={48320} prefix="R$ " delta="▲ +12%" compact={mobile} startDelay={metricDelay} />
-            <MetricCard label="TICKET MÉDIO" endValue={187} prefix="R$ " delta="▲ +4%" compact={mobile} startDelay={metricDelay} />
-            <MetricCard label="VENDAS" endValue={258} delta="▲ +9%" compact={mobile} startDelay={metricDelay} />
-            <MetricCard label="TROCAS" endValue={14} delta="▼ −18%" compact={mobile} startDelay={metricDelay} />
+            <MetricCard label="FATURAMENTO" endValue={met.faturamento} prefix="R$ " delta={formatarDelta(variacaoPct(met.faturamento, ant.faturamento))} compact={mobile} startDelay={metricDelay} />
+            <MetricCard label="TICKET MÉDIO" endValue={met.ticket_medio} prefix="R$ " delta={formatarDelta(variacaoPct(met.ticket_medio, ant.ticket_medio))} compact={mobile} startDelay={metricDelay} />
+            <MetricCard label="VENDAS" endValue={met.vendas} delta={formatarDelta(variacaoPct(met.vendas, ant.vendas))} compact={mobile} startDelay={metricDelay} />
+            <MetricCard label="TROCAS" endValue={met.trocas} delta={`${Number(ant.trocas) || 0} na anterior`} compact={mobile} startDelay={metricDelay} />
           </div>
         </div>
       </MsgRow>
@@ -238,42 +461,38 @@ function MessageStream({ mobile = false }) {
         <div>
           {!mobile && (
             <Bubble style={{ padding: bPad, marginBottom: 12, maxWidth: 640 }}>
-              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>
+              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: FONT, margin: 0 }}>
                 Duas listas rápidas pra você: o que <strong style={{ color: '#1E8A54' }}>brilhou</strong> e o que eu ficaria <strong style={{ color: '#E0563F' }}>de olho</strong>.
               </p>
             </Bubble>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {/* Verde */}
             <div style={{ background: '#EBF7F0', border: '1px solid #C9EAD8', borderRadius: 16, padding: 18 }}>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#1E8A54', marginTop: 0, marginBottom: 10, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Foi bem 🎉</p>
-              {mobile
-                ? <p style={{ fontSize: 13, color: '#245C3F', lineHeight: 1.4, fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>Vestidos de festa (28% do fat.) · sábados = 40% · crediário em dia.</p>
-                : <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {['Vestidos de festa puxaram 28% do faturamento', 'Sábados renderam 40% do total do período', 'Crediário 100% em dia — zero atraso novo'].map((t, i) => (
-                      <p key={i} style={{ fontSize: 13, color: '#245C3F', lineHeight: 1.4, fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>• {t}</p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#1E8A54', marginTop: 0, marginBottom: 10, fontFamily: FONT }}>Foi bem 🎉</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {leitura.foiBem.length === 0
+                  ? <p style={{ fontSize: 13, color: '#245C3F', lineHeight: 1.4, fontFamily: FONT, margin: 0 }}>Sem destaques neste período.</p>
+                  : leitura.foiBem.map((t, i) => (
+                      <p key={i} style={{ fontSize: 13, color: '#245C3F', lineHeight: 1.4, fontFamily: FONT, margin: 0 }}>• {t}</p>
                     ))}
-                  </div>
-              }
+              </div>
             </div>
-            {/* Coral */}
             <div style={{ background: '#FDF0EC', border: '1px solid #F6D6CC', borderRadius: 16, padding: 18 }}>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#E0563F', marginTop: 0, marginBottom: 10, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>De olho 👀</p>
-              {mobile
-                ? <p style={{ fontSize: 13, color: '#7A3A2C', lineHeight: 1.4, fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>Trocas de calçado subindo · básicos em risco · 2 vendedoras abaixo da meta.</p>
-                : <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {['Trocas de calçado por numeração subindo', 'Básicos caindo rápido — risco de ruptura', '2 vendedoras abaixo da meta da quinzena'].map((t, i) => (
-                      <p key={i} style={{ fontSize: 13, color: '#7A3A2C', lineHeight: 1.4, fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>• {t}</p>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#E0563F', marginTop: 0, marginBottom: 10, fontFamily: FONT }}>De olho 👀</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {leitura.deOlho.length === 0
+                  ? <p style={{ fontSize: 13, color: '#7A3A2C', lineHeight: 1.4, fontFamily: FONT, margin: 0 }}>Nada preocupante. Segue o jogo.</p>
+                  : leitura.deOlho.map((t, i) => (
+                      <p key={i} style={{ fontSize: 13, color: '#7A3A2C', lineHeight: 1.4, fontFamily: FONT, margin: 0 }}>• {t}</p>
                     ))}
-                  </div>
-              }
+              </div>
             </div>
           </div>
         </div>
       </MsgRow>
 
-      {/* ── MSG 4: Sugestões (mobile accordion) ── */}
-      {mobile && (
+      {/* ── MSG 4: Sugestões de estoque ── */}
+      {mobile ? (
         <MsgRow avatarSize={av} animDelay={D[3]}>
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', overflow: 'hidden' }}>
             <div
@@ -281,90 +500,37 @@ function MessageStream({ mobile = false }) {
               style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: 12 }}
             >
               <div>
-                <p style={{ fontSize: 14, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: '0 0 3px' }}>🛒 Sugestões de estoque</p>
-                <p style={{ fontSize: 12, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>Recomprar já · Girar em promoção</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: '#5E2BD0', fontFamily: FONT, margin: '0 0 3px' }}>🛒 Sugestões de estoque</p>
+                <p style={{ fontSize: 12, color: '#8A8A93', fontFamily: FONT, margin: 0 }}>Recomprar já · Girar em promoção</p>
               </div>
               <ChevronDown size={18} color="#8A8A93" style={{ flexShrink: 0, transition: 'transform 0.3s ease', transform: sugOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
             </div>
-            <div style={{ maxHeight: sugOpen ? '500px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+            <div style={{ maxHeight: sugOpen ? '600px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
               <div style={{ background: '#F6F6F9', padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ECECF1', padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 2 }}>🛒 Recomprar já</p>
-                  <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>vendem muito, estoque no fim</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[['Vestido midi floral','4 restam'],['Calça wide alfaiataria','3 restam'],['Blusa cropped','5 restam']].map(([nome, chip]) => (
-                      <div key={nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{nome}</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#C4443B', background: '#FDECEA', borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{chip}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Ver 9 produtos →</button>
-                </div>
-                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ECECF1', padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#FF6F5E', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 2 }}>🏷️ Girar em promoção</p>
-                  <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>parados faz tempo</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[['Jaqueta jeans oversized','68 dias'],['Conjunto alfaiataria','54 dias'],['Saia longa plissada','47 dias']].map(([nome, chip]) => (
-                      <div key={nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{nome}</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#8A6D00', background: '#FBF2D6', borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{chip}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Ver 14 produtos →</button>
-                </div>
+                <CardRecomprar itens={recomprar} pad={16} onVer={() => onVerProdutos({ tipo: 'recomprar', itens: recomprar })} />
+                <CardParados itens={parados} pad={16} onVer={() => onVerProdutos({ tipo: 'parados', itens: parados })} />
               </div>
             </div>
           </div>
         </MsgRow>
-      )}
-
-      {/* ── MSG 4: Sugestões (desktop only) ── */}
-      {!mobile && (
+      ) : (
         <MsgRow avatarSize={av} animDelay={D[3]}>
           <div>
             <Bubble style={{ padding: bPad, marginBottom: 12, maxWidth: 640 }}>
-              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>
+              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: FONT, margin: 0 }}>
                 Baseado no giro, duas jogadas que eu faria essa semana:
               </p>
             </Bubble>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {/* Recomprar */}
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: 18 }}>
-                <p style={{ fontSize: 14, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 2 }}>🛒 Recomprar já</p>
-                <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>vendem muito, estoque no fim</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[['Vestido midi floral','4 restam'],['Calça wide alfaiataria','3 restam'],['Blusa cropped','5 restam']].map(([nome, chip]) => (
-                    <div key={nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{nome}</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#C4443B', background: '#FDECEA', borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{chip}</span>
-                    </div>
-                  ))}
-                </div>
-                <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Ver 9 produtos →</button>
-              </div>
-              {/* Girar promoção */}
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: 18 }}>
-                <p style={{ fontSize: 14, fontWeight: 800, color: '#FF6F5E', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 2 }}>🏷️ Girar em promoção</p>
-                <p style={{ fontSize: 11.5, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>parados faz tempo</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[['Jaqueta jeans oversized','68 dias'],['Conjunto alfaiataria','54 dias'],['Saia longa plissada','47 dias']].map(([nome, chip]) => (
-                    <div key={nome} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{nome}</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#8A6D00', background: '#FBF2D6', borderRadius: 6, padding: '2px 7px', flexShrink: 0 }}>{chip}</span>
-                    </div>
-                  ))}
-                </div>
-                <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Ver 14 produtos →</button>
-              </div>
+              <CardRecomprar itens={recomprar} onVer={() => onVerProdutos({ tipo: 'recomprar', itens: recomprar })} />
+              <CardParados itens={parados} onVer={() => onVerProdutos({ tipo: 'parados', itens: parados })} />
             </div>
           </div>
         </MsgRow>
       )}
 
-      {/* ── MSG 5: Clientes (mobile accordion) ── */}
-      {mobile && (
+      {/* ── MSG 5: Clientes ── */}
+      {mobile ? (
         <MsgRow avatarSize={av} animDelay={D[4]}>
           <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', overflow: 'hidden' }}>
             <div
@@ -372,89 +538,30 @@ function MessageStream({ mobile = false }) {
               style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: 12 }}
             >
               <div>
-                <p style={{ fontSize: 14, fontWeight: 800, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: '0 0 3px' }}>⭐ Clientes</p>
-                <p style={{ fontSize: 12, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>Compraram mais · Sumiram 45+ dias</p>
+                <p style={{ fontSize: 14, fontWeight: 800, color: '#18181B', fontFamily: FONT, margin: '0 0 3px' }}>⭐ Clientes</p>
+                <p style={{ fontSize: 12, color: '#8A8A93', fontFamily: FONT, margin: 0 }}>Compraram mais · Sumiram {DIAS_INATIVO}+ dias</p>
               </div>
               <ChevronDown size={18} color="#8A8A93" style={{ flexShrink: 0, transition: 'transform 0.3s ease', transform: cliOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
             </div>
-            <div style={{ maxHeight: cliOpen ? '500px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
+            <div style={{ maxHeight: cliOpen ? '600px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
               <div style={{ background: '#F6F6F9', padding: '10px 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ECECF1', padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>⭐ Compraram mais</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[{i:'MR',n:'Marina Ribeiro',v:'R$ 2.340'},{i:'JP',n:'Juliana Prado',v:'R$ 1.870'},{i:'CS',n:'Camila Souza',v:'R$ 1.520'}].map(({ i, n, v }) => (
-                      <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F1ECFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i}</span>
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{n}</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: '#18181B' }}>{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ECECF1', padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>⏰ Sumiram (45+ dias)</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[{i:'PM',n:'Patrícia Mendes',d:'61 dias'},{i:'FL',n:'Fernanda Lima',d:'52 dias'},{i:'BT',n:'Bianca Teixeira',d:'48 dias'}].map(({ i, n, d }) => (
-                      <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F4F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i}</span>
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{n}</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#C4443B' }}>{d}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Campanha de retorno →</button>
-                </div>
+                <CardTopClientes itens={dados.clientes_top || []} pad={16} />
+                <CardInativos inativos={dados.clientes_inativos} pad={16} onCampanha={onCampanha} />
               </div>
             </div>
           </div>
         </MsgRow>
-      )}
-
-      {/* ── MSG 5: Clientes (desktop only) ── */}
-      {!mobile && (
+      ) : (
         <MsgRow avatarSize={av} animDelay={D[4]}>
           <div>
             <Bubble style={{ padding: bPad, marginBottom: 12, maxWidth: 640 }}>
-              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>
-                Suas clientes fiéis continuam firmes. E tem gente que sumiu — vale um alô.
+              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#18181B', fontFamily: FONT, margin: 0 }}>
+                Suas clientes fiéis e quem sumiu — vale um alô.
               </p>
             </Bubble>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {/* Top clientes */}
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: 18 }}>
-                <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>⭐ Compraram mais</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[{i:'MR',n:'Marina Ribeiro',v:'R$ 2.340'},{i:'JP',n:'Juliana Prado',v:'R$ 1.870'},{i:'CS',n:'Camila Souza',v:'R$ 1.520'}].map(({ i, n, v }) => (
-                    <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F1ECFE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i}</span>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{n}</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: '#18181B' }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Inativos */}
-              <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #ECECF1', padding: 18 }}>
-                <p style={{ fontSize: 13, fontWeight: 800, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 12 }}>⏰ Sumiram (45+ dias)</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[{i:'PM',n:'Patrícia Mendes',d:'61 dias'},{i:'FL',n:'Fernanda Lima',d:'52 dias'},{i:'BT',n:'Bianca Teixeira',d:'48 dias'}].map(({ i, n, d }) => (
-                    <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F4F4F7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{i}</span>
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#18181B', fontFamily: 'Plus Jakarta Sans, sans-serif', flex: 1 }}>{n}</span>
-                      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: '#C4443B' }}>{d}</span>
-                    </div>
-                  ))}
-                </div>
-                <button style={{ marginTop: 14, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: '#5E2BD0', fontFamily: 'Plus Jakarta Sans, sans-serif', padding: 0, display: 'block' }}>Campanha de retorno →</button>
-              </div>
+              <CardTopClientes itens={dados.clientes_top || []} />
+              <CardInativos inativos={dados.clientes_inativos} onCampanha={onCampanha} />
             </div>
           </div>
         </MsgRow>
@@ -464,55 +571,52 @@ function MessageStream({ mobile = false }) {
       <MsgRow avatarSize={av} mb={12} animDelay={D[5]}>
         <div>
           <div style={{ background: 'linear-gradient(120deg,#341780,#5E2BD0 70%,#7B3FE0)', borderRadius: '6px 18px 18px 18px', boxShadow: '0 8px 24px -18px rgba(52,23,128,.5)', padding: mobile ? '18px 18px' : '22px 24px', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-            {/* Decorative orb */}
             <div style={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', background: '#FF6F5E', opacity: .22, bottom: -50, right: -30, pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: mobile ? 'wrap' : 'nowrap' }}>
-              {/* Left */}
               <div style={{ flex: 1, minWidth: mobile ? '100%' : 220 }}>
-                <p style={{ fontSize: 15, fontWeight: 800, fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 10 }}>
-                  Pra fechar — seu caixa nos próximos 15 dias 💰
+                <p style={{ fontSize: 15, fontWeight: 800, fontFamily: FONT, marginTop: 0, marginBottom: 10 }}>
+                  Pra fechar — seu caixa nos 15 dias seguintes 💰
                 </p>
                 {mobile ? (
                   <>
-                    <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: '#5CF2A0', letterSpacing: '-1px', marginTop: 0, marginBottom: 6 }}>
-                      +R$ {saldoCount.toLocaleString('pt-BR')}
+                    <p style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: corSaldo, letterSpacing: '-1px', marginTop: 0, marginBottom: 6 }}>
+                      {saldoTxt}
                     </p>
-                    <p style={{ fontSize: 13, opacity: .9, fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5, margin: 0 }}>R$ 31.200 entram − R$ 18.400 a pagar. Segura o boleto do dia 22.</p>
+                    <p style={{ fontSize: 13, opacity: .9, fontFamily: FONT, lineHeight: 1.5, margin: 0 }}>
+                      {fmtR(entradas)} entram − {fmtR(saidas)} a pagar. {textoCaixa}
+                    </p>
                   </>
                 ) : (
                   <>
-                    <p style={{ fontSize: 14, lineHeight: 1.5, opacity: .94, fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 0, marginBottom: 16 }}>
-                      Cruzei as entradas esperadas com suas contas a pagar. Sobra <strong style={{ color: '#5CF2A0' }}>folga confortável</strong>, mas segura o boleto do fornecedor que vence dia 22.
+                    <p style={{ fontSize: 14, lineHeight: 1.5, opacity: .94, fontFamily: FONT, marginTop: 0, marginBottom: 16 }}>
+                      {textoCaixa}
                     </p>
-                    {/* Bar: Entradas */}
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ fontSize: 11.5, opacity: .85, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Entradas esperadas</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, fontWeight: 700 }}>R$ 31.200</span>
+                        <span style={{ fontSize: 11.5, opacity: .85, fontFamily: FONT }}>Entradas esperadas</span>
+                        <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700 }}>{fmtR(entradas)}</span>
                       </div>
                       <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.2)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: barsActive ? '100%' : '0%', background: '#5CF2A0', borderRadius: 999, transition: 'width 1.4s ease' }} />
+                        <div style={{ height: '100%', width: barsActive ? `${(entradas / base) * 100}%` : '0%', background: '#5CF2A0', borderRadius: 999, transition: 'width 1.4s ease' }} />
                       </div>
                     </div>
-                    {/* Bar: Contas */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ fontSize: 11.5, opacity: .85, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Contas a pagar</span>
-                        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, fontWeight: 700 }}>R$ 18.400</span>
+                        <span style={{ fontSize: 11.5, opacity: .85, fontFamily: FONT }}>Contas a pagar</span>
+                        <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700 }}>{fmtR(saidas)}</span>
                       </div>
                       <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,.2)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: barsActive ? '59%' : '0%', background: '#FF6F5E', borderRadius: 999, transition: 'width 1.4s ease 0.15s' }} />
+                        <div style={{ height: '100%', width: barsActive ? `${(saidas / base) * 100}%` : '0%', background: '#FF6F5E', borderRadius: 999, transition: 'width 1.4s ease 0.15s' }} />
                       </div>
                     </div>
                   </>
                 )}
               </div>
-              {/* Right: saldo (desktop only) */}
               {!mobile && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', opacity: .85, marginTop: 0, marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>SALDO PROJETADO</p>
-                  <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700, color: '#5CF2A0', letterSpacing: '-1px', margin: 0 }}>
-                    +R$ {saldoCount.toLocaleString('pt-BR')}
+                  <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.4px', textTransform: 'uppercase', opacity: .85, marginTop: 0, marginBottom: 8, fontFamily: FONT }}>SALDO PROJETADO</p>
+                  <p style={{ fontFamily: MONO, fontSize: 30, fontWeight: 700, color: corSaldo, letterSpacing: '-1px', margin: 0 }}>
+                    {saldoTxt}
                   </p>
                 </div>
               )}
@@ -528,8 +632,8 @@ function MessageStream({ mobile = false }) {
             <div key={idx} style={{ width: 3, height: 14, background: '#5E2BD0', borderRadius: 2, animation: `sd-wave 1s ease-in-out ${delay}s infinite`, transformOrigin: 'center' }} />
           ))}
         </div>
-        <span style={{ fontSize: 13, color: '#8A8A93', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-          Sócio Digital · próximo resumo em 31 de julho
+        <span style={{ fontSize: 13, color: '#8A8A93', fontFamily: FONT }}>
+          Sócio Digital · {textoProximoResumo()}
         </span>
       </div>
 
@@ -538,20 +642,79 @@ function MessageStream({ mobile = false }) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
-export default function SocioDigital({ mobile = false, onVoltar }) {
+//
+// Props:
+//   lojaId               loja logada (a RLS de lf_socio_relatorios só devolve a dela)
+//   nomeLoja             cabeçalho do PDF e do WhatsApp
+//   onVisto(periodo)     chamado ao abrir um relatório — o pai grava
+//                        lf_config.socio_visto_periodo e o aviso do banner some
+//   onCampanhaRetorno(nomes) leva ao CRM > Follow-ups filtrado por essas clientes
+export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoja, onVisto, onCampanhaRetorno }) {
+  const [estado, setEstado] = useState({ carregando: true, relatorio: null })
+  const [modal, setModal] = useState(null)   // { tipo: 'recomprar'|'parados', itens }
+
+  useEffect(() => {
+    let vivo = true
+    async function carregar() {
+      if (!lojaId) { setEstado({ carregando: false, relatorio: null }); return }
+      const { data, error } = await supabase
+        .from('lf_socio_relatorios')
+        .select('periodo_inicio, periodo_fim, dados, gerado_em')
+        .eq('loja_id', lojaId)
+        .order('periodo_inicio', { ascending: false })
+        .limit(1)
+      if (!vivo) return
+      // Tabela ainda inexistente (SQL não rodado) cai aqui como erro — a tela
+      // mostra o estado "primeiro resumo em…", não uma tela quebrada.
+      if (error) console.warn('[SocioDigital] relatório indisponível:', error.message)
+      setEstado({ carregando: false, relatorio: error ? null : (data?.[0] || null) })
+    }
+    carregar()
+    return () => { vivo = false }
+  }, [lojaId])
+
+  const relatorio = estado.relatorio
+  const periodoVisto = relatorio?.periodo_inicio
+
+  // Abriu a tela com relatório → marca como visto (uma vez por período).
+  useEffect(() => {
+    if (periodoVisto) onVisto?.(periodoVisto)
+  }, [periodoVisto]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stream = relatorio
+    ? <MessageStream mobile={mobile} relatorio={relatorio} onVerProdutos={setModal} onCampanha={onCampanhaRetorno} />
+    : <SemRelatorio mobile={mobile} carregando={estado.carregando} />
+
+  const modalEl = modal && <ModalProdutos modal={modal} onFechar={() => setModal(null)} />
+
   if (mobile) {
+    const periodo = relatorio ? { inicio: relatorio.periodo_inicio, fim: relatorio.periodo_fim } : null
     return (
       <>
         <style>{SD_CSS}</style>
-        <div style={{ display: 'flex', flexDirection: 'column', background: '#F6F6F9', minHeight: 'calc(100dvh - 56px)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-          {/* Mobile gradient header */}
+        <div style={{ display: 'flex', flexDirection: 'column', background: '#F6F6F9', minHeight: 'calc(100dvh - 56px)', fontFamily: FONT }}>
           <div style={{ background: 'linear-gradient(160deg,#341780,#5E2BD0 62%,#8B46E8)', padding: '32px 20px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <Orb size={76} logoSize={38} />
-            <p style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-.3px', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: '4px 0 0' }}>Sócio Digital</p>
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.8)', textTransform: 'uppercase', letterSpacing: '.4px', fontFamily: 'Plus Jakarta Sans, sans-serif', margin: 0 }}>01 A 15 DE JULHO</p>
+            <p style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-.3px', fontFamily: FONT, margin: '4px 0 0' }}>Sócio Digital</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.8)', textTransform: 'uppercase', letterSpacing: '.4px', fontFamily: FONT, margin: 0 }}>
+              {periodo ? rotuloPeriodo(periodo) : 'aguardando o primeiro resumo'}
+            </p>
+            {relatorio && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <button type="button" onClick={() => baixarPdf(relatorio, nomeLoja)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', background: '#fff', color: '#5E2BD0', fontFamily: FONT, fontSize: 12.5, fontWeight: 800 }}>
+                  <Download size={14} /> PDF
+                </button>
+                <button type="button" onClick={() => enviarWhatsApp(relatorio, nomeLoja)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', background: '#25D366', color: '#fff', fontFamily: FONT, fontSize: 12.5, fontWeight: 800 }}>
+                  <WhatsAppSVG size={14} /> WhatsApp
+                </button>
+              </div>
+            )}
           </div>
-          <MessageStream mobile />
+          {stream}
         </div>
+        {modalEl}
       </>
     )
   }
@@ -559,10 +722,11 @@ export default function SocioDigital({ mobile = false, onVoltar }) {
   return (
     <>
       <style>{SD_CSS}</style>
-      <div style={{ display: 'flex', width: '100%', height: '100dvh', overflow: 'hidden', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-        <AgentSidebar onVoltar={onVoltar} />
-        <MessageStream mobile={false} />
+      <div style={{ display: 'flex', width: '100%', height: '100dvh', overflow: 'hidden', fontFamily: FONT }}>
+        <AgentSidebar onVoltar={onVoltar} relatorio={relatorio} nomeLoja={nomeLoja} />
+        {stream}
       </div>
+      {modalEl}
     </>
   )
 }

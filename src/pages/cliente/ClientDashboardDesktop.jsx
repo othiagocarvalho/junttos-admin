@@ -92,7 +92,9 @@ const NAV = [
 // 'inicio' entrou a pedido do Daniel: o gerente não deve ver o dashboard
 // (valor vendido, ticket médio, P.A.). Por isso o fallback de tabEfetiva
 // deixa de ser 'inicio' e vira 'venda' só para quem tem esse papel.
-const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b']
+// 'socio_digital' entra pelo mesmo motivo do 'inicio': é um resumo de
+// faturamento, ticket e caixa da loja.
+const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b', 'socio_digital']
 
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
@@ -144,7 +146,7 @@ const PLANO_BADGE_DESKTOP = {
 }
 
 // ── Sidebar (fixo 250px) ──────────────────────────────────────
-function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile, lojaId, gerente }) {
+function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, onSwitchToMobile, gerente, socioLiberado }) {
   const planoBadge = !legado ? PLANO_BADGE_DESKTOP[plano] : null
   const [imgErr, setImgErr] = useState(false)
 
@@ -271,7 +273,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Catálogo B2B</span>
           </button>
         )}
-        {lojaId === 'sualoja' && (
+        {socioLiberado && (
           <button
             onClick={() => setTab('socio_digital')}
             className={tab === 'socio_digital' ? '' : 'cds-nav-btn'}
@@ -316,7 +318,7 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
 }
 
 // ── Desktop Início ────────────────────────────────────────────
-function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete }) {
+function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId, plano, mostrarLembreteMeta, onDispensarLembrete, socioVistoPeriodo }) {
   const isDark = theme.primary === '#D4A017'
   const now  = new Date()
   const curYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -361,7 +363,7 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
           onDispensar={onDispensarLembrete}
         />
       )}
-      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} />
+      <AlertaBanner vendas={vendas} metas={metas} produtosData={produtosData} lojaId={lojaId} plano={plano} setTab={setTab} theme={theme} socioVistoPeriodo={socioVistoPeriodo} />
       {/* Hero — full width */}
       <HeroCard tone={isDark ? 'dark' : 'primary'} style={{ padding: '36px 40px', marginBottom: 24, borderTop: isDark ? '2px solid #D4A017' : undefined }}>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, fontWeight: 700, color: isDark ? 'rgba(212,160,23,0.7)' : 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
@@ -2257,6 +2259,9 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
   // Fica antes de qualquer early return — rules-of-hooks.
   const [tourFechado, setTourFechado] = useState(false)
   const [metaDispensadaLocal, setMetaDispensadaLocal] = useState(null)
+  // Sócio Digital — ver o mesmo par em LojaFeminina/index.jsx.
+  const [socioVistoLocal, setSocioVistoLocal] = useState(null)
+  const [crmFiltro, setCrmFiltro] = useState(null)
   const tourAberto = data.config?.tour_pendente === true && !tourFechado
 
   const catalogoB2BNivel = data?.config?.features?.catalogo_b2b
@@ -2322,10 +2327,31 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     await data.saveConfig?.({ meta_lembrete_dispensado_em: mes })
   }
 
+  // Sócio Digital: Pro e Business, nunca para o papel 'gerente'.
+  const socioLiberado = temAcesso(plano, 'pro') && !gerente
+
+  // Mesma trava do mobile: grava uma vez por período por sessão.
+  function marcarSocioVisto(periodo) {
+    if (!periodo || socioVistoLocal === periodo) return
+    setSocioVistoLocal(periodo)
+    if (data.config?.socio_visto_periodo !== periodo) data.saveConfig?.({ socio_visto_periodo: periodo })
+  }
+
+  function abrirCampanhaRetorno(nomes) {
+    setCrmFiltro(nomes)
+    setTab('crm')
+  }
+
+  // Navegação pela sidebar: sai do CRM filtrado de volta ao CRM completo.
+  function navegar(id) {
+    setCrmFiltro(null)
+    setTab(id)
+  }
+
   const panels = {
     inicio: data.produtosData.length === 0
       ? <WelcomeOnboarding theme={theme} storeName={theme.nome} onCadastrarManualmente={() => setTab('estoque')} />
-      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} />,
+      : <DesktopInicio vendas={data.vendas} metas={data.metas} theme={theme} setTab={setTab} produtosData={data.produtosData} lojaId={data.LOJA_ID} plano={plano} mostrarLembreteMeta={mostrarLembreteMeta} onDispensarLembrete={dispensarLembreteMeta} socioVistoPeriodo={socioVistoLocal ?? data.config?.socio_visto_periodo} />,
     venda:      <DesktopNovaVenda {...data} theme={theme} />,
     prevenda:       <PreVendasLista {...data} theme={theme} onNovaPreVenda={() => setTab('prevenda_bipar')} />,
     prevenda_bipar: <DesktopPreVenda {...data} theme={theme} onSalvo={() => setTab('prevenda')} />,
@@ -2338,7 +2364,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     // gaveta, não pela tela inteira.
     meta: <MetasResultados data={data} theme={theme} plano={plano} legado={legado} />,
     crm: (legado || temAcesso(plano, 'starter'))
-      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={data.LOJA_ID} produtosData={data.produtosData} plano={plano} features={data?.config?.features} />
+      ? <CRM clientes={data.clientes || []} vendas={data.vendas} addCliente={data.addCliente} updateCliente={data.updateCliente} deleteCliente={data.deleteCliente} lembretes={data.lembretes || []} addLembrete={data.addLembrete} concluirLembrete={data.concluirLembrete} dispensados={data.dispensados || []} dispensarFollowup={data.dispensarFollowup} theme={theme} lojaId={data.LOJA_ID} produtosData={data.produtosData} plano={plano} features={data?.config?.features} filtroRetorno={crmFiltro} onLimparFiltro={() => setCrmFiltro(null)} />
       : <UpgradeWall planoAtual={plano} planoNecessario="starter" funcionalidade="clientes" theme={theme} onVoltar={() => setTab('inicio')} />,
     catalogo: temAcesso(plano, 'business')
       ? <PedidosCatalogo pedidos={data.pedidos || []} updatePedido={data.updatePedido} cancelarPedido={data.cancelarPedido} excluirPedido={data.excluirPedido} config={data.config} saveConfig={data.saveConfig} theme={theme} lojaId={data.LOJA_ID} />
@@ -2354,10 +2380,16 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
     socio_digital: null,
   }
 
-  if (tab === 'socio_digital' && data.LOJA_ID === 'sualoja') {
+  if (tab === 'socio_digital' && socioLiberado) {
     return (
       <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 100, display: 'flex', ...contentVars }}>
-        <SocioDigital onVoltar={() => setTab('inicio')} />
+        <SocioDigital
+          onVoltar={() => setTab('inicio')}
+          lojaId={data.LOJA_ID}
+          nomeLoja={theme.nome}
+          onVisto={marcarSocioVisto}
+          onCampanhaRetorno={abrirCampanhaRetorno}
+        />
       </div>
     )
   }
@@ -2370,7 +2402,7 @@ export default function ClientDashboardDesktop({ data, theme, onSwitchToMobile }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', fontFamily: 'Plus Jakarta Sans, sans-serif', ...contentVars }}>
-      <DesktopSidebar tab={tabEfetiva} setTab={setTab} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} lojaId={data.LOJA_ID} gerente={gerente} />
+      <DesktopSidebar tab={tabEfetiva} setTab={navegar} theme={theme} config={data.config} logoUrl={effectiveLogo} plano={plano} legado={legado} onSwitchToMobile={onSwitchToMobile} gerente={gerente} socioLiberado={socioLiberado} />
       <div style={{ marginLeft: 250, flex: 1, padding: '32px 40px', minHeight: '100vh', boxSizing: 'border-box', minWidth: 0 }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           {panels[tabEfetiva]}

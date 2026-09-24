@@ -1,13 +1,34 @@
 import { useState, useEffect } from 'react'
-import { AlertTriangle, TrendingUp, CreditCard, ChevronRight } from 'lucide-react'
+import { AlertTriangle, TrendingUp, CreditCard, ChevronRight, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
 import { fmtR } from '../../utils/formatters'
+import { deveMostrarAvisoSocio, rotuloPeriodo } from '../../utils/socioDigital'
 import { vendasCompletas } from './useLojaData'
 
-export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {} }) {
+// `socioVistoPeriodo`: lf_config.socio_visto_periodo (undefined enquanto a
+// coluna não existir — conta como "nunca viu", ver deveMostrarAvisoSocio).
+export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId, plano, setTab, theme = {}, socioVistoPeriodo }) {
   const [contasData, setContasData] = useState(null)
   const [idx, setIdx] = useState(0)
+  // Relatório mais recente do Sócio Digital (só o período — o corpo fica na tela dele).
+  const [socioUltimo, setSocioUltimo] = useState(null)
+  const socioLiberado = temAcesso(plano, 'pro')
+
+  useEffect(() => {
+    if (!lojaId || !socioLiberado) return
+    let vivo = true
+    supabase.from('lf_socio_relatorios')
+      .select('periodo_inicio, periodo_fim')
+      .eq('loja_id', lojaId)
+      .order('periodo_inicio', { ascending: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        // Tabela ainda inexistente: sem aviso, sem quebrar o banner.
+        if (vivo && !error) setSocioUltimo(data?.[0] || null)
+      })
+    return () => { vivo = false }
+  }, [lojaId, socioLiberado])
 
   useEffect(() => {
     if (!lojaId) return
@@ -70,6 +91,22 @@ export default function AlertaBanner({ vendas, metas, produtosData = [], lojaId,
       title: 'Meta batida!',
       sub: `Você atingiu ${fmtR(totalMes)} este mês`,
       tab: 'meta',
+    })
+  }
+
+  if (socioLiberado && socioUltimo && deveMostrarAvisoSocio({
+    periodoAtual: socioUltimo.periodo_inicio,
+    vistoPeriodo: socioVistoPeriodo,
+  })) {
+    // Primeiro do carrossel: é novidade de 15 em 15 dias, os outros são
+    // estados que se repetem todo dia.
+    alerts.unshift({
+      type: 'socio',
+      Icon: Sparkles,
+      bg: '#5E2BD0',
+      title: 'Seu Sócio Digital está pronto',
+      sub: `Resumo de ${rotuloPeriodo({ inicio: socioUltimo.periodo_inicio, fim: socioUltimo.periodo_fim })}`,
+      tab: 'socio_digital',
     })
   }
 
