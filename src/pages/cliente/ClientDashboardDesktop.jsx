@@ -51,6 +51,7 @@ import { competenciaAtual } from '../../utils/lembreteMeta'
 import { aplicarDispensa } from '../../utils/avisosInicio'
 import SocioDigital from '../LojaFeminina/SocioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
+import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 import { fmtR } from '../../utils/formatters'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
@@ -476,6 +477,8 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
   const [search,     setSearch]     = useState('')
   const [filtro,     setFiltro]     = useState('todos')
   const [confirmDel, setConfirmDel] = useState(null)
+  // Excluiu a venda, mas o estoque não voltou (ver utils/baixaEstoque.js).
+  const [falhasExclusao, setFalhasExclusao] = useState([])
   const [editVenda,  setEditVenda]  = useState(null)
   const [editPgtos,  setEditPgtos]  = useState([])
   const [editSaving, setEditSaving] = useState(false)
@@ -513,7 +516,8 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
   const total = filtered.reduce((s, v) => s + Number(v.valor), 0)
 
   async function confirmDelete() {
-    await deleteVenda(confirmDel.id)
+    const r = await deleteVenda(confirmDel.id)
+    setFalhasExclusao(r?.falhasEstoque || [])
     setConfirmDel(null)
   }
 
@@ -618,6 +622,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
       </div>
 
       {/* Delete modal */}
+      <AvisoFalhaEstoque flutuante falhas={falhasExclusao} contexto="exclusao" onFechar={() => setFalhasExclusao([])} />
       {confirmDel && (
         <div onClick={() => setConfirmDel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)', border: '1px solid var(--line)' }}>
@@ -747,6 +752,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   const [done,        setDone]        = useState(false)
   const [saving,      setSaving]      = useState(false)
   const [savedVenda,  setSavedVenda]  = useState(null)
+  // Venda salva, mas parte do estoque não baixou (ver utils/baixaEstoque.js).
+  const [falhasEstoque, setFalhasEstoque] = useState([])
   const [reciboAberto,setReciboAberto]= useState(false)
   const [varModal,   setVarModal]   = useState(null)
   const [isTroca,      setIsTroca]      = useState(rascunho?.isTroca ?? false)
@@ -904,7 +911,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
       })))
     }
-    const { error: err, venda: novaVenda } = await addVenda({
+    const { error: err, venda: novaVenda, falhasEstoque: falhasVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
       valor: valorFinal,
@@ -926,6 +933,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     }
     if (!err) {
       setSavedVenda(novaVenda)
+      setFalhasEstoque(falhasVenda || [])
       setDone(true)
       limparRascunho(LOJA_ID)
       // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
@@ -943,6 +951,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setRascunhoRestaurado(false)
     setDone(false)
     setSavedVenda(null)
+    setFalhasEstoque([])
     setForm({ ...EMPTY_VENDA, pagamentos: [{ forma: 'Pix', valor: '' }] })
     setAjusteTipo('desconto')
     setAjusteModo('valor')
@@ -986,6 +995,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
           </div>
           <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--muted)', marginBottom: 28 }}>Salva com sucesso no histórico.</p>
+          <div style={{ maxWidth: 480, margin: '-12px auto 24px' }}>
+            <AvisoFalhaEstoque falhas={falhasEstoque} contexto="venda" />
+          </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
               onClick={() => setReciboAberto(true)}

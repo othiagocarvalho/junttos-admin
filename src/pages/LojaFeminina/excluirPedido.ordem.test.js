@@ -44,7 +44,11 @@ describe('excluirPedido — a ordem que impede o furo de estoque', () => {
   it('aborta antes do DELETE quando a devolução falha', () => {
     // O throw das falhas precisa vir ANTES do delete, senão o pedido some com
     // a peça não devolvida — que é exatamente o defeito corrigido.
-    expect(pos('falhas.length > 0')).toBeLessThan(pos('.delete({ count:'))
+    // Desde fix_estoque_pendencias.sql só erro de GRAVAÇÃO bloqueia
+    // (MOTIVOS_BLOQUEANTES, utils/baixaEstoque.js): produto sumido, duplicado
+    // ou sem a variação nunca bloqueou (era `continue`) e agora vira pendência.
+    expect(pos('bloqueantes.length > 0')).toBeLessThan(pos('.delete({ count:'))
+    expect(corpo).toContain('MOTIVOS_BLOQUEANTES.includes(f.motivo)')
     expect(corpo).toContain('O pedido NÃO foi excluído')
   })
 

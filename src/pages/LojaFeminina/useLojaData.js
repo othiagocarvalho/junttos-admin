@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { decrementarVariacoes, restaurarVariacoes } from '../../utils/venda'
 import { checarTravaBalanco } from '../../utils/balanco'
-import { precisaDevolverEstoque, normalizarItensEstoque, agruparPorNome, rpcAusente } from '../../utils/estoqueMov'
+import { precisaDevolverEstoque, rpcAusente } from '../../utils/estoqueMov'
+import { aplicarEstoqueItens, criarBuscaPorNome, salvarVendaComEstoque, MOTIVOS_BLOQUEANTES } from '../../utils/baixaEstoque'
 import { buscarTodasAsLinhas } from '../../utils/supabasePaginacao'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
@@ -308,37 +308,42 @@ export function useLojaData(lojaId = 'estrada') {
    * decidir em cima disso — excluirPedido, que não pode apagar o pedido sem
    * ter devolvido as peças — passa a conseguir.
    *
-   * @returns {Promise<Array<{nome, mensagem}>>} vazia quando tudo gravou
+   * Desde fix_estoque_pendencias.sql a regra mora em utils/baixaEstoque.js
+   * (aplicarEstoqueItens, testada): produto duplicado, não encontrado ou sem a
+   * variação também viram falha — antes eram um `continue` mudo — e toda
+   * falha é registrada em lf_estoque_pendencias.
+   *
+   * @returns {Promise<Array<{nome, variacao, quantidade, motivo, mensagem}>>} vazia quando tudo gravou
    */
-  async function aplicarEstoque(produtosItens, { modo, tipo, origemTipo = null, origemId = null, motivo = null }) {
-    const falhas = []
-    const itens = normalizarItensEstoque(produtosItens)
-    if (itens.length === 0) return falhas
+  async function aplicarEstoque(produtosItens, opts) {
+    return aplicarEstoqueItens({
+      // Só produto ATIVO e limit(2) em vez de .maybeSingle() — ver
+      // criarBuscaPorNome (a duplicata inativa da Audaz não empata mais).
+      buscarPorNome: criarBuscaPorNome(supabase, lojaId),
+      gravarVariacoes,
+      registrarPendencia,
+    }, produtosItens, opts)
+  }
 
-    for (const grupo of agruparPorNome(itens)) {
-      const { data: prod } = await supabase
-        .from('lf_produtos')
-        .select('id, variacoes')
-        .eq('loja_id', lojaId)
-        .eq('nome', grupo.nome)
-        .maybeSingle()
-      // Produto sumiu do catálogo: não há estoque para mexer, então não é
-      // falha de gravação — é ausência de alvo. Bloquear por isso deixaria o
-      // pedido impossível de excluir para sempre. Mesmo comportamento que
-      // cancelarPedido já tinha.
-      if (!prod) continue
-
-      const novasVariacoes = modo === 'baixa'
-        ? decrementarVariacoes(prod.variacoes, grupo.itens)
-        : restaurarVariacoes(prod.variacoes, grupo.itens)
-
-      const error = await gravarVariacoes(prod.id, novasVariacoes, { tipo, origemTipo, origemId, motivo })
-      if (error) {
-        console.error('[estoque] gravação de variações falhou:', error.message, grupo.nome)
-        falhas.push({ nome: grupo.nome, mensagem: error.message })
-      }
+  // Falha de estoque que não se resolveu sozinha → lf_estoque_pendencias.
+  // Via RPC (SECURITY DEFINER, confere a loja pelo JWT): a tabela não tem
+  // policy de escrita para o app. Enquanto o SQL não rodar, só loga — o aviso
+  // na tela continua aparecendo do mesmo jeito.
+  async function registrarPendencia(p) {
+    const { error } = await supabase.rpc('lf_registrar_pendencia_estoque', {
+      p_loja_id:      lojaId,
+      p_venda_id:     p.venda_id,
+      p_produto_nome: p.produto_nome,
+      p_variacao:     p.variacao,
+      p_quantidade:   p.quantidade,
+      p_motivo:       p.motivo,
+      p_detalhe:      p.detalhe,
+    })
+    if (rpcAusente(error)) {
+      console.warn('[estoque] lf_registrar_pendencia_estoque ausente — rode fix_estoque_pendencias.sql', p)
+      return
     }
-    return falhas
+    if (error) throw error
   }
 
   // Update de variacoes com o contexto de movimentação. Cai no update direto
@@ -384,31 +389,20 @@ export function useLojaData(lojaId = 'estrada') {
       return { error: { code: 'BAL_TRAVA', message: msg, causa: balResult?.error ? 'erro' : 'balanco' }, venda: null }
     }
 
-    const { produto_devolvido, ...vendaPayload } = venda
-    const { data: novaVenda, error } = await supabase
-      .from('lf_vendas')
-      .insert({ ...vendaPayload, loja_id: lojaId })
-      .select()
-      .single()
-    // PGRST116 = select-after-insert retornou 0 linhas (insert OK, RLS edge case).
-    // Outros erros = insert falhou de verdade — retorna sem executar side-effects.
-    if (error && error.code !== 'PGRST116') {
-      return { error, venda: null }
+    // Grava a venda e só DEPOIS mexe no estoque; falha de estoque nunca
+    // desfaz a venda — volta em falhasEstoque para a tela avisar.
+    const resultado = await salvarVendaComEstoque({
+      inserir: payload => supabase
+        .from('lf_vendas')
+        .insert({ ...payload, loja_id: lojaId })
+        .select()
+        .single(),
+      aplicar: aplicarEstoque,
+    }, venda)
+    if (resultado.error) {
+      return { error: resultado.error, venda: null, falhasEstoque: [] }
     }
-    // Restaura estoque do produto devolvido em troca
-      await aplicarEstoque(produto_devolvido, {
-        modo:       'restauro',
-        tipo:       'devolucao',
-        origemTipo: 'venda',
-        origemId:   novaVenda?.id || null,
-        motivo:     'Devolução em troca',
-      })
-      await aplicarEstoque(venda.produtos, {
-        modo:       'baixa',
-        tipo:       'venda',
-        origemTipo: 'venda',
-        origemId:   novaVenda?.id || null,
-      })
+    const novaVenda = resultado.venda
       // Auto-criação silenciosa de fornecedor em lf_fornecedores
       const nomeFornecedor = (venda.fornecedor || '').trim()
       if (nomeFornecedor) {
@@ -465,7 +459,7 @@ export function useLojaData(lojaId = 'estrada') {
         }
       }
 
-    return { error: null, venda: novaVenda || null }
+    return { error: null, venda: novaVenda || null, falhasEstoque: resultado.falhasEstoque }
   }
 
   /**
@@ -504,15 +498,19 @@ export function useLojaData(lojaId = 'estrada') {
     if (!error) {
       // origem_id fica nulo de propósito: a venda acabou de ser apagada, e um
       // id que não existe mais só levaria o extrato a um link quebrado.
-      await aplicarEstoque(venda?.produtos, {
+      const falhasEstoque = await aplicarEstoque(venda?.produtos, {
         modo:       'restauro',
         tipo:       'devolucao',
         origemTipo: 'venda_excluida',
         motivo:     'Venda excluída',
+        vendaId:    id,
       })
       await fetchAll()
+      return { error: null, falhasEstoque }
     }
-    return error
+    // As telas ignoravam o retorno (era só `error`); agora leem falhasEstoque
+    // para avisar quando a devolução não aconteceu.
+    return { error, falhasEstoque: [] }
   }
 
   async function updateVenda(id, updates) {
@@ -610,16 +608,6 @@ export function useLojaData(lojaId = 'estrada') {
       .update(updates)
       .eq('id', id)
       .eq('loja_id', lojaId)
-    if (!error) await fetchAll()
-    return error
-  }
-
-  async function removeProduto(nome) {
-    const { error } = await supabase
-      .from('lf_produtos')
-      .update({ ativo: false })
-      .eq('loja_id', lojaId)
-      .eq('nome', nome)
     if (!error) await fetchAll()
     return error
   }
@@ -966,10 +954,15 @@ export function useLojaData(lojaId = 'estrada') {
       })
       // Aborta ANTES do DELETE: apagar o pedido sem ter devolvido as peças é
       // exatamente o furo que esta função existe para não abrir.
-      if (falhas.length > 0) {
+      // Só erro de GRAVAÇÃO bloqueia (MOTIVOS_BLOQUEANTES): produto sumido,
+      // duplicado ou sem a variação nunca se resolve tentando de novo — antes
+      // já não bloqueava (era `continue`), e agora fica registrado como
+      // pendência em vez de sumir.
+      const bloqueantes = falhas.filter(f => MOTIVOS_BLOQUEANTES.includes(f.motivo))
+      if (bloqueantes.length > 0) {
         throw new Error(
           'Não foi possível devolver ao estoque: '
-          + falhas.map(f => f.nome).join(', ')
+          + bloqueantes.map(f => f.nome).join(', ')
           + '. O pedido NÃO foi excluído — nada foi alterado.',
         )
       }
@@ -1041,7 +1034,6 @@ export function useLojaData(lojaId = 'estrada') {
     excluirCorrida,
     addProduto,
     updateProduto,
-    removeProduto,
     updateVariacoes,
     importarProdutos,
     saveConfig,

@@ -3,6 +3,7 @@ import { Trash2, Search, Tag, Calendar, User, Clock, Pencil, Plus, X, Receipt } 
 import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
 import { vendasCompletas } from './useLojaData'
+import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
 const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
@@ -48,6 +49,8 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
+  // Excluiu a venda, mas o estoque não voltou (ver utils/baixaEstoque.js).
+  const [falhasExclusao, setFalhasExclusao] = useState([])
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
@@ -85,7 +88,8 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
   const groups = groupByDay(filtradas)
 
   async function handleDelete() {
-    await deleteVenda(confirmDel.id)
+    const r = await deleteVenda(confirmDel.id)
+    setFalhasExclusao(r?.falhasEstoque || [])
     setConfirmDel(null)
   }
 
@@ -268,6 +272,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
       )}
 
       {/* Delete confirmation */}
+      <AvisoFalhaEstoque flutuante falhas={falhasExclusao} contexto="exclusao" onFechar={() => setFalhasExclusao([])} />
       {confirmDel && (
         <div onClick={() => setConfirmDel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '20px 20px 0 0', padding: '28px 20px', width: '100%', maxWidth: 480, boxShadow: '0 -8px 40px rgba(0,0,0,0.15)' }}>

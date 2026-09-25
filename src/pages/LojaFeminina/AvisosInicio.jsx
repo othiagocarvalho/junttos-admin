@@ -10,7 +10,7 @@
 // O X devolve ao pai o `dispensa` do aviso; o pai grava na coluna certa.
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, TrendingUp, CreditCard, Wallet, Sparkles, Target, X, ArrowRight, ChevronDown } from 'lucide-react'
+import { AlertTriangle, TrendingUp, CreditCard, Wallet, Sparkles, Target, PackageX, X, ArrowRight, ChevronDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
 import { montarAvisos, limiteJanelaContas } from '../../utils/avisosInicio'
@@ -24,6 +24,7 @@ const ICONES = {
   estoque: AlertTriangle,
   meta: Target,
   meta_batida: TrendingUp,
+  pendencia: PackageX,
 }
 
 function CartaoAviso({ aviso, onAbrir, onDispensar }) {
@@ -97,7 +98,25 @@ export default function AvisosInicio({ vendas, metas, produtosData = [], lojaId,
   // Relatório mais recente do Sócio. undefined = não carregou / erro; null = nenhum.
   const [socioUltimo, setSocioUltimo] = useState(undefined)
   const [aberto, setAberto] = useState(false)
+  // Pendências de estoque abertas (lf_estoque_pendencias). null = não
+  // carregou, ou a tabela ainda não existe (fix_estoque_pendencias.sql).
+  const [pendencias, setPendencias] = useState(null)
   const socioLiberado = temAcesso(plano, 'pro')
+
+  useEffect(() => {
+    if (!lojaId) return
+    let vivo = true
+    supabase.from('lf_estoque_pendencias')
+      .select('id, produto_nome')
+      .eq('loja_id', lojaId)
+      .not('resolvido', 'is', true)
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(({ data, error }) => {
+        if (vivo && !error) setPendencias(data || [])
+      })
+    return () => { vivo = false }
+  }, [lojaId])
 
   useEffect(() => {
     if (!lojaId || !socioLiberado) return
@@ -150,6 +169,7 @@ export default function AvisosInicio({ vendas, metas, produtosData = [], lojaId,
     socioUltimo,
     socioVistoPeriodo: dispensas.socioVistoPeriodo,
     socioIntroVisto: dispensas.socioIntroVisto,
+    pendenciasEstoque: pendencias,
     metaDispensadaEm: dispensas.metaDispensadaEm,
     dispensados: dispensas.avisos,
   })
