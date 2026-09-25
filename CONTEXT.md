@@ -486,14 +486,13 @@ Carrega todos os dados de uma loja em paralelo. Retorna estado + mutações.
 
 | Função | Ação |
 |--------|------|
-| `addVenda(venda)` | insere venda, desconta variações do estoque, auto-sincroniza lf_clientes |
-| `deleteVenda(id)` | deleta venda, restaura variações ao estoque |
+| `addVenda(venda)` | insere venda, desconta variações do estoque, auto-sincroniza lf_clientes. Retorna `{ error, venda, falhasEstoque }` — falha de estoque não desfaz a venda (ver `utils/baixaEstoque.js`) |
+| `deleteVenda(id)` | deleta venda, restaura variações ao estoque. Retorna `{ error, falhasEstoque }` |
 | `updateVenda(id, updates)` | atualiza venda |
 | `fecharCaixa(caixa)` | insere fechamento |
 | `salvarMeta(mes, valor)` | upsert de meta |
 | `addProduto(nome, extras)` | insere produto |
 | `updateProduto(id, updates)` | atualiza produto |
-| `removeProduto(nome)` | soft delete (`ativo = false`) |
 | `updateVariacoes(id, variacoes)` | atualiza variações de um produto |
 | `importarProdutos(lista)` | import em batch |
 | `saveConfig(updates)` | upsert em lf_config |

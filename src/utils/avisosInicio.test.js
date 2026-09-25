@@ -352,3 +352,50 @@ describe('aplicarDispensa', () => {
     expect(aplicarDispensa({ a: 1 }, { campo: 'socio_intro_visto', valor: true })).toEqual({ a: 1 })
   })
 })
+
+// ── Pendência de estoque (lf_estoque_pendencias) ───────────────────────────
+describe('aviso de pendência de estoque', () => {
+  const pend = (id, produto_nome) => ({ id, produto_nome })
+
+  it('aparece para QUALQUER plano (é problema de dado, não recurso premium)', () => {
+    for (const plano of ['starter', 'pro', 'business']) {
+      const [a] = montarAvisos(base({ plano, pendenciasEstoque: [pend('1', 'SHORT LISTRADO')] }))
+      expect(a).toMatchObject({ tipo: 'estoque_pendencia', tab: 'estoque', cor: COR.pendencia })
+    }
+  })
+  it('conta PRODUTOS distintos, não linhas', () => {
+    const [a] = montarAvisos(base({ pendenciasEstoque: [pend('1', 'A'), pend('2', 'A'), pend('3', 'B')] }))
+    expect(a.titulo).toBe('2 produtos com pendência de estoque')
+  })
+  it('um produto só → nome no texto', () => {
+    const [a] = montarAvisos(base({ pendenciasEstoque: [pend('1', 'SHORT LISTRADO')] }))
+    expect(a.titulo).toBe('1 produto com pendência de estoque')
+    expect(a.texto).toContain('SHORT LISTRADO')
+  })
+  it('sem pendências, ou tabela ausente (null) → nada', () => {
+    expect(montarAvisos(base({ pendenciasEstoque: [] }))).toEqual([])
+    expect(montarAvisos(base({ pendenciasEstoque: null }))).toEqual([])
+  })
+  it('X grava as ids; as mesmas não voltam, uma NOVA faz voltar', () => {
+    const [a] = montarAvisos(base({ pendenciasEstoque: [pend('1', 'A'), pend('2', 'B')] }))
+    expect(a.dispensa).toEqual({ campo: 'avisos_dispensados', chave: 'pendencias', valor: ['1', '2'] })
+    const disp = { pendencias: ['1', '2'] }
+    expect(montarAvisos(base({ pendenciasEstoque: [pend('1', 'A'), pend('2', 'B')], dispensados: disp }))).toEqual([])
+    const [b] = montarAvisos(base({ pendenciasEstoque: [pend('1', 'A'), pend('3', 'C')], dispensados: disp }))
+    expect(b.titulo).toBe('1 produto com pendência de estoque')
+    expect(b.texto).toContain('C')
+  })
+  it('gerente também vê (Estoque é permitido ao gerente)', () => {
+    expect(tipos(montarAvisos(base({ gerente: true, pendenciasEstoque: [pend('1', 'A')] })))).toEqual(['estoque_pendencia'])
+  })
+  it('ordem: depois de Sócio pronto, logo antes de estoque baixo', () => {
+    const t = tipos(montarAvisos(base({
+      plano: 'business', metas: {},
+      contasPagar: [conta(1, '2026-09-24')],
+      socioUltimo: { periodo_inicio: '2026-09-01', periodo_fim: '2026-09-15' },
+      produtosData: [prod(1, 1)],
+      pendenciasEstoque: [pend('1', 'A')],
+    })))
+    expect(t).toEqual(['conta_pagar', 'socio_pronto', 'estoque_pendencia', 'estoque', 'sem_meta'])
+  })
+})

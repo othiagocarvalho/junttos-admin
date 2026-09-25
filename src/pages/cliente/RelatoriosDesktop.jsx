@@ -7,6 +7,7 @@ import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import { vendasCompletas } from '../LojaFeminina/useLojaData'
+import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -42,6 +43,8 @@ const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack, gerente, config }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
+  // Excluiu a venda, mas o estoque não voltou (ver utils/baixaEstoque.js).
+  const [falhasExclusao, setFalhasExclusao] = useState([])
   const [editVenda, setEditVenda] = useState(null)
   const [editPgtos, setEditPgtos] = useState([])
   const [editSaving, setEditSaving] = useState(false)
@@ -97,7 +100,8 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
 
   async function handleDelete() {
     if (gerente || !confirmDel) return
-    await deleteVenda(confirmDel.id)
+    const r = await deleteVenda(confirmDel.id)
+    setFalhasExclusao(r?.falhasEstoque || [])
     setConfirmDel(null)
   }
 
@@ -219,6 +223,7 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
       ))}
 
       {/* Delete modal */}
+      <AvisoFalhaEstoque flutuante falhas={falhasExclusao} contexto="exclusao" onFechar={() => setFalhasExclusao([])} />
       {confirmDel && (
         <div onClick={() => setConfirmDel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 20, padding: '32px 28px', maxWidth: 380, width: '90%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>

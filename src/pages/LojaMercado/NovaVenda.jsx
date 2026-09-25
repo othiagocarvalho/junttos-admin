@@ -4,6 +4,7 @@ import { BrowserMultiFormatReader } from '@zxing/browser'
 import { precoEfetivo } from '../../utils/precosFaixas'
 import { getVarLabel } from '../../utils/balanco'
 import { fmtR } from '../../utils/formatters'
+import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 
 const GREEN = '#17864F'
 const DARK  = '#0C3A24'
@@ -64,6 +65,8 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
   // clientes serve só de atalho — digitar um nome novo continua valendo.
   const [fiadoCliente, setFiadoCliente] = useState('')
   const [avisoFiado, setAvisoFiado] = useState('')
+  // Venda salva, mas parte do estoque não baixou (ver utils/baixaEstoque.js).
+  const [falhasEstoque, setFalhasEstoque] = useState([])
 
   const videoRef         = useRef(null)
   const controlsRef      = useRef(null)
@@ -175,7 +178,7 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
     if (pgto === 'Fiado' && !nomeFiado) { setErr('Informe o nome do cliente para anotar o fiado.'); return }
     setErr(''); setAvisoFiado('')
     setSaving(true)
-    const { error: saveErr, venda: novaVenda } = await addVenda({
+    const { error: saveErr, venda: novaVenda, falhasEstoque: falhasVenda } = await addVenda({
       valor: total,
       ajuste_valor: 0,
       forma_pgto: JSON.stringify([{ forma: pgto, valor: total }]),
@@ -189,6 +192,7 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
     })
     if (saveErr?.code === 'BAL_TRAVA') { setSaving(false); setErr('Caixa travado. Feche o caixa para registrar vendas.'); return }
     if (saveErr) { setSaving(false); setErr('Erro ao salvar: ' + (saveErr.message || JSON.stringify(saveErr))); return }
+    setFalhasEstoque(falhasVenda || [])
 
     // Fiado: além da venda, entra como 'compra' na conta corrente do cliente
     // (merc_fiado). Antes isto não acontecia — a venda ficava só em lf_vendas
@@ -222,7 +226,7 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
     setCart([]); setStep(0); setPgto('Dinheiro'); setCedula(null)
     setCedOutro(''); setCedOutroMode(false); setDigitarMode(false)
     setBusca(''); setResultados([]); setErr(''); setEanNotFound(''); setPermErr(false)
-    setFiadoCliente(''); setAvisoFiado('')
+    setFiadoCliente(''); setAvisoFiado(''); setFalhasEstoque([])
   }
 
   const recentItems = [...cartPrecificado].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 2)
@@ -274,6 +278,11 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
         <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px 0' }}>
           {/* A venda foi salva; só o lançamento do fiado falhou. Precisa ficar
               na cara do lojista, senão a dívida some sem ninguém perceber. */}
+          {falhasEstoque.length > 0 && (
+            <div style={{ marginBottom: 18 }}>
+              <AvisoFalhaEstoque falhas={falhasEstoque} contexto="venda" />
+            </div>
+          )}
           {avisoFiado && (
             <div style={{
               background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 16,

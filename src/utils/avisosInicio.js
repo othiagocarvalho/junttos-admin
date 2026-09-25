@@ -17,6 +17,8 @@
 //   · meta batida     → avisos_dispensados.meta_batida = 'YYYY-MM'
 //   · contas          → avisos_dispensados.conta = ['pagar:ID', 'receber:ID', …]
 //   · estoque         → avisos_dispensados.estoque = { ids: [...], em: 'YYYY-MM-DD' }
+//   · pendência estoque → avisos_dispensados.pendencias = [ids de lf_estoque_pendencias]
+//                       (volta quando surge pendência nova, como as contas)
 // Colunas ausentes no banco chegam undefined e contam como "nunca dispensou",
 // mesmo tratamento de deveMostrarLembreteMeta.
 //
@@ -43,6 +45,7 @@ export const COR = {
   socio: '#5E2BD0',
   estoque: '#D85A30',
   metaBatida: '#1F8A5B',
+  pendencia: '#B45309',
 }
 
 // Prioridade: menor aparece primeiro.
@@ -50,6 +53,9 @@ const ORDEM = {
   conta_pagar: 10,
   conta_receber: 11,
   socio_pronto: 20,
+  // Pendência de estoque (baixa que falhou) — fora da ordem aprovada original;
+  // entra logo ANTES de "estoque baixo" para não inverter nenhum par aprovado.
+  estoque_pendencia: 29,
   estoque: 30,
   sem_meta: 40,
   socio_intro: 50,
@@ -183,6 +189,8 @@ function avisoConta(tipo, contas, dispensadas, todasChaves, hoje) {
  * @param {object|null|undefined} p.socioUltimo   relatório mais recente; null = nenhum; undefined = não carregou
  * @param {string}  p.socioVistoPeriodo lf_config.socio_visto_periodo
  * @param {boolean} p.socioIntroVisto   lf_config.socio_intro_visto
+ * @param {Array|null} p.pendenciasEstoque  lf_estoque_pendencias não resolvidas ({id, produto_nome});
+ *                                  null/undefined = não carregou ou tabela ausente
  * @param {string}  p.metaDispensadaEm  lf_config.meta_lembrete_dispensado_em
  * @param {object}  p.dispensados       lf_config.avisos_dispensados
  * @param {Date}    p.hoje
@@ -191,7 +199,7 @@ export function montarAvisos({
   plano, gerente = false, corLoja = COR.socio,
   vendas = [], metas = {}, produtosData = [],
   contasPagar, contasReceber,
-  socioUltimo, socioVistoPeriodo, socioIntroVisto,
+  socioUltimo, socioVistoPeriodo, socioIntroVisto, pendenciasEstoque,
   metaDispensadaEm, dispensados, hoje = new Date(),
 } = {}) {
   const disp = (dispensados && typeof dispensados === 'object') ? dispensados : {}
@@ -249,6 +257,28 @@ export function montarAvisos({
       tab: 'socio_digital',
       dispensa: { campo: 'socio_intro_visto', valor: true },
       rotuloDispensar: 'Esconder apresentação do Sócio Digital',
+    })
+  }
+
+  // ── Pendência de estoque (todos os planos: é problema de dado) ──
+  const pendDispensadas = Array.isArray(disp.pendencias) ? disp.pendencias.map(String) : []
+  const pendAbertas = (pendenciasEstoque || []).filter(p => p?.id && !pendDispensadas.includes(String(p.id)))
+  if (pendAbertas.length > 0) {
+    const produtos = [...new Set(pendAbertas.map(p => p.produto_nome || '(sem nome)'))]
+    const n = produtos.length
+    avisos.push({
+      tipo: 'estoque_pendencia',
+      cor: COR.pendencia,
+      icone: 'pendencia',
+      titulo: plural(n, '1 produto com pendência de estoque', `${n} produtos com pendência de estoque`),
+      texto: n === 1
+        ? `${produtos[0]} · uma venda não atualizou o estoque. Revise em Estoque.`
+        : 'Vendas que não atualizaram o estoque. Revise e ajuste em Estoque.',
+      botao: 'Revisar estoque',
+      tab: 'estoque',
+      // Grava só as ids ainda abertas: as resolvidas saem da lista sozinhas.
+      dispensa: { campo: 'avisos_dispensados', chave: 'pendencias', valor: (pendenciasEstoque || []).map(p => String(p.id)) },
+      rotuloDispensar: 'Esconder aviso de pendência de estoque até surgir uma nova',
     })
   }
 

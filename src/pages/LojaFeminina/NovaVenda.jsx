@@ -11,6 +11,7 @@ import CampoScanner from '../../components/etiquetas/CampoScanner'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
+import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from '../../components/venda/ResumoVenda'
 import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
@@ -77,6 +78,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
   const [done, setDone] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedVenda, setSavedVenda] = useState(null)
+  // Venda salva, mas parte do estoque não baixou (ver utils/baixaEstoque.js).
+  const [falhasEstoque, setFalhasEstoque] = useState([])
   const [reciboAberto, setReciboAberto] = useState(false)
   const [travaAviso, setTravaAviso] = useState(false)
   const [expandedProd, setExpandedProd] = useState(null)
@@ -262,7 +265,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
         valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
       })))
     }
-    const { error: err, venda: novaVenda } = await addVenda({
+    const { error: err, venda: novaVenda, falhasEstoque: falhasVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel: form.tel || null,
       valor: valorFinal,
@@ -284,6 +287,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     }
     if (!err) {
       setSavedVenda(novaVenda)
+      setFalhasEstoque(falhasVenda || [])
       setDone(true)
       limparRascunho(LOJA_ID)
       // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
@@ -301,6 +305,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     setRascunhoRestaurado(false)
     setDone(false)
     setSavedVenda(null)
+    setFalhasEstoque([])
     setForm({ ...EMPTY, pagamentos: [{ forma: 'Pix', valor: '' }] })
     setStep(0)
     setAjusteTipo('desconto')
@@ -346,6 +351,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
           </div>
           <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: 'var(--ink)' }}>{isTroca ? 'Troca registrada!' : 'Venda registrada!'}</p>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)' }}>Salva com sucesso no histórico.</p>
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <AvisoFalhaEstoque falhas={falhasEstoque} contexto="venda" />
+          </div>
           <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 320, marginTop: 8 }}>
             <button
               onClick={() => setReciboAberto(true)}
