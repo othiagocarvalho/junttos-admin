@@ -34,7 +34,7 @@ import { fmtR } from '../../utils/formatters'
 import {
   montarInsertPrimeiroBipe, acrescentarBipe, removerLinha,
   variacaoParaRpc, parseErroEstoquePrevenda, mensagemErroEstoquePrevenda,
-  encontrarProdutoPorNome,
+  encontrarProdutoDoItem,
 } from '../../utils/prevenda'
 
 export default function PreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID = '', theme, config = null, onSalvo }) {
@@ -118,6 +118,7 @@ export default function PreVenda({ produtosData = [], addVendaRaw, updateVenda, 
       if (!vendaId) {
         const payload = montarInsertPrimeiroBipe({
           lojaId: LOJA_ID,
+          produtoId: achado.produto.id,
           nome: achado.produto.nome,
           rotulo: achado.rotulo,
           clienteNome,
@@ -137,7 +138,7 @@ export default function PreVenda({ produtosData = [], addVendaRaw, updateVenda, 
         setVendaId(venda.id)
         setItens(payload.produtos)
       } else {
-        const { produtos, valor: valorNovo } = acrescentarBipe(itens, { nome: achado.produto.nome, variacao: achado.rotulo }, produtosData)
+        const { produtos, valor: valorNovo } = acrescentarBipe(itens, { produto_id: achado.produto.id, nome: achado.produto.nome, variacao: achado.rotulo }, produtosData)
         const erroUpdate = await updateVenda(vendaId, { produtos, valor: valorNovo })
         if (erroUpdate) {
           await supabase.rpc('restaurar_item_prevenda', {
@@ -167,7 +168,7 @@ export default function PreVenda({ produtosData = [], addVendaRaw, updateVenda, 
       const { produtos, valor: valorNovo, item, ficouVazia } = removerLinha(itens, indice, produtosData)
       if (!item) return
 
-      const produto = encontrarProdutoPorNome(produtosData, item.nome)
+      const produto = encontrarProdutoDoItem(produtosData, item)
       if (produto) {
         const vezes = Math.max(1, Number(item.quantidade) || 1)
         for (let i = 0; i < vezes; i++) {

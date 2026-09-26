@@ -24,6 +24,7 @@
 
 import { adicionarAoCarrinho } from './codigoBarras'
 import { calcularTotalVenda } from './venda'
+import { produtoDoItem } from './itemVenda'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Erro de estoque insuficiente — bipar_item_prevenda usa o MESMO prefixo de
@@ -87,9 +88,9 @@ export function variacaoParaRpc(rotulo) {
  * do payload é idêntico ao que uma venda comum já grava.
  */
 export function montarInsertPrimeiroBipe({
-  lojaId, nome, rotulo, clienteNome, clienteTel, vendedora, produtosData,
+  lojaId, produtoId, nome, rotulo, clienteNome, clienteTel, vendedora, produtosData,
 }) {
-  const produtos = adicionarAoCarrinho([], { nome, variacao: rotulo })
+  const produtos = adicionarAoCarrinho([], { produto_id: produtoId, nome, variacao: rotulo })
   return {
     loja_id: lojaId,
     cliente_nome: (clienteNome || '').trim() || null,
@@ -109,8 +110,8 @@ export function montarInsertPrimeiroBipe({
  * Acrescenta um bipe seguinte a uma pré-venda que já existe.
  * @returns {{produtos, valor}} pronto para updateVenda(id, {...}).
  */
-export function acrescentarBipe(produtosAtuais, { nome, variacao }, produtosData) {
-  const produtos = adicionarAoCarrinho(produtosAtuais, { nome, variacao })
+export function acrescentarBipe(produtosAtuais, { produto_id, nome, variacao }, produtosData) {
+  const produtos = adicionarAoCarrinho(produtosAtuais, { produto_id, nome, variacao })
   return { produtos, valor: calcularTotalVenda(produtos, produtosData) }
 }
 
@@ -150,7 +151,10 @@ export function removerLinha(produtosAtuais, indice, produtosData) {
 export function itensParaRestaurar(produtos) {
   return (produtos || [])
     .filter(p => p && p.nome)
-    .map(p => ({ nome: p.nome, variacao: p.variacao ?? null, vezes: Math.max(1, Number(p.quantidade) || 1) }))
+    .map(p => ({
+      ...(p.produto_id ? { produto_id: p.produto_id } : {}),
+      nome: p.nome, variacao: p.variacao ?? null, vezes: Math.max(1, Number(p.quantidade) || 1),
+    }))
 }
 
 /**
@@ -163,4 +167,14 @@ export function itensParaRestaurar(produtos) {
  */
 export function encontrarProdutoPorNome(produtosData, nome) {
   return (produtosData || []).find(p => p.nome === nome) || null
+}
+
+/**
+ * Produto de um item de pré-venda: pelo produto_id quando o item tem (etapa
+ * 2 — sem ambiguidade de nome repetido), pelo nome quando não tem (pré-venda
+ * bipada antes). null = saiu do catálogo; quem chama segue sem restaurar,
+ * como sempre.
+ */
+export function encontrarProdutoDoItem(produtosData, item) {
+  return produtoDoItem(produtosData, item)
 }

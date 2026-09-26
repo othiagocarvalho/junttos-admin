@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   rotuloTipo, toneTipo, fmtDelta, labelVariacao, labelsDeVariacoes,
-  normalizarItensEstoque, agruparPorNome, filtrarPorVariacao,
+  normalizarItensEstoque, agruparPorNome, filtrarPorVariacao, rotuloEstoqueDoItem,
   precisaDevolverEstoque,
 } from './estoqueMov.js'
 import { getVarLabel } from './balanco.js'
@@ -228,5 +228,38 @@ describe('precisaDevolverEstoque', () => {
   it('só o valor exato "cancelado" dispensa a devolução', () => {
     expect(precisaDevolverEstoque('Cancelado')).toBe(true)
     expect(precisaDevolverEstoque('cancelado_pelo_cliente')).toBe(true)
+  })
+})
+
+// ── Etapa 2: produto_id ────────────────────────────────────────────────────
+describe('normalizarItensEstoque / agruparPorNome com produto_id', () => {
+  it('preserva produto_id quando o item tem', () => {
+    expect(normalizarItensEstoque([{ produto_id: 'a', nome: 'X', variacao: 'P', quantidade: 2, obs: '' }]))
+      .toEqual([{ produto_id: 'a', nome: 'X', variacao: 'P', quantidade: 2 }])
+  })
+  it('agrupa pelo id: mesmo nome com ids diferentes vira 2 grupos', () => {
+    const itens = [
+      { produto_id: 'a', nome: 'SHORT', variacao: 'M', quantidade: 1 },
+      { produto_id: 'b', nome: 'SHORT', variacao: 'M', quantidade: 1 },
+      { produto_id: 'a', nome: 'SHORT', variacao: 'G', quantidade: 1 },
+    ]
+    expect(agruparPorNome(itens)).toEqual([
+      { nome: 'SHORT', produto_id: 'a', itens: [itens[0], itens[2]] },
+      { nome: 'SHORT', produto_id: 'b', itens: [itens[1]] },
+    ])
+  })
+  it('mesmo id com nomes diferentes (renomeado) → um grupo só', () => {
+    const itens = [{ produto_id: 'a', nome: 'VELHO', variacao: 'M' }, { produto_id: 'a', nome: 'NOVO', variacao: 'G' }]
+    expect(agruparPorNome(itens)).toHaveLength(1)
+  })
+  it('item sem id continua agrupado pelo nome, separado de quem tem id', () => {
+    const itens = [{ nome: 'SAIA', variacao: 'P' }, { produto_id: 'x', nome: 'SAIA', variacao: 'P' }]
+    expect(agruparPorNome(itens).map(g => g.produto_id ?? null)).toEqual([null, 'x'])
+  })
+  it('rotuloEstoqueDoItem: pedido (id + cor) usa cor; venda usa variacao', () => {
+    expect(rotuloEstoqueDoItem({ produto_id: 'p', cor: 'AZUL', variacao: 'AZUL / M' })).toBe('AZUL')
+    expect(rotuloEstoqueDoItem({ produto_id: 'p', cor: null, variacao: 'M' })).toBeNull()
+    expect(rotuloEstoqueDoItem({ produto_id: 'p', variacao: 'M' })).toBe('M')
+    expect(rotuloEstoqueDoItem({ nome: 'X', variacao: 'Preta', qtd: 1 })).toBe('Preta')
   })
 })

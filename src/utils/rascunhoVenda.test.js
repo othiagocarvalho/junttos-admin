@@ -72,3 +72,16 @@ describe('rascunho de venda', () => {
     expect(lerRascunho('l').valor).toBeUndefined()
   })
 })
+
+// ── Etapa 2: produto_id sobrevive ao rascunho ──────────────────────────────
+describe('rascunho de venda com produto_id', () => {
+  it('salvar e restaurar preserva produto_id dos itens', () => {
+    const f = { ...form, produtos: [{ produto_id: 'abc', nome: 'Vestido', variacao: 'M', obs: 'M', quantidade: 2 }] }
+    salvarRascunho('lojaX', extrairRascunho(f))
+    expect(lerRascunho('lojaX').produtos).toEqual(f.produtos)
+  })
+  it('rascunho ANTIGO (itens sem produto_id) continua sendo lido', () => {
+    salvarRascunho('lojaY', extrairRascunho(form))
+    expect(lerRascunho('lojaY').produtos).toEqual([{ nome: 'Vestido', quantidade: 2 }])
+  })
+})

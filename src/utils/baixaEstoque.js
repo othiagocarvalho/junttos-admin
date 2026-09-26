@@ -16,7 +16,11 @@
 //     supabase/fix_estoque_pendencias.sql) e devolvida a quem chamou, que
 //     mostra o aviso na tela.
 //
-// Sem React e sem Supabase: quem chama injeta `buscarPorNome`,
+// Etapa 2: item com produto_id vai DIRETO pelo id (sem ambiguidade de nome —
+// mesmo que o nome do item esteja desatualizado em relação ao cadastro). A
+// busca por nome acima só roda para item SEM produto_id (vendas antigas).
+//
+// Sem React e sem Supabase: quem chama injeta `buscarPorId`, `buscarPorNome`,
 // `gravarVariacoes` e `registrarPendencia` (padrão de criarLojaFluxo.js),
 // o que deixa a regra testável com fakes.
 
@@ -60,6 +64,20 @@ export function criarBuscaPorNome(supabase, lojaId) {
 }
 
 /**
+ * Busca de produto por id (caminho principal, etapa 2). Sem filtro de ativo:
+ * o id não é ambíguo, e devolver peça de uma venda antiga a um produto que
+ * foi desativado depois ainda é o correto. limit(1): no máximo uma linha.
+ */
+export function criarBuscaPorId(supabase, lojaId) {
+  return id => supabase
+    .from('lf_produtos')
+    .select('id, variacoes')
+    .eq('loja_id', lojaId)
+    .eq('id', id)
+    .limit(1)
+}
+
+/**
  * Decide qual produto usar a partir das linhas da busca por nome (até 2).
  * @returns {{ produto } | { motivo, detalhe }}
  */
@@ -93,7 +111,8 @@ function falhaDoItem(item, motivo, detalhe = {}, modo = 'baixa') {
  * falha (e vira pendência). Itens sem variação continuam ignorados, como o
  * app sempre fez (normalizarItensEstoque).
  *
- * @param deps.buscarPorNome(nome)            → Promise<{ data: [{id, variacoes}], error }>
+ * @param deps.buscarPorId(id)                → Promise<{ data: [{id, variacoes}], error }>  (item COM produto_id)
+ * @param deps.buscarPorNome(nome)            → Promise<{ data: [{id, variacoes}], error }>  (item SEM produto_id)
  * @param deps.gravarVariacoes(id, vars, ctx) → Promise<error|null>
  * @param deps.registrarPendencia(pend)       → Promise<void>  (falha dela é engolida e logada)
  * @param opts.modo       'baixa' | 'restauro'
@@ -101,15 +120,17 @@ function falhaDoItem(item, motivo, detalhe = {}, modo = 'baixa') {
  * @returns {Promise<Array<falha>>} vazia quando tudo gravou
  */
 export async function aplicarEstoqueItens(deps, produtosItens, opts) {
-  const { buscarPorNome, gravarVariacoes, registrarPendencia } = deps
+  const { buscarPorId, buscarPorNome, gravarVariacoes, registrarPendencia } = deps
   const { modo, tipo, origemTipo = null, origemId = null, motivo = null, vendaId = null } = opts
   const falhas = []
   const itens = normalizarItensEstoque(produtosItens)
 
   for (const grupo of agruparPorNome(itens)) {
+    // produto_id primeiro; nome só para item antigo que não tem id.
+    const porId = !!grupo.produto_id
     let busca
     try {
-      busca = await buscarPorNome(grupo.nome)
+      busca = porId ? await buscarPorId(grupo.produto_id) : await buscarPorNome(grupo.nome)
     } catch (e) {
       busca = { data: null, error: e }
     }
@@ -119,6 +140,9 @@ export async function aplicarEstoqueItens(deps, produtosItens, opts) {
     }
 
     const r = resolverProduto(busca?.data)
+    // Pelo id não existe "duplicado": 0 linhas = o produto foi apagado depois
+    // da venda. O id vai no detalhe para a pendência dizer qual era.
+    if (porId && !r.produto) r.detalhe = { produto_id: grupo.produto_id }
     if (!r.produto) {
       grupo.itens.forEach(i => falhas.push(falhaDoItem(i, r.motivo, r.detalhe, modo)))
       continue

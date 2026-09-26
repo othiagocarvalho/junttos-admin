@@ -28,7 +28,7 @@ import Chip, { ChipRow } from '../../components/studio/Chip'
 import EmptyState from '../../components/studio/EmptyState'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { fmtR } from '../../utils/formatters'
-import { itensParaRestaurar, variacaoParaRpc, encontrarProdutoPorNome } from '../../utils/prevenda'
+import { itensParaRestaurar, variacaoParaRpc, encontrarProdutoDoItem } from '../../utils/prevenda'
 
 const STATUS_MAP = {
   aguardando_pagamento: { label: 'Aguardando pagamento', tone: 'warn' },
@@ -130,7 +130,7 @@ export default function PreVendasLista({ vendas = [], produtosData = [], updateV
     setErroAcao('')
     try {
       for (const grupo of itensParaRestaurar(preVenda.produtos)) {
-        const produto = encontrarProdutoPorNome(produtosData, grupo.nome)
+        const produto = encontrarProdutoDoItem(produtosData, grupo)
         if (!produto) continue
         for (let i = 0; i < grupo.vezes; i++) {
           await supabase.rpc('restaurar_item_prevenda', {

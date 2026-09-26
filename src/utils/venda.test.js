@@ -364,3 +364,14 @@ describe('calcularResumoTroca com ajuste manual', () => {
     expect(calcularResumoTroca(120, 80)).toEqual(calcularResumoTroca(120, 80, 0))
   })
 })
+
+// ── Etapa 2: preço pelo produto_id ─────────────────────────────────────────
+describe('calcularTotalVenda com produto_id', () => {
+  const produtosData = [{ id: 'a', nome: 'SHORT', preco_venda: 40 }, { id: 'b', nome: 'SHORT', preco_venda: 60 }]
+  it('usa o preço do produto do id, não o primeiro de mesmo nome', () => {
+    expect(calcularTotalVenda([{ produto_id: 'b', nome: 'SHORT', quantidade: 2 }], produtosData)).toBe(120)
+  })
+  it('item sem id continua pelo nome', () => {
+    expect(calcularTotalVenda([{ nome: 'SHORT', quantidade: 1 }], produtosData)).toBe(40)
+  })
+})

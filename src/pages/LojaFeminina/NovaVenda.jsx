@@ -9,6 +9,7 @@ import { vendedorParaVenda } from '../../utils/vendedores'
 import { temAcesso } from '../../utils/planos'
 import CampoScanner from '../../components/etiquetas/CampoScanner'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
+import { ehDoProduto } from '../../utils/itemVenda'
 import { lerRascunho, salvarRascunho, limparRascunho, extrairRascunho } from '../../utils/rascunhoVenda'
 import ReciboVenda from '../../components/ReciboVenda'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
@@ -186,24 +187,26 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
     setForm(f => ({
       ...f,
       produtos: adicionarAoCarrinho(f.produtos, {
-        nome: achado.produto.nome, variacao: achado.rotulo,
+        produto_id: achado.produto.id, nome: achado.produto.nome, variacao: achado.rotulo,
       }),
     }))
     return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
   }
 
-  function toggleProd(nome) {
-    const exists = form.produtos.find(p => p.nome === nome)
+  // pid = produto_id (etapa 2): identifica o item mesmo com nome repetido;
+  // item antigo (rascunho de antes) sem id cai no nome — ver ehDoProduto.
+  function toggleProd(nome, pid) {
+    const exists = form.produtos.find(p => ehDoProduto(p, pid, nome))
     setForm({
       ...form,
       produtos: exists
-        ? form.produtos.filter(p => p.nome !== nome)
-        : [...form.produtos, { nome, obs: '', quantidade: 1 }],
+        ? form.produtos.filter(p => !ehDoProduto(p, pid, nome))
+        : [...form.produtos, pid ? { produto_id: pid, nome, obs: '', quantidade: 1 } : { nome, obs: '', quantidade: 1 }],
     })
   }
 
-  function setProdObs(nome, obs) {
-    setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, obs } : p) })
+  function setProdObs(nome, obs, pid) {
+    setForm({ ...form, produtos: form.produtos.map(p => ehDoProduto(p, pid, nome) ? { ...p, obs } : p) })
   }
 
   async function handleAddProd() {
@@ -620,27 +623,29 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {produtos.map(nome => {
                     const pd = produtosData.find(p => p.nome === nome)
+                    // Identidade do item = produto_id (etapa 2); nome só p/ item antigo sem id.
+                    const pid = pd?.id
                     const vars = (pd?.variacoes || []).map(v => {
                       const label = getVarLabel(v)
                       return label ? { label, qty: Number(v.quantidade || 0) } : null
                     }).filter(Boolean)
                     const isSimples = vars.length === 1 && vars[0].label === 'Único'
                     const hasVars = vars.length > 0 && !isSimples
-                    const selItems = produtoTroca.filter(p => p.nome === nome)
+                    const selItems = produtoTroca.filter(p => ehDoProduto(p, pid, nome))
                     const selCount = selItems.reduce((sum, p) => sum + (p.quantidade || 1), 0)
                     const isOpen = expandedTroca === nome
                     function toggleSimplesT() {
-                      const exists = produtoTroca.find(p => p.nome === nome && p.variacao === 'Único')
+                      const exists = produtoTroca.find(p => ehDoProduto(p, pid, nome) && p.variacao === 'Único')
                       setProdutoTroca(f => exists
-                        ? f.filter(p => !(p.nome === nome && p.variacao === 'Único'))
-                        : [...f, { nome, variacao: 'Único', obs: '', quantidade: 1 }])
+                        ? f.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === 'Único'))
+                        : [...f, { produto_id: pid, nome, variacao: 'Único', obs: '', quantidade: 1 }])
                     }
                     return (
                       <div key={`troca-${nome}`}>
                         <div
                           role="button" tabIndex={0}
-                          onClick={() => isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome) ? f.filter(p => p.nome !== nome) : [...f, { nome, obs: '', quantidade: 1 }])}
-                          onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome) ? f.filter(p => p.nome !== nome) : [...f, { nome, obs: '', quantidade: 1 }]))}
+                          onClick={() => isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => ehDoProduto(p, pid, nome)) ? f.filter(p => !ehDoProduto(p, pid, nome)) : [...f, { produto_id: pid, nome, obs: '', quantidade: 1 }])}
+                          onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimplesT() : hasVars ? setExpandedTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => ehDoProduto(p, pid, nome)) ? f.filter(p => !ehDoProduto(p, pid, nome)) : [...f, { produto_id: pid, nome, obs: '', quantidade: 1 }]))}
                           style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
@@ -660,10 +665,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {(isSimples || !hasVars) && selCount > 0 ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706' }}>
-                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao))) : f.map(p => p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(ehDoProduto(p, pid, nome) && (isSimples ? p.variacao === 'Único' : !p.variacao))) : f.map(p => ehDoProduto(p, pid, nome) && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
                                   style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>−</button>
                                 <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
-                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => ehDoProduto(p, pid, nome) && (isSimples ? p.variacao === 'Único' : !p.variacao) ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
                                   style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>+</button>
                               </div>
                             ) : selCount > 0 ? (
@@ -680,23 +685,23 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {vars.map(({ label, qty }, idx) => {
-                                const isSel = produtoTroca.some(p => p.nome === nome && p.variacao === label)
-                                const selQty = isSel ? (produtoTroca.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                                const isSel = produtoTroca.some(p => ehDoProduto(p, pid, nome) && p.variacao === label)
+                                const selQty = isSel ? (produtoTroca.find(p => ehDoProduto(p, pid, nome) && p.variacao === label)?.quantidade || 1) : 0
                                 if (isSel) {
                                   return (
                                     <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(p.nome === nome && p.variacao === label)) : f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === label)) : f.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
                                         style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>−</button>
                                       <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
-                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                      <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
                                         style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</button>
                                     </div>
                                   )
                                 }
                                 return (
                                   <div key={idx} role="button" tabIndex={0}
-                                    onClick={() => setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }])}
-                                    onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }]) }}
+                                    onClick={() => setProdutoTroca(f => [...f, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }])}
+                                    onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }]) }}
                                     style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, userSelect: 'none', border: '1px solid #D97706', background: isDark ? '#1a1000' : '#FFFBEB', color: '#D97706' }}>
                                     {label} <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: '#D9770680' }}>({qty})</span>
                                   </div>
@@ -781,23 +786,25 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {produtosFiltrados.map(nome => {
                 const pd = produtosData.find(p => p.nome === nome)
+                // Identidade do item = produto_id (etapa 2); nome só p/ item antigo sem id.
+                const pid = pd?.id
                 const vars = (pd?.variacoes || []).map(v => {
                   const label = getVarLabel(v)
                   return label ? { label, qty: Number(v.quantidade || 0) } : null
                 }).filter(Boolean)
                 const isSimples = vars.length === 1 && vars[0].label === 'Único'
                 const hasVars = vars.length > 0 && !isSimples
-                const selItems = form.produtos.filter(p => p.nome === nome)
+                const selItems = form.produtos.filter(p => ehDoProduto(p, pid, nome))
                 const selCount = selItems.reduce((sum, p) => sum + (p.quantidade || 1), 0)
                 const isOpen = expandedProd === nome
 
                 function toggleSimples() {
-                  const exists = form.produtos.find(p => p.nome === nome && p.variacao === 'Único')
+                  const exists = form.produtos.find(p => ehDoProduto(p, pid, nome) && p.variacao === 'Único')
                   setForm(f => ({
                     ...f,
                     produtos: exists
-                      ? f.produtos.filter(p => !(p.nome === nome && p.variacao === 'Único'))
-                      : [...f.produtos, { nome, variacao: 'Único', obs: '', quantidade: 1 }],
+                      ? f.produtos.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === 'Único'))
+                      : [...f.produtos, { produto_id: pid, nome, variacao: 'Único', obs: '', quantidade: 1 }],
                   }))
                 }
 
@@ -806,8 +813,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome)}
-                      onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome))}
+                      onClick={() => isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome, pid)}
+                      onKeyDown={e => e.key === 'Enter' && (isSimples ? toggleSimples() : hasVars ? setExpandedProd(prev => prev === nome ? null : nome) : toggleProd(nome, pid))}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 14px', cursor: 'pointer', userSelect: 'none',
@@ -851,9 +858,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                               onClick={e => {
                                 e.stopPropagation()
                                 if (selCount <= 1) {
-                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === 'Único')) }))
+                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === 'Único')) }))
                                 } else {
-                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade - 1 } : p) }))
                                 }
                               }}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
@@ -865,7 +872,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                               onClick={e => {
                                 e.stopPropagation()
                                 if (selCount < vars[0].qty) {
-                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === 'Único' ? { ...p, quantidade: p.quantidade + 1 } : p) }))
                                 }
                               }}
                               title={selCount >= vars[0].qty ? `Apenas ${vars[0].qty} em estoque` : undefined}
@@ -883,9 +890,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                               onClick={e => {
                                 e.stopPropagation()
                                 if (selCount <= 1) {
-                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => p.nome !== nome) }))
+                                  setForm(f => ({ ...f, produtos: f.produtos.filter(p => !ehDoProduto(p, pid, nome)) }))
                                 } else {
-                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
+                                  setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
                                 }
                               }}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
@@ -894,7 +901,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             <button
                               onClick={e => {
                                 e.stopPropagation()
-                                setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
+                                setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
                               }}
                               style={{ padding: '4px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
                             >+</button>
@@ -925,8 +932,8 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
-                            const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
-                            const selQty = isSel ? (form.produtos.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                            const isSel = form.produtos.some(p => ehDoProduto(p, pid, nome) && p.variacao === label)
+                            const selQty = isSel ? (form.produtos.find(p => ehDoProduto(p, pid, nome) && p.variacao === label)?.quantidade || 1) : 0
                             const esgotado = qty === 0 && !isSel
                             if (isSel) {
                               return (
@@ -941,9 +948,9 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                     onClick={e => {
                                       e.stopPropagation()
                                       if (selQty <= 1) {
-                                        setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                        setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === label)) }))
                                       } else {
-                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
                                       }
                                     }}
                                     style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
@@ -955,7 +962,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                                     onClick={e => {
                                       e.stopPropagation()
                                       if (selQty < qty) {
-                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                        setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
                                       }
                                     }}
                                     title={selQty >= qty ? `Apenas ${qty} em estoque` : undefined}
@@ -967,10 +974,10 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                             return (
                               <div key={idx} role="button" tabIndex={0}
                                 onClick={() => {
-                                  if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] }))
+                                  if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }] }))
                                 }}
                                 onKeyDown={e => {
-                                  if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] }))
+                                  if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }] }))
                                 }}
                                 style={{
                                   display: 'inline-flex', alignItems: 'center',
@@ -1002,7 +1009,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                         borderRadius: '0 0 14px 14px',
                         background: isDark ? '#1a1a1a' : '#f5f5f5',
                       }}>
-                        <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value)}
+                        <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value, pid)}
                           onClick={e => e.stopPropagation()} placeholder="Obs: cor, tamanho, modelo..."
                           style={{ ...inputBase, height: 40, fontSize: 13 }} onFocus={focusIn} onBlur={focusOut} />
                       </div>
