@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { checarTravaBalanco } from '../../utils/balanco'
 import { precisaDevolverEstoque, rpcAusente } from '../../utils/estoqueMov'
-import { aplicarEstoqueItens, criarBuscaPorNome, salvarVendaComEstoque, MOTIVOS_BLOQUEANTES } from '../../utils/baixaEstoque'
+import { aplicarEstoqueItens, criarBuscaPorId, criarBuscaPorNome, salvarVendaComEstoque, MOTIVOS_BLOQUEANTES } from '../../utils/baixaEstoque'
 import { buscarTodasAsLinhas } from '../../utils/supabasePaginacao'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
@@ -317,8 +317,10 @@ export function useLojaData(lojaId = 'estrada') {
    */
   async function aplicarEstoque(produtosItens, opts) {
     return aplicarEstoqueItens({
-      // Só produto ATIVO e limit(2) em vez de .maybeSingle() — ver
-      // criarBuscaPorNome (a duplicata inativa da Audaz não empata mais).
+      // Item com produto_id (etapa 2) vai direto pelo id; sem id (venda
+      // antiga), cai no nome — só produto ATIVO e limit(2), ver
+      // criarBuscaPorNome. Vale para baixa, troca, deleteVenda e pedidos.
+      buscarPorId:   criarBuscaPorId(supabase, lojaId),
       buscarPorNome: criarBuscaPorNome(supabase, lojaId),
       gravarVariacoes,
       registrarPendencia,

@@ -28,9 +28,10 @@ import { checarTravaBalanco } from '../../utils/balanco'
 import {
   montarInsertPrimeiroBipe, acrescentarBipe, removerLinha,
   variacaoParaRpc, parseErroEstoquePrevenda, mensagemErroEstoquePrevenda,
-  encontrarProdutoPorNome,
+  encontrarProdutoDoItem,
 } from '../../utils/prevenda'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
+import { ehDoProduto } from '../../utils/itemVenda'
 import MetasResultados from '../LojaFeminina/MetasResultados'
 import Fechamento from '../LojaFeminina/Fechamento'
 import Faturamento from '../LojaFeminina/Faturamento'
@@ -850,18 +851,20 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
     setForm(f => ({
       ...f,
       produtos: adicionarAoCarrinho(f.produtos, {
-        nome: achado.produto.nome, variacao: achado.rotulo,
+        produto_id: achado.produto.id, nome: achado.produto.nome, variacao: achado.rotulo,
       }),
     }))
     return { ok: true, texto: `${achado.produto.nome} · ${achado.rotulo}` }
   }
 
-  function toggleProd(nome) {
-    const exists = form.produtos.find(p => p.nome === nome && !p.variacao)
-    setForm({ ...form, produtos: exists ? form.produtos.filter(p => !(p.nome === nome && !p.variacao)) : [...form.produtos, { nome, obs: '', quantidade: 1 }] })
+  // pid = produto_id (etapa 2) — ver ehDoProduto (utils/itemVenda.js).
+  function toggleProd(nome, pid) {
+    const exists = form.produtos.find(p => ehDoProduto(p, pid, nome) && !p.variacao)
+    const novo = pid ? { produto_id: pid, nome, obs: '', quantidade: 1 } : { nome, obs: '', quantidade: 1 }
+    setForm({ ...form, produtos: exists ? form.produtos.filter(p => !(ehDoProduto(p, pid, nome) && !p.variacao)) : [...form.produtos, novo] })
   }
-  function setProdObs(nome, obs) {
-    setForm({ ...form, produtos: form.produtos.map(p => p.nome === nome ? { ...p, obs } : p) })
+  function setProdObs(nome, obs, pid) {
+    setForm({ ...form, produtos: form.produtos.map(p => ehDoProduto(p, pid, nome) ? { ...p, obs } : p) })
   }
   async function handleAddProd() {
     if (!newProd.trim()) return
@@ -1520,20 +1523,22 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
             <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 240, overflowY: 'auto' }}>
               {produtos.map(nome => {
                 const pd = produtosData.find(p => p.nome === nome)
+                // Identidade do item = produto_id (etapa 2); nome só p/ item antigo sem id.
+                const pid = pd?.id
                 const vars = (pd?.variacoes || []).map(v => {
                   const label = getVarLabel(v)
                   return label ? { label, qty: Number(v.quantidade || 0) } : null
                 }).filter(Boolean)
                 const hasVars = vars.length > 0
-                const selItems = produtoTroca.filter(p => p.nome === nome)
+                const selItems = produtoTroca.filter(p => ehDoProduto(p, pid, nome))
                 const selCount = selItems.reduce((s, p) => s + (p.quantidade || 1), 0)
                 const isOpen = varModalTroca === nome
                 return (
                   <div key={`td-${nome}`} style={{ marginBottom: 6 }}>
                     <div
                       role="button" tabIndex={0}
-                      onClick={() => hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome && !p.variacao) ? f.filter(p => !(p.nome === nome && !p.variacao)) : [...f, { nome, obs: '', quantidade: 1 }])}
-                      onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => p.nome === nome && !p.variacao) ? f.filter(p => !(p.nome === nome && !p.variacao)) : [...f, { nome, obs: '', quantidade: 1 }]))}
+                      onClick={() => hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => ehDoProduto(p, pid, nome) && !p.variacao) ? f.filter(p => !(ehDoProduto(p, pid, nome) && !p.variacao)) : [...f, { produto_id: pid, nome, obs: '', quantidade: 1 }])}
+                      onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModalTroca(prev => prev === nome ? null : nome) : setProdutoTroca(f => f.find(p => ehDoProduto(p, pid, nome) && !p.variacao) ? f.filter(p => !(ehDoProduto(p, pid, nome) && !p.variacao)) : [...f, { produto_id: pid, nome, obs: '', quantidade: 1 }]))}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '10px 14px', borderRadius: isOpen ? '10px 10px 0 0' : 10,
@@ -1551,10 +1556,10 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {!hasVars && selCount > 0 ? (
                           <div style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706' }}>
-                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(p.nome === nome && !p.variacao)) : f.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p)) }}
+                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selCount <= 1 ? f.filter(p => !(ehDoProduto(p, pid, nome) && !p.variacao)) : f.map(p => ehDoProduto(p, pid, nome) && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p)) }}
                               style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>−</button>
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{selCount}×</span>
-                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p)) }}
+                            <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => ehDoProduto(p, pid, nome) && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p)) }}
                               style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}>+</button>
                           </div>
                         ) : hasVars && selCount > 0 ? (
@@ -1568,23 +1573,23 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                         <p style={{ fontSize: 10, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {vars.map(({ label, qty }, idx) => {
-                            const isSel = produtoTroca.some(p => p.nome === nome && p.variacao === label)
-                            const selQty = isSel ? (produtoTroca.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                            const isSel = produtoTroca.some(p => ehDoProduto(p, pid, nome) && p.variacao === label)
+                            const selQty = isSel ? (produtoTroca.find(p => ehDoProduto(p, pid, nome) && p.variacao === label)?.quantidade || 1) : 0
                             if (isSel) {
                               return (
                                 <div key={idx} style={{ display: 'inline-flex', alignItems: 'center', borderRadius: 8, overflow: 'hidden', border: '1.5px solid #D97706', background: '#D97706', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(p.nome === nome && p.variacao === label)) : f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
+                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => selQty <= 1 ? f.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === label)) : f.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p)) }}
                                     style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>−</button>
                                   <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', padding: '0 2px' }}>{label} · {selQty}</span>
-                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
+                                  <button onClick={e => { e.stopPropagation(); setProdutoTroca(f => f.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p)) }}
                                     style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>+</button>
                                 </div>
                               )
                             }
                             return (
                               <div key={idx} role="button" tabIndex={0}
-                                onClick={() => setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }])}
-                                onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { nome, variacao: label, obs: label, quantidade: 1 }]) }}
+                                onClick={() => setProdutoTroca(f => [...f, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }])}
+                                onKeyDown={e => { if (e.key === 'Enter') setProdutoTroca(f => [...f, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }]) }}
                                 style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, userSelect: 'none', border: '1px solid #D97706', background: isDark ? '#1a1000' : '#FFFBEB', color: '#D97706' }}>
                                 {label} <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 400, color: '#D9770680' }}>({qty})</span>
                               </div>
@@ -1717,12 +1722,14 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
         }}>
           {produtosFiltrados.map(nome => {
             const pd = produtosData.find(p => p.nome === nome)
+            // Identidade do item = produto_id (etapa 2); nome só p/ item antigo sem id.
+            const pid = pd?.id
             const vars = (pd?.variacoes || []).map(v => {
               const label = getVarLabel(v)
               return label ? { label, qty: Number(v.quantidade || 0) } : null
             }).filter(Boolean)
             const hasVars = vars.length > 0
-            const selItems = form.produtos.filter(p => p.nome === nome)
+            const selItems = form.produtos.filter(p => ehDoProduto(p, pid, nome))
             const selCount = selItems.reduce((s, p) => s + (p.quantidade || 1), 0)
             const isOpen = varModal === nome
             return (
@@ -1731,8 +1738,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome)}
-                  onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome))}
+                  onClick={() => hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome, pid)}
+                  onKeyDown={e => e.key === 'Enter' && (hasVars ? setVarModal(prev => prev === nome ? null : nome) : toggleProd(nome, pid))}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '10px 14px',
@@ -1770,9 +1777,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                           onClick={e => {
                             e.stopPropagation()
                             if (selCount <= 1) {
-                              setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && !p.variacao)) }))
+                              setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(ehDoProduto(p, pid, nome) && !p.variacao)) }))
                             } else {
-                              setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
+                              setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) - 1 } : p) }))
                             }
                           }}
                           style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
@@ -1781,7 +1788,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                         <button
                           onClick={e => {
                             e.stopPropagation()
-                            setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
+                            setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && !p.variacao ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p) }))
                           }}
                           style={{ padding: '3px 8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 15, fontWeight: 700, lineHeight: 1 }}
                         >+</button>
@@ -1813,8 +1820,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                     <p style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#A07830' : '#9C8580', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8, fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Variações disponíveis</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {vars.map(({ label, qty }, idx) => {
-                        const isSel = form.produtos.some(p => p.nome === nome && p.variacao === label)
-                        const selQty = isSel ? (form.produtos.find(p => p.nome === nome && p.variacao === label)?.quantidade || 1) : 0
+                        const isSel = form.produtos.some(p => ehDoProduto(p, pid, nome) && p.variacao === label)
+                        const selQty = isSel ? (form.produtos.find(p => ehDoProduto(p, pid, nome) && p.variacao === label)?.quantidade || 1) : 0
                         const esgotado = qty === 0 && !isSel
                         if (isSel) {
                           return (
@@ -1828,9 +1835,9 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                                 onClick={e => {
                                   e.stopPropagation()
                                   if (selQty <= 1) {
-                                    setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(p.nome === nome && p.variacao === label)) }))
+                                    setForm(f => ({ ...f, produtos: f.produtos.filter(p => !(ehDoProduto(p, pid, nome) && p.variacao === label)) }))
                                   } else {
-                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
+                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade - 1 } : p) }))
                                   }
                                 }}
                                 style={{ padding: '5px 9px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 700, lineHeight: 1 }}
@@ -1842,7 +1849,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                                 onClick={e => {
                                   e.stopPropagation()
                                   if (selQty < qty) {
-                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => p.nome === nome && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
+                                    setForm(f => ({ ...f, produtos: f.produtos.map(p => ehDoProduto(p, pid, nome) && p.variacao === label ? { ...p, quantidade: p.quantidade + 1 } : p) }))
                                   }
                                 }}
                                 title={selQty >= qty ? `Apenas ${qty} em estoque` : undefined}
@@ -1853,8 +1860,8 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                         }
                         return (
                           <div key={idx} role="button" tabIndex={0}
-                            onClick={() => { if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] })) }}
-                            onKeyDown={e => { if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { nome, variacao: label, obs: label, quantidade: 1 }] })) }}
+                            onClick={() => { if (!esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }] })) }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !esgotado) setForm(f => ({ ...f, produtos: [...f.produtos, { produto_id: pid, nome, variacao: label, obs: label, quantidade: 1 }] })) }}
                             style={{
                               display: 'inline-flex', alignItems: 'center',
                               padding: '5px 12px', borderRadius: 8,
@@ -1879,7 +1886,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
                 {/* Campo obs para produtos sem variação */}
                 {!hasVars && selCount > 0 && (
                   <div style={{ paddingTop: 6 }}>
-                    <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value)}
+                    <input value={selItems[0]?.obs || ''} onChange={e => setProdObs(nome, e.target.value, pid)}
                       placeholder="Obs: cor, tamanho..." style={{ ...inputS, height: 36, fontSize: 13 }} onFocus={fo} onBlur={onB} />
                   </div>
                 )}
@@ -1992,6 +1999,7 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
       if (!vendaId) {
         const payload = montarInsertPrimeiroBipe({
           lojaId: LOJA_ID,
+          produtoId: achado.produto.id,
           nome: achado.produto.nome,
           rotulo: achado.rotulo,
           clienteNome,
@@ -2009,7 +2017,7 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
         setVendaId(venda.id)
         setItens(payload.produtos)
       } else {
-        const { produtos, valor: valorNovo } = acrescentarBipe(itens, { nome: achado.produto.nome, variacao: achado.rotulo }, produtosData)
+        const { produtos, valor: valorNovo } = acrescentarBipe(itens, { produto_id: achado.produto.id, nome: achado.produto.nome, variacao: achado.rotulo }, produtosData)
         const erroUpdate = await updateVenda(vendaId, { produtos, valor: valorNovo })
         if (erroUpdate) {
           await supabase.rpc('restaurar_item_prevenda', {
@@ -2032,7 +2040,7 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
       const { produtos, valor: valorNovo, item, ficouVazia } = removerLinha(itens, indice, produtosData)
       if (!item) return
 
-      const produto = encontrarProdutoPorNome(produtosData, item.nome)
+      const produto = encontrarProdutoDoItem(produtosData, item)
       if (produto) {
         const vezes = Math.max(1, Number(item.quantidade) || 1)
         for (let i = 0; i < vezes; i++) {

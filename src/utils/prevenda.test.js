@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  encontrarProdutoDoItem,
   parseErroEstoquePrevenda, mensagemErroEstoquePrevenda, variacaoParaRpc,
   montarInsertPrimeiroBipe, acrescentarBipe, removerLinha,
   itensParaRestaurar, encontrarProdutoPorNome,
@@ -226,5 +227,29 @@ describe('encontrarProdutoPorNome', () => {
   it('produtosData vazio/null não quebra', () => {
     expect(encontrarProdutoPorNome([], 'X')).toBeNull()
     expect(encontrarProdutoPorNome(null, 'X')).toBeNull()
+  })
+})
+
+// ── Etapa 2: produto_id na pré-venda ───────────────────────────────────────
+describe('pré-venda com produto_id', () => {
+  const produtosData = [{ id: 'a', nome: 'SHORT', preco_venda: 40 }, { id: 'b', nome: 'SHORT', preco_venda: 60 }]
+  it('primeiro bipe grava produto_id no item', () => {
+    const r = montarInsertPrimeiroBipe({ lojaId: 'l', produtoId: 'b', nome: 'SHORT', rotulo: 'M', produtosData })
+    expect(r.produtos).toEqual([{ produto_id: 'b', nome: 'SHORT', variacao: 'M', obs: '', quantidade: 1 }])
+    expect(r.valor).toBe(60)   // preço do produto CERTO, não o primeiro de mesmo nome
+  })
+  it('bipe seguinte do mesmo id soma; outro id de mesmo nome vira linha nova', () => {
+    const base = [{ produto_id: 'b', nome: 'SHORT', variacao: 'M', obs: '', quantidade: 1 }]
+    expect(acrescentarBipe(base, { produto_id: 'b', nome: 'SHORT', variacao: 'M' }, produtosData).produtos).toHaveLength(1)
+    expect(acrescentarBipe(base, { produto_id: 'a', nome: 'SHORT', variacao: 'M' }, produtosData).produtos).toHaveLength(2)
+  })
+  it('itensParaRestaurar leva o produto_id adiante', () => {
+    expect(itensParaRestaurar([{ produto_id: 'b', nome: 'SHORT', variacao: 'M', quantidade: 2 }]))
+      .toEqual([{ produto_id: 'b', nome: 'SHORT', variacao: 'M', vezes: 2 }])
+  })
+  it('encontrarProdutoDoItem: pelo id; sem id, pelo nome', () => {
+    expect(encontrarProdutoDoItem(produtosData, { produto_id: 'b', nome: 'SHORT' }).id).toBe('b')
+    expect(encontrarProdutoDoItem(produtosData, { nome: 'SHORT' }).id).toBe('a')
+    expect(encontrarProdutoDoItem(produtosData, { produto_id: 'zz', nome: 'SHORT' })).toBeNull()
   })
 })

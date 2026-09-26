@@ -186,7 +186,9 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
       // normalizarItensEstoque (utils/estoqueMov.js) descarta todo item que
       // não tenha esse campo, e era por isso que o PDV do Mercado vendia sem
       // nunca mexer no estoque — 14 vendas reais, zero movimento 'venda'.
-      produtos: cart.map(i => ({ nome: i.nome, quantidade: i.quantidade, variacao: i.variacao || 'Único' })),
+      // produto_id: o carrinho sempre teve o id (addToCart); antes era
+      // descartado aqui e a baixa caía na busca por nome.
+      produtos: cart.map(i => ({ produto_id: i.id, nome: i.nome, quantidade: i.quantidade, variacao: i.variacao || 'Único' })),
       obs: pgto === 'Fiado' ? `Fiado — ${nomeFiado}` : null,
       data: new Date().toISOString(),
     })

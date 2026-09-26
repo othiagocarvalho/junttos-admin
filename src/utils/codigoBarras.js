@@ -31,6 +31,8 @@
 // sempre foi um UPDATE direto do jsonb que o client manda, sem reconstruir
 // nada, então nunca foi ele quem ameaçava apagar a chave.
 
+import { mesmoItem } from './itemVenda'
+
 /** Chaves de controle dentro de uma variação; o resto é o rótulo. */
 const CHAVES_CONTROLE = new Set(['quantidade', 'custo', 'codigo'])
 
@@ -207,16 +209,21 @@ export function pareceLeitura(intervalosMs, limiteMs = 35) {
  * Acrescenta a variação bipada ao carrinho da Nova Venda.
  *
  * Formato do item igual ao que toggleProd já usa em NovaVenda.jsx:
- * `{ nome, variacao, obs, quantidade }`. Bipar duas vezes a mesma peça soma
+ * `{ produto_id, nome, variacao, obs, quantidade }`. Bipar duas vezes a mesma peça soma
  * quantidade em vez de criar linha repetida — é o comportamento esperado de
  * quem passa três peças iguais no leitor.
  *
  * Devolve uma lista NOVA; não muta a recebida.
  */
-export function adicionarAoCarrinho(itens, { nome, variacao }) {
+export function adicionarAoCarrinho(itens, { produto_id, nome, variacao }) {
   const lista = Array.isArray(itens) ? itens : []
-  const mesma = p => p.nome === nome && (p.variacao ?? null) === (variacao ?? null)
-  const i = lista.findIndex(mesma)
-  if (i === -1) return [...lista, { nome, variacao, obs: '', quantidade: 1 }]
-  return lista.map((p, j) => (j === i ? { ...p, quantidade: (p.quantidade || 1) + 1 } : p))
+  const novo = produto_id
+    ? { produto_id, nome, variacao, obs: '', quantidade: 1 }
+    : { nome, variacao, obs: '', quantidade: 1 }
+  // Mesma linha = mesmo produto (pelo id quando os dois têm) + mesma variação.
+  const i = lista.findIndex(p => mesmoItem(p, novo))
+  if (i === -1) return [...lista, novo]
+  return lista.map((p, j) => (j === i
+    ? { ...p, ...(produto_id && !p.produto_id ? { produto_id } : {}), quantidade: (p.quantidade || 1) + 1 }
+    : p))
 }

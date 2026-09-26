@@ -57,22 +57,52 @@ export function labelsDeVariacoes(produto) {
  */
 export function normalizarItensEstoque(produtos) {
   return (produtos || [])
-    .filter(p => p && p.variacao)
-    .map(p => ({
-      nome: p.nome,
-      variacao: p.variacao,
-      quantidade: Number(p.quantidade ?? p.qtd) || 1,
-    }))
+    .filter(Boolean)
+    .map(p => {
+      const item = {
+        nome: p.nome,
+        variacao: rotuloEstoqueDoItem(p),
+        quantidade: Number(p.quantidade ?? p.qtd) || 1,
+      }
+      // produto_id (etapa 2): identidade do produto, preservada para a baixa
+      // ir direto pelo id. Só entra quando existe — item antigo segue igual.
+      if (p.produto_id) item.produto_id = p.produto_id
+      return item
+    })
+    .filter(i => i.variacao)
 }
 
-/** Agrupa itens normalizados por nome de produto. */
+/**
+ * Rótulo da variação que MEXEU no estoque.
+ * lf_pedidos.produtos (criar_pedido_catalogo) grava `cor` = o rótulo que a
+ * RPC decrementou e `variacao` = texto de exibição "Cor / Tamanho". Devolver
+ * pelo `variacao` não achava a variação quando havia tamanho. Por isso, item
+ * de pedido (tem produto_id E a chave `cor`) usa `cor`; o resto usa
+ * `variacao`, como sempre.
+ */
+export function rotuloEstoqueDoItem(p) {
+  if (!p) return null
+  if (p.produto_id && Object.prototype.hasOwnProperty.call(p, 'cor')) return p.cor || null
+  return p.variacao || null
+}
+
+/**
+ * Agrupa itens normalizados por PRODUTO: pelo produto_id quando o item tem,
+ * pelo nome quando não tem (vendas antigas). O nome do grupo continua sendo o
+ * nome do item — é o que aparece em aviso/pendência.
+ */
 export function agruparPorNome(itens) {
   const grupos = new Map()
   for (const item of itens || []) {
-    if (!grupos.has(item.nome)) grupos.set(item.nome, [])
-    grupos.get(item.nome).push(item)
+    const chave = item.produto_id ? `id:${item.produto_id}` : `nome:${item.nome}`
+    if (!grupos.has(chave)) {
+      grupos.set(chave, item.produto_id
+        ? { nome: item.nome, produto_id: item.produto_id, itens: [] }
+        : { nome: item.nome, itens: [] })
+    }
+    grupos.get(chave).itens.push(item)
   }
-  return [...grupos.entries()].map(([nome, lista]) => ({ nome, itens: lista }))
+  return [...grupos.values()]
 }
 
 /** Filtra as linhas do extrato por variação. label vazio/nulo = todas. */

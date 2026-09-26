@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  adicionarAoCarrinho,
   rotuloVariacao, codigoDaVariacao, normalizarCodigo, CODIGO_DIGITOS,
   etiquetasDoProduto, etiquetasDeProdutos, buscarPorCodigo, pareceLeitura,
   codigoEfetivo,
@@ -269,5 +270,29 @@ describe('pareceLeitura', () => {
   it('sem amostra não arrisca', () => {
     expect(pareceLeitura([])).toBe(false)
     expect(pareceLeitura(null)).toBe(false)
+  })
+})
+
+// ── Etapa 2: adicionarAoCarrinho compara por produto_id ────────────────────
+describe('adicionarAoCarrinho com produto_id', () => {
+  it('grava produto_id no item novo', () => {
+    expect(adicionarAoCarrinho([], { produto_id: 'a', nome: 'X', variacao: 'M' }))
+      .toEqual([{ produto_id: 'a', nome: 'X', variacao: 'M', obs: '', quantidade: 1 }])
+  })
+  it('mesmo id + variação soma quantidade', () => {
+    const l = adicionarAoCarrinho(adicionarAoCarrinho([], { produto_id: 'a', nome: 'X', variacao: 'M' }), { produto_id: 'a', nome: 'X', variacao: 'M' })
+    expect(l).toHaveLength(1)
+    expect(l[0].quantidade).toBe(2)
+  })
+  it('MESMO NOME, ids diferentes → linhas separadas (não mistura as duplicatas)', () => {
+    const l = adicionarAoCarrinho(adicionarAoCarrinho([], { produto_id: 'a', nome: 'SHORT', variacao: 'M' }), { produto_id: 'b', nome: 'SHORT', variacao: 'M' })
+    expect(l.map(i => i.produto_id)).toEqual(['a', 'b'])
+  })
+  it('item antigo sem id (rascunho) + bipe do mesmo produto → soma e ganha o id', () => {
+    const l = adicionarAoCarrinho([{ nome: 'X', variacao: 'M', obs: '', quantidade: 1 }], { produto_id: 'a', nome: 'X', variacao: 'M' })
+    expect(l).toEqual([{ nome: 'X', variacao: 'M', obs: '', quantidade: 2, produto_id: 'a' }])
+  })
+  it('sem id continua como sempre (nome + variação)', () => {
+    expect(adicionarAoCarrinho([], { nome: 'X', variacao: 'M' })).toEqual([{ nome: 'X', variacao: 'M', obs: '', quantidade: 1 }])
   })
 })

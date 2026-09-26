@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
-  aplicarEstoqueItens, criarBuscaPorNome, resolverProduto, itensSemVariacao,
+  aplicarEstoqueItens, criarBuscaPorId, criarBuscaPorNome, resolverProduto, itensSemVariacao,
   salvarVendaComEstoque, textoAvisoEstoque, descreverFalha,
   MOTIVOS_FALHA, MOTIVOS_BLOQUEANTES,
 } from './baixaEstoque'
@@ -47,7 +47,8 @@ function montar(produtos, { erroBusca, erroGravacao, pendenciaQuebra } = {}) {
   const gravados = []
   const pendencias = []
   const deps = {
-    buscarPorNome: criarBuscaPorNome(sb, LOJA),
+    buscarPorId: vi.fn(criarBuscaPorId(sb, LOJA)),
+    buscarPorNome: vi.fn(criarBuscaPorNome(sb, LOJA)),
     gravarVariacoes: vi.fn(async (id, variacoes, ctx) => {
       if (erroGravacao) return erroGravacao
       gravados.push({ id, variacoes, ctx })
@@ -277,5 +278,88 @@ describe('resolverProduto / itensSemVariacao', () => {
     const vars = [{ codigo: '789', cor: 'AZUL', quantidade: 1 }, { tamanho: 38, quantidade: 1 }]
     expect(itensSemVariacao(vars, [{ variacao: 'AZUL' }, { variacao: '38' }, { variacao: 'VERDE' }]))
       .toEqual([{ variacao: 'VERDE' }])
+  })
+})
+
+// ── Etapa 2: produto_id é o caminho principal ──────────────────────────────
+const itemId = (produto_id, nome, variacao, quantidade = 1) => ({ produto_id, nome, variacao, quantidade, obs: '' })
+
+describe('aplicarEstoqueItens — item com produto_id', () => {
+  it('query por id: loja + id, limit(1), SEM filtro de ativo', async () => {
+    const { sb, chamadas } = fakeSupabase([prod('a', 'X', [])])
+    await criarBuscaPorId(sb, LOJA)('a')
+    expect(chamadas).toEqual([['from', 'lf_produtos'], ['eq', 'loja_id', LOJA], ['eq', 'id', 'a'], ['limit', 1]])
+  })
+
+  it('vai direto pelo id e IGNORA o nome — mesmo desatualizado', async () => {
+    const m = montar([
+      prod('p1', 'SHORT LISTRADO', cores(['AZUL M', 10])),         // renomeado depois da venda
+      prod('p2', 'NOME ANTIGO', cores(['AZUL M', 50])),            // outro produto com o nome velho
+    ])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('p1', 'NOME ANTIGO', 'AZUL M', 2)], BAIXA)
+    expect(falhas).toEqual([])
+    expect(m.deps.buscarPorNome).not.toHaveBeenCalled()
+    expect(m.gravados).toHaveLength(1)
+    expect(m.gravados[0]).toMatchObject({ id: 'p1', variacoes: cores(['AZUL M', 8]) })
+  })
+
+  it('duplicata por nome NÃO atrapalha quem tem id (o caso Short Listrado)', async () => {
+    const m = montar([
+      prod('p1', 'SHORT LISTRADO', cores(['ROSA LISTRADO', 0])),
+      prod('p2', 'SHORT LISTRADO', cores(['AZUL M', 10])),
+    ])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('p2', 'SHORT LISTRADO', 'AZUL M')], BAIXA)
+    expect(falhas).toEqual([])
+    expect(m.gravados[0]).toMatchObject({ id: 'p2', variacoes: cores(['AZUL M', 9]) })
+  })
+
+  it('produto_id que NÃO existe mais (apagado) → falha visível, sem cair no nome', async () => {
+    const m = montar([prod('outro', 'SHORT LISTRADO ROSA', cores(['ROSA LISTRADO', 5]))])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('apagado', 'SHORT LISTRADO ROSA', 'ROSA LISTRADO')], BAIXA)
+    expect(falhas).toHaveLength(1)
+    expect(falhas[0]).toMatchObject({ motivo: 'produto_nao_encontrado', detalhe: { produto_id: 'apagado' } })
+    expect(m.deps.buscarPorNome).not.toHaveBeenCalled()
+    expect(m.gravados).toEqual([])
+    expect(m.pendencias[0]).toMatchObject({ motivo: 'produto_nao_encontrado', detalhe: { produto_id: 'apagado' } })
+  })
+
+  it('pelo id, produto DESATIVADO depois da venda ainda recebe a devolução', async () => {
+    const m = montar([prod('p', 'VESTIDO', cores(['AZUL', 1]), { ativo: false })])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('p', 'VESTIDO', 'AZUL')], { ...BAIXA, modo: 'restauro', tipo: 'devolucao' })
+    expect(falhas).toEqual([])
+    expect(m.gravados[0].variacoes).toEqual(cores(['AZUL', 2]))
+  })
+
+  it('variação inexistente continua falha visível também pelo id', async () => {
+    const m = montar([prod('p', 'VESTIDO', cores(['AZUL', 3]))])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('p', 'VESTIDO', 'VERDE')], BAIXA)
+    expect(falhas[0]).toMatchObject({ motivo: 'variacao_nao_encontrada', detalhe: { produto_id: 'p' } })
+  })
+
+  it('venda mista (item novo com id + item antigo sem id): cada um pelo seu caminho', async () => {
+    const m = montar([prod('p1', 'VESTIDO', cores(['AZUL', 3])), prod('p2', 'SAIA', cores(['P', 3]))])
+    const falhas = await aplicarEstoqueItens(m.deps, [itemId('p1', 'VESTIDO', 'AZUL'), { nome: 'SAIA', variacao: 'P', quantidade: 1 }], BAIXA)
+    expect(falhas).toEqual([])
+    expect(m.deps.buscarPorId).toHaveBeenCalledWith('p1')
+    expect(m.deps.buscarPorNome).toHaveBeenCalledWith('SAIA')
+    expect(m.gravados.map(g => g.id).sort()).toEqual(['p1', 'p2'])
+  })
+
+  it('pedido do catálogo: usa `cor` (o que a RPC baixou), não "Cor / Tamanho"', async () => {
+    const m = montar([prod('p', 'CONJUNTO', cores(['AZUL', 2]))])
+    const itemPedido = { produto_id: 'p', nome: 'CONJUNTO', cor: 'AZUL', variacao: 'AZUL / M', qtd: 1, preco: 90 }
+    const falhas = await aplicarEstoqueItens(m.deps, [itemPedido], { modo: 'restauro', tipo: 'devolucao', origemTipo: 'pedido', origemId: 'ped1' })
+    expect(falhas).toEqual([])
+    expect(m.gravados[0].variacoes).toEqual(cores(['AZUL', 3]))
+  })
+
+  it('salvarVendaComEstoque com itens de id: venda salva e baixa pelo id', async () => {
+    const m = montar([prod('p1', 'SHORT LISTRADO', cores(['AZUL M', 10])), prod('p2', 'SHORT LISTRADO', cores(['ROSA', 1]))])
+    const r = await salvarVendaComEstoque({
+      inserir: async () => ({ data: { id: 'v9' }, error: null }),
+      aplicar: (i, o) => aplicarEstoqueItens(m.deps, i, o),
+    }, { produtos: [itemId('p1', 'SHORT LISTRADO', 'AZUL M')] })
+    expect(r.falhasEstoque).toEqual([])
+    expect(m.gravados[0]).toMatchObject({ id: 'p1', variacoes: cores(['AZUL M', 9]), ctx: { origemId: 'v9' } })
   })
 })

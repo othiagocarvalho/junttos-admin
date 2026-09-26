@@ -1,3 +1,5 @@
+import { produtoDoItem } from './itemVenda'
+
 export function decrementarVariacoes(variacoes, itens) {
   const qtdPorVariacao = {}
   itens.forEach(item => {
@@ -34,7 +36,9 @@ export function restaurarVariacoes(variacoes, itens) {
 
 export function calcularTotalVenda(itens, produtosData) {
   return itens.reduce((sum, item) => {
-    const pd = produtosData.find(p => p.nome === item.nome)
+    // Pelo produto_id quando o item tem (dois produtos podem ter o mesmo nome
+    // com preços diferentes); pelo nome no item antigo.
+    const pd = produtoDoItem(produtosData, item)
     const preco = Number(pd?.preco_venda || 0)
     const qty = Number(item.quantidade || 1)
     return sum + preco * qty
