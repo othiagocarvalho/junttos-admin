@@ -170,6 +170,26 @@ export function encontrarProdutoPorNome(produtosData, nome) {
 }
 
 /**
+ * Finaliza uma pré-venda: vira venda 'completa' e, SÓ depois disso dar certo,
+ * a cliente entra em lf_clientes pelo mesmo caminho da Nova Venda
+ * (sincronizarClienteVenda → utils/clienteVenda.js) — cria uma vez, ou
+ * completa o telefone de quem já existe, sem duplicar. Pré-venda cancelada
+ * nunca passa por aqui, então nunca cadastra ninguém.
+ *
+ * A bipagem não tem campo de aniversário: vai só nome + telefone.
+ * Falha na sincronização é silenciosa (a própria função engole) e não
+ * desfaz a finalização.
+ *
+ * @returns o erro de updateVenda (null/undefined quando deu certo).
+ */
+export async function finalizarPreVenda({ updateVenda, sincronizarClienteVenda }, preVenda, forma_pgto) {
+  const erro = await updateVenda(preVenda.id, { status: 'completa', forma_pgto })
+  if (erro) return erro
+  await sincronizarClienteVenda?.({ nome: preVenda.cliente_nome, telefone: preVenda.cliente_tel })
+  return null
+}
+
+/**
  * Produto de um item de pré-venda: pelo produto_id quando o item tem (etapa
  * 2 — sem ambiguidade de nome repetido), pelo nome quando não tem (pré-venda
  * bipada antes). null = saiu do catálogo; quem chama segue sem restaurar,

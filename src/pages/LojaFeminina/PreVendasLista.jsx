@@ -28,7 +28,7 @@ import Chip, { ChipRow } from '../../components/studio/Chip'
 import EmptyState from '../../components/studio/EmptyState'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { fmtR } from '../../utils/formatters'
-import { itensParaRestaurar, variacaoParaRpc, encontrarProdutoDoItem } from '../../utils/prevenda'
+import { itensParaRestaurar, variacaoParaRpc, encontrarProdutoDoItem, finalizarPreVenda } from '../../utils/prevenda'
 
 const STATUS_MAP = {
   aguardando_pagamento: { label: 'Aguardando pagamento', tone: 'warn' },
@@ -50,7 +50,7 @@ function iniciais(nome) {
   return (nome || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-export default function PreVendasLista({ vendas = [], produtosData = [], updateVenda, LOJA_ID = '', theme, onNovaPreVenda }) {
+export default function PreVendasLista({ vendas = [], produtosData = [], updateVenda, sincronizarClienteVenda, LOJA_ID = '', theme, onNovaPreVenda }) {
   const [filtro, setFiltro] = useState('aguardando_pagamento')
   const [busca, setBusca] = useState('')
   const [expandido, setExpandido] = useState(null)
@@ -109,7 +109,9 @@ export default function PreVendasLista({ vendas = [], produtosData = [], updateV
       })))
       // Só status + forma_pgto — o estoque já foi resolvido na bipagem
       // (fix_prevenda_schema.sql), nenhuma chamada a bipar/restaurar aqui.
-      const erro = await updateVenda(finalizando.id, { status: 'completa', forma_pgto })
+      // Com a venda confirmada, a cliente entra em lf_clientes pelo mesmo
+      // caminho da Nova Venda — ver finalizarPreVenda (utils/prevenda.js).
+      const erro = await finalizarPreVenda({ updateVenda, sincronizarClienteVenda }, finalizando, forma_pgto)
       if (erro) { setErroAcao('Não foi possível finalizar agora. Tente de novo.'); return }
       setFinalizando(null)
     } finally {
