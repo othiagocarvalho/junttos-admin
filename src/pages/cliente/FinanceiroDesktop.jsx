@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Label } from '../../components/studio/Input'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle, RefreshCw } from 'lucide-react'
+import { Plus, X, Check, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, BarChart2, Wallet, FileText, Receipt, AlertCircle, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas } from '../../utils/financeiro'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas, contasVisiveis } from '../../utils/financeiro'
+import { excluirConta, desfazerQuitacao } from '../../utils/acoesConta'
+import DialogoExcluirConta from '../../components/financeiro/DialogoExcluirConta'
 import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import { StatGrid } from '../../components/studio/StatCard'
@@ -22,6 +24,18 @@ const STATUS_META = {
   recebido: { tone: 'ok',   label: 'Recebido' },
   pendente: { tone: 'warn', label: 'Pendente' },
   atrasado: { tone: 'bad',  label: 'Atrasado' },
+}
+
+// Lixeira e "desfazer" dos cards — ver utils/acoesConta.js.
+const btnLixeira = {
+  width: 34, height: 34, flexShrink: 0, borderRadius: 'var(--r-input)',
+  border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--muted)',
+  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+}
+const btnDesfazer = {
+  display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', flexShrink: 0,
+  borderRadius: 'var(--r-input)', border: '1px solid var(--line)', background: 'var(--surface)',
+  color: 'var(--muted)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700,
 }
 
 const inp = { width: '100%', height: 44, boxSizing: 'border-box', background: 'var(--bg)', border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 14px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 14, color: 'var(--ink)', outline: 'none' }
@@ -65,6 +79,11 @@ function ContasPagarPane({ lojaId, theme }) {
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pagandoId, setPagandoId] = useState(null)
+  const [excluindo, setExcluindo] = useState(null)       // conta no diálogo de exclusão
+  const [processandoExclusao, setProcessandoExclusao] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState('')
+  const [desfazendoId, setDesfazendoId] = useState(null)
+  const [erroAcao, setErroAcao] = useState('')
   const [form, setForm] = useState({ descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '', recorrente: false, frequencia: 'mensal' })
 
   const load = useCallback(async () => {
@@ -77,7 +96,8 @@ function ContasPagarPane({ lojaId, theme }) {
     const novos = (todasRegras || []).filter(r => r.ativa).flatMap(r => gerarLancamentosFaltantes(r, lancRec || []))
     if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
     const { data } = await supabase.from('lf_contas_pagar').select('*').eq('loja_id', lojaId).order('data_vencimento')
-    setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
+    // Parcela cancelada ("Só esta parcela") não aparece nem entra nos totais.
+    setContas(contasVisiveis(data).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
     setLoading(false)
   }, [lojaId])
 
@@ -114,6 +134,25 @@ function ContasPagarPane({ lojaId, theme }) {
 
   async function handleToggleRegra(id, ativa) {
     await supabase.from('lf_recorrencias').update({ ativa: !ativa }).eq('id', id).eq('loja_id', lojaId)
+    load()
+  }
+
+  async function handleExcluir(opcao) {
+    setProcessandoExclusao(true)
+    setErroExclusao('')
+    const r = await excluirConta(supabase, { tipo: 'pagar', conta: excluindo, lojaId, opcao })
+    setProcessandoExclusao(false)
+    if (!r.ok) { setErroExclusao(r.erro); return }
+    setExcluindo(null)
+    load()
+  }
+
+  async function handleDesfazer(conta) {
+    setDesfazendoId(conta.id)
+    setErroAcao('')
+    const r = await desfazerQuitacao(supabase, { tipo: 'pagar', conta, lojaId })
+    setDesfazendoId(null)
+    if (!r.ok) setErroAcao(r.erro)
     load()
   }
 
@@ -196,15 +235,34 @@ function ContasPagarPane({ lojaId, theme }) {
                   </p>
                 </div>
                 <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)', flexShrink: 0 }}>{fmtR(c.valor)}</p>
-                {c._status !== 'pago' && (
+                {c._status !== 'pago' ? (
                   <button onClick={() => handlePagar(c.id)} disabled={pagandoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 'var(--r-input)', border: 'none', background: pagandoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                     <Check size={12} /> {pagandoId === c.id ? '...' : 'Pago'}
                   </button>
+                ) : (
+                  <button onClick={() => handleDesfazer(c)} disabled={desfazendoId === c.id} title="Voltar esta conta para pendente" style={btnDesfazer}>
+                    <Undo2 size={12} /> {desfazendoId === c.id ? '...' : 'Desfazer pagamento'}
+                  </button>
                 )}
+                <button onClick={() => { setErroExclusao(''); setExcluindo(c) }} aria-label={`Excluir ${c.descricao}`} title="Excluir conta" style={btnLixeira}>
+                  <Trash2 size={14} />
+                </button>
               </div>
             )
           })}
         </div>
+      )}
+
+      {erroAcao && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--negative)', marginTop: 12 }}>{erroAcao}</p>}
+
+      {excluindo && (
+        <DialogoExcluirConta
+          conta={excluindo}
+          processando={processandoExclusao}
+          erro={erroExclusao}
+          onCancelar={() => setExcluindo(null)}
+          onConfirmar={handleExcluir}
+        />
       )}
 
       {showModal && (
@@ -250,6 +308,11 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
   const [saving, setSaving] = useState(false)
   const [recebendoId, setRecebendoId] = useState(null)
   const [toast, setToast] = useState('')
+  const [excluindo, setExcluindo] = useState(null)
+  const [processandoExclusao, setProcessandoExclusao] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState('')
+  const [desfazendoId, setDesfazendoId] = useState(null)
+  const [erroAcao, setErroAcao] = useState('')
   const [form, setForm] = useState({ descricao: '', cliente_nome: '', origem: 'outro', valor: '', data_vencimento: '', observacoes: '' })
 
   const load = useCallback(async () => {
@@ -283,6 +346,25 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
     setRecebendoId(id)
     await supabase.from('lf_contas_receber').update({ status: 'recebido', data_recebimento: new Date().toISOString().slice(0, 10) }).eq('id', id).eq('loja_id', lojaId)
     setRecebendoId(null)
+    load()
+  }
+
+  async function handleExcluir(opcao) {
+    setProcessandoExclusao(true)
+    setErroExclusao('')
+    const r = await excluirConta(supabase, { tipo: 'receber', conta: excluindo, lojaId, opcao })
+    setProcessandoExclusao(false)
+    if (!r.ok) { setErroExclusao(r.erro); return }
+    setExcluindo(null)
+    load()
+  }
+
+  async function handleDesfazer(conta) {
+    setDesfazendoId(conta.id)
+    setErroAcao('')
+    const r = await desfazerQuitacao(supabase, { tipo: 'receber', conta, lojaId })
+    setDesfazendoId(null)
+    if (!r.ok) setErroAcao(r.erro)
     load()
   }
 
@@ -364,16 +446,38 @@ function ContasReceberPane({ lojaId, crediarios, theme }) {
                     </button>
                   )
                 ) : (
-                  c._status !== 'recebido' && (
-                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 'var(--r-input)', border: 'none', background: recebendoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                      <Check size={12} /> {recebendoId === c.id ? '...' : 'Recebido'}
+                  <>
+                    {c._status !== 'recebido' ? (
+                      <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 'var(--r-input)', border: 'none', background: recebendoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        <Check size={12} /> {recebendoId === c.id ? '...' : 'Recebido'}
+                      </button>
+                    ) : (
+                      <button onClick={() => handleDesfazer(c)} disabled={desfazendoId === c.id} title="Voltar esta conta para pendente" style={btnDesfazer}>
+                        <Undo2 size={12} /> {desfazendoId === c.id ? '...' : 'Desfazer recebimento'}
+                      </button>
+                    )}
+                    {/* Crediário tem fluxo próprio — lixeira só na conta manual. */}
+                    <button onClick={() => { setErroExclusao(''); setExcluindo(c) }} aria-label={`Excluir ${c.descricao}`} title="Excluir conta" style={btnLixeira}>
+                      <Trash2 size={14} />
                     </button>
-                  )
+                  </>
                 )}
               </div>
             )
           })}
         </div>
+      )}
+
+      {erroAcao && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--negative)', marginTop: 12 }}>{erroAcao}</p>}
+
+      {excluindo && (
+        <DialogoExcluirConta
+          conta={excluindo}
+          processando={processandoExclusao}
+          erro={erroExclusao}
+          onCancelar={() => setExcluindo(null)}
+          onConfirmar={handleExcluir}
+        />
       )}
 
       {showModal && (

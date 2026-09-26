@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ChevronLeft, Check, Delete, MessageCircle } from 'lucide-react'
 import {
   diaISO, resumoCaixa, participacao, conferirContagem, jaFechado,
-  contasDeAmanha, urgenciaConta, COR_URGENCIA,
+  contasDeAmanha, contasEmAberto, urgenciaConta, COR_URGENCIA,
 } from '../../utils/caixa'
 import { fmtDiaMes } from '../../utils/datas'
 import { fmtR } from '../../utils/formatters'
@@ -540,7 +540,8 @@ export default function Caixa({
 
   const resumo   = useMemo(() => resumoCaixa(vendas, saidas, hoje), [vendas, saidas, hoje])
   const fechado  = useMemo(() => jaFechado(caixas, hoje), [caixas, hoje])
-  const doDiaContas = useMemo(() => (contas || []).filter(c => c?.status !== 'pago'), [contas])
+  // Em aberto = nem paga nem cancelada ("Só esta parcela" no Financeiro).
+  const doDiaContas = useMemo(() => contasEmAberto(contas), [contas])
   const amanha   = useMemo(() => contasDeAmanha(contas), [contas])
 
   const contadoNum = contado ? Number(contado.replace(',', '.')) : ''

@@ -1,3 +1,5 @@
+import { STATUS_CANCELADA } from './financeiro'
+
 export const FREQ_LABEL = { semanal: 'Semanal', mensal: 'Mensal', anual: 'Anual' }
 
 // Avança uma data em uma ocorrência da frequência dada.
@@ -28,10 +30,15 @@ export function primeirOcorrenciaAPartirDe(dataInicio, frequencia, minDate) {
   return d
 }
 
-// Conta lançamentos futuros não pagos de uma regra.
+// Parcela futura "de verdade": nem paga nem cancelada. A cancelada ("Só esta
+// parcela") não conta para a meta de 6, mas a DATA dela continua ocupada em
+// datasExistentes abaixo — é isso que impede o gerador de recriá-la.
+const futuraEmAberto = l => l.status !== 'pago' && l.status !== STATUS_CANCELADA
+
+// Conta lançamentos futuros não pagos (e não cancelados) de uma regra.
 export function contarLancamentosFuturos(recorrenciaId, lancamentos, hoje = new Date().toISOString().slice(0, 10)) {
   return lancamentos.filter(
-    l => l.recorrencia_id === recorrenciaId && l.status !== 'pago' && l.data_vencimento >= hoje
+    l => l.recorrencia_id === recorrenciaId && futuraEmAberto(l) && l.data_vencimento >= hoje
   ).length
 }
 
@@ -42,7 +49,7 @@ export function gerarLancamentosFaltantes(regra, lancamentosExistentes, hoje = n
   const ALVO = 6
 
   const existentesFuturos = lancamentosExistentes.filter(
-    l => l.recorrencia_id === regra.id && l.status !== 'pago' && l.data_vencimento >= hoje
+    l => l.recorrencia_id === regra.id && futuraEmAberto(l) && l.data_vencimento >= hoje
   )
   const faltam = ALVO - existentesFuturos.length
   if (faltam <= 0) return []

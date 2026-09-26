@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle, RefreshCw } from 'lucide-react'
-import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas } from '../../utils/financeiro'
+import { Plus, X, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Wallet, BarChart2, FileText, Receipt, Check, AlertCircle, RefreshCw, Trash2, Undo2 } from 'lucide-react'
+import { calcularStatusReal, mesclarContasReceber, calcularFluxoCaixa, calcularDRE, mesAtualRange, navegarMes, estadoVazioContas, contasVisiveis } from '../../utils/financeiro'
+import { excluirConta, desfazerQuitacao } from '../../utils/acoesConta'
+import DialogoExcluirConta from '../../components/financeiro/DialogoExcluirConta'
 import { gerarLancamentosFaltantes, FREQ_LABEL } from '../../utils/recorrencia'
 import { HeroCard } from '../../components/studio/Card'
 import StatCard, { StatGrid } from '../../components/studio/StatCard'
@@ -32,6 +34,19 @@ const inputStyle = {
   color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
 }
 
+// Lixeira ao lado da ação principal do card, e o link de desfazer
+// pagamento/recebimento — ver utils/acoesConta.js.
+const btnLixeira = {
+  width: 36, height: 36, flexShrink: 0, borderRadius: 'var(--r-input)',
+  border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--muted)',
+  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+}
+const btnDesfazer = {
+  display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+  padding: 0, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11,
+  fontWeight: 700, color: 'var(--muted)', textDecoration: 'underline',
+}
+
 // ── Contas a Pagar ───────────────────────────────────────────────
 function ContasPagarTab({ lojaId, theme }) {
   const [contas, setContas] = useState([])
@@ -41,6 +56,11 @@ function ContasPagarTab({ lojaId, theme }) {
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [pagandoId, setPagandoId] = useState(null)
+  const [excluindo, setExcluindo] = useState(null)       // conta no diálogo de exclusão
+  const [processandoExclusao, setProcessandoExclusao] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState('')
+  const [desfazendoId, setDesfazendoId] = useState(null)
+  const [erroAcao, setErroAcao] = useState('')
   const [form, setForm] = useState({
     descricao: '', categoria: 'outros', valor: '', data_vencimento: '', observacoes: '',
     recorrente: false, frequencia: 'mensal',
@@ -63,7 +83,8 @@ function ContasPagarTab({ lojaId, theme }) {
     const novos = (todasRegras || []).filter(r => r.ativa).flatMap(r => gerarLancamentosFaltantes(r, lancRec || []))
     if (novos.length > 0) await supabase.from('lf_contas_pagar').insert(novos)
     const { data } = await supabase.from('lf_contas_pagar').select('*').eq('loja_id', lojaId).order('data_vencimento')
-    setContas((data || []).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
+    // Parcela cancelada ("Só esta parcela") não aparece nem entra nos totais.
+    setContas(contasVisiveis(data).map(c => ({ ...c, _status: calcularStatusReal(c, 'data_pagamento') })))
     setLoading(false)
   }, [lojaId])
 
@@ -107,6 +128,25 @@ function ContasPagarTab({ lojaId, theme }) {
 
   async function handleToggleRegra(id, ativa) {
     await supabase.from('lf_recorrencias').update({ ativa: !ativa }).eq('id', id).eq('loja_id', lojaId)
+    fetch()
+  }
+
+  async function handleExcluir(opcao) {
+    setProcessandoExclusao(true)
+    setErroExclusao('')
+    const r = await excluirConta(supabase, { tipo: 'pagar', conta: excluindo, lojaId, opcao })
+    setProcessandoExclusao(false)
+    if (!r.ok) { setErroExclusao(r.erro); return }
+    setExcluindo(null)
+    fetch()
+  }
+
+  async function handleDesfazer(conta) {
+    setDesfazendoId(conta.id)
+    setErroAcao('')
+    const r = await desfazerQuitacao(supabase, { tipo: 'pagar', conta, lojaId })
+    setDesfazendoId(null)
+    if (!r.ok) setErroAcao(r.erro)
     fetch()
   }
 
@@ -190,18 +230,41 @@ function ContasPagarTab({ lojaId, theme }) {
                     <StatusPill tone={sm.tone} label={sm.label} />
                   </div>
                 </div>
-                {c._status !== 'pago' && (
-                  <button onClick={() => handlePagar(c.id)} disabled={pagandoId === c.id} style={{ width: '100%', height: 36, borderRadius: 'var(--r-input)', border: 'none', background: pagandoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Check size={13} /> {pagandoId === c.id ? 'Registrando...' : 'Marcar como pago'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {c._status !== 'pago' ? (
+                    <button onClick={() => handlePagar(c.id)} disabled={pagandoId === c.id} style={{ flex: 1, height: 36, borderRadius: 'var(--r-input)', border: 'none', background: pagandoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Check size={13} /> {pagandoId === c.id ? 'Registrando...' : 'Marcar como pago'}
+                    </button>
+                  ) : (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      {c.data_pagamento && (
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--positive)' }}>Pago em {fmtDate(c.data_pagamento)}</p>
+                      )}
+                      <button onClick={() => handleDesfazer(c)} disabled={desfazendoId === c.id} style={btnDesfazer}>
+                        <Undo2 size={11} /> {desfazendoId === c.id ? 'Desfazendo...' : 'Desfazer pagamento'}
+                      </button>
+                    </div>
+                  )}
+                  <button onClick={() => { setErroExclusao(''); setExcluindo(c) }} aria-label={`Excluir ${c.descricao}`} title="Excluir conta" style={btnLixeira}>
+                    <Trash2 size={14} />
                   </button>
-                )}
-                {c._status === 'pago' && c.data_pagamento && (
-                  <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--positive)', textAlign: 'center', marginTop: 4 }}>Pago em {fmtDate(c.data_pagamento)}</p>
-                )}
+                </div>
               </div>
             )
           })}
         </div>
+      )}
+
+      {erroAcao && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 600, color: 'var(--negative)' }}>{erroAcao}</p>}
+
+      {excluindo && (
+        <DialogoExcluirConta
+          conta={excluindo}
+          processando={processandoExclusao}
+          erro={erroExclusao}
+          onCancelar={() => setExcluindo(null)}
+          onConfirmar={handleExcluir}
+        />
       )}
 
       {showModal && (
@@ -273,6 +336,11 @@ function ContasReceberTab({ lojaId, crediarios, theme }) {
   const [saving, setSaving] = useState(false)
   const [recebendoId, setRecebendoId] = useState(null)
   const [toast, setToast] = useState('')
+  const [excluindo, setExcluindo] = useState(null)
+  const [processandoExclusao, setProcessandoExclusao] = useState(false)
+  const [erroExclusao, setErroExclusao] = useState('')
+  const [desfazendoId, setDesfazendoId] = useState(null)
+  const [erroAcao, setErroAcao] = useState('')
   const [form, setForm] = useState({
     descricao: '', cliente_nome: '', valor: '', data_vencimento: '', origem: 'outro', observacoes: '',
   })
@@ -325,6 +393,25 @@ function ContasReceberTab({ lojaId, crediarios, theme }) {
       data_recebimento: new Date().toISOString().slice(0, 10),
     }).eq('id', id).eq('loja_id', lojaId)
     setRecebendoId(null)
+    fetchContas()
+  }
+
+  async function handleExcluir(opcao) {
+    setProcessandoExclusao(true)
+    setErroExclusao('')
+    const r = await excluirConta(supabase, { tipo: 'receber', conta: excluindo, lojaId, opcao })
+    setProcessandoExclusao(false)
+    if (!r.ok) { setErroExclusao(r.erro); return }
+    setExcluindo(null)
+    fetchContas()
+  }
+
+  async function handleDesfazer(conta) {
+    setDesfazendoId(conta.id)
+    setErroAcao('')
+    const r = await desfazerQuitacao(supabase, { tipo: 'receber', conta, lojaId })
+    setDesfazendoId(null)
+    if (!r.ok) setErroAcao(r.erro)
     fetchContas()
   }
 
@@ -407,18 +494,41 @@ function ContasReceberTab({ lojaId, crediarios, theme }) {
                     </button>
                   )
                 ) : (
-                  c._status !== 'recebido' ? (
-                    <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ width: '100%', height: 36, borderRadius: 'var(--r-input)', border: 'none', background: recebendoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <Check size={13} /> {recebendoId === c.id ? 'Registrando...' : 'Marcar como recebido'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {c._status !== 'recebido' ? (
+                      <button onClick={() => handleReceber(c.id)} disabled={recebendoId === c.id} style={{ flex: 1, height: 36, borderRadius: 'var(--r-input)', border: 'none', background: recebendoId === c.id ? 'var(--line)' : 'var(--positive)', color: '#fff', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Check size={13} /> {recebendoId === c.id ? 'Registrando...' : 'Marcar como recebido'}
+                      </button>
+                    ) : (
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        {c.data_recebimento && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--positive)' }}>Recebido em {fmtDate(c.data_recebimento)}</p>}
+                        <button onClick={() => handleDesfazer(c)} disabled={desfazendoId === c.id} style={btnDesfazer}>
+                          <Undo2 size={11} /> {desfazendoId === c.id ? 'Desfazendo...' : 'Desfazer recebimento'}
+                        </button>
+                      </div>
+                    )}
+                    {/* Crediário tem fluxo próprio — lixeira só na conta manual. */}
+                    <button onClick={() => { setErroExclusao(''); setExcluindo(c) }} aria-label={`Excluir ${c.descricao}`} title="Excluir conta" style={btnLixeira}>
+                      <Trash2 size={14} />
                     </button>
-                  ) : (
-                    c.data_recebimento && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--positive)', textAlign: 'center', marginTop: 4 }}>Recebido em {fmtDate(c.data_recebimento)}</p>
-                  )
+                  </div>
                 )}
               </div>
             )
           })}
         </div>
+      )}
+
+      {erroAcao && <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 600, color: 'var(--negative)' }}>{erroAcao}</p>}
+
+      {excluindo && (
+        <DialogoExcluirConta
+          conta={excluindo}
+          processando={processandoExclusao}
+          erro={erroExclusao}
+          onCancelar={() => setExcluindo(null)}
+          onConfirmar={handleExcluir}
+        />
       )}
 
       {showModal && (
