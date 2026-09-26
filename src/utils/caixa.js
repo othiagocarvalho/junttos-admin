@@ -1,5 +1,6 @@
 import { parsePgtosRecibo } from './recibo'
 import { paraDataLocal } from './datas'
+import { contaEmAberto } from './financeiro'
 
 // ── Caixa do Mercado (T10–T13) ────────────────────────────────
 // As fórmulas vêm de LojaFeminina/Fechamento.jsx, que já rodava para a Moda:
@@ -107,14 +108,17 @@ export function jaFechado(caixas, dia) {
   return (caixas || []).some(c => String(c.data).slice(0, 10) === dia)
 }
 
+/** Contas a pagar em aberto (nem pagas nem canceladas) — o painel do Caixa. */
+export function contasEmAberto(contas) {
+  return (contas || []).filter(contaEmAberto)
+}
+
 /** Contas a vencer amanhã — usado no aviso do passo 3. */
 export function contasDeAmanha(contas, hoje = new Date()) {
   const amanha = new Date(hoje)
   amanha.setDate(amanha.getDate() + 1)
   const alvo = diaISO(amanha)
-  return (contas || []).filter(c =>
-    c?.status !== 'pago' && String(c?.data_vencimento).slice(0, 10) === alvo
-  )
+  return contasEmAberto(contas).filter(c => String(c?.data_vencimento).slice(0, 10) === alvo)
 }
 
 /**

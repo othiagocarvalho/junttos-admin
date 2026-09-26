@@ -1,5 +1,18 @@
+// ── Parcela cancelada ─────────────────────────────────────────────────────
+// "Só esta parcela" de uma conta recorrente grava status='cancelada' em vez
+// de apagar a linha: se a linha sumisse, gerarLancamentosFaltantes
+// (utils/recorrencia.js) recriaria aquela data na próxima abertura da tela.
+// Cancelada NUNCA conta — nem como pendente, nem como paga: fica fora de
+// listas, totais, DRE, Fluxo de Caixa, avisos e da contagem de 6 futuras.
+export const STATUS_CANCELADA = 'cancelada'
+export const contaCancelada = c => c?.status === STATUS_CANCELADA
+/** Conta que ainda espera pagamento/recebimento (nem quitada nem cancelada). */
+export const contaEmAberto = c => !['pago', 'recebido', STATUS_CANCELADA].includes(c?.status)
+/** Contas que aparecem nas listas e entram em totais: tudo menos as canceladas. */
+export const contasVisiveis = contas => (contas || []).filter(c => !contaCancelada(c))
+
 export function calcularStatusReal(item, campoPagamento = 'data_pagamento') {
-  if (item.status === 'pago' || item.status === 'recebido') return item.status
+  if (item.status === 'pago' || item.status === 'recebido' || item.status === STATUS_CANCELADA) return item.status
   if (!item.data_vencimento) return 'pendente'
   const hoje = new Date().toISOString().slice(0, 10)
   if (item.data_vencimento < hoje && !item[campoPagamento]) return 'atrasado'
@@ -9,7 +22,7 @@ export function calcularStatusReal(item, campoPagamento = 'data_pagamento') {
 export function mesclarContasReceber(contasManual, crediarios) {
   const hoje = new Date().toISOString().slice(0, 10)
 
-  const manuais = (contasManual || []).map(c => ({
+  const manuais = contasVisiveis(contasManual).map(c => ({
     ...c,
     _status: c._status || calcularStatusReal(c, 'data_recebimento'),
     _origem: 'manual',
@@ -73,12 +86,13 @@ export function calcularFluxoCaixa(vendas, contasPagar, contasReceber, dataInici
     if (d >= dataInicio && d <= dataFim) add(d, 'entrada', Number(v.valor || 0))
   })
 
-  contasReceber.forEach(c => {
+  contasVisiveis(contasReceber).forEach(c => {
     const d = c.data_recebimento
     if (d && d >= dataInicio && d <= dataFim) add(d, 'entrada', Number(c.valor || 0))
   })
 
-  contasPagar.forEach(c => {
+  // Cancelada fica de fora mesmo que tenha sobrado data_pagamento nela.
+  contasVisiveis(contasPagar).forEach(c => {
     const d = c.data_pagamento
     if (d && d >= dataInicio && d <= dataFim) add(d, 'saida', Number(c.valor || 0))
   })
@@ -112,6 +126,7 @@ export function calcularDRE(vendas, contasPagar, contasReceber, dataInicio, data
     )
     .reduce((s, c) => s + Number(c.valor || 0), 0)
 
+  // status === 'pago' já deixa a cancelada de fora (idem 'recebido' acima).
   const despesas = contasPagar.filter(c =>
     c.status === 'pago' &&
     c.data_pagamento >= dataInicio &&
