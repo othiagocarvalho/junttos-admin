@@ -4,6 +4,7 @@ import { checarTravaBalanco } from '../../utils/balanco'
 import { precisaDevolverEstoque, rpcAusente } from '../../utils/estoqueMov'
 import { aplicarEstoqueItens, criarBuscaPorId, criarBuscaPorNome, salvarVendaComEstoque, MOTIVOS_BLOQUEANTES } from '../../utils/baixaEstoque'
 import { buscarTodasAsLinhas } from '../../utils/supabasePaginacao'
+import { sincronizarClienteDaVenda } from '../../utils/clienteVenda'
 // ── Demo auto-top-up helpers ──────────────────────────────────────
 // DEMO_MULT_DIA deve ser mantido em sync com DemoPanel.jsx manualmente.
 const _DEMO_MULT_DIA = [
@@ -371,7 +372,10 @@ export function useLojaData(lojaId = 'estrada') {
     return errDireto
   }
 
-  async function addVenda(venda) {
+  // opcoes.aniversario (ISO, opcional): vai direto para o cliente criado ou
+  // completado — ver sincronizarClienteVenda. Não é coluna de lf_vendas, por
+  // isso vem fora do objeto `venda`.
+  async function addVenda(venda, opcoes = {}) {
     // Verificar trava de balanço de estoque.
     // A consulta usa .limit(1), nunca .maybeSingle(): com múltiplas sessões
     // abertas, .maybeSingle() devolvia { data: null, error: PGRST116 } e o erro
@@ -424,44 +428,59 @@ export function useLojaData(lojaId = 'estrada') {
         }
       }
 
-      // Auto-sincronização silenciosa de cliente em lf_clientes (sem gate de plano)
-      const nomeVenda = (venda.cliente_nome || '').trim()
-      if (nomeVenda) {
-        try {
-          const telVenda = (venda.cliente_tel || '').trim()
-          const normTel = t => (t || '').replace(/[\s\-().]/g, '')
-          const telVendaNorm = normTel(telVenda)
+      // Auto-sincronização silenciosa de cliente em lf_clientes (sem gate de
+      // plano) — já com o aniversário, numa chamada só. Ver utils/clienteVenda.js
+      // (era aqui que nascia a duplicata de 16/09).
+      const { cliente } = await sincronizarClienteVenda({
+        nome: venda.cliente_nome,
+        telefone: venda.cliente_tel,
+        aniversario: opcoes.aniversario,
+      })
 
-          const { data: existentes } = await supabase
-            .from('lf_clientes')
-            .select('id, nome, telefone')
-            .eq('loja_id', lojaId)
-            .ilike('nome', nomeVenda)
+    return { error: null, venda: novaVenda || null, falhasEstoque: resultado.falhasEstoque, cliente }
+  }
 
-          const match = (existentes || []).find(c => {
-            const ct = normTel(c.telefone || '')
-            if (telVendaNorm && ct) return ct === telVendaNorm
-            return true
-          })
+  /**
+   * Cria ou completa o cliente de uma venda em lf_clientes — ver
+   * utils/clienteVenda.js. Usada por addVenda e pela finalização da
+   * Pré-venda (PreVendasLista.jsx). Busca sempre no BANCO, nunca na lista
+   * `clientes` da tela, que pode estar desatualizada.
+   *
+   * Atualiza `clientes` localmente com o registro gravado — a Pré-venda não
+   * chama fetchAll depois, e sem isso o cliente novo só apareceria no CRM
+   * na próxima recarga.
+   */
+  async function sincronizarClienteVenda({ nome, telefone, aniversario } = {}) {
+    const resultado = await sincronizarClienteDaVenda({
+      buscarPorNome: async nomeBusca => {
+        const { data, error } = await supabase
+          .from('lf_clientes')
+          .select('id, nome, telefone, data_nascimento')
+          .eq('loja_id', lojaId)
+          .ilike('nome', nomeBusca)
+        if (error) throw error
+        return data || []
+      },
+      inserir: async row => {
+        const { data, error } = await supabase.from('lf_clientes').insert({ loja_id: lojaId, ...row }).select().single()
+        if (error) throw error
+        return data
+      },
+      atualizar: async (id, campos) => {
+        const { data, error } = await supabase.from('lf_clientes').update(campos).eq('id', id).eq('loja_id', lojaId).select().single()
+        if (error) throw error
+        return data
+      },
+    }, { nome, telefone, aniversario })
 
-          if (!match) {
-            await supabase.from('lf_clientes').insert({
-              loja_id: lojaId,
-              nome: nomeVenda,
-              telefone: telVenda || null,
-              email: null,
-              data_nascimento: null,
-              observacoes: null,
-            })
-          } else if (!match.telefone && telVenda) {
-            await supabase.from('lf_clientes').update({ telefone: telVenda }).eq('id', match.id).eq('loja_id', lojaId)
-          }
-        } catch (e) {
-          console.error('[auto-cliente]', e)
-        }
-      }
-
-    return { error: null, venda: novaVenda || null, falhasEstoque: resultado.falhasEstoque }
+    const c = resultado.cliente
+    if (c?.id && (resultado.acao === 'criado' || resultado.acao === 'atualizado')) {
+      setClientes(prev => {
+        const lista = prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? { ...x, ...c } : x) : [...prev, c]
+        return lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+      })
+    }
+    return resultado
   }
 
   /**
@@ -1040,6 +1059,7 @@ export function useLojaData(lojaId = 'estrada') {
     importarProdutos,
     saveConfig,
     clientes,
+    sincronizarClienteVenda,
     addCliente,
     updateCliente,
     deleteCliente,

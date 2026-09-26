@@ -17,7 +17,6 @@ import { LinhasResumo, CamposAjusteTroca, BarraResumoMobile, PrecoProduto } from
 import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
-import { salvarAniversarioCliente } from '../../utils/clienteVenda'
 import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
@@ -54,7 +53,7 @@ function focusOut(e) {
   e.target.style.background = 'var(--bg)'
 }
 
-export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null, addCliente, updateCliente }) {
+export default function NovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], initialIsTroca = false, LOJA_ID = '', config = null }) {
   // Mesmo critério que libera a comissão automática nos Relatórios
   // (index.jsx: temAcesso(plano, 'pro')). Sem gate novo.
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
@@ -282,6 +281,12 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
+    }, {
+      // Vai junto com a venda para o cliente criado/completado em
+      // lf_clientes (utils/clienteVenda.js) — nunca numa segunda gravação
+      // depois, que era o que duplicava cliente. Data incompleta/inválida
+      // vira null e simplesmente não grava aniversário.
+      aniversario: dataDigitadaParaISO(form.aniversario),
     })
     setSaving(false)
     if (err?.code === 'BAL_TRAVA') {
@@ -293,12 +298,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
       setFalhasEstoque(falhasVenda || [])
       setDone(true)
       limparRascunho(LOJA_ID)
-      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
-      // incompleta/inválida vira null e simplesmente não grava nada.
-      salvarAniversarioCliente({
-        clientes, addCliente, updateCliente,
-        nome: form.nome, telefone: form.tel, aniversario: dataDigitadaParaISO(form.aniversario),
-      })
       fetchAll?.()
     }
   }

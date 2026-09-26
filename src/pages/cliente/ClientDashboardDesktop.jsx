@@ -56,7 +56,6 @@ import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 import { fmtR } from '../../utils/formatters'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
-import { salvarAniversarioCliente } from '../../utils/clienteVenda'
 import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
 
 function fmtDT(s) {
@@ -732,7 +731,7 @@ const EMPTY_VENDA = { nome: '', tel: '', aniversario: '', produtos: [], valor: '
 // tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
 const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null, addCliente, updateCliente }) {
+function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
   // Mesmo critério da comissão automática nos Relatórios (temAcesso(plano, 'pro')).
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   const isDark = theme.primary === '#D4A017'
@@ -928,6 +927,12 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       data: new Date().toISOString(),
       tipo_venda: isTroca ? 'troca' : 'venda',
       produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
+    }, {
+      // Vai junto com a venda para o cliente criado/completado em
+      // lf_clientes (utils/clienteVenda.js) — nunca numa segunda gravação
+      // depois, que era o que duplicava cliente. Data incompleta/inválida
+      // vira null e simplesmente não grava aniversário.
+      aniversario: dataDigitadaParaISO(form.aniversario),
     })
     setSaving(false)
     if (err?.code === 'BAL_TRAVA') {
@@ -939,12 +944,6 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
       setFalhasEstoque(falhasVenda || [])
       setDone(true)
       limparRascunho(LOJA_ID)
-      // Efeito colateral, não bloqueia a venda: ver clienteVenda.js. Data
-      // incompleta/inválida vira null e simplesmente não grava nada.
-      salvarAniversarioCliente({
-        clientes, addCliente, updateCliente,
-        nome: form.nome, telefone: form.tel, aniversario: dataDigitadaParaISO(form.aniversario),
-      })
       fetchAll?.()
     }
   }
