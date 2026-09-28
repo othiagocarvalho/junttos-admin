@@ -4,6 +4,7 @@ import {
   parseErroEstoquePrevenda, mensagemErroEstoquePrevenda, variacaoParaRpc,
   montarInsertPrimeiroBipe, acrescentarBipe, removerLinha,
   itensParaRestaurar, encontrarProdutoPorNome,
+  aplicarReservas, opcoesDoProduto, chaveLinha, chaveReserva,
 } from './prevenda'
 
 const produtosData = [
@@ -251,5 +252,55 @@ describe('pré-venda com produto_id', () => {
     expect(encontrarProdutoDoItem(produtosData, { produto_id: 'b', nome: 'SHORT' }).id).toBe('b')
     expect(encontrarProdutoDoItem(produtosData, { nome: 'SHORT' }).id).toBe('a')
     expect(encontrarProdutoDoItem(produtosData, { produto_id: 'zz', nome: 'SHORT' })).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Estoque de exibição e identidade de linha (busca por nome na Pré-venda)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('opcoesDoProduto', () => {
+  it('lista as variações com rótulo e quantidade, ignorando codigo/custo', () => {
+    expect(opcoesDoProduto({ variacoes: [{ cor: 'Rosa', quantidade: 2, codigo: '123', custo: 10 }, { tamanho: 'M', quantidade: '3' }] }))
+      .toEqual([{ rotulo: 'Rosa', quantidade: 2 }, { rotulo: 'M', quantidade: 3 }])
+  })
+  it('produto sem variação devolve lista vazia', () => {
+    expect(opcoesDoProduto({ variacoes: [], quantidade: 4 })).toEqual([])
+    expect(opcoesDoProduto({})).toEqual([])
+  })
+})
+
+describe('aplicarReservas', () => {
+  const dados = [
+    { id: 'a', nome: 'VESTIDO', variacoes: [{ cor: 'Rosa', quantidade: 3 }, { cor: 'Nude', quantidade: 1 }] },
+    { id: 'b', nome: 'BOLSA', variacoes: [], quantidade: 2 },
+    { id: 'c', nome: 'SAIA', variacoes: [{ cor: 'Preta', quantidade: 5 }] },
+  ]
+
+  it('desconta por produto+variação e no produto sem variação', () => {
+    const r = aplicarReservas(dados, { [chaveReserva('a', 'Rosa')]: 2, [chaveReserva('b', null)]: 1 })
+    expect(r[0].variacoes).toEqual([{ cor: 'Rosa', quantidade: 1 }, { cor: 'Nude', quantidade: 1 }])
+    expect(r[1].quantidade).toBe(1)
+    expect(r[2]).toBe(dados[2]) // sem reserva: mesmo objeto
+  })
+
+  it('nunca fica negativo e não muta a entrada', () => {
+    const r = aplicarReservas(dados, { [chaveReserva('a', 'Nude')]: 5 })
+    expect(r[0].variacoes[1].quantidade).toBe(0)
+    expect(dados[0].variacoes[1].quantidade).toBe(1)
+  })
+
+  it('sem reservas devolve a própria lista', () => {
+    expect(aplicarReservas(dados, {})).toBe(dados)
+  })
+})
+
+describe('chaveLinha', () => {
+  it('dois produtos de mesmo nome e mesma variação têm chaves diferentes (id)', () => {
+    const a = { produto_id: 'p1', nome: 'SHORT LISTRADO', variacao: 'Azul' }
+    const b = { produto_id: 'p2', nome: 'SHORT LISTRADO', variacao: 'Azul' }
+    expect(chaveLinha(a)).not.toBe(chaveLinha(b))
+  })
+  it('item antigo sem id cai no nome', () => {
+    expect(chaveLinha({ nome: 'X', variacao: null })).toBe('nome:X|')
   })
 })
