@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ScanLine, Camera } from 'lucide-react'
 import { pareceLeitura } from '../../utils/codigoBarras'
+import { lerComCampoLimpo } from '../../utils/leituraScanner'
 import { cameraDisponivel } from '../../utils/leituraCamera'
 import { destravarAudio, tocarBipe } from '../../utils/bipe'
 import BarcodeScanner from '../BarcodeScanner'
@@ -54,18 +55,20 @@ export default function CampoScanner({ aoLer, theme, autoFoco = true, dica = '',
   // SÍNCRONA (o caso de Nova Venda, buscarPorCodigo em memória) resolve na
   // mesma volta do event loop — não muda nada pra quem já usa isto hoje.
   //
+  // O campo é limpo ANTES do await (lerComCampoLimpo), nunca depois: com
+  // aoLer em rede, o leitor já está digitando a próxima etiqueta enquanto
+  // esta ainda processa — ver utils/leituraScanner.js.
+  //
   // `origem`: 'teclado' (leitor físico ou digitação) ou 'camera'.
   async function resolver(codigo, origem = 'teclado') {
     clearTimeout(timerRajada.current)
     marcas.current = []
-    const limpo = String(codigo || '').trim()
-    if (!limpo) return
+    if (!String(codigo || '').trim()) return
     // Pelo teclado, isto roda dentro do keydown do Enter — um gesto do
     // usuário, que é quando o navegador aceita liberar o áudio. Tem de vir
     // ANTES do await: depois dele o gesto já expirou.
     if (origem === 'teclado') destravarAudio()
-    const r = await aoLer?.(limpo)
-    setValor('')
+    const r = await lerComCampoLimpo(codigo, { limpar: () => setValor(''), aoLer })
     // O foco volta para o campo: quem está bipando passa várias peças
     // seguidas. Pela câmera NÃO — no celular o foco abriria o teclado a cada
     // leitura, por baixo do overlay.

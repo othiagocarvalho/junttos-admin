@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
 import { Label } from '../../components/studio/Input'
 import {
   Home, Plus, Wallet, Settings, BarChart2,
@@ -24,12 +23,9 @@ import CatalogoB2BAdminDesktop, { ConfigB2BDesktop } from '../LojaFeminina/Catal
 import CampoScanner from '../../components/etiquetas/CampoScanner'
 import SelectVendedor from '../../components/vendedores/SelectVendedor'
 import { vendedorParaVenda } from '../../utils/vendedores'
-import { checarTravaBalanco } from '../../utils/balanco'
-import {
-  montarInsertPrimeiroBipe, acrescentarBipe, removerLinha,
-  variacaoParaRpc, parseErroEstoquePrevenda, mensagemErroEstoquePrevenda,
-  encontrarProdutoDoItem,
-} from '../../utils/prevenda'
+import { chaveLinha } from '../../utils/prevenda'
+import { usePreVendaBipagem } from '../LojaFeminina/usePreVendaBipagem'
+import SeletorProduto from '../../components/venda/SeletorProduto'
 import { buscarPorCodigo, adicionarAoCarrinho } from '../../utils/codigoBarras'
 import { ehDoProduto } from '../../utils/itemVenda'
 import MetasResultados from '../LojaFeminina/MetasResultados'
@@ -1939,129 +1935,13 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 // Resumo: INSERT em lf_vendas no primeiro bipe, UPDATE nos seguintes, nunca
 // estoque decrementado sem uma linha pra rastrear. addVendaRaw (useLojaData.js)
 // não mexe em estoque de propósito — bipar_item_prevenda já decrementou.
-function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID = '', theme, config = null, onSalvo }) {
+// Fila de bipes, gravação sem fetchAll e trava de balanço: no hook
+// compartilhado usePreVendaBipagem (LojaFeminina/usePreVendaBipagem.js).
+function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, fetchAll, LOJA_ID = '', theme, config = null, onSalvo }) {
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
+  const [buscaAberta, setBuscaAberta] = useState(false)
 
-  const [clienteNome, setClienteNome] = useState('')
-  const [clienteTel, setClienteTel] = useState('')
-  const [vendedora, setVendedora] = useState('')
-  const [dadosTravados, setDadosTravados] = useState(false)
-
-  const [itens, setItens] = useState([])
-  const [vendaId, setVendaId] = useState(null)
-  const [removendo, setRemovendo] = useState(null)
-
-  const [checandoTrava, setCheckandoTrava] = useState(true)
-  const [travado, setTravado] = useState(false)
-  // Trava síncrona contra bipe concorrente — mesmo raciocínio de PreVenda.jsx
-  // (mobile): entre a RPC de bipar e o setVendaId aterrissar, um segundo bipe
-  // muito rápido ainda veria vendaId===null e tentaria criar outro INSERT em
-  // vez de UPDATE. Ref (não state) porque precisa valer na mesma volta
-  // síncrona, antes de qualquer await.
-  const bipandoRef = useRef(false)
-
-  useEffect(() => {
-    let vivo = true
-    async function checar() {
-      const { travado: t } = await checarTravaBalanco(supabase, LOJA_ID)
-      if (vivo) { setTravado(t); setCheckandoTrava(false) }
-    }
-    checar()
-    return () => { vivo = false }
-  }, [LOJA_ID])
-
-  const valor = calcularTotalVenda(itens, produtosData)
-  const totalPecas = itens.reduce((s, it) => s + (Number(it.quantidade) || 1), 0)
-
-  async function lerCodigoBarras(codigo) {
-    if (travado) return { ok: false, texto: 'Vendas travadas: balanço de estoque em andamento' }
-    if (bipandoRef.current) return { ok: false, texto: 'Aguarde, ainda processando o bipe anterior.' }
-
-    const achado = buscarPorCodigo(produtosData, LOJA_ID, codigo)
-    if (!achado) return { ok: false, texto: 'Código não encontrado nesta loja' }
-
-    bipandoRef.current = true
-    try {
-      const { error: erroRpc } = await supabase.rpc('bipar_item_prevenda', {
-        p_loja_id: LOJA_ID,
-        p_produto_id: achado.produto.id,
-        p_variacao: variacaoParaRpc(achado.rotulo),
-        p_origem_id: vendaId,
-      })
-      if (erroRpc) {
-        const info = parseErroEstoquePrevenda(erroRpc.message)
-        return { ok: false, texto: mensagemErroEstoquePrevenda(achado.produto.nome, info) }
-      }
-
-      setDadosTravados(true)
-
-      if (!vendaId) {
-        const payload = montarInsertPrimeiroBipe({
-          lojaId: LOJA_ID,
-          produtoId: achado.produto.id,
-          nome: achado.produto.nome,
-          rotulo: achado.rotulo,
-          clienteNome,
-          clienteTel,
-          vendedora: vendedorParaVenda(vendedora),
-          produtosData,
-        })
-        const { error: erroInsert, venda } = await addVendaRaw(payload)
-        if (erroInsert || !venda) {
-          await supabase.rpc('restaurar_item_prevenda', {
-            p_loja_id: LOJA_ID, p_produto_id: achado.produto.id, p_variacao: variacaoParaRpc(achado.rotulo),
-          })
-          return { ok: false, texto: 'Não foi possível salvar a pré-venda. Tente de novo.' }
-        }
-        setVendaId(venda.id)
-        setItens(payload.produtos)
-      } else {
-        const { produtos, valor: valorNovo } = acrescentarBipe(itens, { produto_id: achado.produto.id, nome: achado.produto.nome, variacao: achado.rotulo }, produtosData)
-        const erroUpdate = await updateVenda(vendaId, { produtos, valor: valorNovo })
-        if (erroUpdate) {
-          await supabase.rpc('restaurar_item_prevenda', {
-            p_loja_id: LOJA_ID, p_produto_id: achado.produto.id, p_variacao: variacaoParaRpc(achado.rotulo),
-          })
-          return { ok: false, texto: 'Não foi possível salvar o item. Tente de novo.' }
-        }
-        setItens(produtos)
-      }
-
-      return { ok: true, texto: `${achado.produto.nome}${achado.rotulo ? ` · ${achado.rotulo}` : ''}` }
-    } finally {
-      bipandoRef.current = false
-    }
-  }
-
-  async function handleRemover(indice) {
-    setRemovendo(indice)
-    try {
-      const { produtos, valor: valorNovo, item, ficouVazia } = removerLinha(itens, indice, produtosData)
-      if (!item) return
-
-      const produto = encontrarProdutoDoItem(produtosData, item)
-      if (produto) {
-        const vezes = Math.max(1, Number(item.quantidade) || 1)
-        for (let i = 0; i < vezes; i++) {
-          await supabase.rpc('restaurar_item_prevenda', {
-            p_loja_id: LOJA_ID, p_produto_id: produto.id, p_variacao: variacaoParaRpc(item.variacao),
-          })
-        }
-      }
-
-      if (ficouVazia) {
-        await updateVenda(vendaId, { status: 'cancelada' })
-        setVendaId(null)
-        setItens([])
-        setDadosTravados(false)
-      } else {
-        await updateVenda(vendaId, { produtos, valor: valorNovo })
-        setItens(produtos)
-      }
-    } finally {
-      setRemovendo(null)
-    }
-  }
+  const b = usePreVendaBipagem({ produtosData, addVendaRaw, updateVenda, fetchAll, LOJA_ID, onSalvo })
 
   return (
     <div style={{ maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -2072,7 +1952,7 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
         </p>
       </div>
 
-      {checandoTrava ? null : travado ? (
+      {b.checandoTrava ? null : b.travado ? (
         <div style={{ padding: '14px 16px', borderRadius: 12, background: '#fef3c7', border: '1.5px solid #f59e0b' }}>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 700, color: '#92400e' }}>Balanço em andamento</p>
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: '#92400e', marginTop: 3 }}>
@@ -2081,88 +1961,135 @@ function DesktopPreVenda({ produtosData = [], addVendaRaw, updateVenda, LOJA_ID 
         </div>
       ) : (
         <>
-          {!dadosTravados && (
+          {!b.dadosTravados && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <Label>Cliente (opcional)</Label>
-                <input value={clienteNome} onChange={e => setClienteNome(e.target.value)} placeholder="Nome da cliente" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
+                <input value={b.clienteNome} onChange={e => b.setClienteNome(e.target.value)} placeholder="Nome da cliente" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
               </div>
               <div>
                 <Label>WhatsApp (opcional)</Label>
-                <input value={clienteTel} onChange={e => setClienteTel(e.target.value)} placeholder="(85) 99999-0000" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
+                <input value={b.clienteTel} onChange={e => b.setClienteTel(e.target.value)} placeholder="(85) 99999-0000" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <Label>Vendedor(a)</Label>
                 {temAcessoVendedores ? (
-                  <SelectVendedor lojaId={LOJA_ID} valor={vendedora} aoMudar={setVendedora} style={inp(theme.primary)} />
+                  <SelectVendedor lojaId={LOJA_ID} valor={b.vendedora} aoMudar={b.setVendedora} style={inp(theme.primary)} />
                 ) : (
-                  <input value={vendedora} onChange={e => setVendedora(e.target.value)} placeholder="Nome de quem está atendendo" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
+                  <input value={b.vendedora} onChange={e => b.setVendedora(e.target.value)} placeholder="Nome de quem está atendendo" style={inp(theme.primary)} onFocus={onF(theme.primary)} onBlur={onB} />
                 )}
               </div>
             </div>
           )}
 
-          {dadosTravados && (clienteNome || vendedora) && (
+          {b.dadosTravados && (b.clienteNome || b.vendedora) && (
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)' }}>
-              {clienteNome || 'Cliente não identificada'}{vendedora ? ` · ${vendedora}` : ''}
+              {b.clienteNome || 'Cliente não identificada'}{b.vendedora ? ` · ${b.vendedora}` : ''}
             </p>
           )}
 
-          <CampoScanner aoLer={lerCodigoBarras} theme={theme} autoFoco camera={false} dica="Bipe a peça separada" />
+          <div>
+            <CampoScanner aoLer={b.lerCodigoBarras} theme={theme} autoFoco camera={false} dica="Bipe a peça separada" />
+            {b.pendentes > 0 && (
+              <p role="status" aria-live="polite" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>
+                Processando {b.pendentes} {b.pendentes === 1 ? 'peça' : 'peças'}… pode continuar bipando.
+              </p>
+            )}
+          </div>
 
-          {itens.length === 0 ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => setBuscaAberta(v => !v)}
+              aria-expanded={buscaAberta}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                padding: '10px 14px', borderRadius: 12, cursor: 'pointer',
+                border: '1px dashed var(--line)', background: 'var(--bg)',
+                fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-soft)',
+              }}
+            >
+              <Search size={15} />
+              <span style={{ flex: 1, textAlign: 'left' }}>Peça sem etiqueta? Buscar pelo nome</span>
+              <ChevronDown size={15} style={{ transform: buscaAberta ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+            </button>
+            {buscaAberta && (
+              <div style={{ marginTop: 10 }}>
+                <SeletorProduto
+                  produtos={b.produtosExibicao}
+                  itens={b.itens}
+                  aoEscolher={({ produto, rotulo }) => b.registrarItem(produto, rotulo)}
+                  primary={theme.primary}
+                  desabilitado={b.saindo}
+                  alturaLista="calc(100vh - 420px)"
+                />
+              </div>
+            )}
+          </div>
+
+          {b.itens.length === 0 ? (
             <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, color: 'var(--muted)', textAlign: 'center', padding: '32px 0' }}>
               Nenhuma peça bipada ainda.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {itens.map((it, i) => (
-                <div key={`${it.nome}|${it.variacao ?? ''}`} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: 'var(--surface)', border: '1px solid var(--line)',
-                  borderRadius: 12, padding: '10px 12px',
-                }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{it.nome}</p>
-                    {(it.variacao || it.quantidade > 1) && (
-                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
-                        {it.variacao && it.variacao !== 'Único' ? it.variacao : ''}
-                        {it.variacao && it.variacao !== 'Único' && it.quantidade > 1 ? ' · ' : ''}
-                        {it.quantidade > 1 ? `${it.quantidade}×` : ''}
-                      </p>
-                    )}
+              {b.itens.map(it => {
+                const chave = chaveLinha(it)
+                const emRemocao = b.removendo.has(chave)
+                return (
+                  <div key={chave} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: 'var(--surface)', border: '1px solid var(--line)',
+                    borderRadius: 12, padding: '10px 12px',
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{it.nome}</p>
+                      {(it.variacao || it.quantidade > 1) && (
+                        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)' }}>
+                          {it.variacao && it.variacao !== 'Único' ? it.variacao : ''}
+                          {it.variacao && it.variacao !== 'Único' && it.quantidade > 1 ? ' · ' : ''}
+                          {it.quantidade > 1 ? `${it.quantidade}×` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => b.removerItem(it)}
+                      disabled={emRemocao || b.saindo}
+                      aria-label={`Remover ${it.nome}`}
+                      style={{
+                        width: 34, height: 34, borderRadius: 8, flexShrink: 0, border: 'none',
+                        background: 'var(--bg)', color: 'var(--muted)', cursor: emRemocao ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: emRemocao ? 0.5 : 1,
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemover(i)}
-                    disabled={removendo === i}
-                    aria-label={`Remover ${it.nome}`}
-                    style={{
-                      width: 34, height: 34, borderRadius: 8, flexShrink: 0, border: 'none',
-                      background: 'var(--bg)', color: 'var(--muted)', cursor: removendo === i ? 'not-allowed' : 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: removendo === i ? 0.5 : 1,
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
-          {itens.length > 0 && (
+          {(b.itens.length > 0 || b.pendentes > 0) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '12px 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)',
               }}>
                 <span style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, color: 'var(--muted)' }}>
-                  {totalPecas} {totalPecas === 1 ? 'peça' : 'peças'}
+                  {b.totalPecas} {b.totalPecas === 1 ? 'peça' : 'peças'}
                 </span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(valor)}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>{fmtR(b.valor)}</span>
               </div>
-              <button onClick={onSalvo} style={btnPasso(theme.primary)}>
-                Salvar e continuar depois <Check size={16} />
+              <button
+                onClick={b.sair}
+                disabled={b.saindo}
+                style={{ ...btnPasso(theme.primary), ...(b.saindo ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              >
+                {b.saindo
+                  ? (b.pendentes > 0 ? `Aguardando ${b.pendentes} ${b.pendentes === 1 ? 'peça' : 'peças'}…` : 'Salvando…')
+                  : 'Salvar e continuar depois'} {!b.saindo && <Check size={16} />}
               </button>
             </div>
           )}

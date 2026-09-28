@@ -497,14 +497,16 @@ export function useLojaData(lojaId = 'estrada') {
    * Bipes seguintes da mesma pré-venda usam updateVenda normal — updateVenda
    * já não mexe em estoque (nunca mexeu), então não precisa de um "raw"
    * próprio.
+   *
+   * `recarregar: false` pula o fetchAll — ver o comentário de updateVenda.
    */
-  async function addVendaRaw(payload) {
+  async function addVendaRaw(payload, { recarregar = true } = {}) {
     const { data, error } = await supabase
       .from('lf_vendas')
       .insert(payload)
       .select()
       .single()
-    if (!error) await fetchAll()
+    if (!error && recarregar) await fetchAll()
     return { error, venda: data || null }
   }
 
@@ -534,9 +536,18 @@ export function useLojaData(lojaId = 'estrada') {
     return { error, falhasEstoque: [] }
   }
 
-  async function updateVenda(id, updates) {
+  /**
+   * `recarregar: false` pula o fetchAll depois de gravar. Existe para a
+   * bipagem da Pré-venda: fetchAll recarrega a loja inteira (vendas
+   * paginadas, produtos, clientes e mais cinco tabelas em sequência — medido
+   * em 2,4 a 3,6 s) e era isso, não a gravação, que fazia cada bipe demorar
+   * segundos. A tela de bipagem mantém o próprio estado e chama fetchAll uma
+   * vez só, ao sair (usePreVendaBipagem.js). O padrão continua recarregando:
+   * nenhum outro chamador muda.
+   */
+  async function updateVenda(id, updates, { recarregar = true } = {}) {
     const { error } = await supabase.from('lf_vendas').update(updates).eq('id', id).eq('loja_id', lojaId)
-    if (!error) await fetchAll()
+    if (!error && recarregar) await fetchAll()
     return error
   }
 

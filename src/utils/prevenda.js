@@ -22,7 +22,7 @@
 // Venda e Troca. Mantém as duas frentes do sistema com uma regra só, em vez
 // de inventar um segundo formato de item só pra este fluxo.
 
-import { adicionarAoCarrinho } from './codigoBarras'
+import { adicionarAoCarrinho, rotuloVariacao } from './codigoBarras'
 import { calcularTotalVenda } from './venda'
 import { produtoDoItem } from './itemVenda'
 
@@ -197,4 +197,72 @@ export async function finalizarPreVenda({ updateVenda, sincronizarClienteVenda }
  */
 export function encontrarProdutoDoItem(produtosData, item) {
   return produtoDoItem(produtosData, item)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Estoque de EXIBIÇÃO durante a bipagem.
+//
+// A bipagem não chama mais fetchAll a cada peça (era o que custava segundos
+// por bipe), então produtosData fica parado no valor de quando a tela abriu.
+// Para a busca por nome não mostrar "3 disponíveis" de uma peça que acabou de
+// ser reservada, a tela guarda quantas unidades reservou nesta sessão e
+// desconta na hora de exibir. É SÓ exibição: quem decide se há estoque é
+// sempre a RPC bipar_item_prevenda, que lê o banco com a linha travada.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Chave de reserva: produto (id) + rótulo da variação ('' = sem variação). */
+export function chaveReserva(produtoId, rotulo) {
+  return `${produtoId}|${rotulo ?? ''}`
+}
+
+/**
+ * Identidade de uma LINHA da pré-venda — mesma regra de mesmoItem
+ * (utils/itemVenda.js): pelo id quando o item tem, pelo nome no item antigo.
+ * Serve de `key` na lista e para travar o botão de remover daquela linha.
+ * Pelo nome sozinho, dois produtos de mesmo nome colidiriam.
+ */
+export function chaveLinha(item) {
+  const produto = item?.produto_id ? `id:${item.produto_id}` : `nome:${item?.nome ?? ''}`
+  return `${produto}|${item?.variacao ?? ''}`
+}
+
+/**
+ * Variações escolhíveis de um produto: [{ rotulo, quantidade }]. Lista vazia
+ * = produto SEM variação (estoque em lf_produtos.quantidade) — é o caso que
+ * só a busca por nome alcança, porque etiqueta só existe por variação.
+ */
+export function opcoesDoProduto(produto) {
+  const vars = Array.isArray(produto?.variacoes) ? produto.variacoes : []
+  return vars
+    .map(v => {
+      const rotulo = rotuloVariacao(v)
+      return rotulo ? { rotulo, quantidade: Number(v.quantidade) || 0 } : null
+    })
+    .filter(Boolean)
+}
+
+/**
+ * produtosData com as reservas desta sessão descontadas. Não muta nada;
+ * produto sem reserva volta como o MESMO objeto. Nunca fica negativo.
+ *
+ * @param reservas {[chaveReserva]: unidades}
+ */
+export function aplicarReservas(produtosData, reservas) {
+  const lista = produtosData || []
+  if (!reservas || Object.keys(reservas).length === 0) return lista
+  return lista.map(p => {
+    const vars = Array.isArray(p.variacoes) ? p.variacoes : []
+    if (vars.length === 0) {
+      const n = reservas[chaveReserva(p.id, null)] || 0
+      return n ? { ...p, quantidade: Math.max(0, (Number(p.quantidade) || 0) - n) } : p
+    }
+    let mudou = false
+    const novas = vars.map(v => {
+      const n = reservas[chaveReserva(p.id, rotuloVariacao(v))] || 0
+      if (!n) return v
+      mudou = true
+      return { ...v, quantidade: Math.max(0, (Number(v.quantidade) || 0) - n) }
+    })
+    return mudou ? { ...p, variacoes: novas } : p
+  })
 }
