@@ -89,6 +89,33 @@ describe('sincronizarClienteDaVenda', () => {
     expect(db.linhas).toHaveLength(2)
   })
 
+  // ── Telefone pelos últimos 8 dígitos (caso real: REYDSON SOUZA, 26 e 29/09) ──
+  it('telefone salvo "(91) 8278-7235" e venda nova com "91998278-7235" casam: não duplica', async () => {
+    const db = criarBancoFake([{ id: 'r1', nome: 'REYDSON SOUZA', telefone: '(91) 8278-7235', data_nascimento: null }])
+    const r = await sincronizarClienteDaVenda(db, { nome: 'Reydson Souza', telefone: '91998278-7235', aniversario: '1993-12-22' })
+    expect(r.acao).toBe('atualizado')
+    expect(db.inserir).not.toHaveBeenCalled()
+    expect(db.linhas).toHaveLength(1)
+    // telefone já existia: NÃO é trocado pelo formato novo; só o aniversário entra
+    expect(db.atualizar).toHaveBeenCalledWith('r1', { data_nascimento: '1993-12-22' })
+  })
+
+  it('variações de formatação/nono dígito/+55 do mesmo número casam', async () => {
+    for (const tel of ['9198278-7235', '91 8278-7235', '+55 91 98278-7235', '8278-7235', '(91)98278 7235']) {
+      const db = criarBancoFake([{ id: 'r1', nome: 'REYDSON SOUZA', telefone: '91 8278-7235', data_nascimento: '1993-12-22' }])
+      const r = await sincronizarClienteDaVenda(db, { nome: 'REYDSON SOUZA', telefone: tel })
+      expect([tel, r.acao]).toEqual([tel, 'existente'])
+      expect(db.inserir).not.toHaveBeenCalled()
+    }
+  })
+
+  it('últimos 8 dígitos diferentes continuam sendo outra pessoa', async () => {
+    const db = criarBancoFake([{ id: 'r1', nome: 'REYDSON SOUZA', telefone: '91 8278-7235', data_nascimento: null }])
+    const r = await sincronizarClienteDaVenda(db, { nome: 'REYDSON SOUZA', telefone: '91 8278-7236' })
+    expect(r.acao).toBe('criado')
+    expect(db.linhas).toHaveLength(2)
+  })
+
   it('"_" no nome não vira curinga: Ana_Maria não casa com AnaXMaria', async () => {
     const db = criarBancoFake([{ id: '1', nome: 'AnaXMaria', telefone: null, data_nascimento: null }])
     const r = await sincronizarClienteDaVenda(db, { nome: 'Ana_Maria' })
@@ -142,6 +169,15 @@ describe('finalizarPreVenda — cliente da pré-venda entra em lf_clientes', () 
     const erro = await finalizarPreVenda({ updateVenda: vi.fn().mockResolvedValue({ message: 'rls' }), sincronizarClienteVenda }, preVenda, '[]')
     expect(erro).toEqual({ message: 'rls' })
     expect(sincronizarClienteVenda).not.toHaveBeenCalled()
+  })
+
+  it('pré-venda com o mesmo telefone sem o nono dígito: não duplica a cliente', async () => {
+    const db = criarBancoFake([{ id: 'r1', nome: 'REYDSON SOUZA', telefone: '(91) 8278-7235', data_nascimento: null }])
+    const sincronizarClienteVenda = dados => sincronizarClienteDaVenda(db, dados)
+    await finalizarPreVenda({ updateVenda: vi.fn().mockResolvedValue(null), sincronizarClienteVenda },
+      { id: 'pv3', cliente_nome: 'Reydson Souza', cliente_tel: '91998278-7235' }, '[]')
+    expect(db.linhas).toHaveLength(1)
+    expect(db.inserir).not.toHaveBeenCalled()
   })
 
   it('pré-venda sem cliente identificada: finaliza sem criar nada', async () => {

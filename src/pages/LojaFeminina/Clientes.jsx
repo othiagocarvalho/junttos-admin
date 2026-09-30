@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check, MessageCircle } from 'lucide-react'
+import { Users, Plus, Search, ChevronDown, ChevronUp, Pencil, Trash2, X, Check, MessageCircle, AlertTriangle, ArrowRight } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import UpgradeWall from '../../components/UpgradeWall'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
@@ -18,6 +19,9 @@ import {
   normalizeWaPhone,
 } from '../../utils/crm'
 import { fmtR } from '../../utils/formatters'
+import {
+  MOTIVOS, textoCadastroIncompleto, buscarCandidatosDuplicata, salvarClienteNovo, usarClienteExistente,
+} from '../../utils/duplicataCliente'
 
 function fmtData(iso) {
   if (!iso) return null
@@ -52,11 +56,108 @@ const FORM_VAZIO = {
   ...FORM_COMPLETO_VAZIO,
 }
 
+const ROTULO_CAMPO = {
+  telefone: 'telefone', email: 'e-mail', data_nascimento: 'aniversário', observacoes: 'observações',
+  cpf_cnpj: 'CPF/CNPJ', endereco: 'endereço', numero: 'número', complemento: 'complemento',
+  bairro: 'bairro', cidade: 'cidade', estado: 'estado', cep: 'CEP',
+}
+
+// ── Aviso de possível duplicata (cadastro NOVO) ────────────────
+// Ver utils/duplicataCliente.js. Nunca bloqueia: "Não é a mesma pessoa"
+// segue com o cadastro normal; "Usar este" abre o cadastro existente.
+function AvisoDuplicata({ candidatos, onUsar, onCriarMesmoAssim, onVoltar, salvando, theme }) {
+  const fonte = 'Plus Jakarta Sans, sans-serif'
+  return (
+    <div role="alert" style={{
+      marginTop: 18, borderRadius: 'var(--r-card)', padding: '14px 14px 12px',
+      background: 'var(--status-warn-bg, #fffbeb)', border: '1.5px solid var(--status-warn-dot, #f59e0b)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
+        <AlertTriangle size={17} color="var(--status-warn-tx, #92400e)" style={{ flexShrink: 0, marginTop: 1 }} />
+        <div>
+          <p style={{ fontFamily: fonte, fontSize: 14, fontWeight: 700, color: 'var(--status-warn-tx, #92400e)', margin: 0 }}>
+            {candidatos.length === 1 ? 'Essa cliente pode já estar cadastrada' : `${candidatos.length} cadastros parecidos já existem`}
+          </p>
+          <p style={{ fontFamily: fonte, fontSize: 12.5, color: 'var(--status-warn-tx, #92400e)', margin: '3px 0 0' }}>
+            Confira antes de criar outra — cadastro repetido divide o histórico de compras.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {candidatos.map(({ cliente, motivos, faltando }) => {
+          const incompleto = textoCadastroIncompleto(faltando)
+          return (
+            <div key={cliente.id} style={{
+              background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12,
+              padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontFamily: fonte, fontSize: 14, fontWeight: 700, color: 'var(--ink)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {cliente.nome}
+                </p>
+                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, color: 'var(--muted)', margin: '2px 0 0' }}>
+                  {cliente.telefone || 'sem telefone'}{cliente.data_nascimento ? ` · nasc. ${fmtData(cliente.data_nascimento)}` : ''}
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+                  {motivos.map(m => (
+                    <span key={m} style={{
+                      fontFamily: fonte, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+                      background: `color-mix(in srgb, ${theme.primary} 12%, white)`, color: theme.primary,
+                    }}>{MOTIVOS[m]}</span>
+                  ))}
+                  {incompleto && (
+                    <span style={{
+                      fontFamily: fonte, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+                      background: '#fef3c7', color: '#92400e',
+                    }}>{incompleto}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUsar(cliente)}
+                disabled={salvando}
+                style={{
+                  flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4,
+                  height: 34, padding: '0 12px', borderRadius: 'var(--r-pill, 99px)', cursor: 'pointer',
+                  border: `1.5px solid ${theme.primary}`, background: 'transparent', color: theme.primary,
+                  fontFamily: fonte, fontSize: 12.5, fontWeight: 700,
+                }}
+              >
+                Usar este <ArrowRight size={13} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <Button
+        variant="secondary"
+        disabled={salvando}
+        onClick={onCriarMesmoAssim}
+        style={{ width: '100%', marginTop: 12 }}
+      >
+        {salvando ? 'Salvando...' : 'Não é a mesma pessoa — criar cliente nova'}
+      </Button>
+      <button
+        type="button"
+        onClick={onVoltar}
+        style={{ display: 'block', margin: '8px auto 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: fonte, fontSize: 12.5, fontWeight: 600, color: 'var(--muted)' }}
+      >
+        Voltar e revisar os dados
+      </button>
+    </div>
+  )
+}
+
 // ── Modal ──────────────────────────────────────────────────────
-function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
+function Modal({ initial, onSalvar, onCancelar, onUsarExistente, preenchidos = [], theme, cadastroCompleto }) {
   const [form, setForm] = useState(initial || FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  // Candidatos a duplicata achados no banco ao salvar um cliente NOVO.
+  const [candidatos, setCandidatos] = useState(null)
 
   useEffect(() => {
     function handleKey(e) { if (e.key === 'Escape') onCancelar() }
@@ -64,13 +165,19 @@ function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [onCancelar])
 
-  function set(field, val) { setForm(f => ({ ...f, [field]: val })) }
+  // Mexeu nos dados depois do aviso: o aviso era sobre os dados antigos.
+  function set(field, val) { setForm(f => ({ ...f, [field]: val })); setCandidatos(null) }
 
-  async function handleSalvar() {
+  async function handleSalvar({ forcar = false } = {}) {
     if (!form.nome.trim()) { setErro('Nome é obrigatório.'); return }
+    setErro('')
     setSalvando(true)
     try {
-      await onSalvar(form)
+      const r = await onSalvar(form, { forcar })
+      if (r?.acao === 'aviso') {
+        setCandidatos(r.candidatos)
+        setSalvando(false)
+      }
     } catch (e) {
       setErro(e.message || 'Erro ao salvar.')
       setSalvando(false)
@@ -101,6 +208,16 @@ function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
             <X size={20} />
           </button>
         </div>
+
+        {preenchidos.length > 0 && (
+          <p style={{
+            margin: '0 0 14px', padding: '9px 12px', borderRadius: 10, fontSize: 12.5, lineHeight: 1.45,
+            background: `color-mix(in srgb, ${theme.primary} 10%, white)`, color: 'var(--ink)',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+          }}>
+            Completamos com o que você tinha digitado: <strong>{preenchidos.map(c => ROTULO_CAMPO[c] || c).join(', ')}</strong>. Confira e toque em Salvar.
+          </p>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -147,6 +264,16 @@ function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
           <p style={{ marginTop: 10, fontSize: 13, color: '#ef4444', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>{erro}</p>
         )}
 
+        {candidatos ? (
+          <AvisoDuplicata
+            candidatos={candidatos}
+            onUsar={cliente => onUsarExistente?.(cliente, form)}
+            onCriarMesmoAssim={() => handleSalvar({ forcar: true })}
+            onVoltar={() => setCandidatos(null)}
+            salvando={salvando}
+            theme={theme}
+          />
+        ) : (
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <Button variant="secondary" onClick={onCancelar} style={{ flex: 1 }}>
             Cancelar
@@ -155,12 +282,13 @@ function Modal({ initial, onSalvar, onCancelar, theme, cadastroCompleto }) {
             variant="primary"
             icon={salvando ? undefined : Check}
             disabled={salvando}
-            onClick={handleSalvar}
+            onClick={() => handleSalvar()}
             style={{ flex: 2, background: theme.primary }}
           >
-            {salvando ? 'Salvando...' : 'Salvar'}
+            {salvando ? (initial ? 'Salvando...' : 'Conferindo...') : 'Salvar'}
           </Button>
         </div>
+        )}
       </div>
     </div>
   )
@@ -438,9 +566,11 @@ function ClienteCard({
 
 
 // ── Main export ────────────────────────────────────────────────
-export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme, produtosData = [], plano = 'starter', features = null }) {
+export default function Clientes({ clientes, vendas, addCliente, updateCliente, deleteCliente, theme, produtosData = [], plano = 'starter', features = null, lojaId = '' }) {
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(null)
+  // Campos que "Usar este" completou no cadastro existente (aviso de duplicata).
+  const [preenchidos, setPreenchidos] = useState([])
   const [filtro, setFiltro] = useState('todos')
 
   const isPro = temAcesso(plano, 'pro')
@@ -494,9 +624,33 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
     return <UpgradeWall planoAtual={plano} planoNecessario="pro" funcionalidade="crm_avancado" theme={theme} />
   }
 
-  async function handleSalvar(form) {
+  function abrirModal(m) {
+    setPreenchidos([])
+    setModal(m)
+  }
+
+  // "Usar este →" no aviso de duplicata: abre o cadastro EXISTENTE para
+  // edição — nada é criado. Vazios nele recebem o que já tinha sido digitado.
+  function handleUsarExistente(existente, formDigitado) {
+    const campos = ['telefone', 'email', 'data_nascimento', 'observacoes',
+      ...(cadastroCompleto ? CAMPOS_CADASTRO_COMPLETO.map(c => c.campo) : [])]
+    const { cliente, preenchidos: completados } = usarClienteExistente(existente, formDigitado, campos)
+    setPreenchidos(completados)
+    setModal(cliente)
+  }
+
+  async function handleSalvar(form, { forcar = false } = {}) {
     if (modal === 'novo') {
-      await addCliente(form)
+      // Busca no BANCO antes de criar — ver utils/duplicataCliente.js.
+      const r = await salvarClienteNovo({
+        form,
+        forcar,
+        addCliente,
+        buscarCandidatos: lojaId
+          ? f => buscarCandidatosDuplicata(supabase, lojaId, { nome: f.nome, telefone: f.telefone })
+          : null,
+      })
+      if (r.acao === 'aviso') return r
     } else {
       const dados = {
         nome:             form.nome?.trim(),
@@ -516,6 +670,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
       await updateCliente(modal.id, dados)
     }
     setModal(null)
+    setPreenchidos([])
   }
 
   const FILTROS = [
@@ -533,7 +688,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
           Clientes
         </p>
         <Button
-          variant="primary" icon={Plus} onClick={() => setModal('novo')}
+          variant="primary" icon={Plus} onClick={() => abrirModal('novo')}
           style={{ background: theme.primary, flexShrink: 0 }}
         >
           Novo cliente
@@ -605,7 +760,7 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
           vendas={vendasReais}
           produtosData={produtosData}
           theme={theme}
-          onEditar={cl => setModal(cl)}
+          onEditar={cl => abrirModal(cl)}
           onExcluir={id => deleteCliente(id)}
           proMode={isPro}
           diasUltima={c._diasUltima}
@@ -619,6 +774,8 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
       {/* Modal */}
       {modal && (
         <Modal
+          // Remonta ao trocar de "novo" para o cadastro existente ("Usar este").
+          key={modal === 'novo' ? 'novo' : modal.id}
           initial={modal === 'novo' ? null : {
             nome:            modal.nome            || '',
             telefone:        modal.telefone        || '',
@@ -628,7 +785,9 @@ export default function Clientes({ clientes, vendas, addCliente, updateCliente, 
             ...Object.fromEntries(CAMPOS_CADASTRO_COMPLETO.map(c => [c.campo, modal[c.campo] || ''])),
           }}
           onSalvar={handleSalvar}
-          onCancelar={() => setModal(null)}
+          onCancelar={() => { setModal(null); setPreenchidos([]) }}
+          onUsarExistente={handleUsarExistente}
+          preenchidos={modal === 'novo' ? [] : preenchidos}
           theme={theme}
           cadastroCompleto={cadastroCompleto}
         />

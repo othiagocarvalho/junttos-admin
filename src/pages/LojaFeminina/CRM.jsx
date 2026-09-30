@@ -513,6 +513,7 @@ export default function CRM({
           produtosData={produtosData}
           plano={plano}
           features={features}
+          lojaId={lojaId}
         />
       )}
     </div>
