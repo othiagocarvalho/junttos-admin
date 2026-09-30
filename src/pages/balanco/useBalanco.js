@@ -1,9 +1,28 @@
-import { supabase } from '../../lib/supabase'
+import { supabase as supabaseLoja } from '../../lib/supabase'
 import { getVarLabel } from '../../utils/balanco'
 import { rpcAusente } from '../../utils/estoqueMov'
 import { isLojaExcluida } from '../../utils/lojaStatus'
 
-export function useBalanco() {
+/**
+ * Operações de balanço de estoque (bal_sessoes, bal_subcontagens,
+ * bal_itens_contados, bal_ajustes) — usado pelo /balanco do painel admin e
+ * pelo "Contar estoque" do Mercado.
+ *
+ * ─── POR QUE O CLIENT É PARÂMETRO ───────────────────────────────────────────
+ * O login do painel admin mora no client `supabaseAdmin` (storageKey
+ * separada — ver lib/supabaseAdmin.js); o das lojas, no `supabase`. Este hook
+ * importava o `supabase` fixo, então no /balanco as consultas saíam SEM login
+ * (anon) — ou, pior, com o login de uma loja aberta no mesmo navegador. Só
+ * funcionava porque as quatro tabelas bal_* tinham a policy allow_all
+ * (auditoria de 28/09/2026). Antes de fechar essas tabelas por loja
+ * (supabase/fix_rls_balanco.sql), cada tela passa o client da sessão certa:
+ *   · /balanco (BalancoSessao, BalancoContagem, BalancoResumo) → supabaseAdmin
+ *   · Mercado (ContarEstoque, ContarEstoqueResumo)             → supabase
+ * O padrão continua sendo o client das lojas, para nenhum chamador novo
+ * sair sem login por esquecimento.
+ */
+export function useBalanco(client = supabaseLoja) {
+  const supabase = client
 
   async function buscarLojas() {
     const { data, error } = await supabase
@@ -177,7 +196,7 @@ export function useBalanco() {
       // 'balanco', apontando para a sessão. bal_ajustes continua guardando o
       // ajuste do ponto de vista do balanço; aqui é o extrato do produto.
       // p_loja_id nulo: o balanço sempre atualizou só por id.
-      const { error: errRpc } = await supabase.rpc('lf_set_variacoes', {
+      const { data: linhasAtualizadas, error: errRpc } = await supabase.rpc('lf_set_variacoes', {
         p_produto_id:  a.produto_id,
         p_variacoes:   novasVariacoes,
         p_loja_id:     null,
@@ -193,6 +212,17 @@ export function useBalanco() {
           .from('lf_produtos')
           .update({ variacoes: novasVariacoes })
           .eq('id', a.produto_id)
+        continue
+      }
+      // Antes o erro era ignorado e a tela dizia "Estoque atualizado!" mesmo
+      // quando nada mudava — era o que acontecia no /balanco rodando sem login
+      // (anon não tem UPDATE em lf_produtos). lf_set_variacoes devolve quantas
+      // linhas atualizou: 0 também é falha (produto de outra loja/sumido).
+      // Os ajustes anteriores a este já foram gravados; repetir é seguro,
+      // porque cada ajuste grava a quantidade final, não um delta.
+      if (errRpc) return errRpc
+      if (linhasAtualizadas === 0) {
+        return new Error(`o estoque do produto ${a.produto_id} não foi atualizado (nenhuma linha alterada)`)
       }
     }
     return null

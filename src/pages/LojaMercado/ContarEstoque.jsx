@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, Camera, Search, X, CheckCircle } from 'lucide-react'
 import { useBalanco } from '../balanco/useBalanco'
+import { supabase } from '../../lib/supabase'
 import { getVarLabel } from '../../utils/balanco'
 import BarcodeScanner from '../../components/BarcodeScanner'
 import ContarEstoqueResumo from './ContarEstoqueResumo'
@@ -21,7 +22,8 @@ const inp = {
  * e o hook useBalanco() da Moda sem alterá-los.
  */
 export default function ContarEstoque({ lojaId, config, fetchAll, buscarPorEan, setTab }) {
-  const balanco = useBalanco()
+  // Lojista do Mercado: login no client das lojas — ver useBalanco.js.
+  const balanco = useBalanco(supabase)
   const inputRef = useRef(null)
 
   const [screen, setScreen] = useState('iniciando') // 'iniciando' | 'contagem' | 'resumo'

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Camera, Search, Plus, Minus, CheckCircle, ChevronRight } from 'lucide-react'
+import { Camera, Search, Plus, Minus, CheckCircle, ChevronRight, X } from 'lucide-react'
 import { useBalanco } from './useBalanco'
+import { supabaseAdmin } from '../../lib/supabaseAdmin'
 import { getVarLabel } from '../../utils/balanco'
 import BarcodeScanner from '../../components/BarcodeScanner'
 
@@ -15,7 +16,8 @@ const inp = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function BalancoContagem({ sessao, subcontagem, subcontagemIdx, totalSubcontagens, onFinalizada }) {
-  const balanco = useBalanco()
+  // Painel admin: o login está no supabaseAdmin — ver o cabeçalho de useBalanco.js.
+  const balanco = useBalanco(supabaseAdmin)
   const inputRef = useRef(null)
 
   const [itens, setItens] = useState([])

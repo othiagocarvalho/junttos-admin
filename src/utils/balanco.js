@@ -159,3 +159,53 @@ export function somarSetores(itens) {
     }
   }).sort((a, b) => (a.produto_nome ?? '').localeCompare(b.produto_nome ?? ''))
 }
+
+/**
+ * "Encerrar balanço" da lojista (EstoqueMobile): fecha uma sessão aberta SEM
+ * aplicar ajuste de estoque — alguém começou uma contagem e largou pela
+ * metade, e as vendas ficaram travadas.
+ *
+ * ─── QUAL STATUS ─────────────────────────────────────────────────────────────
+ * bal_sessoes_status_check aceita hoje só 'aberta', 'aguardando_desempate',
+ * 'concluida' e 'finalizada'. A versão anterior gravava 'cancelada', que a
+ * restrição recusa: o botão falhava SEMPRE, em silêncio, e o balanço ficava
+ * preso travando as vendas.
+ *   · 'concluida' não serve: é o que fecharSessao grava DEPOIS de aplicar os
+ *     ajustes — "concluída" significa "o estoque foi corrigido".
+ *   · 'cancelada' é o valor certo, e supabase/fix_balanco_status_cancelada.sql
+ *     o inclui na restrição. É tentado primeiro.
+ *   · Enquanto aquele SQL não rodar, a restrição recusa (código 23514) e cai
+ *     em 'finalizada': aceito, neutro, e nenhum outro fluxo do código grava
+ *     esse valor. Sem deploy novo quando o SQL rodar — passa a gravar
+ *     'cancelada' sozinho.
+ *
+ * Qualquer falha volta como { ok: false, erro } — nunca mais em silêncio.
+ * UPDATE que não casa nenhuma linha (sessão de outra loja, já encerrada por
+ * outro aparelho, bloqueio de permissão) também é falha: por isso o .select().
+ *
+ * @returns {Promise<{ ok: boolean, status: string|null, erro: object|null }>}
+ */
+export const STATUS_ENCERRADA_SEM_AJUSTE = 'cancelada'
+export const STATUS_ENCERRADA_SEM_AJUSTE_RESERVA = 'finalizada'
+
+export async function encerrarBalancoSemAjuste(supabase, { sessaoId, lojaId }) {
+  const gravar = status => supabase
+    .from('bal_sessoes')
+    .update({ status, finalizado_em: new Date().toISOString() })
+    .eq('id', sessaoId)
+    .eq('loja_id', lojaId)
+    .eq('status', 'aberta')
+    .select('id')
+
+  let status = STATUS_ENCERRADA_SEM_AJUSTE
+  let { data, error } = await gravar(status)
+  if (error?.code === '23514') {
+    status = STATUS_ENCERRADA_SEM_AJUSTE_RESERVA
+    ;({ data, error } = await gravar(status))
+  }
+  if (error) return { ok: false, status: null, erro: error }
+  if (!data?.length) {
+    return { ok: false, status: null, erro: { message: 'Nenhum balanço aberto foi encontrado para encerrar (pode já ter sido encerrado em outro aparelho).' } }
+  }
+  return { ok: true, status, erro: null }
+}

@@ -9,7 +9,7 @@ import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import { BolinhaCor } from '../../components/studio/VariacaoBadge'
 import { rotuloTipo, toneTipo, fmtDelta, labelsDeVariacoes, filtrarPorVariacao, tabelaAusente } from '../../utils/estoqueMov'
-import { limiteBalancoValido } from '../../utils/balanco'
+import { limiteBalancoValido, encerrarBalancoSemAjuste } from '../../utils/balanco'
 
 function fmtDataHora(s) {
   return new Date(s).toLocaleString('pt-BR', {
@@ -167,6 +167,7 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
   // dispositivo ou deixada pela metade.
   const [balTrava, setBalTrava]         = useState(null)
   const [encerrandoBal, setEncerrandoBal] = useState(false)
+  const [erroBal, setErroBal]             = useState('')
   const [search, setSearch]         = useState('')
   const [expanded, setExpanded]     = useState({})
   const [modal, setModal]           = useState(null) // { mode, produto, idx? }
@@ -503,17 +504,21 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
     return () => { vivo = false }
   }, [LOJA_ID])
 
+  // Status gravado e motivo de não ser 'concluida': ver
+  // encerrarBalancoSemAjuste (utils/balanco.js). A versão anterior gravava um
+  // status que o banco recusa e ignorava o erro — o botão nunca funcionou.
   async function encerrarBalanco() {
     if (!balTrava || encerrandoBal) return
     setEncerrandoBal(true)
-    // 'cancelada' e não 'concluida': nenhum ajuste de estoque foi aplicado.
-    const { error } = await supabase
-      .from('bal_sessoes')
-      .update({ status: 'cancelada' })
-      .eq('id', balTrava.id)
-      .eq('loja_id', LOJA_ID)
+    setErroBal('')
+    const r = await encerrarBalancoSemAjuste(supabase, { sessaoId: balTrava.id, lojaId: LOJA_ID })
     setEncerrandoBal(false)
-    if (!error) setBalTrava(null)
+    if (r.ok) {
+      setBalTrava(null)
+      return
+    }
+    console.error('[balanco] falha ao encerrar', r.erro)
+    setErroBal(`Não foi possível encerrar o balanço: ${r.erro?.message || 'erro desconhecido'}. As vendas continuam travadas — tente de novo; se persistir, fale com o suporte Junttos.`)
   }
 
   return (
@@ -537,6 +542,11 @@ export default function EstoqueMobile({ produtosData = [], updateVariacoes, addP
           >
             {encerrandoBal ? 'Encerrando...' : 'Encerrar balanço'}
           </Button>
+          {erroBal && (
+            <p role="alert" style={{ flexBasis: '100%', margin: 0, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12.5, fontWeight: 600, color: '#b91c1c', background: '#fee2e2', borderRadius: 8, padding: '8px 10px', lineHeight: 1.45 }}>
+              {erroBal}
+            </p>
+          )}
         </div>
       )}
 

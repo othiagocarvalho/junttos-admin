@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ChevronLeft, CheckCircle, Download, Save } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useBalanco } from '../balanco/useBalanco'
+import { supabase } from '../../lib/supabase'
 import { somarSetores } from '../../utils/balanco'
 
 const AZUL = '#1E63C8'
@@ -25,7 +26,8 @@ function divColor(v) {
  * as subcontagens (aqui, só uma) e calcula a diferença contra o sistema.
  */
 export default function ContarEstoqueResumo({ sessao, config, fetchAll, setTab }) {
-  const balanco = useBalanco()
+  // Lojista do Mercado: login no client das lojas — ver useBalanco.js.
+  const balanco = useBalanco(supabase)
 
   const [linhas, setLinhas] = useState([])
   const [carregando, setCarregando] = useState(true)

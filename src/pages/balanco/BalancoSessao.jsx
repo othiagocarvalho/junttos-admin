@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Label } from '../../components/studio/Input'
 import { ClipboardList, Plus, X, ChevronDown } from 'lucide-react'
 import { useBalanco } from './useBalanco'
+import { supabaseAdmin } from '../../lib/supabaseAdmin'
 
 const PRIMARY = '#5E2BD0'
 
@@ -26,7 +27,8 @@ const inp = {
 
 
 export default function BalancoSessao({ onIniciada }) {
-  const balanco = useBalanco()
+  // Painel admin: o login está no supabaseAdmin — ver o cabeçalho de useBalanco.js.
+  const balanco = useBalanco(supabaseAdmin)
 
   const [clienteTipo, setClienteTipo] = useState('junttos') // 'junttos' | 'externo'
   const [buscaLoja, setBuscaLoja] = useState('')
