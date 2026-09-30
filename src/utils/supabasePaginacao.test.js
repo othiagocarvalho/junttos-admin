@@ -66,6 +66,25 @@ describe('buscarTodasAsLinhas', () => {
     expect(construirPagina).toHaveBeenCalledTimes(2)
   })
 
+  it('lf_clientes da tropicaleatacado: 1948 clientes em ordem de nome, com nomes repetidos, chegam todas uma vez só', async () => {
+    // Caso real de 30/09/2026: ordenado só por nome e sem paginar, a lista
+    // parava na 1000ª ("LANARA RAMOS") e MARCELY LOBO/RAFAELA sumiam da tela.
+    // O servidor simulado ordena por (nome, id) — a ordem total que
+    // useLojaData passa a pedir — e fatia como o .range() do PostgREST.
+    const nomes = ['ANA LOBO', 'ANA LOBO', 'GEÓRGIA PEREIRA', 'MARCELA SOUZA', 'MARCELA SOUZA', 'MARCELY LOBO', 'RAFAELA']
+    const todas = Array.from({ length: 1948 }, (_, i) => ({ id: `id-${String(i).padStart(4, '0')}`, nome: nomes[i % nomes.length] }))
+      .sort((a, b) => a.nome.localeCompare(b.nome) || a.id.localeCompare(b.id))
+    const construirPagina = (from, to) => Promise.resolve({ data: todas.slice(from, to + 1), error: null })
+
+    const { data } = await buscarTodasAsLinhas(construirPagina, 1000)
+    expect(data).toHaveLength(1948)
+    expect(new Set(data.map(c => c.id)).size).toBe(1948)
+    expect(data.some(c => c.nome === 'MARCELY LOBO')).toBe(true)
+    expect(data.some(c => c.nome === 'RAFAELA')).toBe(true)
+    // A ordem alfabética que a tela espera continua valendo.
+    expect(data.map(c => c.nome)).toEqual([...data.map(c => c.nome)].sort((a, b) => a.localeCompare(b)))
+  })
+
   it('respeita um tamanhoPagina diferente do default', async () => {
     const { construirPagina, chamadas } = mockTabela(250, 100)
     const { data } = await buscarTodasAsLinhas(construirPagina, 100)

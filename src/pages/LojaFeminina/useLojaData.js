@@ -136,7 +136,17 @@ export function useLojaData(lojaId = 'estrada') {
         supabase.from('lf_metas').select('*').eq('loja_id', lojaId),
         supabase.from('lf_produtos').select('*').eq('loja_id', lojaId).eq('ativo', true).order('nome'),
         supabase.from('lf_config').select('*').eq('loja_id', lojaId).maybeSingle(),
-        supabase.from('lf_clientes').select('*').eq('loja_id', lojaId).order('nome'),
+        // Paginado pelo mesmo motivo de lf_vendas: tropicaleatacado passou de
+        // 1000 clientes em 17/09/2026 (1948 em 30/09) e audazwear tem 1192.
+        // Sem paginar, a lista chegava cortada nas 1000 primeiras em ordem
+        // alfabética e toda cliente depois de "LANARA" sumia de Clientes e
+        // Follow-up — mesmo existindo no banco. .order('id') desempata nomes
+        // repetidos: paginação por range só é estável com ordem total, senão
+        // uma cliente de nome repetido na virada da página podia sumir ou
+        // vir duas vezes.
+        buscarTodasAsLinhas((from, to) =>
+          supabase.from('lf_clientes').select('*').eq('loja_id', lojaId).order('nome').order('id').range(from, to)
+        ),
         supabase.from('lf_metas_vendedora').select('*').eq('loja_id', lojaId),
         supabase.from('lf_meta_produto').select('*').eq('loja_id', lojaId).eq('ativa', true).maybeSingle(),
         supabase.from('lf_corrida').select('*').eq('loja_id', lojaId).eq('ativa', true).order('created_at', { ascending: false }),
