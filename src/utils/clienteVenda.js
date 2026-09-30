@@ -17,6 +17,12 @@
 // desempata: se a venda E o cadastro têm telefone, precisam bater; se um dos
 // dois não tem, o nome basta.
 //
+// "Bater" = os ÚLTIMOS 8 DÍGITOS iguais (tudo que não é número é ignorado).
+// Comparar o número inteiro deixava passar a mesma pessoa gravada com e sem
+// o nono dígito, com ou sem DDD/+55 — foi assim que "REYDSON SOUZA" duplicou
+// na tropicaleatacado ("91 8278-7235" e "9198278-7235", 26 e 29/09/2026).
+// Mesma regra do aviso de duplicata do cadastro manual (utils/duplicataCliente.js).
+//
 // ─── O QUE ATUALIZA NUM CLIENTE JÁ EXISTENTE ──────────────────────────────
 // Só preenche o que está vazio — telefone e aniversário. Nunca sobrescreve
 // um valor que já estava no cadastro.
@@ -25,8 +31,10 @@
 // rodar. O try/catch é de propósito; o erro vai para o console como sempre
 // foi ('[auto-cliente]').
 
+import { ultimos8Digitos } from './duplicataCliente'
+
 const normNome = s => (s || '').trim().toLowerCase()
-const normTel = t => (t || '').replace(/[\s\-().]/g, '')
+const normTel = t => ultimos8Digitos(t, { aceitarCurto: true }) || ''
 
 /**
  * @param db { buscarPorNome(nome) → Promise<rows>, inserir(row) → Promise<row>, atualizar(id, campos) → Promise<row> }
