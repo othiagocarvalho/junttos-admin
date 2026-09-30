@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CheckCircle, AlertTriangle, RotateCcw, Download, Save, ChevronLeft } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useBalanco } from './useBalanco'
+import { supabaseAdmin } from '../../lib/supabaseAdmin'
 import { useAuth } from '../../context/AuthContext'
 import { compararConferencia, somarSetores } from '../../utils/balanco'
 
@@ -20,7 +21,8 @@ function divColor(v) {
 }
 
 export default function BalancoResumo({ sessao, subcontagens, onDesempate, onNovaSessao }) {
-  const balanco = useBalanco()
+  // Painel admin: o login está no supabaseAdmin — ver o cabeçalho de useBalanco.js.
+  const balanco = useBalanco(supabaseAdmin)
   const { user } = useAuth()
 
   const [linhas, setLinhas] = useState([])
