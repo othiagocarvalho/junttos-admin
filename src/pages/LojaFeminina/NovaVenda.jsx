@@ -324,7 +324,6 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = opcoesFormaPgto(config)
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)
@@ -1158,7 +1157,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
                           outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
                         }}
                       >
-                        {pgtoOpts.map(f => <option key={f} value={f}>{f}</option>)}
+                        {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
                       <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                         <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>

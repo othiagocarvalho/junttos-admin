@@ -87,3 +87,53 @@ describe('adicionarForma / removerForma', () => {
     expect(lista).toHaveLength(2)
   })
 })
+
+describe('casos extremos', () => {
+  it('descarta forma gravada com nome de forma padrão (evita soma em dobro)', () => {
+    const cfg = { formas_pagamento: [{ nome: ' pix ', conta_como: 'Dinheiro' }, { nome: 'Fiado', conta_como: 'Dinheiro' }] }
+    expect(formasCadastradas(cfg)).toEqual([])
+    expect(opcoesFormaPgto(cfg)).toEqual(FORMAS_PADRAO_MODA)
+    expect(contaComoNoCaixa('Pix', cfg)).toBeNull()
+  })
+
+  it('recusa < e > no nome (o recibo impresso é HTML)', () => {
+    expect(validarNovaForma('Vale <b>', null)).toMatch(/< e >/)
+  })
+
+  it('aceita acentos, números e símbolos comuns', () => {
+    for (const n of ['Cartão Elo 3x', 'Vale-troca', 'PicPay', 'Crédito loja (50%)', 'R$ fiado & cia']) {
+      expect(validarNovaForma(n, null)).toBeNull()
+    }
+  })
+
+  it('nomes antigos que existem nas vendas reais', () => {
+    // "Cartão" já é padrão (Mercado); "Débito", "Crédito", "Troca" podem ser
+    // cadastrados e passam a somar no caixa na linha escolhida.
+    expect(validarNovaForma('Cartão', null)).toMatch(/padrão/)
+    expect(validarNovaForma('Troca', null)).toBeNull()
+  })
+
+  it('opção da venda sendo editada em forma antiga aparece no seletor', () => {
+    expect(opcoesFormaPgto(null, { atual: 'Cartão' })).toEqual([...FORMAS_PADRAO_MODA, 'Cartão'])
+  })
+
+  it('ciclo completo: adiciona, remove, readiciona com outra linha', () => {
+    let cfg = { formas_pagamento: [] }
+    cfg = { formas_pagamento: adicionarForma(cfg, 'Vale', 'nenhum') }
+    cfg = { formas_pagamento: adicionarForma(cfg, 'Boleto', 'Pix') }
+    cfg = { formas_pagamento: removerForma(cfg, 'vale') }
+    expect(opcoesFormaPgto(cfg)).toEqual([...FORMAS_PADRAO_MODA, 'Boleto'])
+    expect(contaComoNoCaixa('Vale', cfg)).toBe('nenhum')
+    expect(validarNovaForma('Vale', cfg)).toBeNull()
+    cfg = { formas_pagamento: adicionarForma(cfg, 'VALE', 'Dinheiro') }
+    expect(formasCadastradas(cfg)).toEqual([
+      { nome: 'Vale', conta_como: 'Dinheiro', ativo: true },
+      { nome: 'Boleto', conta_como: 'Pix', ativo: true },
+    ])
+  })
+
+  it('a lista gravada é JSON simples (cabe na coluna jsonb com a trava de array)', () => {
+    const lista = adicionarForma(null, 'Vale', 'nenhum')
+    expect(Array.isArray(JSON.parse(JSON.stringify(lista)))).toBe(true)
+  })
+})

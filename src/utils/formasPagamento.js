@@ -32,7 +32,9 @@ const NOMES_RESERVADOS = new Set([...FORMAS_PADRAO_MODA, ...FORMAS_PADRAO_MERCAD
 
 /**
  * Formas cadastradas pela loja, normalizadas (ativas e inativas).
- * Tolera config nulo, coluna ainda inexistente e lixo no JSON.
+ * Tolera config nulo, coluna ainda inexistente e lixo no JSON. Descarta nome
+ * de forma padrão (só entraria editando o banco à mão): ela apareceria em
+ * dobro no seletor e somaria duas vezes no caixa.
  */
 export function formasCadastradas(config) {
   const bruto = config?.formas_pagamento
@@ -41,7 +43,7 @@ export function formasCadastradas(config) {
   const out = []
   for (const f of lista) {
     const nome = String(f?.nome || '').trim()
-    if (!nome || vistos.has(chave(nome))) continue
+    if (!nome || vistos.has(chave(nome)) || NOMES_RESERVADOS.has(chave(nome))) continue
     vistos.add(chave(nome))
     out.push({
       nome,
@@ -78,6 +80,8 @@ export function validarNovaForma(nome, config) {
   const n = String(nome || '').trim()
   if (!n) return 'Informe o nome da forma de pagamento.'
   if (n.length > 40) return 'Use um nome com até 40 caracteres.'
+  // O recibo impresso monta HTML com o nome da forma.
+  if (/[<>]/.test(n)) return 'Não use os sinais < e > no nome.'
   if (NOMES_RESERVADOS.has(chave(n))) return `"${n}" já é uma forma padrão.`
   const existente = formasCadastradas(config).find(f => chave(f.nome) === chave(n))
   if (existente?.ativo) return `"${n}" já está cadastrada.`
