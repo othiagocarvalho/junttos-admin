@@ -13,6 +13,15 @@
 
 import { fmtR } from './formatters'
 
+// Desativado temporariamente em 01/10/2026, aguardando correção da janela de
+// período — reativar removendo este flag.
+// Com false: some o item de menu (mobile e desktop), somem os avisos "Seu
+// Sócio Digital está pronto" / "Conheça seu Sócio Digital" do Início e a tela
+// mostra "Em manutenção". Nada no banco é apagado ou alterado
+// (lf_socio_relatorios fica intocado) e o pg_cron gerar_relatorios_socio
+// CONTINUA RODANDO nos dias 1 e 16 — só a exibição está desligada.
+export const SOCIO_DIGITAL_ATIVO = false
+
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 

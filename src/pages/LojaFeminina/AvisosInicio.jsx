@@ -14,6 +14,11 @@ import { AlertTriangle, TrendingUp, CreditCard, Wallet, Sparkles, Target, Packag
 import { supabase } from '../../lib/supabase'
 import { temAcesso } from '../../utils/planos'
 import { montarAvisos, limiteJanelaContas } from '../../utils/avisosInicio'
+// Sócio Digital desativado temporariamente em 01/10/2026, aguardando correção
+// da janela de período — reativar mudando o flag em utils/socioDigital.js.
+// Com false, os avisos "Seu Sócio Digital está pronto" e "Conheça seu Sócio
+// Digital" não aparecem (o relatório nem é buscado).
+import { SOCIO_DIGITAL_ATIVO } from '../../utils/socioDigital'
 
 const FONT = 'Plus Jakarta Sans, sans-serif'
 
@@ -101,7 +106,7 @@ export default function AvisosInicio({ vendas, metas, produtosData = [], lojaId,
   // Pendências de estoque abertas (lf_estoque_pendencias). null = não
   // carregou, ou a tabela ainda não existe (fix_estoque_pendencias.sql).
   const [pendencias, setPendencias] = useState(null)
-  const socioLiberado = temAcesso(plano, 'pro')
+  const socioLiberado = SOCIO_DIGITAL_ATIVO && temAcesso(plano, 'pro')
 
   useEffect(() => {
     if (!lojaId) return
@@ -166,7 +171,8 @@ export default function AvisosInicio({ vendas, metas, produtosData = [], lojaId,
     produtosData,
     contasPagar: contas.pagar,
     contasReceber: contas.receber,
-    socioUltimo,
+    // undefined = "não carregou" → montarAvisos não mostra nenhum aviso do Sócio.
+    socioUltimo: SOCIO_DIGITAL_ATIVO ? socioUltimo : undefined,
     socioVistoPeriodo: dispensas.socioVistoPeriodo,
     socioIntroVisto: dispensas.socioIntroVisto,
     pendenciasEstoque: pendencias,

@@ -6,6 +6,7 @@ import {
   DIAS_INATIVO, rotuloPeriodo, textoProximoResumo, dataPorExtenso, proximaGeracao,
   montarLeituraSocio, fraseAbertura, variacaoPct, formatarDelta,
   formatarSocioTexto, montarHtmlSocio, fatiarSegmentos, tamanhoSegmentos,
+  SOCIO_DIGITAL_ATIVO,
 } from '../../utils/socioDigital'
 
 // Sócio Digital — resumo quinzenal da loja.
@@ -752,7 +753,7 @@ function MessageStream({ mobile = false, relatorio, onVerProdutos, onCampanha })
 //   onIntroVista()       chamado ao abrir a tela — o pai grava
 //                        lf_config.socio_intro_visto e o aviso "Conheça seu
 //                        Sócio Digital" some do banner
-export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoja, onVisto, onCampanhaRetorno, onIntroVista }) {
+function SocioDigitalAtivo({ mobile = false, onVoltar, lojaId, nomeLoja, onVisto, onCampanhaRetorno, onIntroVista }) {
   const [estado, setEstado] = useState({ carregando: true, relatorio: null })
   const [modal, setModal] = useState(null)   // { tipo: 'recomprar'|'parados', itens }
 
@@ -838,4 +839,39 @@ export default function SocioDigital({ mobile = false, onVoltar, lojaId, nomeLoj
       {modalEl}
     </>
   )
+}
+
+// ── Em manutenção ──────────────────────────────────────────────────────────
+// Desativado temporariamente em 01/10/2026, aguardando correção da janela de
+// período — reativar mudando SOCIO_DIGITAL_ATIVO em utils/socioDigital.js.
+// Quem cair nesta tela por outro caminho que não o menu vê só o aviso: nada é
+// buscado em lf_socio_relatorios e nada é gravado em lf_config (onVisto /
+// onIntroVista não são chamados).
+function EmManutencao({ mobile, onVoltar }) {
+  const caixa = (
+    <div style={{ maxWidth: 360, textAlign: 'center', fontFamily: FONT }}>
+      <p style={{ fontSize: 17, fontWeight: 800, color: '#18181B', margin: '0 0 6px' }}>Sócio Digital</p>
+      <p style={{ fontSize: 14, color: '#71717A', lineHeight: 1.5, margin: 0 }}>Em manutenção, disponível em breve.</p>
+      {!mobile && onVoltar && (
+        <button type="button" onClick={onVoltar}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 18, padding: '10px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', background: '#5E2BD0', color: '#fff', fontFamily: FONT, fontSize: 13, fontWeight: 800 }}>
+          <ArrowLeft size={14} /> Voltar
+        </button>
+      )}
+    </div>
+  )
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      background: '#F6F6F9', width: '100%', boxSizing: 'border-box',
+      minHeight: mobile ? 'calc(100dvh - 56px)' : '100dvh',
+    }}>
+      {caixa}
+    </div>
+  )
+}
+
+export default function SocioDigital(props) {
+  if (!SOCIO_DIGITAL_ATIVO) return <EmManutencao mobile={props.mobile} onVoltar={props.onVoltar} />
+  return <SocioDigitalAtivo {...props} />
 }
