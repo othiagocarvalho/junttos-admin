@@ -97,6 +97,11 @@ function Painel({ resumo, contas, fechado, onSaida, onFechar, setTab }) {
               Mais {fmtR(resumo.entradas.fiado)} em fiado, que não entrou no caixa.
             </p>
           )}
+          {resumo.entradas.foraDoCaixa > 0 && (
+            <p style={{ fontSize: 14, color: '#71717A', margin: '14px 0 0' }}>
+              Mais {fmtR(resumo.entradas.foraDoCaixa)} em formas que não entram no caixa.
+            </p>
+          )}
         </div>
 
         {/* Contas a pagar */}
@@ -538,7 +543,7 @@ export default function Caixa({
   const [motivo, setMotivo]     = useState('')
   const [salvando, setSalvando] = useState(false)
 
-  const resumo   = useMemo(() => resumoCaixa(vendas, saidas, hoje), [vendas, saidas, hoje])
+  const resumo   = useMemo(() => resumoCaixa(vendas, saidas, hoje, config), [vendas, saidas, hoje, config])
   const fechado  = useMemo(() => jaFechado(caixas, hoje), [caixas, hoje])
   // Em aberto = nem paga nem cancelada ("Só esta parcela" no Financeiro).
   const doDiaContas = useMemo(() => contasEmAberto(contas), [contas])

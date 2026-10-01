@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings, Save, Palette, ToggleRight, Lock, Bell, Receipt, Paperclip, Image as ImageIcon, Upload } from 'lucide-react'
+import { Settings, Save, Palette, ToggleRight, Lock, Bell, Receipt, Paperclip, Image as ImageIcon, Upload, Wallet, Plus, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { uploadLogo, validarArquivoLogo, urlComVersao, LOGO_ACCEPT } from '../../utils/uploadLogo'
 import { useClientAuth } from '../../context/ClientAuthContext'
@@ -7,6 +7,9 @@ import Card from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
 import Button from '../../components/studio/Button'
 import Toggle from '../../components/studio/Toggle'
+import {
+  FORMAS_PADRAO_MODA, CONTA_COMO, formasCadastradas, validarNovaForma, adicionarForma, removerForma,
+} from '../../utils/formasPagamento'
 
 const PRESETS = [
   { label: 'Junttos',   primary: '#5E2BD0', accent: '#FF6F5E' },
@@ -26,7 +29,7 @@ const FEATURE_LABELS = {
   estoque:          'Estoque',
 }
 
-export default function LojaConfig({ config, features, saveConfig, theme, hideFeatureToggles = false }) {
+export default function LojaConfig({ config, features, saveConfig, theme, hideFeatureToggles = false, formasPadrao = FORMAS_PADRAO_MODA }) {
   const { user } = useClientAuth()
 
   const [nome,   setNome]   = useState(config?.nome            || '')
@@ -46,6 +49,13 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
   const [logoLocal,     setLogoLocal]     = useState(null)
   const [logoEnviando,  setLogoEnviando]  = useState(false)
   const [logoMsg,       setLogoMsg]       = useState(null)
+
+  // ── Formas de pagamento da loja ──────────────────────────────────────
+  // Gravam na hora (como o logo), sem depender do "Salvar configurações".
+  const [novaForma,     setNovaForma]     = useState('')
+  const [novaContaComo, setNovaContaComo] = useState('nenhum')
+  const [formasSalvando, setFormasSalvando] = useState(false)
+  const [formasMsg,     setFormasMsg]     = useState(null)
 
   // ── Fiscal (addon NFC-e) ──────────────────────────────────────────────
   const [inscricaoEstadual, setInscricaoEstadual] = useState(config?.inscricao_estadual || '')
@@ -132,6 +142,37 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
     setTimeout(() => setLogoMsg(null), 4000)
   }
 
+  async function gravarFormas(lista, sucesso) {
+    setFormasSalvando(true)
+    setFormasMsg(null)
+    const err = await saveConfig({ formas_pagamento: lista })
+    setFormasSalvando(false)
+    if (err) {
+      // Coluna ainda não criada no banco (migration_formas_pagamento.sql).
+      const semColuna = /formas_pagamento/.test(err.message || '')
+      setFormasMsg({ type: 'error', text: semColuna
+        ? 'Cadastro de formas de pagamento ainda não liberado. Fale com o suporte Junttos.'
+        : 'Erro ao salvar: ' + err.message })
+      return false
+    }
+    setFormasMsg({ type: 'success', text: sucesso })
+    setTimeout(() => setFormasMsg(null), 4000)
+    return true
+  }
+
+  async function handleAdicionarForma(e) {
+    e.preventDefault()
+    const erro = validarNovaForma(novaForma, config)
+    if (erro) { setFormasMsg({ type: 'error', text: erro }); return }
+    const nome = novaForma.trim()
+    const ok = await gravarFormas(adicionarForma(config, nome, novaContaComo), `"${nome}" adicionada.`)
+    if (ok) { setNovaForma(''); setNovaContaComo('nenhum') }
+  }
+
+  async function handleRemoverForma(nome) {
+    await gravarFormas(removerForma(config, nome), `"${nome}" removida. As vendas antigas continuam com ela.`)
+  }
+
   // Upload é uma chamada separada (Storage), então tem ação própria em vez
   // de esperar o "Salvar configurações" — o texto some fixado, o arquivo não.
   async function handleUploadCertificado() {
@@ -194,6 +235,8 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
   }
 
   const logoAtual = logoLocal || config?.logo_url || null
+  const formasAtivas = formasCadastradas(config).filter(f => f.ativo)
+  const rotuloContaComo = v => CONTA_COMO.find(c => c.value === v)?.label || v
 
   const sectionTitle = {
     fontSize: 14, fontWeight: 700, color: 'var(--ink)',
@@ -277,6 +320,111 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
               : { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626' }),
           }}>
             {logoMsg.text}
+          </div>
+        )}
+      </Card>
+
+      {/* Formas de pagamento — as padrão valem para todas as lojas; as
+          cadastradas aqui são só desta loja (lf_config.formas_pagamento) e
+          aparecem na Nova Venda, Pré-venda e edição de vendas. "Conta no
+          caixa como" decide em que linha do fechamento de caixa ela soma. */}
+      <Card>
+        <p style={{ ...sectionTitle, marginBottom: 4 }}>
+          <Wallet size={16} style={{ color: theme.primary }} />
+          Formas de Pagamento
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
+          Cadastre as formas que sua loja aceita além das padrão. Elas aparecem na hora de registrar a venda.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+          {formasPadrao.map(f => (
+            <span key={f} style={{
+              padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 600,
+              fontFamily: 'Plus Jakarta Sans, sans-serif',
+              background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--muted)',
+            }}>
+              {f} · padrão
+            </span>
+          ))}
+        </div>
+
+        {formasAtivas.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+            {formasAtivas.map(f => (
+              <div key={f.nome} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                padding: '10px 12px 10px 16px', borderRadius: 'var(--r-input)',
+                border: '1px solid var(--line)', background: 'var(--bg)',
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', fontFamily: 'Plus Jakarta Sans, sans-serif', overflowWrap: 'anywhere' }}>
+                    {f.nome}
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'Plus Jakarta Sans, sans-serif', marginTop: 2 }}>
+                    No caixa: {rotuloContaComo(f.conta_como)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoverForma(f.nome)}
+                  disabled={formasSalvando}
+                  title={`Remover ${f.nome}`}
+                  aria-label={`Remover ${f.nome}`}
+                  style={{
+                    width: 36, height: 36, flexShrink: 0, borderRadius: 10,
+                    border: 'none', background: 'transparent', color: 'var(--muted)',
+                    cursor: formasSalvando ? 'wait' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={handleAdicionarForma} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <Label>Nova forma de pagamento</Label>
+            <Input
+              value={novaForma}
+              onChange={e => setNovaForma(e.target.value)}
+              placeholder="Ex: Link de pagamento, Vale-presente, Boleto"
+              maxLength={40}
+            />
+          </div>
+          <div>
+            <Label>Conta no caixa como</Label>
+            <select
+              value={novaContaComo}
+              onChange={e => setNovaContaComo(e.target.value)}
+              style={{
+                width: '100%', height: 44, boxSizing: 'border-box',
+                background: 'var(--bg)', border: '1.5px solid var(--line)',
+                borderRadius: 'var(--r-input)', padding: '0 14px',
+                fontFamily: 'var(--font-ui)', fontSize: 14, color: 'var(--ink)',
+                outline: 'none', cursor: 'pointer',
+              }}
+            >
+              {CONTA_COMO.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <Button type="submit" variant="secondary" icon={Plus} disabled={formasSalvando || !novaForma.trim()}>
+            {formasSalvando ? 'Salvando...' : 'Adicionar forma'}
+          </Button>
+        </form>
+
+        {formasMsg && (
+          <div style={{
+            marginTop: 12, padding: '10px 14px', borderRadius: 10,
+            fontSize: 13, fontWeight: 500, fontFamily: 'Plus Jakarta Sans, sans-serif',
+            ...(formasMsg.type === 'success'
+              ? { background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', color: '#16a34a' }
+              : { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', color: '#dc2626' }),
+          }}>
+            {formasMsg.text}
           </div>
         )}
       </Card>

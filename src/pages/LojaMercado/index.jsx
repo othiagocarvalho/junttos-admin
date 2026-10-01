@@ -16,6 +16,7 @@ import Caixa from './Caixa'
 import NovaVenda from './NovaVenda'
 import Ajuda from './Ajuda'
 import LojaConfig from '../LojaFeminina/LojaConfig'
+import { FORMAS_PADRAO_MERCADO } from '../../utils/formasPagamento'
 // Financeiro é o MESMO componente da Moda, não uma cópia: Contas a Pagar,
 // Contas a Receber, Fluxo de Caixa e DRE já leem lf_contas_pagar/receber, que
 // é o que o Mercado usa também. Ele recebe lojaId + vendas + theme e o resto
@@ -99,7 +100,7 @@ export default function LojaMercado({ lojaId = 'mercadodemo' }) {
             Menu
           </button>
         </div>
-        <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} hideFeatureToggles />
+        <LojaConfig config={data.config} features={data.features} saveConfig={data.saveConfig} theme={{ primary: '#5E2BD0' }} hideFeatureToggles formasPadrao={FORMAS_PADRAO_MERCADO} />
         <div style={{ background: 'var(--bg)', padding: '0 16px 32px' }}>
           <ModoVisualizacao viewMode={viewMode} setViewMode={setViewMode} theme={{ primary: '#5E2BD0' }} />
         </div>

@@ -5,6 +5,7 @@ import { mediaDiariaPorNome, nivelDoProduto } from '../../utils/estoque'
 import { agruparPorValidade } from '../../utils/validade'
 import { agruparPorCliente, totaisFiado } from '../../utils/fiado'
 import { temAcesso } from '../../utils/planos'
+import { formasCadastradas } from '../../utils/formasPagamento'
 
 function fmtK(v) {
   if (v === 0) return 'R$ 0'
@@ -58,7 +59,12 @@ export default function Menu({ vendas = [], produtosData = [], fiado = [], confi
   const todayStr = now.toDateString()
   const vendasHoje = vendas.filter(v => new Date(v.data).toDateString() === todayStr)
   const totalHoje = vendasHoje.reduce((s, v) => s + Number(v.valor), 0)
-  const noCaixa   = somaPorForma(vendasHoje, 'Dinheiro')  // dinheiro físico do dia
+  // Dinheiro físico do dia: a forma Dinheiro e as que a loja cadastrou
+  // contando como dinheiro no caixa (Configurações → Formas de pagamento).
+  const noCaixa   = [
+    'Dinheiro',
+    ...formasCadastradas(config).filter(f => f.conta_como === 'Dinheiro').map(f => f.nome),
+  ].reduce((s, forma) => s + somaPorForma(vendasHoje, forma), 0)
   const fiadoHoje = somaPorForma(vendasHoje, 'Fiado')     // vendas sem baixa financeira
   const medias = mediaDiariaPorNome(vendas)
   const qtdEstoqueBaixo = (produtosData || [])

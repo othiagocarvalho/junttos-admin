@@ -54,6 +54,27 @@ describe('entradasPorForma', () => {
     expect(e.total).toBe(25)
   })
 
+  it('soma forma cadastrada pela loja na linha escolhida', () => {
+    const config = { formas_pagamento: [
+      { nome: 'Vale', conta_como: 'nenhum' },
+      { nome: 'Débito Stone', conta_como: 'Cartão de Débito' },
+      { nome: 'Troco em espécie', conta_como: 'Dinheiro' },
+    ] }
+    const e = entradasPorForma([
+      venda([{ forma: 'Vale', valor: 20 }]),
+      venda([{ forma: 'Débito Stone', valor: 30 }]),
+      venda([{ forma: 'Troco em espécie', valor: 5 }]),
+    ], DIA, config)
+    expect(e['Cartão']).toBe(30)
+    expect(e.Dinheiro).toBe(5)
+    expect(e.foraDoCaixa).toBe(20)
+    expect(e.total).toBe(35)
+  })
+
+  it('forma desconhecida continua caindo em cartão', () => {
+    expect(entradasPorForma([venda([{ forma: 'Antiga', valor: 12 }])], DIA)['Cartão']).toBe(12)
+  })
+
   it('não quebra sem vendas', () => {
     expect(entradasPorForma([], DIA).total).toBe(0)
     expect(entradasPorForma(null, DIA).total).toBe(0)

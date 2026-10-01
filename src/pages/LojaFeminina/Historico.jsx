@@ -4,9 +4,9 @@ import ReciboVenda from '../../components/ReciboVenda'
 import { fmtR } from '../../utils/formatters'
 import { vendasCompletas } from './useLojaData'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 const METALLIC = 'linear-gradient(135deg, #E8C0AF 0%, #D49E8A 22%, #B97766 42%, #7A3E33 58%, #B97766 72%, #DCAA96 88%, #F0C9B6 100%)'
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 function fmtTime(s) {
   return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -322,7 +322,7 @@ export default function Historico({ vendas, deleteVenda, updateVenda, theme, con
                       outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
                     }}
                   >
-                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                     <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>

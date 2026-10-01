@@ -29,6 +29,7 @@ import EmptyState from '../../components/studio/EmptyState'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
 import { fmtR } from '../../utils/formatters'
 import { itensParaRestaurar, variacaoParaRpc, encontrarProdutoDoItem, finalizarPreVenda } from '../../utils/prevenda'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 const STATUS_MAP = {
   aguardando_pagamento: { label: 'Aguardando pagamento', tone: 'warn' },
@@ -40,7 +41,6 @@ const FILTROS = [
   { key: 'todas', label: 'Todas' },
 ]
 
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -50,7 +50,7 @@ function iniciais(nome) {
   return (nome || '?').split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
 }
 
-export default function PreVendasLista({ vendas = [], produtosData = [], updateVenda, sincronizarClienteVenda, LOJA_ID = '', theme, onNovaPreVenda }) {
+export default function PreVendasLista({ vendas = [], produtosData = [], updateVenda, sincronizarClienteVenda, LOJA_ID = '', theme, onNovaPreVenda, config = null }) {
   const [filtro, setFiltro] = useState('aguardando_pagamento')
   const [busca, setBusca] = useState('')
   const [expandido, setExpandido] = useState(null)
@@ -214,7 +214,7 @@ export default function PreVendasLista({ vendas = [], produtosData = [], updateV
                     boxSizing: 'border-box',
                   }}
                 >
-                  {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                  {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
                 <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                   <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'var(--font-ui)', pointerEvents: 'none' }}>R$</span>

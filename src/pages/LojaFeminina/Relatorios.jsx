@@ -8,6 +8,7 @@ import { fmtR } from '../../utils/formatters'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import { vendasCompletas } from './useLojaData'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -33,10 +34,8 @@ function groupByDay(vendas) {
   return Object.values(groups)
 }
 
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
-
 // ── Subview: lista de vendas com editar/excluir ────────────────
-function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, theme, onBack, gerente }) {
+function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, theme, onBack, gerente, config = null }) {
   const [search, setSearch] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   // Excluiu a venda, mas o estoque não voltou (ver utils/baixaEstoque.js).
@@ -265,7 +264,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
                   <select value={p.forma}
                     onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
                     style={{ height: 46, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}>
-                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                     <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
@@ -308,7 +307,7 @@ function VendasDetalhadas({ vendas, dateFrom, dateTo, deleteVenda, updateVenda, 
 }
 
 // ── Main component ─────────────────────────────────────────────
-export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '', gerente = false }) {
+export default function Relatorios({ vendas = [], deleteVenda, updateVenda, theme, temAcessoPro, LOJA_ID = '', gerente = false, config = null }) {
   // Faturamento, ticket médio, P.A., comissão e a lista detalhada desta tela
   // inteira não podem contar pré-venda ('aguardando_pagamento') como venda
   // de verdade.
@@ -374,6 +373,7 @@ export default function Relatorios({ vendas = [], deleteVenda, updateVenda, them
         theme={theme}
         onBack={() => setShowDetalhadas(false)}
         gerente={gerente}
+        config={config}
       />
     )
   }

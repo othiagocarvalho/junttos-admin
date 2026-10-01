@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt } from 'lucide-react'
+import { ChevronLeft, Check, Plus, Minus, Trash2, Smartphone, CreditCard, DollarSign, Receipt, Wallet } from 'lucide-react'
 import { BrowserMultiFormatReader } from '@zxing/browser'
 import { precoEfetivo } from '../../utils/precosFaixas'
 import { getVarLabel } from '../../utils/balanco'
 import { fmtR } from '../../utils/formatters'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
+import { opcoesFormaPgto, FORMAS_PADRAO_MERCADO } from '../../utils/formasPagamento'
 
 const GREEN = '#17864F'
 const DARK  = '#0C3A24'
@@ -400,8 +401,9 @@ export default function NovaVenda({ produtosData = [], addVenda, addFiadoCompra,
 
         {/* Payment options */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {['Dinheiro', 'Pix', 'Cartão', 'Fiado'].map(p => {
-            const IconComp = PGTO_ICONS[p] || DollarSign
+          {/* Fixas do PDV + as que a loja cadastrou em Configurações. */}
+          {opcoesFormaPgto(config, { padrao: FORMAS_PADRAO_MERCADO }).map(p => {
+            const IconComp = PGTO_ICONS[p] || Wallet
             const selected = pgto === p
             return (
               <button

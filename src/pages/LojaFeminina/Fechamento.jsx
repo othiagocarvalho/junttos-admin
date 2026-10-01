@@ -6,6 +6,7 @@ import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import { vendasCompletas } from './useLojaData'
+import { contaComoNoCaixa } from '../../utils/formasPagamento'
 
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 // Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
@@ -21,6 +22,43 @@ function parsePgtos(raw) {
     const arr = JSON.parse(raw || '[]')
     return Array.isArray(arr) ? arr : []
   } catch { return [] }
+}
+
+// Linha do fechamento para cada valor de conta_como das formas cadastradas
+// pela loja (utils/formasPagamento). 'nenhum' fica fora do caixa.
+const CAMPO_DO_CONTA_COMO = {
+  Dinheiro: 'dinheiro',
+  Pix: 'pix',
+  'Cartão de Débito': 'debito',
+  'Cartão de Crédito': 'credito',
+  nenhum: 'foraDoCaixa',
+}
+
+/**
+ * Soma os pagamentos das vendas por linha do fechamento. Formas padrão vão
+ * para a linha de sempre; as cadastradas pela loja, para a linha que a
+ * lojista escolheu; foraDoCaixa junta as de "não entra no caixa". Forma
+ * desconhecida continua ignorada, como antes. Pura — testada em
+ * Fechamento.test.js.
+ */
+export function somarRecebimentos(vendasDoDia, config = null) {
+  const tot = { dinheiro: 0, pix: 0, debito: 0, credito: 0, foraDoCaixa: 0 }
+  ;(vendasDoDia || []).forEach(v => {
+    parsePgtos(v.forma_pgto).forEach(p => {
+      const val = Number(p.valor || 0)
+      if (p.forma === 'Dinheiro') tot.dinheiro += val
+      // Vendas antigas do modo atacado gravaram o Pix separado por banco;
+      // aqui tudo volta a somar num Pix só.
+      else if (p.forma === 'Pix' || p.forma === 'PIX Santander' || p.forma === 'PIX Banco do Brasil') tot.pix += val
+      else if (p.forma === 'Cartão de Crédito') tot.credito += val
+      else if (p.forma === 'Cartão de Débito') tot.debito += val
+      else {
+        const campo = CAMPO_DO_CONTA_COMO[contaComoNoCaixa(p.forma, config)]
+        if (campo) tot[campo] += val
+      }
+    })
+  })
+  return tot
 }
 
 const EMPTY = {
@@ -94,7 +132,7 @@ function CurrField({ k, label, form, setForm, readOnly = false, valores }) {
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [], gerente = false }) {
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [], gerente = false, config = null }) {
   // O fechamento de caixa concilia dinheiro FÍSICO contra o que o sistema diz
   // que entrou — uma pré-venda ('aguardando_pagamento') ainda não é dinheiro
   // em caixa nenhum. Contá-la aqui criaria uma divergência falsa: o sistema
@@ -128,18 +166,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       catch { return false }
     })
 
-    const tot = { dinheiro: 0, pix: 0, debito: 0, credito: 0 }
-    doDia.forEach(v => {
-      parsePgtos(v.forma_pgto).forEach(p => {
-        const val = Number(p.valor || 0)
-        if (p.forma === 'Dinheiro') tot.dinheiro += val
-        // Vendas antigas do modo atacado gravaram o Pix separado por banco;
-        // aqui tudo volta a somar num Pix só.
-        else if (p.forma === 'Pix' || p.forma === 'PIX Santander' || p.forma === 'PIX Banco do Brasil') tot.pix += val
-        else if (p.forma === 'Cartão de Crédito') tot.credito += val
-        else if (p.forma === 'Cartão de Débito') tot.debito += val
-      })
-    })
+    const tot = somarRecebimentos(doDia, config)
 
     setAutoFilled(doDia.length > 0)
     setForm(prev => ({
@@ -149,7 +176,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       debito:   tot.debito   > 0 ? tot.debito.toFixed(2)   : '',
       credito:  tot.credito  > 0 ? tot.credito.toFixed(2)  : '',
     }))
-  }, [dataSelecionada, vendasReais])
+  }, [dataSelecionada, vendasReais, config])
 
   // Fechamento já salvo para a data escolhida, e o modo de exibição derivado
   // disso — ver derivarModoFechamento() acima (função pura, testada em
@@ -182,7 +209,10 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
     try { return toLocalISO(new Date(v.data)) === dataSelecionada }
     catch { return false }
   })
-  const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0)
+  // O que foi pago em forma que não entra no caixa (cadastrada pela loja)
+  // sai da comparação — senão toda venda nessas formas acusaria divergência.
+  const foraDoCaixa = somarRecebimentos(vendasDoDia, config).foraDoCaixa
+  const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0) - foraDoCaixa
   const divergencia = Math.abs(totalVendas - totalVendasSistema)
 
   const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
@@ -322,6 +352,11 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           <CurrField k="debito" label="Débito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
           <CurrField k="credito" label="Crédito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
         </div>
+        {foraDoCaixa >= 0.01 && !modoConsulta && (
+          <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 12, lineHeight: 1.5 }}>
+            Mais {fmtR(foraDoCaixa)} em formas de pagamento que não entram no caixa.
+          </p>
+        )}
       </Card>
 
       {/* Caixa — saldo inicial + ajustes */}
