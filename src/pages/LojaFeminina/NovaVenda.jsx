@@ -18,10 +18,10 @@ import { revelarBloco } from '../../utils/revelarVariacoes'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
 import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 const GOLD = 'linear-gradient(135deg, #C8900A 0%, #D4A017 30%, #F0C040 55%, #D4A017 75%, #C8900A 100%)'
 
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 const EMPTY = { nome: '', tel: '', aniversario: '', produtos: [], valor: '', pagamentos: [{ forma: 'Pix', valor: '' }], obs: '', vendedora: '' }
 const STEPS = ['Cliente', 'Produtos', 'Pagamento']
 
@@ -324,7 +324,7 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = PGTOS
+  const pgtoOpts = opcoesFormaPgto(config)
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)

@@ -1,6 +1,7 @@
 import { parsePgtosRecibo } from './recibo'
 import { paraDataLocal } from './datas'
 import { contaEmAberto } from './financeiro'
+import { contaComoNoCaixa } from './formasPagamento'
 
 // ── Caixa do Mercado (T10–T13) ────────────────────────────────
 // As fórmulas vêm de LojaFeminina/Fechamento.jsx, que já rodava para a Moda:
@@ -32,18 +33,33 @@ export function doDia(itens, dia, campo = 'data') {
   })
 }
 
+// Forma cadastrada pela loja (utils/formasPagamento) → linha do caixa do
+// Mercado. O Mercado não separa débito de crédito: os dois caem em Cartão.
+const LINHA_MERCADO = {
+  Dinheiro: 'Dinheiro',
+  Pix: 'Pix',
+  'Cartão de Débito': 'Cartão',
+  'Cartão de Crédito': 'Cartão',
+  nenhum: 'foraDoCaixa',
+}
+
 /**
  * Quanto entrou por forma de pagamento, mais o fiado do dia à parte.
- * @returns {{Dinheiro, Pix, Cartão, fiado, total}}
+ * `config` traz as formas cadastradas pela loja: cada uma soma na linha que
+ * a lojista escolheu, e as de "não entra no caixa" ficam em foraDoCaixa
+ * (fora do total, como o fiado).
+ * @returns {{Dinheiro, Pix, Cartão, fiado, foraDoCaixa, total}}
  */
-export function entradasPorForma(vendas, dia = diaISO()) {
-  const totais = { Dinheiro: 0, Pix: 0, 'Cartão': 0, fiado: 0 }
+export function entradasPorForma(vendas, dia = diaISO(), config = null) {
+  const totais = { Dinheiro: 0, Pix: 0, 'Cartão': 0, fiado: 0, foraDoCaixa: 0 }
 
   for (const venda of doDia(vendas, dia)) {
     for (const p of parsePgtosRecibo(venda)) {
       const valor = Number(p.valor) || 0
       if (p.forma === FORMA_SEM_CAIXA) { totais.fiado += valor; continue }
-      if (p.forma in totais) totais[p.forma] += valor
+      if (p.forma === 'Dinheiro' || p.forma === 'Pix' || p.forma === 'Cartão') { totais[p.forma] += valor; continue }
+      const cadastrada = contaComoNoCaixa(p.forma, config)
+      if (cadastrada) totais[LINHA_MERCADO[cadastrada]] += valor
       else totais['Cartão'] += valor  // formas antigas caem em cartão
     }
   }
@@ -73,8 +89,8 @@ export function totalSaidas(saidas, dia = diaISO()) {
  * "Sobrou" é o resultado do dia (entrou − saiu), não o dinheiro em gaveta —
  * esse é o dinheiroEsperado, que só considera a parte em espécie.
  */
-export function resumoCaixa(vendas, saidas, dia = diaISO()) {
-  const entradas = entradasPorForma(vendas, dia)
+export function resumoCaixa(vendas, saidas, dia = diaISO(), config = null) {
+  const entradas = entradasPorForma(vendas, dia, config)
   const saiu     = totalSaidas(saidas, dia)
   return {
     dia,

@@ -54,6 +54,7 @@ import { fmtR } from '../../utils/formatters'
 import { useClientAuth } from '../../context/ClientAuthContext'
 import { ehGerente, papelDoUsuario } from '../../utils/permissoes'
 import { mascararDataDigitada, dataDigitadaParaISO, isoParaDataDigitada } from '../../utils/dataAniversario'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 function fmtDT(s) {
   return new Date(s).toLocaleString('pt-BR', {
@@ -94,7 +95,6 @@ const NAV = [
 // faturamento, ticket e caixa da loja.
 const TABS_RESTRITAS_GERENTE = ['inicio', 'financeiro', 'meta', 'config', 'catalogo', 'catalogo_b2b', 'socio_digital']
 
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 // ── Shared input style ───────────────────────────────────────
 const inp = (primary) => ({
@@ -470,7 +470,7 @@ function DesktopInicio({ vendas, metas, theme, setTab, produtosData = [], lojaId
 // Não referenciado em nenhuma rota hoje (RelatoriosDesktop cobre a listagem
 // detalhada) — mas o filtro abaixo fica de qualquer forma: é trivial e evita
 // que religar este componente reintroduza pré-venda contando como histórico.
-function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
+function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme, config = null }) {
   const vendasReais = vendasCompletas(vendas)
   const [search,     setSearch]     = useState('')
   const [filtro,     setFiltro]     = useState('todos')
@@ -657,7 +657,7 @@ function DesktopHistorico({ vendas, deleteVenda, updateVenda, theme }) {
                     onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
                     style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 10, padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                   >
-                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                     <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
@@ -968,7 +968,7 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
 
   const totalValor = parseFloat((form.valor || '0').replace(',', '.')) || 0
   const alocado = form.pagamentos.reduce((s, p) => s + (parseFloat((p.valor || '0').replace(',', '.')) || 0), 0)
-  const pgtoOpts = PGTOS
+  const pgtoOpts = opcoesFormaPgto(config)
   const pgtoOk = form.valor.trim() !== '' && form.pagamentos.length > 0 && Math.abs(alocado - totalValor) < 0.005
 
   const subtotal = calcularTotalVenda(form.produtos, produtosData)

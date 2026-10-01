@@ -8,6 +8,7 @@ import { fmtR } from '../../utils/formatters'
 import ComissaoVendedores from '../../components/vendedores/ComissaoVendedores'
 import { vendasCompletas } from '../LojaFeminina/useLojaData'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
+import { opcoesFormaPgto } from '../../utils/formasPagamento'
 
 function fmtTime(s) { return new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 
@@ -37,8 +38,6 @@ function fmtDayLabel(dateStr) {
   const [d, m, y] = dateStr.split('/').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
 }
-
-const PGTOS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito']
 
 function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, theme, onBack, gerente, config }) {
   const [search, setSearch] = useState('')
@@ -260,7 +259,7 @@ function VendasDetalhadas({ vendas, allVendas = [], deleteVenda, updateVenda, th
                     onChange={e => setEditPgtos(prev => prev.map((x, idx) => idx === i ? { ...x, forma: e.target.value } : x))}
                     style={{ height: 44, flex: '2 1 0', minWidth: 0, border: '1.5px solid var(--line)', borderRadius: 'var(--r-input)', padding: '0 8px', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', background: 'var(--bg)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
                   >
-                    {PGTOS.map(f => <option key={f} value={f}>{f}</option>)}
+                    {opcoesFormaPgto(config, { atual: p.forma }).map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                   <div style={{ position: 'relative', flex: '1 1 0', minWidth: 0 }}>
                     <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: 13, fontFamily: 'Plus Jakarta Sans, sans-serif', pointerEvents: 'none' }}>R$</span>
