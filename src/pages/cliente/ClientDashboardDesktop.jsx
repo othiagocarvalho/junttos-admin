@@ -47,6 +47,7 @@ import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
 import { competenciaAtual } from '../../utils/lembreteMeta'
 import { aplicarDispensa } from '../../utils/avisosInicio'
 import SocioDigital from '../LojaFeminina/SocioDigital'
+import { SOCIO_DIGITAL_ATIVO } from '../../utils/socioDigital'
 import ReciboVenda from '../../components/ReciboVenda'
 import AvisoFalhaEstoque from '../../components/AvisoFalhaEstoque'
 import { fmtR } from '../../utils/formatters'
@@ -270,7 +271,8 @@ function DesktopSidebar({ tab, setTab, theme, config, logoUrl, plano, legado, on
             <span style={{ flex: 1, whiteSpace: 'nowrap' }}>Catálogo B2B</span>
           </button>
         )}
-        {socioLiberado && (
+        {/* SOCIO_DIGITAL_ATIVO: desativado temporariamente — ver utils/socioDigital.js */}
+        {SOCIO_DIGITAL_ATIVO && socioLiberado && (
           <button
             onClick={() => setTab('socio_digital')}
             className={tab === 'socio_digital' ? '' : 'cds-nav-btn'}

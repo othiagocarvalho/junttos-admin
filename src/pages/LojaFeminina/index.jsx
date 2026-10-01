@@ -37,6 +37,7 @@ import { construirSlides, temMetaDoMes } from '../../utils/tourOnboarding'
 import { competenciaAtual } from '../../utils/lembreteMeta'
 import { aplicarDispensa } from '../../utils/avisosInicio'
 import SocioDigital from './SocioDigital'
+import { SOCIO_DIGITAL_ATIVO } from '../../utils/socioDigital'
 import { fmtR } from '../../utils/formatters'
 
 // Ids de tab escondidos do papel 'gerente' (ver utils/permissoes.js) — usados
@@ -821,7 +822,8 @@ export default function LojaFeminina({ lojaId = 'estrada' }) {
             <ChevronRight size={16} color="var(--muted)" />
           </button>
         )}
-        {socioLiberado && (
+        {/* SOCIO_DIGITAL_ATIVO: desativado temporariamente — ver utils/socioDigital.js */}
+        {SOCIO_DIGITAL_ATIVO && socioLiberado && (
           <button
             onClick={() => navegar('socio_digital')}
             style={{
