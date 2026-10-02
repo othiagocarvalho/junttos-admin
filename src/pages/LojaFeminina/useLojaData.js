@@ -562,7 +562,15 @@ export function useLojaData(lojaId = 'estrada') {
   }
 
   async function fecharCaixa(caixa) {
-    const { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: lojaId })
+    let { error } = await supabase.from('lf_caixas').insert({ ...caixa, loja_id: lojaId })
+    // formas_extras (detalhe por forma cadastrada) depende de
+    // supabase/migration_caixas_formas_extras.sql. Sem a coluna, salva sem o
+    // detalhe: os totais já estão somados em dinheiro/pix/débito/crédito.
+    if (error && caixa.formas_extras && String(error.message || '').includes('formas_extras')) {
+      const semDetalhe = { ...caixa, loja_id: lojaId }
+      delete semDetalhe.formas_extras
+      ;({ error } = await supabase.from('lf_caixas').insert(semDetalhe))
+    }
     if (!error) await fetchAll()
     return error
   }

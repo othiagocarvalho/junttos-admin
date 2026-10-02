@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Wallet, History, Trash2, Info, CheckCircle2 } from 'lucide-react'
 import Card, { HeroCard } from '../../components/studio/Card'
 import Input, { Label } from '../../components/studio/Input'
@@ -6,7 +6,11 @@ import Button from '../../components/studio/Button'
 import EmptyState from '../../components/studio/EmptyState'
 import { fmtR } from '../../utils/formatters'
 import { vendasCompletas } from './useLojaData'
-import { contaComoNoCaixa } from '../../utils/formasPagamento'
+import { formaCadastrada } from '../../utils/formasPagamento'
+import {
+  LINHA_DO_CONTA_COMO, LINHAS, ROTULO_LINHA, arred2,
+  camposFormasCadastradas, camposDoFechamentoSalvo, totaisPorLinha, separarFormasDoSalvo,
+} from '../../utils/fechamentoFormas'
 
 function fmtDate(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') }
 // Retorna "YYYY-MM-DD" no fuso local do navegador (evita deslocamento UTC)
@@ -24,25 +28,16 @@ function parsePgtos(raw) {
   } catch { return [] }
 }
 
-// Linha do fechamento para cada valor de conta_como das formas cadastradas
-// pela loja (utils/formasPagamento). 'nenhum' fica fora do caixa.
-const CAMPO_DO_CONTA_COMO = {
-  Dinheiro: 'dinheiro',
-  Pix: 'pix',
-  'Cartão de Débito': 'debito',
-  'Cartão de Crédito': 'credito',
-  nenhum: 'foraDoCaixa',
-}
-
 /**
- * Soma os pagamentos das vendas por linha do fechamento. Formas padrão vão
- * para a linha de sempre; as cadastradas pela loja, para a linha que a
- * lojista escolheu; foraDoCaixa junta as de "não entra no caixa". Forma
- * desconhecida continua ignorada, como antes. Pura — testada em
- * Fechamento.test.js.
+ * Soma os pagamentos das vendas do dia. As formas padrão vão para a linha de
+ * sempre (dinheiro/pix/debito/credito); cada forma cadastrada pela loja fica
+ * em porForma[nome], com o próprio campo no fechamento — a linha do caixa em
+ * que ela soma (conta_como) entra só no total. foraDoCaixa junta as de "não
+ * entra no caixa". Forma desconhecida continua ignorada, como antes. Pura —
+ * testada em Fechamento.test.js.
  */
 export function somarRecebimentos(vendasDoDia, config = null) {
-  const tot = { dinheiro: 0, pix: 0, debito: 0, credito: 0, foraDoCaixa: 0 }
+  const tot = { dinheiro: 0, pix: 0, debito: 0, credito: 0, foraDoCaixa: 0, porForma: {} }
   ;(vendasDoDia || []).forEach(v => {
     parsePgtos(v.forma_pgto).forEach(p => {
       const val = Number(p.valor || 0)
@@ -53,12 +48,30 @@ export function somarRecebimentos(vendasDoDia, config = null) {
       else if (p.forma === 'Cartão de Crédito') tot.credito += val
       else if (p.forma === 'Cartão de Débito') tot.debito += val
       else {
-        const campo = CAMPO_DO_CONTA_COMO[contaComoNoCaixa(p.forma, config)]
-        if (campo) tot[campo] += val
+        const f = formaCadastrada(p.forma, config)
+        if (!f) return
+        // Pelo nome cadastrado: "pix online" e "PIX Online" são a mesma forma.
+        tot.porForma[f.nome] = arred2((tot.porForma[f.nome] || 0) + val)
+        if (f.conta_como === 'nenhum') tot.foraDoCaixa += val
       }
     })
   })
+  for (const k of [...LINHAS, 'foraDoCaixa']) tot[k] = arred2(tot[k])
   return tot
+}
+
+/** Valores do auto-fill (strings, como o formulário guarda) para uma data. */
+function autoFillDoDia(vendasReais, dia, config) {
+  const doDia = vendasReais.filter(v => {
+    try { return toLocalISO(new Date(v.data)) === dia }
+    catch { return false }
+  })
+  const tot = somarRecebimentos(doDia, config)
+  const campo = v => (v > 0 ? v.toFixed(2) : '')
+  const valores = {}
+  for (const linha of LINHAS) valores[linha] = campo(tot[linha])
+  for (const c of camposFormasCadastradas(config, tot.porForma)) valores[c.chave] = campo(tot.porForma[c.nome] || 0)
+  return { valores, temVendas: doDia.length > 0 }
 }
 
 const EMPTY = {
@@ -109,10 +122,15 @@ export function valoresDoFechamentoSalvo(fechamentoSalvo) {
   }
 }
 
+// O que cada campo mostra num fechamento salvo (utils/fechamentoFormas).
+function valoresExibidosDoSalvo(fechamentoSalvo) {
+  return separarFormasDoSalvo(valoresDoFechamentoSalvo(fechamentoSalvo), fechamentoSalvo)
+}
+
 // `readOnly` + `valores`: modo consulta (fechamento já salvo) exibe o valor
 // REAL do registro, não o `form` — que é só rascunho de um fechamento novo.
-function CurrField({ k, label, form, setForm, readOnly = false, valores }) {
-  const value = readOnly ? (valores?.[k] ?? '') : form[k]
+function CurrField({ k, label, form, setForm, readOnly = false, valores, hint }) {
+  const value = readOnly ? (valores?.[k] ?? '') : (form[k] ?? '')
   return (
     <div>
       <Label>{label}</Label>
@@ -128,26 +146,37 @@ function CurrField({ k, label, form, setForm, readOnly = false, valores }) {
           style={{ paddingLeft: 34, ...(readOnly ? { opacity: 0.75, cursor: 'default' } : {}) }}
         />
       </div>
+      {hint && (
+        <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--muted)', marginTop: 4 }}>{hint}</p>
+      )}
     </div>
   )
 }
 
-export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = [], gerente = false, config = null }) {
+const SEM_VENDAS = []
+
+export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = SEM_VENDAS, gerente = false, config = null }) {
   // O fechamento de caixa concilia dinheiro FÍSICO contra o que o sistema diz
   // que entrou — uma pré-venda ('aguardando_pagamento') ainda não é dinheiro
   // em caixa nenhum. Contá-la aqui criaria uma divergência falsa: o sistema
   // diria que entrou mais do que realmente está na gaveta.
-  const vendasReais = vendasCompletas(vendas)
+  // Memorizado: é dependência do auto-fill abaixo. Um array novo a cada render
+  // rodava o auto-fill em todo render — a tela re-renderizava sem parar e o
+  // que a lojista digitava nos recebimentos voltava na hora para o valor do
+  // sistema.
+  const vendasReais = useMemo(() => vendasCompletas(vendas), [vendas])
   const hoje = toLocalISO()
   const [dataSelecionada, setDataSelecionada] = useState(hoje)
-  const [form, setForm] = useState(EMPTY)
+  // Já nasce preenchido (antes, o primeiro render mostrava tudo vazio até o
+  // efeito rodar).
+  const [form, setForm] = useState(() => ({ ...EMPTY, ...autoFillDoDia(vendasReais, hoje, config).valores }))
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [modalDivergencia, setModalDivergencia] = useState(false)
   const [caixaParaExcluir, setCaixaParaExcluir] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const [autoFilled, setAutoFilled] = useState(false)
+  const [autoFilled, setAutoFilled] = useState(() => autoFillDoDia(vendasReais, hoje, config).temVendas)
 
   useEffect(() => {
     function handleKey(e) {
@@ -160,22 +189,16 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
   }, [caixaParaExcluir, modalDivergencia, deleting])
 
   // Auto-fill payment fields by summing registered sales for the selected date
+  // — as quatro formas padrão e cada forma cadastrada pela loja.
   useEffect(() => {
-    const doDia = vendasReais.filter(v => {
-      try { return toLocalISO(new Date(v.data)) === dataSelecionada }
-      catch { return false }
+    const { valores, temVendas } = autoFillDoDia(vendasReais, dataSelecionada, config)
+    setAutoFilled(temVendas)
+    setForm(prev => {
+      // Campo de forma que deixou de aparecer (outra data, forma removida)
+      // não pode ficar com valor velho guardado.
+      const semFormasAntigas = Object.fromEntries(Object.entries(prev).filter(([k]) => !k.startsWith('fp:')))
+      return { ...semFormasAntigas, ...valores }
     })
-
-    const tot = somarRecebimentos(doDia, config)
-
-    setAutoFilled(doDia.length > 0)
-    setForm(prev => ({
-      ...prev,
-      dinheiro: tot.dinheiro > 0 ? tot.dinheiro.toFixed(2) : '',
-      pix:      tot.pix      > 0 ? tot.pix.toFixed(2)      : '',
-      debito:   tot.debito   > 0 ? tot.debito.toFixed(2)   : '',
-      credito:  tot.credito  > 0 ? tot.credito.toFixed(2)  : '',
-    }))
   }, [dataSelecionada, vendasReais, config])
 
   // Fechamento já salvo para a data escolhida, e o modo de exibição derivado
@@ -193,15 +216,6 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
     if (modoConsulta) return Number(valoresSalvos[k]) || 0
     return parseFloat(form[k] || 0) || 0
   }
-  const totalVendas = n('dinheiro') + n('pix') + n('debito') + n('credito')
-  const saldoFinal = n('saldo_ini') + n('dinheiro') - n('sangria') + n('suprimento')
-  const liquido = totalVendas - n('despesas')
-
-  // Cash count verification
-  const dinheiroEsperado = n('dinheiro') - n('sangria') + n('suprimento')
-  const hasValorContado = modoConsulta ? fechamentoSalvo.valor_contado != null : form.valor_contado !== ''
-  const diferenca = hasValorContado ? n('valor_contado') - dinheiroEsperado : null
-  const temDivergenciaCaixa = diferenca !== null && Math.abs(diferenca) >= 0.01
 
   // Total real de vendas do sistema para a data escolhida (usado na validação de divergência
   // e no aviso de estimativa quando não há fechamento salvo)
@@ -209,21 +223,55 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
     try { return toLocalISO(new Date(v.data)) === dataSelecionada }
     catch { return false }
   })
+  const recebimentosDoDia = somarRecebimentos(vendasDoDia, config)
+
+  // Um campo por forma cadastrada pela loja. Fechamento salvo mostra as que
+  // foram salvas nele, não o cadastro de hoje.
+  const camposFormas = modoConsulta
+    ? camposDoFechamentoSalvo(fechamentoSalvo)
+    : camposFormasCadastradas(config, recebimentosDoDia.porForma)
+  const valoresExibidos = modoConsulta ? valoresExibidosDoSalvo(fechamentoSalvo) : null
+
+  // Linhas do caixa: forma padrão + formas cadastradas que somam nela. No
+  // salvo, as colunas já são esse total.
+  const linhas = modoConsulta
+    ? { dinheiro: n('dinheiro'), pix: n('pix'), debito: n('debito'), credito: n('credito') }
+    : totaisPorLinha(camposFormas, n)
+
+  const totalVendas = linhas.dinheiro + linhas.pix + linhas.debito + linhas.credito
+  const saldoFinal = n('saldo_ini') + linhas.dinheiro - n('sangria') + n('suprimento')
+  const liquido = totalVendas - n('despesas')
+
+  // Cash count verification
+  const dinheiroEsperado = linhas.dinheiro - n('sangria') + n('suprimento')
+  const hasValorContado = modoConsulta ? fechamentoSalvo.valor_contado != null : form.valor_contado !== ''
+  const diferenca = hasValorContado ? n('valor_contado') - dinheiroEsperado : null
+  const temDivergenciaCaixa = diferenca !== null && Math.abs(diferenca) >= 0.01
+
   // O que foi pago em forma que não entra no caixa (cadastrada pela loja)
   // sai da comparação — senão toda venda nessas formas acusaria divergência.
-  const foraDoCaixa = somarRecebimentos(vendasDoDia, config).foraDoCaixa
-  const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0) - foraDoCaixa
+  const totalVendasSistema = vendasDoDia.reduce((s, v) => s + Number(v.valor || 0), 0) - recebimentosDoDia.foraDoCaixa
   const divergencia = Math.abs(totalVendas - totalVendasSistema)
+  // Valor nos campos de formas "não entra no caixa" — fora do Total de Vendas.
+  const foraDoCaixa = camposFormas
+    .filter(c => c.conta_como === 'nenhum')
+    .reduce((s, c) => s + (modoConsulta ? c.valor : n(c.chave)), 0)
 
   const canSave = !saving && !done && !jaDuplicado && totalVendas > 0
 
   async function salvarFechamento() {
     setSaving(true)
+    // Detalhe por forma cadastrada. Só vai quando houver valor: loja sem forma
+    // cadastrada grava exatamente o mesmo registro de antes.
+    const formasExtras = camposFormas
+      .map(c => ({ nome: c.nome, conta_como: c.conta_como, valor: arred2(n(c.chave)) }))
+      .filter(c => c.valor >= 0.01)
     const err = await fecharCaixa({
       data: dataSelecionada,
-      dinheiro: n('dinheiro'),
-      pix: n('pix'),
-      debito: n('debito'), credito: n('credito'),
+      dinheiro: linhas.dinheiro,
+      pix: linhas.pix,
+      debito: linhas.debito, credito: linhas.credito,
+      ...(formasExtras.length > 0 ? { formas_extras: formasExtras } : {}),
       saldo_ini: n('saldo_ini'), sangria: n('sangria'),
       suprimento: n('suprimento'),
       valor_contado: hasValorContado ? n('valor_contado') : null,
@@ -347,10 +395,18 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
-          <CurrField k="pix" label="Pix" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
-          <CurrField k="debito" label="Débito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
-          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+          <CurrField k="dinheiro" label="Dinheiro" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
+          <CurrField k="pix" label="Pix" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
+          <CurrField k="debito" label="Débito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
+          <CurrField k="credito" label="Crédito" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
+          {/* Formas cadastradas pela loja em Configurações — uma por campo */}
+          {camposFormas.map(c => (
+            <CurrField
+              key={c.chave} k={c.chave} label={c.nome}
+              hint={LINHA_DO_CONTA_COMO[c.conta_como] ? `Soma em ${ROTULO_LINHA[LINHA_DO_CONTA_COMO[c.conta_como]]}` : 'Fora do total do caixa'}
+              form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos}
+            />
+          ))}
         </div>
         {foraDoCaixa >= 0.01 && !modoConsulta && (
           <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 12, color: 'var(--muted)', marginTop: 12, lineHeight: 1.5 }}>
@@ -363,10 +419,10 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Caixa</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+          <CurrField k="saldo_ini" label="Saldo Inicial" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
-            <CurrField k="suprimento" label="Suprimento" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+            <CurrField k="sangria" label="Sangria" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
+            <CurrField k="suprimento" label="Suprimento" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
           </div>
         </div>
       </Card>
@@ -383,7 +439,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
           </strong>
           {' '}(vendas − sangria + suprimento)
         </p>
-        <CurrField k="valor_contado" label="Valor Físico Contado" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+        <CurrField k="valor_contado" label="Valor Físico Contado" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
 
         {hasValorContado && (
           <div style={{
@@ -422,7 +478,7 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
       {/* Despesas */}
       <Card>
         <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--ink)', marginBottom: 14 }}>Despesas</p>
-        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresSalvos} />
+        <CurrField k="despesas" label="Despesas do Dia" form={form} setForm={setForm} readOnly={modoConsulta} valores={valoresExibidos} />
       </Card>
 
       {/* Observações */}
@@ -487,6 +543,9 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
               // Clicar na linha seleciona a data no seletor do topo, ativando
               // o modo consulta — só para quem não é gerente (ver item 5).
               const clicavel = !gerente
+              // Mesma divisão do modo consulta: cada forma cadastrada com o
+              // seu valor, e a forma padrão sem ela.
+              const ex = valoresExibidosDoSalvo(c)
               const selecionado = clicavel && c.data === dataSelecionada
               return (
               <div
@@ -505,7 +564,8 @@ export default function Fechamento({ caixas, fecharCaixa, deleteCaixa, vendas = 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 3 }}>{fmtDate(c.data)}</p>
                   <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 11, color: 'var(--muted)' }}>
-                    Din. {fmtR(c.dinheiro)} · Pix {fmtR(c.pix)} · Déb. {fmtR(c.debito)} · Créd. {fmtR(c.credito)}
+                    Din. {fmtR(ex.dinheiro)} · Pix {fmtR(ex.pix)} · Déb. {fmtR(ex.debito)} · Créd. {fmtR(ex.credito)}
+                    {camposDoFechamentoSalvo(c).map(f => ` · ${f.nome} ${fmtR(f.valor)}`).join('')}
                   </p>
                   {c.diferenca != null && Math.abs(c.diferenca) >= 0.01 && (
                     <p style={{ fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 10, color: 'var(--negative)', marginTop: 2, fontWeight: 600 }}>

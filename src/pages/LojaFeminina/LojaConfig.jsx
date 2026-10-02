@@ -326,15 +326,16 @@ export default function LojaConfig({ config, features, saveConfig, theme, hideFe
 
       {/* Formas de pagamento — as padrão valem para todas as lojas; as
           cadastradas aqui são só desta loja (lf_config.formas_pagamento) e
-          aparecem na Nova Venda, Pré-venda e edição de vendas. "Conta no
-          caixa como" decide em que linha do fechamento de caixa ela soma. */}
+          aparecem na Nova Venda, Pré-venda e edição de vendas. No Fechamento
+          da Moda cada uma tem campo próprio; "Conta no caixa como" decide em
+          que linha do caixa ela soma no total. */}
       <Card>
         <p style={{ ...sectionTitle, marginBottom: 4 }}>
           <Wallet size={16} style={{ color: theme.primary }} />
           Formas de Pagamento
         </p>
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14, fontFamily: 'Plus Jakarta Sans, sans-serif', lineHeight: 1.5 }}>
-          Cadastre as formas que sua loja aceita além das padrão. Elas aparecem na hora de registrar a venda.
+          Cadastre as formas que sua loja aceita além das padrão. Elas aparecem na hora de registrar a venda e no fechamento de caixa.
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
