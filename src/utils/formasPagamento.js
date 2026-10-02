@@ -71,8 +71,16 @@ export function opcoesFormaPgto(config, { padrao = FORMAS_PADRAO_MODA, atual } =
  * é uma forma cadastrada (as padrão cada tela já trata do seu jeito).
  */
 export function contaComoNoCaixa(forma, config) {
-  const f = formasCadastradas(config).find(x => chave(x.nome) === chave(forma))
+  const f = formaCadastrada(forma, config)
   return f ? f.conta_como : null
+}
+
+/**
+ * A forma cadastrada ({nome, conta_como, ativo}) com esse nome — sem
+ * diferenciar maiúscula/minúscula nem espaços nas pontas —, ou null.
+ */
+export function formaCadastrada(forma, config) {
+  return formasCadastradas(config).find(x => chave(x.nome) === chave(forma)) || null
 }
 
 /** Erro de validação do nome, ou null se pode cadastrar. */

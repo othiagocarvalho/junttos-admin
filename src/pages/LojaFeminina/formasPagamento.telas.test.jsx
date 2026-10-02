@@ -78,6 +78,106 @@ describe('Fechamento (Moda) — formas que não entram no caixa', () => {
   }
 })
 
+// Simula a "Sua Loja" com uma forma cadastrada em Configurações ("PIX
+// Online", conta como Pix) e vendas do dia gravadas como a Nova Venda grava
+// (forma_pgto = JSON [{forma, valor}]).
+describe('Fechamento (Moda) — campo próprio para cada forma cadastrada', () => {
+  const props = { caixas: [], fecharCaixa: async () => null, deleteCaixa: async () => null }
+  const config = { loja_id: 'sualoja', formas_pagamento: [
+    { nome: 'PIX Online', conta_como: 'Pix', ativo: true },
+    { nome: 'Vale-presente', conta_como: 'nenhum', ativo: true },
+    { nome: 'Cheque', conta_como: 'Dinheiro', ativo: false },
+  ] }
+  const vendas = [
+    vendaHoje([{ forma: 'PIX Online', valor: 120 }]),
+    vendaHoje([{ forma: 'PIX Online', valor: 30.5 }, { forma: 'Dinheiro', valor: 50 }]),
+    vendaHoje([{ forma: 'Pix', valor: 80 }]),
+    vendaHoje([{ forma: 'Cartão de Crédito', valor: 200 }]),
+  ]
+  // Valor do <input> que vem logo depois do <label> com esse texto.
+  const valorDoCampo = (html, label) => {
+    const m = html.match(new RegExp(`>${label}</label>[\\s\\S]*?<input[^>]*value="([^"]*)"`))
+    return m ? m[1] : null
+  }
+  // Campo de forma cadastrada: o input da forma vem com a dica embaixo.
+  const temCampo = (html, label) => new RegExp(`>${label}</label>[\\s\\S]*?<input`).test(html)
+
+  it('mostra um campo para a forma cadastrada, com o valor só das vendas nela', () => {
+    const html = renderToStaticMarkup(<Fechamento {...props} vendas={vendas} config={config} />)
+    expect(temCampo(html, 'PIX Online')).toBe(true)
+    expect(valorDoCampo(html, 'PIX Online')).toBe('150.50')
+    expect(html).toContain('Soma em Pix')
+    // O Pix padrão não recebe o PIX Online (antes, os 150,50 caíam aqui).
+    expect(valorDoCampo(html, 'Pix')).toBe('80.00')
+    expect(valorDoCampo(html, 'Dinheiro')).toBe('50.00')
+    expect(valorDoCampo(html, 'Crédito')).toBe('200.00')
+  })
+
+  it('forma ativa sem venda no dia também tem campo (vazio); removida sem venda não', () => {
+    const html = renderToStaticMarkup(<Fechamento {...props} vendas={vendas} config={config} />)
+    expect(temCampo(html, 'Vale-presente')).toBe(true)
+    expect(valorDoCampo(html, 'Vale-presente')).toBe('')
+    expect(html).toContain('Fora do total do caixa')
+    expect(html).not.toContain('Cheque')
+  })
+
+  it('forma removida que teve venda no dia continua aparecendo com o valor', () => {
+    const html = renderToStaticMarkup(<Fechamento {...props} vendas={[...vendas, vendaHoje([{ forma: 'Cheque', valor: 15 }])]} config={config} />)
+    expect(valorDoCampo(html, 'Cheque')).toBe('15.00')
+    expect(html).toContain('Soma em Dinheiro')
+  })
+
+  it('o Total de Vendas soma a forma cadastrada pelo conta_como', () => {
+    const html = renderToStaticMarkup(<Fechamento {...props} vendas={vendas} config={config} />)
+    // 150,50 (PIX Online) + 50 + 80 + 200
+    expect(html).toMatch(/Total de Vendas<\/p><p[^>]*>R\$\s?480,50</)
+  })
+
+  it('forma "não entra no caixa" tem campo mas fica fora do Total de Vendas', () => {
+    const html = renderToStaticMarkup(
+      <Fechamento {...props} vendas={[...vendas, vendaHoje([{ forma: 'Vale-presente', valor: 40 }])]} config={config} />,
+    )
+    expect(valorDoCampo(html, 'Vale-presente')).toBe('40.00')
+    expect(html).toMatch(/Total de Vendas<\/p><p[^>]*>R\$\s?480,50</)
+    expect(html).toMatch(/Mais R\$\s?40,00 em formas de pagamento que não entram no caixa/)
+  })
+
+  it('forma cadastrada como Dinheiro entra no dinheiro esperado da conferência', () => {
+    const cfg = { formas_pagamento: [{ nome: 'Dinheiro motoboy', conta_como: 'Dinheiro', ativo: true }] }
+    const html = renderToStaticMarkup(
+      <Fechamento {...props} vendas={[vendaHoje([{ forma: 'Dinheiro motoboy', valor: 25 }, { forma: 'Dinheiro', valor: 10 }])]} config={cfg} />,
+    )
+    expect(html).toMatch(/Dinheiro esperado em caixa:[\s\S]*?R\$\s?35,00/)
+  })
+
+  it('loja sem forma cadastrada: os mesmos quatro campos e o mesmo total de antes', () => {
+    for (const cfg of Object.values(CONFIGS)) {
+      const html = renderToStaticMarkup(<Fechamento {...props} vendas={vendas} config={cfg} />)
+      expect((html.match(/<input[^>]*type="number"/g) || []).length).toBe(9) // 4 recebimentos + saldo, sangria, suprimento, contado, despesas
+      expect(html).not.toContain('Soma em')
+      expect(valorDoCampo(html, 'Pix')).toBe('80.00')
+      // PIX Online não é forma cadastrada aqui: continua ignorado, como antes.
+      expect(html).toMatch(/Total de Vendas<\/p><p[^>]*>R\$\s?330,00</)
+    }
+  })
+
+  it('fechamento salvo mostra cada forma salva nele, mesmo que o cadastro tenha mudado', () => {
+    const hoje = new Date()
+    const dia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
+    const salvo = {
+      id: 'c1', data: dia, dinheiro: 50, pix: 230.5, debito: 0, credito: 200, total: 480.5,
+      formas_extras: [{ nome: 'PIX Online', conta_como: 'Pix', valor: 150.5 }],
+    }
+    const html = renderToStaticMarkup(<Fechamento {...props} caixas={[salvo]} vendas={vendas} config={null} />)
+    expect(html).toContain('Fechamento salvo')
+    expect(valorDoCampo(html, 'PIX Online')).toBe('150.5')
+    expect(valorDoCampo(html, 'Pix')).toBe('80')
+    expect(html).toMatch(/Total de Vendas<\/p><p[^>]*>R\$\s?480,50</)
+    // Histórico com o detalhe por forma
+    expect(html).toMatch(/Pix R\$\s?80,00 · Déb\. R\$\s?0,00 · Créd\. R\$\s?200,00 · PIX Online R\$\s?150,50/)
+  })
+})
+
 describe('Mercado — Caixa e Menu', () => {
   const config = { formas_pagamento: [
     { nome: 'Vale', conta_como: 'nenhum' },
