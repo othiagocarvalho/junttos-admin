@@ -113,3 +113,62 @@ export function calcularResumoTroca(subtotalNovos, creditoTroca, ajuste = 0) {
     rotulo: aCobrar ? 'A cobrar' : saldoAFavor ? 'Saldo a favor' : 'Troca zerada',
   }
 }
+
+/**
+ * O que a Nova Venda grava em lf_vendas para o dinheiro da venda ou da troca:
+ * valor, ajuste_valor, forma_pgto, tipo_venda e produto_devolvido.
+ *
+ * Mobile (LojaFeminina/NovaVenda.jsx) e desktop (DesktopNovaVenda em
+ * cliente/ClientDashboardDesktop.jsx) repetiam esta conta inline no
+ * handleSave — o mesmo risco de divergir que calcularResumoTroca já resolveu
+ * para o resumo na tela.
+ *
+ * Troca: o crédito do produto devolvido e o ajuste manual entram em
+ * ajuste_valor (negativo = abate), mantendo valor = subtotal + ajuste_valor
+ * como na venda normal, sem coluna nova. O que é cobrado de fato é `valor`
+ * (o campo da tela); troca zerada grava a forma 'Troca' com valor 0.
+ * produto_devolvido não é coluna: salvarVendaComEstoque o tira do insert e
+ * devolve esses itens ao estoque antes de baixar o produto novo.
+ *
+ * @param {object} p
+ * @param {boolean} p.isTroca
+ * @param {Array}  p.produtos       itens do produto novo / da venda
+ * @param {Array}  p.produtoTroca   itens devolvidos (só na troca)
+ * @param {Array}  p.produtosData   cadastro, para os preços
+ * @param {string} p.valor          "Valor Total" da tela, como digitado ("40,00")
+ * @param {Array}  p.pagamentos     [{ forma, valor: "40,00" }]
+ * @param {string} p.ajusteTipo     venda normal: 'desconto' | 'acrescimo'
+ * @param {string} p.ajusteModo     venda normal: 'valor' | 'percentual'
+ * @param {string} p.ajusteInput    venda normal: valor do ajuste digitado
+ * @param {string} p.trocaDesconto  troca: desconto em R$ digitado
+ * @param {string} p.trocaAcrescimo troca: acréscimo em R$ digitado
+ */
+export function montarGravacaoVenda({
+  isTroca, produtos = [], produtoTroca = [], produtosData = [], valor, pagamentos = [],
+  ajusteTipo, ajusteModo, ajusteInput, trocaDesconto, trocaAcrescimo,
+}) {
+  const valorFinal = parseValorBR(valor)
+  const pgtos = () => JSON.stringify(pagamentos.map(p => ({ forma: p.forma, valor: parseValorBR(p.valor) })))
+  let ajusteValor
+  let formaPgto
+  if (isTroca) {
+    const creditoTroca = calcularTotalVenda(produtoTroca, produtosData)
+    ajusteValor = -creditoTroca + calcularAjusteTroca(trocaDesconto, trocaAcrescimo)
+    formaPgto = valorFinal <= TOLERANCIA_TROCA
+      ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
+      : pgtos()
+  } else {
+    const ajNum = parseValorBR(ajusteInput)
+    const sub = calcularTotalVenda(produtos, produtosData)
+    const ajusteR = ajNum === 0 ? 0 : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
+    ajusteValor = ajNum === 0 ? 0 : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
+    formaPgto = pgtos()
+  }
+  return {
+    valor: valorFinal,
+    ajuste_valor: ajusteValor,
+    forma_pgto: formaPgto,
+    tipo_venda: isTroca ? 'troca' : 'venda',
+    produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
+  }
+}
