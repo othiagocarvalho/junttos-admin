@@ -11,7 +11,7 @@ import Logo from '../../components/junttos/Logo'
 import { temAcesso, PLANOS, isLegado } from '../../utils/planos'
 import { calcularIndicadores, filtrarVendasDoDia } from '../../utils/metas'
 import { vendasCompletas } from '../LojaFeminina/useLojaData'
-import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca, montarGravacaoVenda } from '../../utils/venda'
 import { LinhasResumo, CamposAjusteTroca, PrecoProduto } from '../../components/venda/ResumoVenda'
 import { ChipsCategoria, ChipsSelecionados } from '../../components/venda/FiltroProdutos'
 import { construirCategorias, filtrarPorCategoria, CHAVE_TODOS } from '../../utils/categoriaProduto'
@@ -729,7 +729,7 @@ const EMPTY_VENDA = { nome: '', tel: '', aniversario: '', produtos: [], valor: '
 // tempo todo, que é o ganho da barra fixa/painel introduzido hoje.
 const STEPS_VENDA = ['Cliente', 'Produtos', 'Pagamento']
 
-function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
+export function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, fetchAll, theme, clientes = [], vendas = [], LOJA_ID = '', config = null }) {
   // Mesmo critério da comissão automática nos Relatórios (temAcesso(plano, 'pro')).
   const temAcessoVendedores = temAcesso(config?.plano || 'starter', 'pro')
   const isDark = theme.primary === '#D4A017'
@@ -886,45 +886,26 @@ function DesktopNovaVenda({ produtos, produtosData = [], addVenda, addProduto, f
   }
   async function handleSave() {
     setSaving(true)
-    const valorFinal = parseFloat(form.valor.replace(',', '.')) || 0
-    let ajusteValor
-    let pgtoPayload
-    if (isTroca) {
-      // Mantém a relação valor = subtotal + ajuste_valor da venda normal: o
-      // crédito da devolução e o ajuste manual entram no mesmo campo, sem
-      // coluna nova. Ver o mesmo trecho em LojaFeminina/NovaVenda.jsx.
-      const ajTroca = calcularAjusteTroca(trocaDesconto, trocaAcrescimo)
-      ajusteValor = -creditoTroca + ajTroca
-      pgtoPayload = valorFinal <= 0.005
-        ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
-        : JSON.stringify(form.pagamentos.map(p => ({
-            forma: p.forma,
-            valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-          })))
-    } else {
-      const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-      const sub = calcularTotalVenda(form.produtos, produtosData)
-      const ajR = ajNum === 0 ? 0 : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
-      ajusteValor = ajNum === 0 ? 0 : ajusteTipo === 'desconto' ? -ajR : ajR
-      pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
-        forma: p.forma,
-        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-      })))
-    }
+    // Mesma conta do mobile, num lugar só — ver montarGravacaoVenda (utils/venda.js).
+    const gravacao = montarGravacaoVenda({
+      isTroca, produtos: form.produtos, produtoTroca, produtosData,
+      valor: form.valor, pagamentos: form.pagamentos,
+      ajusteTipo, ajusteModo, ajusteInput, trocaDesconto, trocaAcrescimo,
+    })
     const { error: err, venda: novaVenda, falhasEstoque: falhasVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel:  form.tel  || null,
-      valor: valorFinal,
-      ajuste_valor: ajusteValor,
-      forma_pgto: pgtoPayload,
+      valor: gravacao.valor,
+      ajuste_valor: gravacao.ajuste_valor,
+      forma_pgto: gravacao.forma_pgto,
       obs: form.obs || null,
       produtos: form.produtos,
       // Normaliza na gravação — o nome tem de bater exatamente com o que
       // Relatorios.jsx agrupa.
       vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
-      tipo_venda: isTroca ? 'troca' : 'venda',
-      produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
+      tipo_venda: gravacao.tipo_venda,
+      produto_devolvido: gravacao.produto_devolvido,
     }, {
       // Vai junto com a venda para o cliente criado/completado em
       // lf_clientes (utils/clienteVenda.js) — nunca numa segunda gravação

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes, calcularResumoTroca, calcularAjusteTroca, parseValorBR } from './venda.js'
+import { calcularTotalVenda, calcularTotalComAjuste, decrementarVariacoes, restaurarVariacoes, calcularResumoTroca, calcularAjusteTroca, parseValorBR, montarGravacaoVenda } from './venda.js'
 
 const produtosData = [
   { nome: 'Blusa Básica', preco_venda: 50 },
@@ -373,5 +373,125 @@ describe('calcularTotalVenda com produto_id', () => {
   })
   it('item sem id continua pelo nome', () => {
     expect(calcularTotalVenda([{ nome: 'SHORT', quantidade: 1 }], produtosData)).toBe(40)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// montarGravacaoVenda — o que mobile e desktop gravam em lf_vendas. Os três
+// cenários da troca, do jeito que a tela chega no "Confirmar Troca": o
+// "Valor Total" já veio do cálculo da tela (calcularResumoTroca.valorCobrado).
+// ---------------------------------------------------------------------------
+
+describe('montarGravacaoVenda — troca', () => {
+  const cadastro = [
+    { id: 'p-blusa',  nome: 'Blusa Rosa',   preco_venda: 80 },
+    { id: 'p-calca',  nome: 'Calça Branca', preco_venda: 120 },
+    { id: 'p-vest',   nome: 'Vestido Azul', preco_venda: 80 },
+    { id: 'p-saia',   nome: 'Saia Preta',   preco_venda: 60 },
+  ]
+  const item = (id, nome, variacao) => ({ produto_id: id, nome, variacao, obs: variacao, quantidade: 1 })
+  // Simula a tela: o efeito de total preenche "Valor Total" e o pagamento único.
+  function telaTroca({ devolvido, novo, desconto = '', acrescimo = '', forma = 'Pix' }) {
+    const r = calcularResumoTroca(
+      calcularTotalVenda(novo, cadastro), calcularTotalVenda(devolvido, cadastro), calcularAjusteTroca(desconto, acrescimo),
+    )
+    const valor = r.valorCobrado.toFixed(2).replace('.', ',')
+    return montarGravacaoVenda({
+      isTroca: true, produtos: novo, produtoTroca: devolvido, produtosData: cadastro,
+      valor, pagamentos: [{ forma, valor }], trocaDesconto: desconto, trocaAcrescimo: acrescimo,
+    })
+  }
+
+  it('cenário 1 — crédito igual ao produto novo: troca zerada, forma "Troca" com 0', () => {
+    const g = telaTroca({ devolvido: [item('p-blusa', 'Blusa Rosa', 'M')], novo: [item('p-vest', 'Vestido Azul', 'P')] })
+    expect(g.valor).toBe(0)
+    expect(g.ajuste_valor).toBe(-80)                // valor = subtotal (80) + ajuste (-80)
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Troca', valor: 0 }])
+    expect(g.tipo_venda).toBe('troca')
+    expect(g.produto_devolvido).toEqual([item('p-blusa', 'Blusa Rosa', 'M')])
+  })
+
+  it('cenário 2 — crédito MENOR que o produto novo: cliente paga só a diferença', () => {
+    const g = telaTroca({ devolvido: [item('p-blusa', 'Blusa Rosa', 'M')], novo: [item('p-calca', 'Calça Branca', 'G')], forma: 'Cartão de Débito' })
+    expect(g.valor).toBe(40)
+    expect(g.ajuste_valor).toBe(-80)                // 120 − 80 = 40
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Cartão de Débito', valor: 40 }])
+    expect(g.tipo_venda).toBe('troca')
+  })
+
+  it('cenário 3 — crédito MAIOR que o produto novo: saldo a favor não vira dinheiro, grava zerada', () => {
+    const g = telaTroca({ devolvido: [item('p-calca', 'Calça Branca', 'G')], novo: [item('p-saia', 'Saia Preta', 'P')] })
+    expect(g.valor).toBe(0)
+    expect(g.ajuste_valor).toBe(-120)
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Troca', valor: 0 }])
+  })
+
+  it('cenário 3 + outro produto: completa o crédito e cobra só o que passar', () => {
+    // Calça 120 devolvida; Saia 60 + Vestido 80 = 140 → cobra 20
+    const g = telaTroca({
+      devolvido: [item('p-calca', 'Calça Branca', 'G')],
+      novo: [item('p-saia', 'Saia Preta', 'P'), item('p-vest', 'Vestido Azul', 'P')],
+    })
+    expect(g.valor).toBe(20)
+    expect(g.ajuste_valor).toBe(-120)
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Pix', valor: 20 }])
+  })
+
+  it('cenário 3 + acréscimo manual: converte o saldo a favor em cobrança', () => {
+    // Calça 120 devolvida, Saia 60 nova, acréscimo 80 → cobra 20
+    const g = telaTroca({ devolvido: [item('p-calca', 'Calça Branca', 'G')], novo: [item('p-saia', 'Saia Preta', 'P')], acrescimo: '80' })
+    expect(g.valor).toBe(20)
+    expect(g.ajuste_valor).toBe(-40)                // −120 de crédito + 80 de acréscimo
+  })
+
+  it('desconto manual entra no ajuste_valor junto com o crédito', () => {
+    const g = telaTroca({ devolvido: [item('p-blusa', 'Blusa Rosa', 'M')], novo: [item('p-calca', 'Calça Branca', 'G')], desconto: '10' })
+    expect(g.valor).toBe(30)
+    expect(g.ajuste_valor).toBe(-90)
+  })
+
+  it('valor = subtotal do produto novo + ajuste_valor nos três cenários (relatórios contam com isso)', () => {
+    for (const [dev, novo] of [
+      [[item('p-blusa', 'Blusa Rosa', 'M')], [item('p-vest', 'Vestido Azul', 'P')]],
+      [[item('p-blusa', 'Blusa Rosa', 'M')], [item('p-calca', 'Calça Branca', 'G')]],
+    ]) {
+      const g = telaTroca({ devolvido: dev, novo })
+      expect(g.valor).toBeCloseTo(calcularTotalVenda(novo, cadastro) + g.ajuste_valor, 2)
+    }
+  })
+
+  it('troca sem produto devolvido não manda produto_devolvido', () => {
+    const g = telaTroca({ devolvido: [], novo: [item('p-saia', 'Saia Preta', 'P')] })
+    expect(g.produto_devolvido).toBeUndefined()
+    expect(g.valor).toBe(60)
+    expect(g.ajuste_valor).toBe(0)
+  })
+})
+
+describe('montarGravacaoVenda — venda normal (sem mudança de comportamento)', () => {
+  const pg = (forma, valor) => ({ forma, valor })
+  it('sem ajuste', () => {
+    const g = montarGravacaoVenda({
+      isTroca: false, produtos: [{ nome: 'Calça Jeans', quantidade: 1 }], produtosData,
+      valor: '120,00', pagamentos: [pg('Pix', '120,00')], ajusteTipo: 'desconto', ajusteModo: 'valor', ajusteInput: '',
+    })
+    expect(g).toEqual({ valor: 120, ajuste_valor: 0, forma_pgto: JSON.stringify([{ forma: 'Pix', valor: 120 }]), tipo_venda: 'venda', produto_devolvido: undefined })
+  })
+  it('desconto em % e acréscimo em R$', () => {
+    const base = { isTroca: false, produtos: [{ nome: 'Calça Jeans', quantidade: 1 }], produtosData, valor: '108,00', pagamentos: [pg('Pix', '100'), pg('Dinheiro', '8')] }
+    expect(montarGravacaoVenda({ ...base, ajusteTipo: 'desconto', ajusteModo: 'percentual', ajusteInput: '10' }).ajuste_valor).toBe(-12)
+    expect(montarGravacaoVenda({ ...base, ajusteTipo: 'acrescimo', ajusteModo: 'valor', ajusteInput: '5,50' }).ajuste_valor).toBe(5.5)
+    expect(JSON.parse(montarGravacaoVenda({ ...base, ajusteInput: '' }).forma_pgto)).toEqual([{ forma: 'Pix', valor: 100 }, { forma: 'Dinheiro', valor: 8 }])
+  })
+  it('venda normal com valor 0 NÃO vira forma "Troca"', () => {
+    const g = montarGravacaoVenda({ isTroca: false, produtos: [], produtosData, valor: '0', pagamentos: [pg('Pix', '0')], ajusteInput: '' })
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Pix', valor: 0 }])
+    expect(g.tipo_venda).toBe('venda')
+  })
+  it('campos vazios ou com lixo viram 0, como antes', () => {
+    const g = montarGravacaoVenda({ isTroca: false, produtos: [], produtosData, valor: '', pagamentos: [pg('Pix', ''), pg('Pix', undefined)], ajusteInput: 'abc' })
+    expect(g.valor).toBe(0)
+    expect(g.ajuste_valor).toBe(0)
+    expect(JSON.parse(g.forma_pgto)).toEqual([{ forma: 'Pix', valor: 0 }, { forma: 'Pix', valor: 0 }])
   })
 })

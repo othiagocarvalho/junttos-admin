@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { User, Phone, ShoppingBag, CreditCard, Check, Plus, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeftRight, Receipt, Search, Cake } from 'lucide-react'
 import SecaoTitulo from '../../components/studio/SecaoTitulo'
-import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca } from '../../utils/venda'
+import { calcularTotalVenda, calcularTotalComAjuste, calcularResumoTroca, calcularAjusteTroca, montarGravacaoVenda } from '../../utils/venda'
 import { fmtR } from '../../utils/formatters'
 import { contemBusca } from '../../utils/texto'
 import SelectVendedor from '../../components/vendedores/SelectVendedor'
@@ -242,45 +242,27 @@ export default function NovaVenda({ produtos, produtosData = [], addVenda, addPr
 
   async function handleSave() {
     setSaving(true)
-    const valorFinal = parseFloat(form.valor.replace(',', '.')) || 0
-    let ajusteValor
-    let pgtoPayload
-    if (isTroca) {
-      // Mantém a relação valor = subtotal + ajuste_valor que a venda normal já
-      // usa: o crédito da devolução e o ajuste manual entram no mesmo campo,
-      // sem coluna nova. O que é cobrado de fato continua sendo form.valor.
-      const ajTroca = calcularAjusteTroca(trocaDesconto, trocaAcrescimo)
-      ajusteValor = -creditoTroca + ajTroca
-      pgtoPayload = valorFinal <= 0.005
-        ? JSON.stringify([{ forma: 'Troca', valor: 0 }])
-        : JSON.stringify(form.pagamentos.map(p => ({
-            forma: p.forma,
-            valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-          })))
-    } else {
-      const ajNum = parseFloat(ajusteInput.replace(',', '.')) || 0
-      const sub = calcularTotalVenda(form.produtos, produtosData)
-      const ajusteR = ajNum === 0 ? 0 : ajusteModo === 'percentual' ? sub * (ajNum / 100) : ajNum
-      ajusteValor = ajNum === 0 ? 0 : ajusteTipo === 'desconto' ? -ajusteR : ajusteR
-      pgtoPayload = JSON.stringify(form.pagamentos.map(p => ({
-        forma: p.forma,
-        valor: parseFloat((p.valor || '0').replace(',', '.')) || 0,
-      })))
-    }
+    // valor, ajuste_valor, forma_pgto, tipo_venda e produto_devolvido — a
+    // mesma conta do desktop, num lugar só (utils/venda.js).
+    const gravacao = montarGravacaoVenda({
+      isTroca, produtos: form.produtos, produtoTroca, produtosData,
+      valor: form.valor, pagamentos: form.pagamentos,
+      ajusteTipo, ajusteModo, ajusteInput, trocaDesconto, trocaAcrescimo,
+    })
     const { error: err, venda: novaVenda, falhasEstoque: falhasVenda } = await addVenda({
       cliente_nome: form.nome || null,
       cliente_tel: form.tel || null,
-      valor: valorFinal,
-      ajuste_valor: ajusteValor,
-      forma_pgto: pgtoPayload,
+      valor: gravacao.valor,
+      ajuste_valor: gravacao.ajuste_valor,
+      forma_pgto: gravacao.forma_pgto,
       obs: form.obs || null,
       produtos: form.produtos,
       // Normaliza na gravação: o nome guardado tem de ser idêntico ao que
       // Relatorios.jsx soma, que agrupa por igualdade exata de string.
       vendedora: vendedorParaVenda(form.vendedora),
       data: new Date().toISOString(),
-      tipo_venda: isTroca ? 'troca' : 'venda',
-      produto_devolvido: isTroca && produtoTroca.length > 0 ? produtoTroca : undefined,
+      tipo_venda: gravacao.tipo_venda,
+      produto_devolvido: gravacao.produto_devolvido,
     }, {
       // Vai junto com a venda para o cliente criado/completado em
       // lf_clientes (utils/clienteVenda.js) — nunca numa segunda gravação
