@@ -4,8 +4,9 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 --
 -- Execute no Supabase Dashboard > SQL Editor. NÃO é aplicada automaticamente.
--- NÃO FOI EXECUTADA — este arquivo só foi gerado (01/10/2026). Aguardando
--- revisão do Thiago antes de rodar em produção.
+-- Aplicado manualmente em produção em 01/10/2026 — confirmado em 02/10/2026
+-- consultando pg_policies: lf_crediario com RLS ligada e exatamente as duas
+-- policies abaixo (lf_crediario_demo e lf_crediario_own_loja, cmd ALL).
 --
 -- Não depende de deploy: o código já grava e lê do jeito que as policies
 -- abaixo esperam. Pode rodar a qualquer momento.
